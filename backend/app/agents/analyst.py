@@ -18,7 +18,7 @@ from pydantic import BaseModel, Field
 from app.agents import prompts
 from app.agents.runtime import WorkflowResult, bytes_part, run_workflow
 from app.config import settings
-from app.domain import panel, rubric, taxonomy
+from app.domain import exposure, panel, rubric, taxonomy
 from app.domain.entities import (
     Analysis,
     Composition,
@@ -190,7 +190,11 @@ def facts_text(exif: Exif, video: VideoMeta | None) -> str:
         facts.append("flash fired" if exif.flash_fired else "no flash")
     if exif.make or exif.model:
         facts.append(f"camera: {exif.make} {exif.model}".strip())
-    return "\n".join(f"- {f}" for f in facts) or "- none available"
+    derived = exposure.describe(exif)
+    text = "\n".join(f"- {f}" for f in facts) or "- none available"
+    if derived:
+        text += "\nDerived (arithmetic, not opinion):\n" + "\n".join(f"- {d}" for d in derived)
+    return text
 
 
 def _shutter(seconds: float) -> str:

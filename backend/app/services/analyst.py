@@ -8,12 +8,13 @@ document twice rather than two different ones (put is a full overwrite).
 import logging
 
 from app.agents import analyst as agent
+from app.agents import crop as crop_loop
 from app.domain.entities import ShotStatus, now
 from app.imaging import canvas
 from app.imaging.overlay import render_overlay
 from app.infra import repository as repo
 from app.infra.bus import TOPICS
-from app.infra.storage import ANNOTATED, GRIDDED, ORIGINAL, SHEET, blob_path
+from app.infra.storage import ANNOTATED, CROP, GRIDDED, ORIGINAL, SHEET, blob_path
 from app.services.context import Context
 
 logger = logging.getLogger(__name__)
@@ -35,6 +36,7 @@ async def analyse(ctx: Context, message: dict) -> None:
     clean = canvas.fit_for_model(canvas.load_bytes(await ctx.blobs.read(shot.blobs[clean_key])))
     result = await agent.analyse(shot, gridded, canvas.to_jpeg_bytes(clean))
     analysis = agent.validate(shot, result)
+    await _test_crop(ctx, shot, analysis, clean, gridded)
     await repo.put_analysis(ctx.store, analysis)
 
     # A rendered copy of the composition read, on the frame the model saw
@@ -71,8 +73,43 @@ async def analyse(ctx: Context, message: dict) -> None:
             "elements": analysis.elements,
             "panel": analysis.panel,
             "dissent": analysis.dissent,
+            "crop": {
+                "tested": analysis.composition.crop_tested,
+                "kept": bool(analysis.composition.suggested_crop_cells),
+                "before": analysis.composition.crop_before,
+                "after": analysis.composition.crop_after,
+                "rounds": analysis.composition.crop_rounds,
+            },
             "moves": len(analysis.composition.moves),
         },
         shot_id=shot.id,
     )
     await ctx.bus.publish(TOPICS["media.analyzed"], {"shot_id": shot.id})
+
+
+async def _test_crop(ctx: Context, shot, analysis, clean, gridded: bytes) -> None:
+    """The Composer's crop must beat the original on the rendered image
+    (agents/crop.py). A crop that did not is cleared, so the overlay never
+    draws an untested suggestion; a failure here costs the crop, not the shot."""
+    comp = analysis.composition
+    if not comp.suggested_crop_cells or shot.kind.value == "video":
+        comp.suggested_crop_cells = []
+        return
+    try:
+        outcome = await crop_loop.refine(shot, clean, gridded, comp.suggested_crop_cells)
+    except Exception:  # noqa: BLE001 — the reading stands without a tested crop
+        logger.exception("crop loop failed for %s", shot.id)
+        comp.suggested_crop_cells = []
+        return
+    comp.crop_tested = outcome.tested
+    comp.crop_before = outcome.before
+    comp.crop_after = outcome.after
+    comp.crop_rounds = outcome.rounds
+    comp.crop_reason = outcome.reason
+    if outcome.kept and outcome.image:
+        comp.suggested_crop_cells = outcome.cells
+        shot.blobs[CROP] = await ctx.blobs.write(
+            blob_path(shot.user_id, shot.id, CROP, "jpg"), outcome.image, "image/jpeg"
+        )
+    else:
+        comp.suggested_crop_cells = []

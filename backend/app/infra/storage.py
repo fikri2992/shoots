@@ -15,6 +15,7 @@ GRIDDED = "gridded"
 SHEET = "sheet"
 THUMB = "thumb"
 ANNOTATED = "annotated"
+CROP = "crop"  # the crop that won the crop loop, as a finished frame
 CLIP = "clip"
 
 

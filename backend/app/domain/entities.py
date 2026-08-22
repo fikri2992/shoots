@@ -160,7 +160,14 @@ class Move(BaseModel):
 class Composition(BaseModel):
     subject_cells: list[str] = Field(default_factory=list)
     horizon_row: int | None = None
+    #: After the crop loop: only a crop that scored higher on the rendered
+    #: image survives here (agents/crop.py). An untested suggestion is cleared.
     suggested_crop_cells: list[str] = Field(default_factory=list)
+    crop_tested: bool = False
+    crop_before: int | None = None
+    crop_after: int | None = None
+    crop_rounds: int = 0
+    crop_reason: str = ""
     moves: list[Move] = Field(default_factory=list)
 
 
@@ -250,6 +257,8 @@ class Verdict(BaseModel):
     exif_checks: dict[str, bool] = Field(default_factory=dict)
     vision_checks: dict[str, float] = Field(default_factory=dict)
     feedback: str
+    #: The user's previous best shot for the technique the feedback compared against.
+    compared_with: str = ""
     judged_at: datetime = Field(default_factory=now)
 
 

@@ -52,8 +52,10 @@ async def run_agent[T: BaseModel](
     images: list[types.Part] | None = None,
     schema: type[T],
     user_id: str = "system",
+    state: dict[str, Any] | None = None,
 ) -> T:
     """Invoke ``agent`` with text + images, returning its structured output.
+    ``state`` seeds session state for ``{key}`` templates in the instruction.
 
     Raises ``RuntimeError`` if the agent produced no parsable final response —
     callers decide whether that is fatal or a dismissable suspect.
@@ -65,7 +67,9 @@ async def run_agent[T: BaseModel](
         # A fresh runner and session per attempt: a retry after a partial failure
         # must not inherit half-written state from the call that failed.
         runner = InMemoryRunner(agent=agent, app_name=APP_NAME)
-        session = await runner.session_service.create_session(app_name=APP_NAME, user_id=user_id)
+        session = await runner.session_service.create_session(
+            app_name=APP_NAME, user_id=user_id, state=dict(state or {})
+        )
 
         final_text: str | None = None
         async for event in runner.run_async(

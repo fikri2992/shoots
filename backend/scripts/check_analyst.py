@@ -67,6 +67,10 @@ async def main(folder: str, limit: int) -> None:
         print(
             f"  subject={c.subject_cells} horizon_row={c.horizon_row} crop={c.suggested_crop_cells}"
         )
+        if c.crop_tested:
+            kept = "kept" if c.suggested_crop_cells else "rejected"
+            print(f"  crop {kept}: {c.crop_before} -> {c.crop_after} in {c.crop_rounds} round(s)")
+            print(f"    {c.crop_reason}")
         for m in c.moves:
             print(f"  move: {m.what}: {m.from_cells} -> {m.to_cells}  ({m.reason})")
         print(f"  critique: {analysis.critique}")
