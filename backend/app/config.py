@@ -33,8 +33,12 @@ class Settings(BaseSettings):
     generate_poll_seconds: float = 5.0
     generate_timeout_seconds: float = 600.0
 
-    #: How long a voice session token stays mintable/usable, in minutes.
-    voice_token_minutes: int = 10
+    # --- Coach: Gemini Live voice review of one shot ------------------------
+    #: Live native-audio models are served from us-central1 (verified 2026-08-23).
+    live_location: str = "us-central1"
+    live_voice: str = "Kore"
+    #: A session is closed after this long; the phone can open another.
+    live_max_minutes: int = 10
 
     # --- Pipeline caps (docs/domain-model.md) -----------------------------
     #: Long edge the Analyst sees. Composition judgement does not need more.

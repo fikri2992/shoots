@@ -22,6 +22,14 @@ export default {
   patch: (path, body) => request(path, { method: 'PATCH', body: JSON.stringify(body) }),
   del: (path) => request(path, { method: 'DELETE' }),
 
+  /** A WebSocket on this origin; the session cookie rides along. Binary frames as ArrayBuffer. */
+  socket(path) {
+    const scheme = window.location.protocol === 'https:' ? 'wss' : 'ws'
+    const socket = new WebSocket(`${scheme}://${window.location.host}${path}`)
+    socket.binaryType = 'arraybuffer'
+    return socket
+  },
+
   /** Multipart upload: no JSON content type, the browser sets the boundary. */
   async postForm(path, form) {
     const response = await fetch(path, { method: 'POST', credentials: 'include', body: form })

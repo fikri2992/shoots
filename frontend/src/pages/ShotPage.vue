@@ -1,6 +1,7 @@
 <script>
 import { mapActions, mapState } from 'pinia'
 
+import CoachPanel from '@/components/CoachPanel.vue'
 import ShotCanvas from '@/components/ShotCanvas.vue'
 import StatusChip from '@/components/StatusChip.vue'
 import { useShootsStore } from '@/stores/shoots'
@@ -8,7 +9,7 @@ import { useShootsStore } from '@/stores/shoots'
 /** One shot: the frame with the composition read drawn on it, the evidence, the critique. */
 export default {
   name: 'ShotPage',
-  components: { ShotCanvas, StatusChip },
+  components: { CoachPanel, ShotCanvas, StatusChip },
   props: { shotId: { type: String, required: true } },
   data() {
     return { showGrid: false, showOverlay: true }
@@ -100,6 +101,8 @@ export default {
             </li>
           </ol>
         </div>
+
+        <CoachPanel :shot-id="shotId" />
 
         <div class="rounded-xl border border-edge bg-panel p-4">
           <h2 class="text-sm font-semibold">Evidence</h2>
