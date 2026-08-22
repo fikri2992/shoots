@@ -18,7 +18,7 @@ export const useShootsStore = defineStore('shoots', {
     shots: [], // [{ shot, analysis }]
     events: [],
     loading: false,
-    busy: '', // which action is in flight: connect | sync | issue | skip | shoot
+    busy: '', // which action is in flight: connect | sync | issue | skip | shoot | preflight
     error: '',
     timer: null,
     lastEventAt: '',
@@ -142,6 +142,16 @@ export const useShootsStore = defineStore('shoots', {
       return this.run('skip', async () => {
         await api.post(`/api/quests/${id}/skip`)
         await this.fetchAll()
+      })
+    },
+
+    /** On location: the quest's criteria on a preview, before the upload. */
+    preflight(file, questId) {
+      return this.run('preflight', async () => {
+        const form = new FormData()
+        form.append('file', file, file.name)
+        form.append('quest_id', questId)
+        return api.postForm('/drive/preflight', form)
       })
     },
 

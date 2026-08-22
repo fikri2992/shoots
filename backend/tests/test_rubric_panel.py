@@ -89,3 +89,16 @@ def test_observations_merge_dedupe_and_cap():
     result = panel.aggregate(reads)
     assert result.observations[0] == "The rider at D4 is sharp."
     assert len(result.observations) == panel.MAX_OBSERVATIONS
+
+
+def test_scrub_lens_votes_for_video_moves():
+    reads = [
+        read("technician", ("slow_motion", 0.9), elements={"technical": 6}),
+        read("composer", ("pan", 0.55), elements={"composition": 6, "lighting": 6}),
+        read("storyteller", elements={"impact": 5, "story": 5}),
+        read("scrub", ("pan", 0.8)),
+    ]
+    result = panel.aggregate(reads)
+    by_id = {t.technique_id: t for t in result.techniques}
+    assert by_id["pan"].agreement == 2 and by_id["pan"].lenses == ["composer", "scrub"]
+    assert result.quorum == 4 and "scrub" not in result.elements

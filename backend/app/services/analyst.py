@@ -9,8 +9,11 @@ import logging
 
 from app.agents import analyst as agent
 from app.agents import crop as crop_loop
-from app.domain.entities import ShotStatus, now
-from app.imaging import canvas
+from app.agents import scrub as scrub_lens
+from app.domain.entities import ShotKind, ShotStatus, now
+from app.domain.grid import Grid
+from app.imaging import canvas, video
+from app.imaging.grid_overlay import apply_grid
 from app.imaging.overlay import render_overlay
 from app.infra import repository as repo
 from app.infra.bus import TOPICS
@@ -35,6 +38,8 @@ async def analyse(ctx: Context, message: dict) -> None:
     clean_key = SHEET if SHEET in shot.blobs else ORIGINAL
     clean = canvas.fit_for_model(canvas.load_bytes(await ctx.blobs.read(shot.blobs[clean_key])))
     result = await agent.analyse(shot, gridded, canvas.to_jpeg_bytes(clean))
+    if shot.kind is ShotKind.VIDEO:
+        await _scrub(ctx, shot, result)
     analysis = agent.validate(shot, result)
     await _test_crop(ctx, shot, analysis, clean, gridded)
     await repo.put_analysis(ctx.store, analysis)
@@ -113,3 +118,31 @@ async def _test_crop(ctx: Context, shot, analysis, clean, gridded: bytes) -> Non
         )
     else:
         comp.suggested_crop_cells = []
+
+
+async def _scrub(ctx: Context, shot, result) -> None:
+    """Video: pull the two frames the Composer asked for (or two around the
+    middle), grid them like the sheet, and let the scrub lens vote. A
+    failure here costs one vote, not the reading."""
+    import time
+
+    composer = result.reads.get("composer")
+    wanted = list(getattr(composer, "scrub_seconds", []) or [])[:2]
+    duration = shot.video.duration_s if shot.video else 0.0
+    times = sorted({min(max(0.0, float(t)), max(0.0, duration - 0.05)) for t in wanted})
+    if len(times) < 2:
+        times = scrub_lens.default_times(duration)
+    try:
+        data = await ctx.blobs.read(shot.blobs[ORIGINAL])
+        started = time.monotonic()
+        frames = []
+        for t in times:
+            frame = canvas.fit_for_model(canvas.load_bytes(await video.frame_at(data, t)))
+            grid = Grid(
+                cols=shot.grid.cols, rows=shot.grid.rows, width=frame.width, height=frame.height
+            )
+            frames.append((t, canvas.to_png_bytes(apply_grid(frame, grid))))
+        result.reads["scrub"] = await scrub_lens.read(shot, frames)
+        result.latency["scrub"] = time.monotonic() - started
+    except Exception:  # noqa: BLE001 — the three-lens reading stands
+        logger.exception("scrub lens failed for %s", shot.id)

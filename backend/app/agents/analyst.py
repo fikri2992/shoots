@@ -89,6 +89,8 @@ class TechnicianOut(LensOut):
 class ComposerOut(LensOut):
     elements: ComposerElements
     composition: CompositionOut = Field(default_factory=CompositionOut)
+    #: Video only: up to two timestamps whose exact frames would settle a camera move.
+    scrub_seconds: list[float] = Field(default_factory=list)
 
 
 class StorytellerOut(LensOut):
@@ -148,7 +150,7 @@ def analyst_agent() -> SequentialAgent:
             ParallelAgent(
                 name="panel",
                 description="Technician, Composer and Storyteller read the shot concurrently.",
-                sub_agents=[lens_agent(lens) for lens in panel.LENSES],
+                sub_agents=[lens_agent(lens) for lens in panel.PANEL],
             ),
             synthesizer_agent(),
         ],
@@ -232,11 +234,11 @@ async def analyse(shot: Shot, gridded_png: bytes, clean_jpeg: bytes) -> PanelRes
         prompt=prompt_for(shot),
         images=[bytes_part(gridded_png, "image/png"), bytes_part(clean_jpeg, "image/jpeg")],
         state=state_for(shot),
-        outputs={**{lens: SCHEMAS[lens] for lens in panel.LENSES}, "synthesis": SynthesisOut},
+        outputs={**{lens: SCHEMAS[lens] for lens in panel.PANEL}, "synthesis": SynthesisOut},
         user_id=shot.user_id,
         timeout=settings.panel_timeout_seconds,
     )
-    reads = {lens: result.outputs[lens] for lens in panel.LENSES if lens in result.outputs}
+    reads = {lens: result.outputs[lens] for lens in panel.PANEL if lens in result.outputs}
     if len(reads) < settings.panel_quorum:
         raise RuntimeError(
             f"analyst panel quorum not met: {sorted(reads)} answered "
@@ -245,7 +247,7 @@ async def analyse(shot: Shot, gridded_png: bytes, clean_jpeg: bytes) -> PanelRes
     return PanelResult(
         reads=reads,
         synthesis=result.outputs.get("synthesis"),
-        latency={k: v for k, v in result.latency.items() if k in panel.LENSES},
+        latency={k: v for k, v in result.latency.items() if k in panel.PANEL},
     )
 
 

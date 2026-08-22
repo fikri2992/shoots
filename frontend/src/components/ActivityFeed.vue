@@ -51,6 +51,8 @@ export default {
           return (d.changes || []).map((c) => `${c.technique_id.replace(/_/g, ' ')}: ${c.from} → ${c.to}`).join(' · ')
         case 'judge.passed':
           return `passed ${d.technique_id?.replace(/_/g, ' ')}`
+        case 'judge.preflight':
+          return d.ready ? `pre-flight: ready to send · ${d.say}` : `pre-flight: shoot again · ${d.say}`
         case 'judge.not_passed':
           return `not passed: ${this.checks(d)}`
         case 'scout.issued':

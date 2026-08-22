@@ -26,7 +26,11 @@ from app.domain.taxonomy import Family
 TECHNICIAN = "technician"
 COMPOSER = "composer"
 STORYTELLER = "storyteller"
-LENSES: tuple[str, ...] = (TECHNICIAN, COMPOSER, STORYTELLER)
+#: Video only: two exact frames compared (agents/scrub.py). Votes, rates nothing.
+SCRUB = "scrub"
+LENSES: tuple[str, ...] = (TECHNICIAN, COMPOSER, STORYTELLER, SCRUB)
+#: The lenses that always run; the scrub joins for video.
+PANEL: tuple[str, ...] = (TECHNICIAN, COMPOSER, STORYTELLER)
 
 #: Which lens's word counts alone (with high confidence) for a family.
 OWNER_BY_FAMILY: dict[Family, str] = {
@@ -45,6 +49,7 @@ LENS_ELEMENTS: dict[str, tuple[str, ...]] = {
     TECHNICIAN: ("technical",),
     COMPOSER: ("composition", "lighting"),
     STORYTELLER: ("impact", "story"),
+    SCRUB: (),
 }
 
 MAX_OBSERVATIONS = 12

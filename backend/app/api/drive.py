@@ -15,10 +15,13 @@ from pathlib import Path
 from fastapi import APIRouter, Depends, File, Form, Header, HTTPException, Request, UploadFile
 from pydantic import BaseModel
 
+from app.agents import preflight as preflight_agent
 from app.api.auth import current_user
 from app.api.deps import get_context
 from app.config import settings
+from app.domain import taxonomy
 from app.domain.entities import User
+from app.imaging import canvas
 from app.infra import repository as repo
 from app.infra.bus import TOPICS
 from app.infra.drive import DriveFile, UserDrive, user_credentials
@@ -209,6 +212,66 @@ async def shoot(
         )
         await ctx.bus.publish(TOPICS["media.new"], {"shot_id": shot_id})
     return ShootResponse(shot_id=shot_id, drive_file_id=drive_file.id, quest_id=quest_id)
+
+
+class PreflightCheck(BaseModel):
+    criterion: str
+    met: bool
+    fix: str = ""
+
+
+class PreflightResponse(BaseModel):
+    ready: bool
+    say: str
+    checks: list[PreflightCheck]
+    seconds: float
+
+
+@router.post("/preflight", response_model=PreflightResponse)
+async def preflight(
+    file: UploadFile = File(...),
+    quest_id: str = Form(...),
+    session_user: dict = Depends(current_user),
+    ctx: Context = Depends(get_context),
+):
+    """On location, before upload: the quest's criteria checked on a preview
+    in a few seconds, so a miss is reshot now rather than judged later."""
+    import time
+
+    user = await _load_user(ctx, session_user)
+    quest = await repo.get_quest(ctx.store, quest_id)
+    if quest.user_id != user.id:
+        raise HTTPException(404, "quest not found")
+    if not (file.content_type or "").startswith("image/"):
+        raise HTTPException(415, "photos only; videos go straight to the pipeline")
+    data = await file.read()
+    if len(data) > MAX_UPLOAD_BYTES:
+        raise HTTPException(413, "file too large")
+    preview = canvas.fit_for_model(canvas.load_bytes(data), preflight_agent.PREVIEW_EDGE)
+    started = time.monotonic()
+    out = await preflight_agent.check(
+        quest, taxonomy.get(quest.technique_id), canvas.to_jpeg_bytes(preview, quality=80)
+    )
+    seconds = round(time.monotonic() - started, 1)
+    await repo.record(
+        ctx.store,
+        user.id,
+        "judge",
+        "preflight",
+        {
+            "ready": out.ready,
+            "say": out.say,
+            "unmet": [c.criterion for c in out.checks if not c.met],
+            "seconds": seconds,
+        },
+        quest_id=quest.id,
+    )
+    return PreflightResponse(
+        ready=out.ready,
+        say=out.say,
+        checks=[PreflightCheck(criterion=c.criterion, met=c.met, fix=c.fix) for c in out.checks],
+        seconds=seconds,
+    )
 
 
 def _now():
