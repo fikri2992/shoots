@@ -29,7 +29,7 @@ Handler = Callable[[Message], Awaitable[None]]
 
 @runtime_checkable
 class Bus(Protocol):
-    def subscribe(self, topic: str, handler: Handler) -> None: ...
+    def subscribe(self, topic: str, handler: Handler, stage: str = "") -> None: ...
 
     async def publish(self, topic: str, message: Message) -> None: ...
 
@@ -45,7 +45,7 @@ class InProcessBus:
         self._handlers: dict[str, list[Handler]] = {}
         self._tasks: set[asyncio.Task] = set()
 
-    def subscribe(self, topic: str, handler: Handler) -> None:
+    def subscribe(self, topic: str, handler: Handler, stage: str = "") -> None:
         self._handlers.setdefault(topic, []).append(handler)
 
     async def publish(self, topic: str, message: Message) -> None:
@@ -66,21 +66,27 @@ class InProcessBus:
 
 
 class PubSubBus:
-    """Publish side only. Delivery is Pub/Sub push → ``api/pubsub.py`` → the
-    handler registered here under the topic name."""
+    """Publish side only. Delivery is Pub/Sub push → ``api/pubsub.py`` →
+    ``deliver(stage)``. Each stage has its own push subscription on its topic
+    (infra/topics.sh), so two stages on one topic (cartographer and judge on
+    ``media.analyzed``) are delivered, retried and dead-lettered separately."""
 
     def __init__(self, project: str | None = None, client: Any = None):
-        from google.cloud import pubsub_v1
-
         self._project = project or settings.gcp_project
-        self._client = client or pubsub_v1.PublisherClient()
-        self._handlers: dict[str, list[Handler]] = {}
+        if client is None:
+            from google.cloud import pubsub_v1
 
-    def subscribe(self, topic: str, handler: Handler) -> None:
-        self._handlers.setdefault(topic, []).append(handler)
+            client = pubsub_v1.PublisherClient()
+        self._client = client
+        self._stages: dict[str, tuple[str, Handler]] = {}
 
-    def handlers(self, topic: str) -> list[Handler]:
-        return list(self._handlers.get(topic, []))
+    def subscribe(self, topic: str, handler: Handler, stage: str = "") -> None:
+        if not stage:
+            raise ValueError("PubSubBus subscriptions need a stage name")
+        self._stages[stage] = (topic, handler)
+
+    def stages(self) -> list[str]:
+        return list(self._stages)
 
     async def publish(self, topic: str, message: Message) -> None:
         path = self._client.topic_path(self._project, topic)
@@ -88,11 +94,11 @@ class PubSubBus:
         future = self._client.publish(path, data)
         await asyncio.to_thread(future.result, 30)
 
-    async def deliver(self, topic: str, message: Message) -> None:
-        """Called by the push endpoint. Runs every handler inline so a failure
+    async def deliver(self, stage: str, message: Message) -> None:
+        """Called by the push endpoint. Runs the stage inline so a failure
         surfaces as a non-2xx and Pub/Sub retries, then dead-letters."""
-        for handler in self._handlers.get(topic, []):
-            await handler(message)
+        _, handler = self._stages[stage]
+        await handler(message)
 
 
 #: Topic names as the code refers to them; config maps them to real names.

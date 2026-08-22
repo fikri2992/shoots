@@ -16,12 +16,14 @@ import asyncio
 import hashlib
 import io
 import mimetypes
+import time
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any, Protocol, runtime_checkable
 
 from app.config import settings
+from app.domain.entities import DriveChannel
 
 FOLDER_MIME = "application/vnd.google-apps.folder"
 READ_SCOPES = ["https://www.googleapis.com/auth/drive.readonly"]
@@ -48,6 +50,12 @@ class DriveClient(Protocol):
     async def list_media(self, folder_id: str) -> list[DriveFile]: ...
 
     async def download(self, file_id: str) -> bytes: ...
+
+    async def watch(
+        self, folder_id: str, channel_id: str, address: str, token: str, hours: int
+    ) -> DriveChannel | None: ...
+
+    async def stop(self, channel_id: str, resource_id: str) -> None: ...
 
 
 # --- local -----------------------------------------------------------------
@@ -93,6 +101,14 @@ class LocalDriveClient:
         if path is None:
             raise FileNotFoundError(file_id)
         return path.read_bytes()
+
+    async def watch(
+        self, folder_id: str, channel_id: str, address: str, token: str, hours: int
+    ) -> DriveChannel | None:
+        return None  # a directory does not call back; /tasks/sync polls it
+
+    async def stop(self, channel_id: str, resource_id: str) -> None:
+        return None
 
 
 # --- google ----------------------------------------------------------------
@@ -188,6 +204,45 @@ class GoogleDriveClient:
             return buffer.getvalue()
 
         return await asyncio.to_thread(run)
+
+    async def watch(
+        self, folder_id: str, channel_id: str, address: str, token: str, hours: int
+    ) -> DriveChannel | None:
+        """Ask Drive to POST to ``address`` when the folder's children change.
+
+        Drive caps a files.watch channel at one day; the caller renews."""
+
+        def run() -> DriveChannel:
+            expiration_ms = int((time.time() + hours * 3600) * 1000)
+            body = {
+                "id": channel_id,
+                "type": "web_hook",
+                "address": address,
+                "token": token,
+                "expiration": str(expiration_ms),
+            }
+            resp = (
+                self._svc()
+                .files()
+                .watch(fileId=folder_id, body=body, supportsAllDrives=True)
+                .execute()
+            )
+            expires_ms = int(resp.get("expiration", expiration_ms))
+            return DriveChannel(
+                channel_id=resp.get("id", channel_id),
+                resource_id=resp["resourceId"],
+                expires_at=datetime.fromtimestamp(expires_ms / 1000, tz=UTC),
+            )
+
+        return await asyncio.to_thread(run)
+
+    async def stop(self, channel_id: str, resource_id: str) -> None:
+        def run() -> None:
+            self._svc().channels().stop(
+                body={"id": channel_id, "resourceId": resource_id}
+            ).execute()
+
+        await asyncio.to_thread(run)
 
 
 class UserDrive:

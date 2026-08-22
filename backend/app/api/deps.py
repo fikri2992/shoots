@@ -51,16 +51,16 @@ def wire(ctx: Context) -> None:
     async def on_quest_closed(message: dict) -> None:
         await scout.on_quest_closed(ctx, message)
 
-    ctx.bus.subscribe(TOPICS["media.new"], on_media_new)
-    ctx.bus.subscribe(TOPICS["media.ingested"], on_media_ingested)
-    ctx.bus.subscribe(TOPICS["media.analyzed"], on_media_analyzed)
-    ctx.bus.subscribe(TOPICS["media.analyzed"], on_media_analyzed_judge)
-
     async def on_quest_issued(message: dict) -> None:
         await director.direct(ctx, message)
 
-    ctx.bus.subscribe(TOPICS["quest.closed"], on_quest_closed)
-    ctx.bus.subscribe(TOPICS["quest.issued"], on_quest_issued)
+    # Stage names match the push subscriptions in infra/topics.sh.
+    ctx.bus.subscribe(TOPICS["media.new"], on_media_new, stage="ingest")
+    ctx.bus.subscribe(TOPICS["media.ingested"], on_media_ingested, stage="analyst")
+    ctx.bus.subscribe(TOPICS["media.analyzed"], on_media_analyzed, stage="cartographer")
+    ctx.bus.subscribe(TOPICS["media.analyzed"], on_media_analyzed_judge, stage="judge")
+    ctx.bus.subscribe(TOPICS["quest.closed"], on_quest_closed, stage="scout")
+    ctx.bus.subscribe(TOPICS["quest.issued"], on_quest_issued, stage="director")
 
 
 context = build_context()

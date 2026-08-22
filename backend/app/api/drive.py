@@ -22,7 +22,7 @@ from app.domain.entities import User
 from app.infra import repository as repo
 from app.infra.bus import TOPICS
 from app.infra.drive import DriveFile, UserDrive, user_credentials
-from app.services import ingest
+from app.services import ingest, watch
 from app.services.context import Context
 
 logger = logging.getLogger(__name__)
@@ -100,6 +100,10 @@ async def connect(session_user: dict = Depends(current_user), ctx: Context = Dep
         "connected",
         {"folder_id": folder_id, "shared_with": settings.drive_service_account},
     )
+    try:
+        await watch.ensure(ctx, user)
+    except Exception:  # polling still covers the folder; the daily tick retries
+        logger.exception("could not open a Drive channel for %s", user.id)
     return ConnectResponse(
         folder_id=folder_id,
         folder_url=_folder_url(folder_id),
@@ -122,17 +126,20 @@ async def notify(
     request: Request,
     ctx: Context = Depends(get_context),
     channel_token: str | None = Header(default=None, alias="X-Goog-Channel-Token"),
+    channel_id: str | None = Header(default=None, alias="X-Goog-Channel-ID"),
     resource_state: str | None = Header(default=None, alias="X-Goog-Resource-State"),
 ):
-    """Drive push notification. The channel token is the user id we set when
-    the channel was opened; ``sync`` is the only thing we do with it."""
+    """Drive push notification (services/watch.py). The channel token is the
+    user id we set when the channel was opened and the channel id must be the
+    one we hold, so a stale or forged channel cannot make us do anything; and
+    all it could make us do is list the folder."""
     if resource_state == "sync":
         return None  # the hello message Drive sends when a channel opens
     if not channel_token:
         raise HTTPException(400, "missing channel token")
     user = await repo.find_user(ctx.store, channel_token)
-    if user is None:
-        logger.warning("drive notify for unknown user token")
+    if user is None or not user.drive_channel or user.drive_channel.channel_id != channel_id:
+        logger.warning("drive notify for unknown user or channel")
         return None
     await ingest.sync(ctx, user)
     return None

@@ -15,7 +15,7 @@ from app.config import settings
 from app.domain import skills as skill_rules
 from app.domain.entities import now
 from app.infra import repository as repo
-from app.services import ingest, scout
+from app.services import ingest, scout, watch
 from app.services.context import Context
 
 logger = logging.getLogger(__name__)
@@ -56,6 +56,7 @@ async def daily(
                 report.decayed += 1
             if await scout.issue(ctx, user.id):
                 report.issued += 1
+            await watch.ensure(ctx, user)
         except Exception as error:  # one user's failure must not stop the tick
             logger.exception("daily tick failed for %s", user.id)
             report.errors.append(f"{user.id}: {type(error).__name__}: {error}"[:200])
@@ -63,6 +64,16 @@ async def daily(
         ctx.store, "system", "scheduler", "daily", report.model_dump()
     ) if report.users else None
     return report
+
+
+@router.post("/renew-channels")
+async def renew_channels(
+    x_tasks_token: str | None = Header(default=None), ctx: Context = Depends(get_context)
+):
+    """Re-open Drive push channels near expiry. Scheduled twice a day; Drive
+    caps a channel at one day."""
+    _authorised(x_tasks_token)
+    return {"renewed": await watch.renew_all(ctx)}
 
 
 @router.post("/sync")
