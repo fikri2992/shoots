@@ -6,7 +6,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from starlette.middleware.sessions import SessionMiddleware
 
-from app.api import auth, deps, drive, shots
+from app.api import auth, deps, drive, quests, shots
 from app.config import settings
 
 logger = logging.getLogger("app.api")
@@ -37,6 +37,7 @@ async def unhandled(request: Request, exc: Exception) -> JSONResponse:
 app.include_router(auth.router)
 app.include_router(drive.router)
 app.include_router(shots.router)
+app.include_router(quests.router)
 
 
 def mount_frontend(application: FastAPI, dist: "Path | None" = None) -> bool:
