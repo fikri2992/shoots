@@ -49,4 +49,26 @@ The suite uses real files, real ffmpeg and real stores, never a mocked model. Th
 
 ## Deploy
 
-See `infra/`. Architecture diagram and Cloud Run proof: TODO (day 7).
+One Cloud Run service in `asia-southeast2`, running as the `shoots-ingest` service account, with Firestore, a GCS bucket, Secret Manager, Pub/Sub push subscriptions (one per stage, each with a dead-letter topic) and three Cloud Scheduler jobs. The image is built on Cloud Build; no local Docker needed.
+
+```bash
+./infra/enable-apis.sh
+```
+
+```bash
+ENV_FILE=backend/.env ./infra/state.sh
+```
+
+```bash
+./infra/deploy.sh
+```
+
+```bash
+PUBSUB_PUSH_BASE_URL=https://shoots-<project-number>.asia-southeast2.run.app PUBSUB_PUSH_SA=shoots-ingest@<project>.iam.gserviceaccount.com ./infra/topics.sh
+```
+
+```bash
+./infra/scheduler.sh
+```
+
+Then add `<service url>/auth/callback` to the OAuth client's redirect URIs. `deploy.sh` prints the URL; it is deterministic from the project number, so the env vars that need it are right on the first deploy.
