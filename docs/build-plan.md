@@ -78,3 +78,11 @@
 - Cut Lyria: Veo 3.1 generates its own ambient audio (`generate_audio=True`); the mux step and the music model are gone.
 - Judge now publishes `media.judged` on every shot so the Scribe runs after it; stage order is deterministic, no fan-out race for the verdict.
 - `scripts/call_as_user.py` calls the running dev server with a minted session cookie, for demos and checks that must not touch `store.json` while the server is up.
+
+## Day 7d notes (2026-08-23), expert grounding
+
+- Researched before changing anything: PPA's 12 Elements (judging standard, 100-point bands), Feldman's critique order, published setting guidance per technique, PoLL/LLM-judge panel literature (diverse panels beat one judge; same-model panels share errors), ADK workflow agents. Written up in `docs/technique-evidence.md`.
+- Analyst is now a panel: ADK `SequentialAgent[ParallelAgent[technician, composer, storyteller] → synthesizer]`, ~20 s wall clock (lenses run concurrently), four model calls per frame. Evidence by vote (`domain/panel.py`), elements averaged per owning lens, overall computed by `domain/rubric.py`. Real run on a phone frame: backlight seen by all three, wide angle by the Technician alone at 0.90 (owner rule), all five elements scored, overall 5 "average" for a snapshot, which is honest.
+- Two Gemini structured-output gotchas: a `dict[str, int]` field is never filled (no additionalProperties in the response schema), and optional fields get skipped; element scores are required ints per lens.
+- Bounds corrected from sources: freeze 1/500, panning 1/125–1/8, long exposure 0.5 s.
+- Frontend shows the five element bars and ●●○ agreement per technique; the feed says "(2 of 3)"; the Scribe's caption carries the element line.

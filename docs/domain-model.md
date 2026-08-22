@@ -92,7 +92,7 @@ Drive folder changes                       (watch)
 
 | Ingest | `media.new` | Drive file | Shot, blobs | none (ffmpeg, Pillow) |
 
-| Analyst | `media.ingested` | gridded frame or contact sheet, EXIF | Analysis | gemini-3.7-flash |
+| Analyst | `media.ingested` | gridded frame, clean frame, EXIF | Analysis: voted evidence, rubric elements, computed score, observations, critique | gemini-3.7-flash × 4: a ParallelAgent of three lenses (Technician, Composer, Storyteller) then a Synthesizer, in a SequentialAgent |
 
 | Cartographer | `media.analyzed` | Analysis, SkillStates | SkillStates | none (pure) |
 
@@ -151,4 +151,6 @@ Cartographer and Judge pass/fail are pure code. That is deliberate: the skill gr
 16. **The Scout decides when, not just what.** Each technique has a light window (`taxonomy.LIGHT`); the user's location is the GPS of their own newest frame, never asked for. The quest is stored at issue time with `deliver_at` and a reason ("fifty minutes before sunset where you last shot"); the push goes out on the five-minute tick when that moment comes. Solar times are NOAA's equations in `domain/sun.py`, UTC throughout; the phone formats them.
 
 17. **Talking to the Coach is how the user steers the planner.** There is no settings form. After a voice session the Listener extracts standing facts ("no tripod", "shoots at lunch near the office") into `User.constraints`; the Scout's ranking drops techniques whose `taxonomy.NEEDS` gear is missing and its brief is written inside the notes. The Coach is briefed with the same facts so it never asks twice.
+
+18. **A frame is read by a panel, scored by a rubric, decided by code.** The Analyst is an ADK `SequentialAgent`: a `ParallelAgent` runs three lenses that differ in instruction *and* input (Technician: EXIF + gridded frame; Composer: gridded frame only; Storyteller: clean frame only), then a Synthesizer writes the critique from their readings. What the frame shows is a vote in `domain/panel.py`: two lenses, or the owning lens at ≥ 0.75; confidence is the mean over those who agreed, and the agreement count travels with the evidence to the Judge, the feed and the phone. Each lens reads in Feldman's order (describe by cell, analyse, interpret, judge last) and rates only its own elements of a rubric derived from PPA's *12 Elements of a Merit Image* against anchored descriptors; the overall score is the rubric's weighted mean computed in code. A panel below quorum is not a reading; the stage retries. Sources and the reasoning are in `docs/technique-evidence.md`, as are the citations behind every EXIF bound.
 
