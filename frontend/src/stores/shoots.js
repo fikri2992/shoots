@@ -22,6 +22,7 @@ export const useShootsStore = defineStore('shoots', {
     error: '',
     timer: null,
     lastEventAt: '',
+    push: 'unknown', // unknown | unsupported | off | on | denied
   }),
 
   getters: {
@@ -155,6 +156,37 @@ export const useShootsStore = defineStore('shoots', {
       })
     },
 
+    /** Where push stands on this device, without prompting. */
+    async checkPush() {
+      if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
+        this.push = 'unsupported'
+        return
+      }
+      if (Notification.permission === 'denied') {
+        this.push = 'denied'
+        return
+      }
+      const registration = await navigator.serviceWorker.getRegistration()
+      const existing = await registration?.pushManager.getSubscription()
+      this.push = existing ? 'on' : 'off'
+    },
+
+    /** Must run from a tap: the browser shows the permission prompt. */
+    enablePush() {
+      return this.run('push', async () => {
+        const { key, enabled } = await api.get('/api/push/key')
+        if (!enabled) throw new Error('Push is not configured on the server')
+        const registration = await navigator.serviceWorker.ready
+        const subscription = await registration.pushManager.subscribe({
+          userVisibleOnly: true,
+          applicationServerKey: urlBase64ToUint8Array(key),
+        })
+        await api.post('/api/push/subscribe', subscription.toJSON())
+        this.push = 'on'
+        await api.post('/api/push/test')
+      })
+    },
+
     async fetchShot(id) {
       const view = await api.get(`/api/shots/${id}`)
       const index = this.shots.findIndex((v) => v.shot.id === id)
@@ -164,6 +196,12 @@ export const useShootsStore = defineStore('shoots', {
     },
   },
 })
+
+function urlBase64ToUint8Array(base64) {
+  const padding = '='.repeat((4 - (base64.length % 4)) % 4)
+  const raw = atob((base64 + padding).replace(/-/g, '+').replace(/_/g, '/'))
+  return Uint8Array.from(raw, (c) => c.charCodeAt(0))
+}
 
 if (import.meta.hot) {
   import.meta.hot.accept(acceptHMRUpdate(useShootsStore, import.meta.hot))

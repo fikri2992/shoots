@@ -14,6 +14,7 @@ from app.domain import scout as rules
 from app.domain import skills as skill_rules
 from app.domain.entities import Quest, QuestStatus, new_id, now
 from app.infra import repository as repo
+from app.services import notify
 from app.services.context import Context
 
 logger = logging.getLogger(__name__)
@@ -76,6 +77,7 @@ async def issue(ctx: Context, user_id: str, force: bool = False) -> Quest | None
         },
         quest_id=quest.id,
     )
+    await notify.quest_issued(ctx, quest)
     return quest
 
 

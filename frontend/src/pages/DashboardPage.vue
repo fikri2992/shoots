@@ -14,13 +14,16 @@ export default {
   name: 'DashboardPage',
   components: { ActivityFeed, QuestCard, SkillMap },
   computed: {
-    ...mapState(useShootsStore, ['quest', 'quests', 'connected', 'busy', 'error', 'loading', 'me']),
+    ...mapState(useShootsStore, ['quest', 'quests', 'connected', 'busy', 'error', 'loading', 'me', 'push']),
     recentClosed() {
       return this.quests.filter((q) => q.status !== 'open').slice(0, 3)
     },
   },
   methods: {
-    ...mapActions(useShootsStore, ['connect', 'sync', 'issueQuest']),
+    ...mapActions(useShootsStore, ['connect', 'sync', 'issueQuest', 'enablePush', 'checkPush']),
+  },
+  created() {
+    this.checkPush()
   },
 }
 </script>
@@ -72,13 +75,26 @@ export default {
       </div>
 
       <div class="space-y-4 md:col-span-2">
-        <div v-if="connected" class="flex items-center justify-between rounded-xl border border-edge bg-panel px-4 py-3 text-sm">
+        <div v-if="connected" class="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-edge bg-panel px-4 py-3 text-sm">
           <a :href="`https://drive.google.com/drive/folders/${me.drive_folder_id}`" target="_blank" rel="noopener" class="text-neutral-300 hover:text-neutral-100">
             Open Drive folder
           </a>
-          <button type="button" class="text-neutral-400 hover:text-neutral-100 disabled:opacity-50" :disabled="busy === 'sync'" @click="sync">
-            {{ busy === 'sync' ? 'Syncing…' : 'Sync now' }}
-          </button>
+          <div class="flex items-center gap-3">
+            <button
+              v-if="push === 'off'"
+              type="button"
+              class="text-neutral-400 hover:text-neutral-100 disabled:opacity-50"
+              :disabled="busy === 'push'"
+              @click="enablePush"
+            >
+              {{ busy === 'push' ? 'Enabling…' : 'Enable notifications' }}
+            </button>
+            <span v-else-if="push === 'on'" class="text-[11px] text-emerald-400">notifications on</span>
+            <span v-else-if="push === 'denied'" class="text-[11px] text-neutral-600">notifications blocked</span>
+            <button type="button" class="text-neutral-400 hover:text-neutral-100 disabled:opacity-50" :disabled="busy === 'sync'" @click="sync">
+              {{ busy === 'sync' ? 'Syncing…' : 'Sync now' }}
+            </button>
+          </div>
         </div>
         <RouterLink :to="{ name: 'map' }" class="block"><SkillMap summary /></RouterLink>
         <ActivityFeed :limit="12" />

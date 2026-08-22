@@ -13,6 +13,7 @@ from app.domain import judge as rules
 from app.domain.entities import QuestStatus, Verdict, now
 from app.infra import repository as repo
 from app.infra.bus import TOPICS
+from app.services import notify
 from app.services.context import Context
 
 logger = logging.getLogger(__name__)
@@ -76,6 +77,7 @@ async def judge(ctx: Context, message: dict) -> None:
         shot_id=shot.id,
         quest_id=quest.id,
     )
+    await notify.verdict_given(ctx, quest, verdict)
     if passed:
         await ctx.bus.publish(
             TOPICS["quest.closed"], {"user_id": shot.user_id, "quest_id": quest.id}

@@ -80,6 +80,12 @@ class Settings(BaseSettings):
     #: Pub/Sub push requests carry an OIDC token for this service account.
     pubsub_push_audience: str = ""
 
+    # --- Web Push (decision 12) -------------------------------------------
+    #: VAPID keys, base64url. Generate once; the public key ships to the PWA.
+    vapid_public_key: str = ""
+    vapid_private_key: str = ""
+    vapid_subject: str = "mailto:your-contact@example.com"
+
     # --- Scheduled tasks --------------------------------------------------
     #: Shared secret Cloud Scheduler sends as X-Tasks-Token. Empty disables /tasks.
     tasks_token: str = ""
