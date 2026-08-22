@@ -80,6 +80,10 @@ class Settings(BaseSettings):
     #: Pub/Sub push requests carry an OIDC token for this service account.
     pubsub_push_audience: str = ""
 
+    # --- Scheduled tasks --------------------------------------------------
+    #: Shared secret Cloud Scheduler sends as X-Tasks-Token. Empty disables /tasks.
+    tasks_token: str = ""
+
     # --- Google Drive -----------------------------------------------------
     #: Name of the folder the app creates in the user's Drive on Connect.
     drive_folder_name: str = "Shoots"

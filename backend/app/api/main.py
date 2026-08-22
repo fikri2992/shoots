@@ -6,7 +6,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from starlette.middleware.sessions import SessionMiddleware
 
-from app.api import auth, deps, drive, quests, shots
+from app.api import auth, deps, drive, quests, shots, tasks
 from app.config import settings
 
 logger = logging.getLogger("app.api")
@@ -38,6 +38,7 @@ app.include_router(auth.router)
 app.include_router(drive.router)
 app.include_router(shots.router)
 app.include_router(quests.router)
+app.include_router(tasks.router)
 
 
 def mount_frontend(application: FastAPI, dist: "Path | None" = None) -> bool:
@@ -60,7 +61,7 @@ def mount_frontend(application: FastAPI, dist: "Path | None" = None) -> bool:
 
     @application.get("/{path:path}", include_in_schema=False)
     async def spa(path: str):
-        if path.startswith(("api/", "auth/", "drive/", "pubsub/")):
+        if path.startswith(("api/", "auth/", "drive/", "pubsub/", "tasks/")):
             raise HTTPException(404, "not found")
         candidate = (dist / path).resolve()
         if path and candidate.is_file() and candidate.is_relative_to(dist):

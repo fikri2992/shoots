@@ -208,7 +208,6 @@ class Reference(BaseModel):
 class QuestStatus(StrEnum):
     OPEN = "open"
     PASSED = "passed"
-    FAILED = "failed"  # submitted, criteria not met; re-issued next day
     SKIPPED = "skipped"  # the human gate: user declined it
     EXPIRED = "expired"
 
