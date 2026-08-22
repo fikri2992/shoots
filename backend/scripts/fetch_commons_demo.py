@@ -95,7 +95,11 @@ def main() -> None:
                 target.write_bytes(r.read())
             target.with_suffix(".json").write_text(json.dumps(c, indent=2))
             total += 1
-            print(f"  {target.name}  {c['size']//1000} KB  {c['exposure']}s f/{c['fnumber']} ISO {c['iso']}  [{c['license']}]", flush=True)
+            settings_text = f"{c['exposure']}s f/{c['fnumber']} ISO {c['iso']}"
+            print(
+                f"  {target.name}  {c['size'] // 1000} KB  {settings_text}  [{c['license']}]",
+                flush=True,
+            )
     print(f"downloaded {total} files to {OUT}")
 
 

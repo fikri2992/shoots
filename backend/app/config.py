@@ -62,6 +62,10 @@ class Settings(BaseSettings):
     gcs_bucket: str = ""
     firestore_database: str = "(default)"
     use_vertex_ai: bool = False
+    #: Firestore + Secret Manager instead of the in-memory store and local token
+    #: files. Separate from ``gcp_project`` so local dev can use Vertex (needs the
+    #: project) while keeping state on disk.
+    cloud_state: bool = False
 
     # --- Pub/Sub (infra/topics.sh creates these) ---------------------------
     topic_media_new: str = "shoots.media.new"
@@ -75,6 +79,13 @@ class Settings(BaseSettings):
     pubsub_push_audience: str = ""
 
     # --- Google Drive -----------------------------------------------------
+    #: Name of the folder the app creates in the user's Drive on Connect.
+    drive_folder_name: str = "Shoots"
+    #: Set to a directory to use it as the Drive folder instead of Google.
+    #: Local dev and tests: the whole pipeline runs with no Google at all.
+    drive_local_folder: str = ""
+    #: Where LocalBlobStore keeps files.
+    blob_root: str = "./.blobs"
     #: Webhook Drive calls when the watched folder changes.
     drive_webhook_url: str = "http://localhost:8000/drive/notify"
     #: Watch channels expire; the Scheduler renews them this often (hours).
@@ -99,7 +110,7 @@ class Settings(BaseSettings):
 
     @property
     def dev_login_allowed(self) -> bool:
-        return self.allow_dev_login and not self.gcp_project and not self.gcs_bucket
+        return self.allow_dev_login and not self.cloud_state and not self.gcs_bucket
 
     @property
     def in_process_pipeline(self) -> bool:

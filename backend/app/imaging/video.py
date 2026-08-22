@@ -32,6 +32,8 @@ class VideoInfo:
     width: int
     height: int
     duration: float
+    fps: float | None = None
+    codec: str = ""
 
 
 @dataclass
@@ -61,9 +63,18 @@ async def probe(data: bytes) -> VideoInfo:
         path = handle.name
     try:
         out, _ = await _run(
-            "ffprobe", "-v", "error", "-select_streams", "v:0",
-            "-show_entries", "stream=width,height", "-show_entries", "format=duration",
-            "-of", "json", path,
+            "ffprobe",
+            "-v",
+            "error",
+            "-select_streams",
+            "v:0",
+            "-show_entries",
+            "stream=width,height,r_frame_rate,codec_name",
+            "-show_entries",
+            "format=duration",
+            "-of",
+            "json",
+            path,
         )
         document = json.loads(out)
         stream = document["streams"][0]
@@ -71,9 +82,22 @@ async def probe(data: bytes) -> VideoInfo:
             width=int(stream["width"]),
             height=int(stream["height"]),
             duration=float(document["format"]["duration"]),
+            fps=_fps(stream.get("r_frame_rate")),
+            codec=stream.get("codec_name", ""),
         )
     finally:
         Path(path).unlink(missing_ok=True)
+
+
+def _fps(rate: str | None) -> float | None:
+    """ffprobe reports ``"120/1"`` or ``"30000/1001"``."""
+    if not rate or "/" not in rate:
+        return None
+    num, den = rate.split("/", 1)
+    try:
+        return round(int(num) / int(den), 3) if int(den) else None
+    except ValueError:
+        return None
 
 
 async def scene_times(data: bytes, threshold: float = SCENE_THRESHOLD) -> list[float]:
@@ -83,9 +107,14 @@ async def scene_times(data: bytes, threshold: float = SCENE_THRESHOLD) -> list[f
         path = handle.name
     try:
         _, err = await _run(
-            "ffmpeg", "-i", path,
-            "-vf", f"select='gt(scene,{threshold})',showinfo",
-            "-f", "null", "-",
+            "ffmpeg",
+            "-i",
+            path,
+            "-vf",
+            f"select='gt(scene,{threshold})',showinfo",
+            "-f",
+            "null",
+            "-",
         )
         cuts = [float(m) for m in re.findall(r"pts_time:([\d.]+)", err.decode(errors="replace"))]
         times = [0.0, *cuts]
@@ -101,8 +130,18 @@ async def frame_at(data: bytes, at: float) -> bytes:
         path = handle.name
     try:
         out, _ = await _run(
-            "ffmpeg", "-ss", f"{at:.3f}", "-i", path,
-            "-frames:v", "1", "-f", "image2", "-c:v", "png", "pipe:1",
+            "ffmpeg",
+            "-ss",
+            f"{at:.3f}",
+            "-i",
+            path,
+            "-frames:v",
+            "1",
+            "-f",
+            "image2",
+            "-c:v",
+            "png",
+            "pipe:1",
         )
         if not out:
             raise FfmpegError(f"no frame at {at:.3f}s")
@@ -118,9 +157,7 @@ async def measure_loudness(data: bytes) -> Loudness | None:
         path = handle.name
     try:
         try:
-            _, err = await _run(
-                "ffmpeg", "-i", path, "-af", "ebur128=peak=true", "-f", "null", "-"
-            )
+            _, err = await _run("ffmpeg", "-i", path, "-af", "ebur128=peak=true", "-f", "null", "-")
         except FfmpegError:
             return None  # no audio stream
         text = err.decode(errors="replace")

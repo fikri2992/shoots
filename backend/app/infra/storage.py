@@ -1,7 +1,8 @@
-"""Blob storage for images, behind the same two-implementations pattern as Store.
+"""Blob storage for shots, behind the same two-implementations pattern as Store.
 
-Paths are built in exactly one place (AGENTS.md) so originals, grid overlays and
-annotated renders stay findable and a change of layout is a one-line change.
+Paths are built in exactly one place so originals, gridded frames, contact
+sheets and thumbnails stay findable, and the blob API can check that a path
+belongs to the signed-in user by prefix alone.
 """
 
 from pathlib import Path
@@ -11,13 +12,22 @@ from app.config import settings
 
 ORIGINAL = "original"
 GRIDDED = "gridded"
-ANNOTATED = "annotated"
-VIDEO = "video"
+SHEET = "sheet"
+THUMB = "thumb"
+CLIP = "clip"
 
 
-def blob_path(project_id: str, image_id: str, kind: str, extension: str = "png") -> str:
-    """``projects/<project>/images/<image>/<kind>.png`` — stable and inspectable."""
-    return f"projects/{project_id}/images/{image_id}/{kind}.{extension}"
+def user_prefix(user_id: str) -> str:
+    return f"users/{user_id}/"
+
+
+def blob_path(user_id: str, shot_id: str, kind: str, extension: str = "png") -> str:
+    """``users/<user>/shots/<shot>/<kind>.<ext>`` — stable and inspectable."""
+    return f"{user_prefix(user_id)}shots/{shot_id}/{kind}.{extension}"
+
+
+def quest_blob_path(user_id: str, quest_id: str, kind: str, extension: str = "mp4") -> str:
+    return f"{user_prefix(user_id)}quests/{quest_id}/{kind}.{extension}"
 
 
 @runtime_checkable
@@ -36,8 +46,8 @@ class BlobStore(Protocol):
 class LocalBlobStore:
     """Real files on disk. Used for local development and the test suite."""
 
-    def __init__(self, root: str | Path = "./.blobs"):
-        self.root = Path(root)
+    def __init__(self, root: str | Path | None = None):
+        self.root = Path(root or settings.blob_root)
 
     def _full(self, path: str) -> Path:
         return self.root / path
@@ -58,8 +68,7 @@ class LocalBlobStore:
         self._full(path).unlink(missing_ok=True)
 
     def public_url(self, path: str) -> str:
-        """Served back through the API rather than the filesystem, so the same URL
-        shape works in both environments."""
+        """Served back through the API so the same URL shape works everywhere."""
         return f"/api/blobs/{path}"
 
 

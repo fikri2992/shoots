@@ -6,7 +6,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from starlette.middleware.sessions import SessionMiddleware
 
-from app.api import auth
+from app.api import auth, deps, drive, shots
 from app.config import settings
 
 logger = logging.getLogger("app.api")
@@ -35,6 +35,8 @@ async def unhandled(request: Request, exc: Exception) -> JSONResponse:
 
 
 app.include_router(auth.router)
+app.include_router(drive.router)
+app.include_router(shots.router)
 
 
 def mount_frontend(application: FastAPI, dist: "Path | None" = None) -> bool:
@@ -79,6 +81,7 @@ async def health():
         },
         "pipeline": "in-process" if settings.in_process_pipeline else "pubsub",
         "region": settings.gcp_location,
+        "ports": deps.describe(),
     }
 
 

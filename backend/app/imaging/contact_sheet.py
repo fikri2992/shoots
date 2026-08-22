@@ -1,13 +1,12 @@
-"""Contact sheets: context and detail in one frame.
+"""Contact sheets: several frames in one image, each captioned.
 
-The Inspector is shown the whole image beside the zoomed crop so it can judge a
-defect without losing track of what the picture is supposed to be. Panels are
-captioned because an uncaptioned pair invites the model to confuse the two.
+A video becomes a tiled sheet of scene-cut frames; the Analyst reads motion
+and framing across the tiles. Captions carry the timestamp so the model can
+say "the push-in happens between 0:02 and 0:05" in cell refs on the sheet.
 """
 
 from PIL import Image, ImageDraw
 
-from app.domain.grid import Box
 from app.imaging.canvas import draw_outlined_text, font_for
 
 BACKGROUND = (18, 18, 18)
@@ -17,7 +16,7 @@ PADDING = 12
 
 
 def contact_sheet(panels: list[tuple[str, Image.Image]], panel_height: int = 720) -> Image.Image:
-    """Lay captioned panels out in a row, each scaled to a common height."""
+    """Lay captioned panels out in a single row, scaled to a common height."""
     if not panels:
         raise ValueError("a contact sheet needs at least one panel")
 
@@ -40,44 +39,50 @@ def contact_sheet(panels: list[tuple[str, Image.Image]], panel_height: int = 720
     return sheet
 
 
-def inspection_sheet(
-    original: Image.Image,
-    zoomed: Image.Image,
-    refs: list[str],
-    panel_height: int = 720,
-    locator: Box | None = None,
+def tile_sheet(
+    panels: list[tuple[str, Image.Image]], cols: int = 4, tile_width: int = 480
 ) -> Image.Image:
-    """The standard Inspector input: full frame beside the suspect region.
+    """Grid of captioned tiles, reading order, all scaled to one width.
 
-    When ``locator`` is given, the context panel is marked with the region the
-    zoom was taken from, so the model does not have to infer the correspondence
-    between the two panels — it can see it.
+    Tile height is the tallest scaled frame so mixed orientations line up;
+    shorter frames are centred in their tile.
     """
-    label = ", ".join(refs)
-    context = highlight_region(original, locator) if locator else original
-    return contact_sheet(
-        [("FULL IMAGE (context)", context), (f"ZOOM: {label}", zoomed)],
-        panel_height=panel_height,
-    )
+    if not panels:
+        raise ValueError("a tile sheet needs at least one panel")
+    if cols < 1:
+        raise ValueError("cols must be positive")
 
+    scaled = [(caption, _scale_to_width(image, tile_width)) for caption, image in panels]
+    tile_height = max(image.height for _, image in scaled)
+    rows = (len(scaled) + cols - 1) // cols
+    used_cols = min(cols, len(scaled))
 
-def highlight_region(image: Image.Image, box: Box) -> Image.Image:
-    """Dim everything outside ``box`` and outline it, without hiding any content."""
-    base = image.convert("RGB").copy()
+    width = PADDING * 2 + used_cols * tile_width + (used_cols - 1) * GUTTER
+    height = PADDING * 2 + rows * (CAPTION_BAR + tile_height) + (rows - 1) * GUTTER
 
-    shade = Image.new("RGB", base.size, (0, 0, 0))
-    mask = Image.new("L", base.size, 130)
-    ImageDraw.Draw(mask).rectangle(box.as_tuple(), fill=0)
-    base = Image.composite(shade, base, mask)
+    sheet = Image.new("RGB", (width, height), BACKGROUND)
+    draw = ImageDraw.Draw(sheet)
+    font = font_for(16)
 
-    width = max(2, round(min(base.size) / 250))
-    draw = ImageDraw.Draw(base)
-    draw.rectangle(box.as_tuple(), outline=(255, 255, 255), width=width)
-    return base
+    for index, (caption, image) in enumerate(scaled):
+        row, col = divmod(index, cols)
+        x = PADDING + col * (tile_width + GUTTER)
+        y = PADDING + row * (CAPTION_BAR + tile_height + GUTTER)
+        sheet.paste(image, (x, y + CAPTION_BAR + (tile_height - image.height) // 2))
+        draw_outlined_text(draw, (x, y + 6), caption, font=font, stroke=1)
+
+    return sheet
 
 
 def _scale_to_height(image: Image.Image, height: int) -> Image.Image:
     if image.height == height:
         return image
     width = max(1, round(image.width * height / image.height))
+    return image.resize((width, height), Image.LANCZOS)
+
+
+def _scale_to_width(image: Image.Image, width: int) -> Image.Image:
+    if image.width == width:
+        return image
+    height = max(1, round(image.height * width / image.width))
     return image.resize((width, height), Image.LANCZOS)

@@ -29,6 +29,21 @@ def from_bytes(data: bytes) -> Image.Image:
     return Image.open(io.BytesIO(data)).convert("RGB")
 
 
+def load_bytes(data: bytes) -> Image.Image:
+    """Like ``load`` but from memory: RGB, EXIF rotation applied."""
+    from PIL import ImageOps
+
+    image = Image.open(io.BytesIO(data))
+    image = ImageOps.exif_transpose(image)
+    return image.convert("RGB")
+
+
+def to_jpeg_bytes(image: Image.Image, quality: int = 85) -> bytes:
+    buffer = io.BytesIO()
+    image.convert("RGB").save(buffer, format="JPEG", quality=quality, optimize=True)
+    return buffer.getvalue()
+
+
 def fit_for_model(image: Image.Image, max_edge: int = MAX_MODEL_EDGE) -> Image.Image:
     """Downscale so the long edge is at most ``max_edge``. Never upscales."""
     longest = max(image.size)

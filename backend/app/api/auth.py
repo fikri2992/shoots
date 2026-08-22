@@ -6,6 +6,8 @@ from fastapi.responses import JSONResponse, RedirectResponse
 from pydantic import BaseModel
 
 from app.config import settings
+from app.domain.entities import User
+from app.infra import repository as repo
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
@@ -39,13 +41,42 @@ async def callback(request: Request):
     if not claims.get("email"):
         raise HTTPException(401, "Google returned no email")
 
-    request.session[SESSION_USER_KEY] = {
+    session_user = {
         "id": claims["sub"],
         "email": claims["email"],
         "name": claims.get("name", ""),
         "picture": claims.get("picture", ""),
     }
+    request.session[SESSION_USER_KEY] = session_user
+    await _remember(session_user, token)
     return RedirectResponse(settings.frontend_origin)
+
+
+async def _remember(session_user: dict, token: dict | None) -> None:
+    """Upsert the user record; keep the Drive refresh token out of Firestore.
+
+    Google only returns a refresh token on the consent screen (prompt=consent),
+    which we force, so a fresh sign-in always carries one. A token without it
+    is not stored: it could not refresh, so it would only mislead Connect.
+    """
+    from app.api.deps import get_context
+
+    ctx = get_context()
+    existing = await repo.find_user(ctx.store, session_user["id"])
+    user = existing or User(id=session_user["id"], email=session_user["email"])
+    user.name = session_user.get("name", "") or user.name
+    user.picture = session_user.get("picture", "") or user.picture
+    await repo.put_user(ctx.store, user)
+
+    if token and token.get("refresh_token"):
+        await ctx.tokens.put(
+            user.id,
+            {
+                "refresh_token": token["refresh_token"],
+                "access_token": token.get("access_token", ""),
+                "scope": token.get("scope", ""),
+            },
+        )
 
 
 @router.get("/me")
@@ -88,6 +119,7 @@ async def dev_login(body: DevLogin, request: Request):
         "name": body.name or email.split("@")[0],
         "picture": "",
     }
+    await _remember(request.session[SESSION_USER_KEY], None)
     return request.session[SESSION_USER_KEY]
 
 
