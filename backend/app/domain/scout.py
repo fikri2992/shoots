@@ -26,20 +26,28 @@ def rank(
     skills: dict[str, SkillState],
     recent_technique_ids: list[str],
     video: bool = False,
+    missing_gear: tuple[str, ...] | list[str] = (),
 ) -> list[Technique]:
     attempted = attempted_ids(skills)
     recent = set(recent_technique_ids)
+    lacking = set(missing_gear)
     coverage = Counter(taxonomy.BY_ID[tid].family for tid in attempted if tid in taxonomy.BY_ID)
+
+    def possible(t: Technique) -> bool:
+        return not (set(t.needs) & lacking)
 
     fresh = [
         t
         for t in taxonomy.unlocked(attempted)
-        if t.id not in recent and (video or not t.video_only)
+        if t.id not in recent and (video or not t.video_only) and possible(t)
     ]
     rusty = [
         taxonomy.BY_ID[tid]
         for tid, s in skills.items()
-        if s.status is SkillStatus.RUSTY and tid not in recent and tid in taxonomy.BY_ID
+        if s.status is SkillStatus.RUSTY
+        and tid not in recent
+        and tid in taxonomy.BY_ID
+        and possible(taxonomy.BY_ID[tid])
     ]
 
     order = {t.id: i for i, t in enumerate(taxonomy.TECHNIQUES)}
@@ -55,9 +63,12 @@ def rank(
 
 
 def choose(
-    skills: dict[str, SkillState], recent_technique_ids: list[str], video: bool = False
+    skills: dict[str, SkillState],
+    recent_technique_ids: list[str],
+    video: bool = False,
+    missing_gear: tuple[str, ...] | list[str] = (),
 ) -> Technique | None:
-    ranked = rank(skills, recent_technique_ids, video)
+    ranked = rank(skills, recent_technique_ids, video, missing_gear)
     return ranked[0] if ranked else None
 
 

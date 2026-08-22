@@ -7,7 +7,7 @@ import { useAuthStore } from '@/stores/auth'
 import { useShootsStore } from '@/stores/shoots'
 
 const NAV = [
-  { name: 'dashboard', label: 'Quest' },
+  { name: 'dashboard', label: 'Today' },
   { name: 'map', label: 'Map' },
   { name: 'shots', label: 'Shots' },
   { name: 'feed', label: 'Feed' },

@@ -19,7 +19,7 @@ from app.agents import prompts
 from app.agents.retry import with_retry
 from app.agents.runtime import run_agent
 from app.config import settings
-from app.domain.entities import Criteria, ExifRule, Reference, SkillState
+from app.domain.entities import Constraints, Criteria, ExifRule, Reference, SkillState
 from app.domain.taxonomy import Technique
 
 logger = logging.getLogger(__name__)
@@ -141,9 +141,16 @@ def write_prompt(
     critiques: list[str],
     notes: Research,
     skills: dict[str, SkillState],
+    constraints: Constraints | None = None,
 ) -> str:
     recent = "\n".join(f"- {c}" for c in critiques[:5]) or "- none yet"
     refs = "\n".join(f"- {r.title}: {r.url}" for r in notes.references) or "- none"
+    said: list[str] = []
+    if constraints and constraints.missing_gear:
+        said.append(f"- Has no {', '.join(constraints.missing_gear)}.")
+    if constraints:
+        said += [f"- {n}" for n in constraints.notes]
+    told = "\n".join(said) or "- nothing yet"
     return (
         f"Technique: `{technique.id}` — {technique.name} ({technique.family.value}, "
         f"level {technique.level}).\nRecognised by: {technique.cue}\n"
@@ -151,6 +158,7 @@ def write_prompt(
         f"Why now: {why}\n"
         f"Techniques the photographer has attempted so far: "
         f"{', '.join(sorted(skills)) or 'none'}\n\n"
+        f"What the photographer has told the Coach about their situation:\n{told}\n\n"
         f"Recent critiques of their shots:\n{recent}\n\n"
         f"Research notes:\n{notes.notes or '(no notes; rely on common practice)'}\n\n"
         f"Sources:\n{refs}"
@@ -163,10 +171,11 @@ async def write(
     critiques: list[str],
     notes: Research,
     skills: dict[str, SkillState],
+    constraints: Constraints | None = None,
 ) -> QuestOut:
     return await run_agent(
         scout_agent(),
-        prompt=write_prompt(technique, why, critiques, notes, skills),
+        prompt=write_prompt(technique, why, critiques, notes, skills, constraints),
         schema=QuestOut,
     )
 

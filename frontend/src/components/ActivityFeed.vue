@@ -52,8 +52,6 @@ export default {
           return `not passed: ${this.checks(d)}`
         case 'scout.issued':
           return `issued "${d.title}" · ${d.why}`
-        case 'scout.nothing_to_issue':
-          return 'nothing left to issue'
         case 'director.storyboard':
           return `storyboarded: ${(d.video_prompt || '').slice(0, 90)}…`
         case 'director.clip_ready':
@@ -66,6 +64,10 @@ export default {
           return `delivered the quest · ${d.timing || ''}`
         case 'coach.session':
           return `voice session, ${d.turns} turn${d.turns === 1 ? '' : 's'} in ${d.seconds}s`
+        case 'coach.noted':
+          return `remembered: ${[d.missing_gear?.length ? `no ${d.missing_gear.join(', ')}` : '', ...(d.notes || [])].filter(Boolean).join(' · ')}`
+        case 'scout.nothing_to_issue':
+          return 'nothing left to issue within your constraints'
         case 'scheduler.daily':
           return `daily tick: ${d.synced} synced, ${d.issued} issued, ${d.expired} expired`
         case 'scheduler.expired':

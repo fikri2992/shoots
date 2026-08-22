@@ -41,7 +41,8 @@ async def issue(ctx: Context, user_id: str, force: bool = False) -> Quest | None
     recent = [
         q.technique_id for q in await repo.list_quests(ctx.store, user_id, limit=RECENT_QUESTS)
     ]
-    technique = rules.choose(skills, recent)
+    user = await repo.get_user(ctx.store, user_id)
+    technique = rules.choose(skills, recent, missing_gear=user.constraints.missing_gear)
     if technique is None:
         await repo.record(ctx.store, user_id, AGENT, "nothing_to_issue", {"recent": recent})
         return None
@@ -50,7 +51,7 @@ async def issue(ctx: Context, user_id: str, force: bool = False) -> Quest | None
     critiques = await _recent_critiques(ctx, user_id)
 
     research = await agent.research(technique)
-    out = await agent.write(technique, why, critiques, research, skills)
+    out = await agent.write(technique, why, critiques, research, skills, user.constraints)
 
     quest = Quest(
         id=new_id("quest"),
@@ -64,7 +65,6 @@ async def issue(ctx: Context, user_id: str, force: bool = False) -> Quest | None
         status=QuestStatus.OPEN,
         due_at=now() + timedelta(days=settings.quest_ttl_days),
     )
-    user = await repo.get_user(ctx.store, user_id)
     when = timing.deliver_at(technique.light, now(), user.last_latitude, user.last_longitude)
     quest.deliver_at = when.at
     quest.timing = QuestTiming(

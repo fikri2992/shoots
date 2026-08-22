@@ -184,6 +184,13 @@ export default {
             <RouterLink :to="{ name: 'shot', params: { shotId: v.shot_id } }" class="text-neutral-500 hover:text-neutral-200">
               view shot
             </RouterLink>
+            <RouterLink
+              v-if="!v.passed"
+              :to="{ name: 'shot', params: { shotId: v.shot_id }, hash: '#coach' }"
+              class="ml-auto rounded-full border border-teal-900 px-2 py-0.5 text-teal-300 hover:border-teal-600"
+            >
+              Ask the Coach why
+            </RouterLink>
           </div>
           <p class="whitespace-pre-line text-neutral-200">{{ v.feedback }}</p>
         </div>

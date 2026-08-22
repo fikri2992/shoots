@@ -11,12 +11,15 @@ the session itself is checked by ``scripts/check_coach.py``.
 from dataclasses import dataclass
 
 from google import genai
+from google.adk.agents import LlmAgent
 from google.genai import types
+from pydantic import BaseModel, Field
 
 from app.agents import prompts
 from app.agents.analyst import facts_text
+from app.agents.runtime import run_agent
 from app.config import settings
-from app.domain.entities import Analysis, Quest, Shot
+from app.domain.entities import Analysis, Constraints, Quest, Shot
 
 #: What the browser sends us and what Live expects: 16 kHz mono PCM16.
 INPUT_MIME = "audio/pcm;rate=16000"
@@ -32,7 +35,12 @@ class Event:
     text: str = ""
 
 
-def briefing(shot: Shot, analysis: Analysis | None, quest: Quest | None) -> str:
+def briefing(
+    shot: Shot,
+    analysis: Analysis | None,
+    quest: Quest | None,
+    constraints: Constraints | None = None,
+) -> str:
     """Everything the Coach knows about the frame before the first word."""
     grid = shot.grid
     lines = [
@@ -80,8 +88,50 @@ def briefing(shot: Shot, analysis: Analysis | None, quest: Quest | None) -> str:
             "Criteria: " + "; ".join(quest.criteria.text),
             "",
         ]
+    if constraints and (constraints.missing_gear or constraints.notes):
+        lines.append("What the photographer has told you before (do not ask again):")
+        if constraints.missing_gear:
+            lines.append(f"- No {', '.join(constraints.missing_gear)}.")
+        lines += [f"- {note}" for note in constraints.notes]
+        lines.append("")
     lines.append("Begin the session as instructed.")
     return "\n".join(lines)
+
+
+# --- after the session: what to remember --------------------------------------
+
+
+class NotesOut(BaseModel):
+    missing_gear: list[str] = Field(default_factory=list)
+    notes: list[str] = Field(default_factory=list)
+
+
+def listener_agent() -> LlmAgent:
+    return LlmAgent(
+        model=settings.model_flash,
+        name="listener",
+        description="Extracts standing constraints from a coaching transcript.",
+        instruction=prompts.load("listener"),
+        output_schema=NotesOut,
+        output_key="notes",
+    )
+
+
+def transcript_text(transcript: list[dict]) -> str:
+    return "\n".join(
+        f"{'Photographer' if t['role'] == 'user' else 'Coach'}: {t['text'].strip()}"
+        for t in transcript
+        if t["text"].strip()
+    )
+
+
+async def listen(transcript: list[dict], user_id: str) -> NotesOut:
+    return await run_agent(
+        listener_agent(),
+        prompt="Transcript:\n" + transcript_text(transcript)[-6000:],
+        schema=NotesOut,
+        user_id=user_id,
+    )
 
 
 def live_config() -> types.LiveConnectConfig:

@@ -23,6 +23,7 @@ from app.api.deps import get_context
 from app.config import settings
 from app.infra import repository as repo
 from app.infra.storage import GRIDDED, ORIGINAL, SHEET
+from app.services import coach as coach_memory
 
 logger = logging.getLogger(__name__)
 
@@ -58,6 +59,7 @@ async def live(websocket: WebSocket, shot_id: str):
         return
     image = await ctx.blobs.read(shot.blobs[key])
     mime = "image/jpeg" if shot.blobs[key].endswith((".jpg", ".jpeg")) else "image/png"
+    owner = await repo.get_user(ctx.store, shot.user_id)
 
     await websocket.accept()
     started = time.monotonic()
@@ -67,7 +69,9 @@ async def live(websocket: WebSocket, shot_id: str):
     try:
         async with agent.connect() as session:
             await session.send_client_content(
-                turns=agent.opening_turn(image, mime, agent.briefing(shot, analysis, quest)),
+                turns=agent.opening_turn(
+                    image, mime, agent.briefing(shot, analysis, quest, owner.constraints)
+                ),
                 turn_complete=True,
             )
 
@@ -150,6 +154,8 @@ async def live(websocket: WebSocket, shot_id: str):
             )
         with contextlib.suppress(Exception):  # already gone is fine
             await websocket.close()
+        if transcript:
+            await coach_memory.remember(ctx, shot.user_id, transcript)
 
 
 def _append(transcript: list[dict], role: str, text: str) -> None:

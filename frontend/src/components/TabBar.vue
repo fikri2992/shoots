@@ -2,7 +2,7 @@
 import ShootButton from '@/components/ShootButton.vue'
 
 const TABS = [
-  { name: 'dashboard', label: 'Quest', icon: 'M12 3l2.5 5 5.5.8-4 3.9.9 5.5L12 15.6 7.1 18.2l.9-5.5-4-3.9L9.5 8z' },
+  { name: 'dashboard', label: 'Today', icon: 'M12 3l2.5 5 5.5.8-4 3.9.9 5.5L12 15.6 7.1 18.2l.9-5.5-4-3.9L9.5 8z' },
   { name: 'map', label: 'Map', icon: 'M3 6l6-2 6 2 6-2v14l-6 2-6-2-6 2zM9 4v14M15 6v14' },
   { name: 'shots', label: 'Shots', icon: 'M4 5h16v14H4zM4 15l4-4 4 4 3-3 5 5' },
   { name: 'feed', label: 'Feed', icon: 'M4 6h16M4 12h10M4 18h13' },

@@ -32,11 +32,21 @@ class DriveChannel(BaseModel):
     expires_at: datetime
 
 
+class Constraints(BaseModel):
+    """What the photographer told the Coach about their situation. The Scout
+    respects it: no tripod techniques for someone with only a phone."""
+
+    missing_gear: list[str] = Field(default_factory=list)  # tripod | telephoto | macro | flash
+    notes: list[str] = Field(default_factory=list)
+    updated_at: datetime | None = None
+
+
 class User(BaseModel):
     id: str
     email: str
     name: str = ""
     picture: str = ""
+    constraints: Constraints = Field(default_factory=Constraints)
     drive_folder_id: str = ""
     drive_channel: DriveChannel | None = None
     #: Drive change-token cursor, so a notification costs one small list call.

@@ -41,7 +41,7 @@ export default {
 </script>
 
 <template>
-  <section class="rounded-xl border border-edge bg-panel p-4">
+  <section id="coach" class="scroll-mt-4 rounded-xl border border-edge bg-panel p-4">
     <div class="flex items-center justify-between gap-3">
       <div>
         <h2 class="text-sm font-semibold">Talk it through</h2>

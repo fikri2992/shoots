@@ -48,4 +48,5 @@ async def main(shot_id: str | None) -> None:
 
 
 if __name__ == "__main__":
+    sys.stdout.reconfigure(encoding="utf-8")  # Windows consoles default to cp1252
     asyncio.run(main(sys.argv[1] if len(sys.argv) > 1 else None))
