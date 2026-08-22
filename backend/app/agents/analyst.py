@@ -339,6 +339,10 @@ def validate(shot: Shot, result: PanelResult) -> Analysis:
         critique=critique[:2000],
         score=rubric.overall(consensus.elements),
         panel={lens: round(result.latency.get(lens, 0.0), 1) for lens in result.reads},
+        dissent=[
+            {"lens": lens, "technique_id": tid, "confidence": round(conf, 2)}
+            for lens, tid, conf in consensus.dissent
+        ],
     )
 
 

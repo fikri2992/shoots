@@ -42,8 +42,11 @@ export default {
           return `ingested ${d.kind || ''}${d.grid ? `, grid ${d.grid}` : ''}${d.exif?.exposure_time_s ? `, ${this.shutter(d.exif.exposure_time_s)} f/${d.exif.f_number}` : ''}`
         case 'ingest.failed':
           return `failed: ${d.error}`
-        case 'analyst.analyzed':
-          return `score ${d.score}/10 · ${(d.techniques || []).map((t) => `${t.id.replace(/_/g, ' ')} ${Math.round(t.confidence * 100)}%${t.agreement ? ` (${t.agreement} of 3)` : ''}`).join(', ') || 'no technique tagged'}`
+        case 'analyst.analyzed': {
+          const seen = (d.techniques || []).map((t) => `${t.id.replace(/_/g, ' ')} ${Math.round(t.confidence * 100)}%${t.agreement ? ` (${t.agreement} of 3)` : ''}`).join(', ') || 'no technique tagged'
+          const lost = (d.dissent || []).map((x) => `${x.lens} alone saw ${x.technique_id.replace(/_/g, ' ')} ${Math.round(x.confidence * 100)}%`).join(', ')
+          return `score ${d.score}/10 · ${seen}${lost ? ` · not counted: ${lost}` : ''}`
+        }
         case 'cartographer.mapped':
           return (d.changes || []).map((c) => `${c.technique_id.replace(/_/g, ' ')}: ${c.from} → ${c.to}`).join(' · ')
         case 'judge.passed':

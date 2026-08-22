@@ -179,6 +179,8 @@ class Analysis(BaseModel):
     score: int = Field(default=5, ge=1, le=10)
     #: Seconds each lens took; a lens missing here did not answer.
     panel: dict[str, float] = Field(default_factory=dict)
+    #: Sightings that lost the vote: [{lens, technique_id, confidence}]. Shown, not counted.
+    dissent: list[dict] = Field(default_factory=list)
     created_at: datetime = Field(default_factory=now)
 
 

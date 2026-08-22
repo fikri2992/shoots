@@ -70,6 +70,7 @@ async def analyse(ctx: Context, message: dict) -> None:
             ],
             "elements": analysis.elements,
             "panel": analysis.panel,
+            "dissent": analysis.dissent,
             "moves": len(analysis.composition.moves),
         },
         shot_id=shot.id,
