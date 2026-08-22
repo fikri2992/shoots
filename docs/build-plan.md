@@ -50,3 +50,11 @@
 - Decision 6 refined: a failed attempt keeps the quest open with a verdict; `QuestStatus.FAILED` removed.
 - Docs had mixed cp1252/UTF-8 bytes from earlier Windows-default writes; normalised to UTF-8. Always pass `encoding="utf-8"` in patch scripts.
 - Remaining for the Taskmaster story: Drive push channel + renewal (day 7), Pub/Sub + DLQ (day 7), PWA + Web Push (day 6), Veo clip per quest (day 7).
+
+## Day 6 notes (2026-08-23)
+
+- PWA served from `backend/static` (same as the Cloud Run image): quest card, skill map, shots grid, shot page with SVG overlay in cell units (`viewBox = cols rows`, no pixel math in the browser), activity feed, bottom tab bar with floating Shoot. Checked at 412 px and 1280 px in Chrome.
+- Shoot button → `POST /drive/shoot` → user's Drive folder via their `drive.file` token → shot tagged with `quest_id` → pipeline starts without waiting for sync.
+- Web Push: pywebpush + VAPID; `/api/push/key|subscribe|test`; Scout and Judge push. Verified to the browser permission prompt; delivery is checked on a device with the `/api/push/test` that runs on subscribe.
+- Dashboard polls `/api/events` every 5 s while visible and refetches the rest when the newest event changes. SSE was available from Visual QA but polling is one less thing to break across Cloud Run instances.
+- `FRONTEND_ORIGIN` is `http://localhost:8000` locally now: the backend serves the built app, so sign-in lands on the app.
