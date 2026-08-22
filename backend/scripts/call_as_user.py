@@ -49,7 +49,7 @@ async def main(method: str, path: str, body: str | None) -> None:
     print(response.status_code)
     text = response.text
     try:
-        print(json.dumps(response.json(), indent=2, ensure_ascii=False)[:4000])
+        print(json.dumps(response.json(), indent=2, ensure_ascii=False)[:40000])
     except ValueError:
         print(text[:2000])
 
