@@ -1,6 +1,6 @@
 # AGENTS.md — Codebase rules
 
-Read `docs/domain-model.md` first. Its vocabulary (shot, evidence, technique, skill graph, quest, criteria, verdict; the agents Ingest, Analyst, Cartographer, Scout, Judge) is the ubiquitous language. Use these exact names in code, files, APIs and UI copy. No synonyms: not "photo" for shot, not "challenge" for quest, not "skill" for technique.
+Read `docs/domain-model.md` first. Its vocabulary (shot, evidence, technique, skill graph, quest, criteria, verdict; the agents Ingest, Analyst, Cartographer, Scout, Judge, Director, Coach) is the ubiquitous language. Use these exact names in code, files, APIs and UI copy. No synonyms: not "photo" for shot, not "challenge" for quest, not "skill" for technique.
 
 ## What this is
 

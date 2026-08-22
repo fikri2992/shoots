@@ -98,7 +98,11 @@ Drive folder changes                       (watch)
 
 | Judge | `media.analyzed` when shot.quest_id set | Analysis, Quest | Verdict, Quest status, `quest.closed` | gemini-3.7-flash (feedback only; pass/fail is pure) |
 
-| Scout | daily tick, `quest.closed` | skill graph, taxonomy | Quest, Veo clip, email | gemini-3.7-flash + Search grounding, veo-3.1-fast |
+| Scout | daily tick, `quest.closed` | skill graph, taxonomy | Quest, push, `quest.issued` | gemini-3.7-flash + Search grounding |
+
+| Director | `quest.issued` | Quest, technique | reference clip blob on the Quest | gemini-3.7-flash (storyboard), veo-3.1-fast, lyria-3-clip |
+
+| Coach | a tap on the shot page (WebSocket) | gridded frame, Analysis, Quest | ActivityEvent with the transcript | gemini-live-2.5-flash-native-audio |
 
 | Scheduler | Cloud Scheduler | Users | renews Drive channels, expires quests, triggers Scout | none |
 
@@ -128,11 +132,15 @@ Cartographer and Judge pass/fail are pure code. That is deliberate: the skill gr
 
 8. **Secrets stay out of Firestore.** The Drive refresh token lives in Secret Manager (prod) or `.blobs/tokens` (local). Firestore holds the user's Drive folder id and page token only.
 
-9. **Gemini via Vertex global endpoint; Veo and Lyria via us-central1.** App infrastructure in asia-southeast2.
+9. **Gemini 3.7 and Lyria 3 via the Vertex global endpoint; Veo and Gemini Live via us-central1.** Verified per model on 2026-08-23; each has its own `*_location` setting. App infrastructure in asia-southeast2.
 
-10. **Voice review is a stretch.** Gemini Live over a shot, from the phone, targeting the Multimodal UX prize. It reuses the constrained-token pattern from Visual QA and never holds API credentials in the browser.
+10. **Voice review is a relay, not a browser-side Live client.** The phone opens one WebSocket to this service per shot; the service opens the Gemini Live session with the gridded frame and the Analyst's read as the first turn, and relays 16 kHz PCM in and 24 kHz PCM out, plus transcripts. The browser never holds a Google credential and the briefing never leaves the server. The session ends as one ActivityEvent with the transcript, so the feed shows what was discussed.
 
-11. **A service account reads the folder; OAuth stays non-sensitive.** The shared consent screen is in production and unverified, and `drive.readonly` is a restricted scope, so the app never asks for it. On Connect, the app creates the user's `Shoots` folder with `drive.file` (non-sensitive) and shares it with `shoots-ingest@…iam.gserviceaccount.com` through the Drive API. The service account watches, lists and downloads whatever lands in that folder, whoever uploaded it. Ingest is driven by `changes.list` with a stored page token; the Drive webhook and a manual `POST /drive/sync` both trigger the same sync, so local dev needs no tunnel.
+11. **A service account reads the folder; OAuth stays non-sensitive.** The shared consent screen is in production and unverified, and `drive.readonly` is a restricted scope, so the app never asks for it. On Connect, the app creates the user's `Shoots` folder with `drive.file` (non-sensitive) and shares it with `shoots-ingest@…iam.gserviceaccount.com` through the Drive API. The service account watches, lists and downloads whatever lands in that folder, whoever uploaded it. Sync is a folder listing keyed by Drive file id; a `files.watch` channel on the folder (Drive reports child changes on it) calls `/drive/notify`, the Scheduler renews channels before their one-day cap, and `/tasks/sync` polls as the fallback. Local dev has no public URL, so it has no channel and polls; the sync code is the same.
 
 12. **Quest delivery is Web Push to the PWA, not email.** Gmail send is a restricted scope with the same verification problem. Push lands on the phone, which is where the quest is acted on anyway.
+
+13. **The reference clip is a nicety the quest never waits on.** The Scout publishes `quest.issued` and returns; the Director renders the clip (Gemini writes the Veo and Lyria prompts, Veo renders 6 s vertical, Lyria plays 30 s, ffmpeg puts the first 6 s of music under the clip) and sets `quest.reference_clip` when it lands, about 80 s later. Lyria failing ships the clip silent; Veo failing dead-letters and the quest simply has no clip. A quest closed meanwhile gets no clip.
+
+14. **One stage, one push subscription.** Handlers register under a stage name; `/pubsub/<stage>` delivers to exactly that handler. Cartographer and Judge both read `media.analyzed` but retry and dead-letter independently, and a replay from a DLQ re-runs one stage, not the fan-out.
 

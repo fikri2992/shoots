@@ -6,7 +6,7 @@ Entry for the All Things Agentic Hackathon, Taskmaster track.
 
 - Docs: [domain model](docs/domain-model.md) · [build plan](docs/build-plan.md) · [codebase rules](AGENTS.md)
 - Stack: Vue 3 (Options API) + Vite + Tailwind PWA · FastAPI + Google ADK · Firestore + GCS + Pub/Sub + Cloud Scheduler + Secret Manager + Cloud Run
-- Models: `gemini-3.7-flash` (Analyst, Scout, Judge) · `veo-3.1-fast` (quest reference clips) · `lyria-3-clip` (optional) · `gemini-live-2.5-flash-native-audio` (voice review, stretch)
+- Models: `gemini-3.7-flash` (Analyst, Scout, Judge, Director storyboard) · `veo-3.1-fast` + `lyria-3-clip` (Director: the reference clip under every quest) · `gemini-live-2.5-flash-native-audio` (Coach: voice review of a shot from the phone)
 
 ## Prerequisites
 
@@ -44,6 +44,8 @@ Backend on http://localhost:8000, frontend on http://localhost:5173 (Vite proxie
 ```bash
 cd backend && uv run pytest
 ```
+
+The suite uses real files, real ffmpeg and real stores, never a mocked model. The agents themselves are checked against the live models with `backend/scripts/check_*.py` (`check_ingest`, `check_analyst`, `check_scout`, `check_director`, `check_coach`, `check_live_ws`); each prints what the model did and leaves its output in `backend/.blobs` for the dashboard.
 
 ## Deploy
 
