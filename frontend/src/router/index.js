@@ -10,10 +10,17 @@ const routes = [
     component: () => import('@/pages/DashboardPage.vue'),
     meta: { requiresAuth: true },
   },
+  { path: '/map', name: 'map', component: () => import('@/pages/MapPage.vue'), meta: { requiresAuth: true } },
+  { path: '/shots', name: 'shots', component: () => import('@/pages/ShotsPage.vue'), meta: { requiresAuth: true } },
   {
-    path: '/:pathMatch(.*)*',
-    redirect: { name: 'dashboard' },
+    path: '/shots/:shotId',
+    name: 'shot',
+    component: () => import('@/pages/ShotPage.vue'),
+    props: true,
+    meta: { requiresAuth: true },
   },
+  { path: '/feed', name: 'feed', component: () => import('@/pages/FeedPage.vue'), meta: { requiresAuth: true } },
+  { path: '/:pathMatch(.*)*', redirect: { name: 'dashboard' } },
 ]
 
 const router = createRouter({ history: createWebHistory(), routes })

@@ -22,6 +22,13 @@ export default {
   patch: (path, body) => request(path, { method: 'PATCH', body: JSON.stringify(body) }),
   del: (path) => request(path, { method: 'DELETE' }),
 
+  /** Multipart upload: no JSON content type, the browser sets the boundary. */
+  async postForm(path, form) {
+    const response = await fetch(path, { method: 'POST', credentials: 'include', body: form })
+    if (!response.ok) throw new Error(`${response.status} ${response.statusText}: ${await response.text()}`)
+    return response.status === 204 ? null : response.json()
+  },
+
   /**
    * Server-sent events — the live agent activity feed.
    *

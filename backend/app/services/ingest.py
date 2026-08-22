@@ -48,7 +48,7 @@ async def sync(ctx: Context, user: User) -> list[Shot]:
         shot_id = repo.shot_id_for(user.id, file.id)
         if await repo.find_shot(ctx.store, shot_id):
             continue
-        shot = _new_shot(shot_id, user.id, file)
+        shot = new_shot(shot_id, user.id, file)
         await repo.put_shot(ctx.store, shot)
         await repo.record(
             ctx.store, user.id, AGENT, "queued", {"filename": file.name}, shot_id=shot.id
@@ -58,7 +58,7 @@ async def sync(ctx: Context, user: User) -> list[Shot]:
     return created
 
 
-def _new_shot(shot_id: str, user_id: str, file: DriveFile) -> Shot:
+def new_shot(shot_id: str, user_id: str, file: DriveFile, quest_id: str = "") -> Shot:
     kind = ShotKind.VIDEO if file.mime_type.startswith("video/") else ShotKind.PHOTO
     return Shot(
         id=shot_id,
@@ -67,6 +67,7 @@ def _new_shot(shot_id: str, user_id: str, file: DriveFile) -> Shot:
         drive_file_id=file.id,
         filename=file.name,
         mime_type=file.mime_type,
+        quest_id=quest_id,
     )
 
 

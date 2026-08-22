@@ -1,40 +1,88 @@
 <script>
-import { mapState } from 'pinia'
+import { mapActions, mapState } from 'pinia'
 
-import { useAuthStore } from '@/stores/auth'
+import ActivityFeed from '@/components/ActivityFeed.vue'
+import QuestCard from '@/components/QuestCard.vue'
+import SkillMap from '@/components/SkillMap.vue'
+import { useShootsStore } from '@/stores/shoots'
 
 /**
- * Day-1 placeholder. Day 6 replaces this with the real thing: today's quest on
- * top, the skill graph, the shot timeline with overlays, the activity feed.
- * Phone first: one column at 390px, two at 1024px.
+ * The phone's home screen: today's quest, then what the agents are doing.
+ * One column under 768px; quest left, map + feed right above that.
  */
 export default {
   name: 'DashboardPage',
+  components: { ActivityFeed, QuestCard, SkillMap },
   computed: {
-    ...mapState(useAuthStore, ['displayName']),
+    ...mapState(useShootsStore, ['quest', 'quests', 'connected', 'busy', 'error', 'loading', 'me']),
+    recentClosed() {
+      return this.quests.filter((q) => q.status !== 'open').slice(0, 3)
+    },
+  },
+  methods: {
+    ...mapActions(useShootsStore, ['connect', 'sync', 'issueQuest']),
   },
 }
 </script>
 
 <template>
-  <div class="mx-auto flex max-w-5xl flex-col gap-4 p-4">
-    <section class="rounded-lg border border-edge bg-panel p-4">
-      <p class="text-xs font-medium uppercase tracking-wide text-neutral-500">Today's quest</p>
-      <p class="mt-2 text-neutral-300">
-        Nothing yet. Connect a Drive folder and the Scout will issue your first quest after the
-        first shots are analysed.
+  <div class="mx-auto max-w-5xl p-4 pb-24 md:pb-8">
+    <p v-if="error" class="mb-3 rounded-lg border border-red-900 bg-red-950/40 px-3 py-2 text-sm text-red-200">
+      {{ error }}
+    </p>
+
+    <section v-if="!connected && !loading" class="mb-4 rounded-xl border border-dashed border-edge-strong p-5">
+      <h2 class="text-lg font-semibold">Connect your Drive</h2>
+      <p class="mt-1 text-sm text-neutral-400">
+        Shoots creates a <span class="font-mono">Shoots</span> folder in your Google Drive and shares it with
+        its reader. Anything you drop there gets analysed. That is the whole setup.
       </p>
+      <button
+        type="button"
+        class="mt-3 rounded-lg bg-neutral-100 px-4 py-2 text-sm font-medium text-neutral-900 hover:bg-white disabled:opacity-50"
+        :disabled="busy === 'connect'"
+        @click="connect"
+      >
+        {{ busy === 'connect' ? 'Connecting…' : 'Connect Drive' }}
+      </button>
     </section>
 
-    <section class="grid gap-4 md:grid-cols-2">
-      <div class="rounded-lg border border-edge bg-panel p-4">
-        <p class="text-xs font-medium uppercase tracking-wide text-neutral-500">Skill graph</p>
-        <p class="mt-2 text-sm text-neutral-500">Appears after the first analysis.</p>
+    <div class="grid gap-4 md:grid-cols-5">
+      <div class="space-y-4 md:col-span-3">
+        <QuestCard v-if="quest" :quest="quest" />
+        <section v-else-if="connected" class="rounded-xl border border-edge bg-panel p-5">
+          <p class="text-[11px] font-medium uppercase tracking-wide text-neutral-500">Today's quest</p>
+          <p class="mt-2 text-sm text-neutral-300">
+            No open quest. The Scout issues one every morning, or right now if you ask.
+          </p>
+          <button
+            type="button"
+            class="mt-3 rounded-lg border border-edge-strong px-3 py-2 text-sm hover:bg-edge disabled:opacity-50"
+            :disabled="busy === 'issue'"
+            @click="issueQuest()"
+          >
+            {{ busy === 'issue' ? 'Scouting…' : 'Issue a quest now' }}
+          </button>
+        </section>
+
+        <div v-if="recentClosed.length" class="space-y-2">
+          <p class="text-[11px] font-medium uppercase tracking-wide text-neutral-500">Recent</p>
+          <QuestCard v-for="q in recentClosed" :key="q.id" :quest="q" compact />
+        </div>
       </div>
-      <div class="rounded-lg border border-edge bg-panel p-4">
-        <p class="text-xs font-medium uppercase tracking-wide text-neutral-500">Activity</p>
-        <p class="mt-2 text-sm text-neutral-500">Signed in as {{ displayName }}.</p>
+
+      <div class="space-y-4 md:col-span-2">
+        <div v-if="connected" class="flex items-center justify-between rounded-xl border border-edge bg-panel px-4 py-3 text-sm">
+          <a :href="`https://drive.google.com/drive/folders/${me.drive_folder_id}`" target="_blank" rel="noopener" class="text-neutral-300 hover:text-neutral-100">
+            Open Drive folder
+          </a>
+          <button type="button" class="text-neutral-400 hover:text-neutral-100 disabled:opacity-50" :disabled="busy === 'sync'" @click="sync">
+            {{ busy === 'sync' ? 'Syncing…' : 'Sync now' }}
+          </button>
+        </div>
+        <RouterLink :to="{ name: 'map' }" class="block"><SkillMap summary /></RouterLink>
+        <ActivityFeed :limit="12" />
       </div>
-    </section>
+    </div>
   </div>
 </template>

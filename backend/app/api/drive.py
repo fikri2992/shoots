@@ -10,8 +10,9 @@ unseen files; nothing else happens on the request path.
 """
 
 import logging
+from pathlib import Path
 
-from fastapi import APIRouter, Depends, Header, HTTPException, Request
+from fastapi import APIRouter, Depends, File, Form, Header, HTTPException, Request, UploadFile
 from pydantic import BaseModel
 
 from app.api.auth import current_user
@@ -19,7 +20,8 @@ from app.api.deps import get_context
 from app.config import settings
 from app.domain.entities import User
 from app.infra import repository as repo
-from app.infra.drive import UserDrive, user_credentials
+from app.infra.bus import TOPICS
+from app.infra.drive import DriveFile, UserDrive, user_credentials
 from app.services import ingest
 from app.services.context import Context
 
@@ -134,6 +136,78 @@ async def notify(
         return None
     await ingest.sync(ctx, user)
     return None
+
+
+class ShootResponse(BaseModel):
+    shot_id: str
+    drive_file_id: str
+    quest_id: str
+
+
+MAX_UPLOAD_BYTES = 200 * 1024 * 1024
+
+
+@router.post("/shoot", response_model=ShootResponse)
+async def shoot(
+    file: UploadFile = File(...),
+    quest_id: str = Form(default=""),
+    session_user: dict = Depends(current_user),
+    ctx: Context = Depends(get_context),
+):
+    """The PWA Shoot button. The file goes to the user's Drive folder (so the
+    folder stays the single source of truth), the shot is tagged with the
+    quest it answers, and the pipeline starts now rather than at next sync."""
+    user = await _load_user(ctx, session_user)
+    if not user.drive_folder_id:
+        raise HTTPException(409, "connect a Drive folder first")
+    mime = file.content_type or "application/octet-stream"
+    if not mime.startswith(("image/", "video/")):
+        raise HTTPException(415, "photos and videos only")
+    data = await file.read()
+    if len(data) > MAX_UPLOAD_BYTES:
+        raise HTTPException(413, "file too large")
+    name = Path(file.filename or "shot").name
+
+    if settings.drive_local_folder:
+        target = Path(settings.drive_local_folder) / name
+        target.write_bytes(data)
+        files = await ctx.drive.list_media(user.drive_folder_id)
+        match = next((f for f in files if f.name == name), None)
+        if match is None:
+            raise HTTPException(500, "local upload did not appear in the folder")
+        drive_file = match
+    else:
+        token = await ctx.tokens.get(user.id)
+        if not token or not token.get("refresh_token"):
+            raise HTTPException(409, "no Drive token; sign out and in again")
+        file_id = await UserDrive(user_credentials(token)).upload(
+            user.drive_folder_id, name, data, mime
+        )
+        drive_file = DriveFile(
+            id=file_id, name=name, mime_type=mime, size=len(data), modified_at=_now()
+        )
+
+    shot_id = repo.shot_id_for(user.id, drive_file.id)
+    existing = await repo.find_shot(ctx.store, shot_id)
+    if existing is None:
+        shot = ingest.new_shot(shot_id, user.id, drive_file, quest_id=quest_id)
+        await repo.put_shot(ctx.store, shot)
+        await repo.record(
+            ctx.store,
+            user.id,
+            "ingest",
+            "queued",
+            {"filename": name, "via": "shoot"},
+            shot_id=shot_id,
+        )
+        await ctx.bus.publish(TOPICS["media.new"], {"shot_id": shot_id})
+    return ShootResponse(shot_id=shot_id, drive_file_id=drive_file.id, quest_id=quest_id)
+
+
+def _now():
+    from app.domain.entities import now
+
+    return now()
 
 
 def _folder_url(folder_id: str) -> str:
