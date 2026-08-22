@@ -128,8 +128,8 @@ async def _ingest_photo(ctx: Context, shot: Shot, data: bytes) -> Shot:
 
 async def _ingest_video(ctx: Context, shot: Shot, data: bytes) -> Shot:
     info = await video.probe(data)
-    times = await video.scene_times(data)
-    times = times[: settings.video_max_frames]
+    cuts = await video.scene_times(data)
+    times = sample_times(info.duration, cuts, settings.video_min_frames, settings.video_max_frames)
     frames = [canvas.from_bytes(await video.frame_at(data, t)) for t in times]
     loudness = await video.measure_loudness(data)
 
@@ -176,6 +176,28 @@ async def _write_thumb(ctx: Context, shot: Shot, image: Image.Image) -> None:
     shot.blobs[THUMB] = await ctx.blobs.write(
         blob_path(shot.user_id, shot.id, THUMB, "jpg"), canvas.to_jpeg_bytes(thumb), "image/jpeg"
     )
+
+
+def sample_times(duration: float, cuts: list[float], minimum: int, maximum: int) -> list[float]:
+    """Scene cuts plus an even spread so a continuous shot still gets frames.
+
+    Pure: the evenly spaced candidates stop short of the end (a frame exactly
+    at ``duration`` is often empty), cuts win ties, and the result is sorted,
+    deduplicated to the nearest 0.25s and capped at ``maximum``.
+    """
+    if duration <= 0:
+        return [0.0]
+    minimum = max(1, minimum)
+    spread = [duration * i / minimum for i in range(minimum)]
+    merged: dict[float, float] = {}
+    for t in [*cuts, *spread]:
+        key = round(t * 4) / 4
+        merged.setdefault(key, t)
+    times = sorted(t for t in merged.values() if 0 <= t < duration) or [0.0]
+    if len(times) > maximum:
+        step = len(times) / maximum
+        times = [times[int(i * step)] for i in range(maximum)]
+    return times
 
 
 def _mmss(seconds: float) -> str:

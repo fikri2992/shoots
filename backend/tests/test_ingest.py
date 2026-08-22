@@ -117,3 +117,20 @@ async def test_video_becomes_a_contact_sheet(tmp_path):
     assert set(shot.blobs) == {ORIGINAL, SHEET, GRIDDED, THUMB}
     sheet = Image.open(tmp_path / "blobs" / shot.blobs[SHEET])
     assert sheet.width > 480  # at least two tiles: frame 0 and the cut
+
+
+def test_sample_times_merges_cuts_with_an_even_spread():
+    times = ingest.sample_times(10.0, cuts=[0.0, 4.2], minimum=5, maximum=12)
+    assert times[0] == 0.0
+    assert 4.2 in times
+    assert all(t < 10.0 for t in times)
+    assert times == sorted(times)
+    assert len(times) >= 5
+
+
+def test_sample_times_caps_and_handles_edge_cases():
+    many = ingest.sample_times(60.0, cuts=[float(i) for i in range(60)], minimum=6, maximum=12)
+    assert len(many) == 12 and many == sorted(many)
+    assert ingest.sample_times(0.0, cuts=[], minimum=6, maximum=12) == [0.0]
+    near = ingest.sample_times(10.0, cuts=[2.0, 2.1], minimum=1, maximum=12)
+    assert near.count(2.0) == 1 and 2.1 not in near  # deduped to the nearest 0.25s

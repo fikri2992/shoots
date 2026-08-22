@@ -33,7 +33,9 @@ class Settings(BaseSettings):
     # --- Pipeline caps (docs/domain-model.md) -----------------------------
     #: Long edge the Analyst sees. Composition judgement does not need more.
     analyst_max_edge: int = 1536
-    #: Frames sampled from a video, by scene change, before tiling.
+    #: Frames sampled from a video before tiling: scene cuts merged with an even
+    #: spread, at least ``min`` so a single continuous shot still shows motion.
+    video_min_frames: int = 6
     video_max_frames: int = 12
     contact_sheet_cols: int = 4
     #: Below this the Judge will not count a vision tag as evidence.
