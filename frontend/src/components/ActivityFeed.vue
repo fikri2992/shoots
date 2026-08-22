@@ -43,7 +43,7 @@ export default {
         case 'ingest.failed':
           return `failed: ${d.error}`
         case 'analyst.analyzed':
-          return `score ${d.score}/10 · ${(d.techniques || []).map((t) => `${t.id.replace(/_/g, ' ')} ${Math.round(t.confidence * 100)}%`).join(', ') || 'no technique tagged'}`
+          return `score ${d.score}/10 · ${(d.techniques || []).map((t) => `${t.id.replace(/_/g, ' ')} ${Math.round(t.confidence * 100)}%${t.agreement ? ` (${t.agreement} of 3)` : ''}`).join(', ') || 'no technique tagged'}`
         case 'cartographer.mapped':
           return (d.changes || []).map((c) => `${c.technique_id.replace(/_/g, ' ')}: ${c.from} → ${c.to}`).join(' · ')
         case 'judge.passed':

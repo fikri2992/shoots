@@ -46,6 +46,17 @@ class Settings(BaseSettings):
     video_min_frames: int = 6
     video_max_frames: int = 12
     contact_sheet_cols: int = 4
+    # --- Analyst panel (domain/panel.py) ---------------------------------------
+    #: A lens's sighting below this is ignored before the vote.
+    panel_min_confidence: float = 0.4
+    #: Lenses that must agree for a technique to count ...
+    panel_min_agreement: int = 2
+    #: ... unless the lens that owns the family saw it at least this confidently.
+    panel_owner_confidence: float = 0.75
+    #: Fewer lenses than this answering is not a reading; the stage retries.
+    panel_quorum: int = 2
+    #: The whole panel plus synthesis must finish within this.
+    panel_timeout_seconds: float = 180.0
     #: Below this the Judge will not count a vision tag as evidence.
     judge_min_confidence: float = 0.6
     #: Quests issued per user per daily tick.

@@ -55,9 +55,14 @@ async def main(folder: str, limit: int) -> None:
         print(f"\n=== {shot.filename}  [{shot.status.value}]  {shot.error}")
         if not analysis:
             continue
-        print(f"score {analysis.score}/10")
+        print(f"score {analysis.score}/10  elements={analysis.elements}  panel={analysis.panel}")
+        for line in analysis.observations:
+            print(f"  · {line}")
         for t in analysis.techniques:
-            print(f"  {t.technique_id:22} {t.confidence:.2f}  {','.join(t.cells):12} {t.note}")
+            who = "+".join(t.lenses)
+            cells = ",".join(t.cells)
+            head = f"  {t.technique_id:22} {t.confidence:.2f} x{t.agreement} [{who}]"
+            print(f"{head} {cells:12} {t.note}")
         c = analysis.composition
         print(
             f"  subject={c.subject_cells} horizon_row={c.horizon_row} crop={c.suggested_crop_cells}"

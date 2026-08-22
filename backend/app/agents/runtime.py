@@ -4,9 +4,13 @@ Every agent in the pipeline goes through here, so the image-passing and
 structured-output conventions live in exactly one place.
 """
 
+import asyncio
 import json
 import logging
+import time
+from dataclasses import dataclass, field
 from pathlib import Path
+from typing import Any
 
 from google.adk.agents import BaseAgent
 from google.adk.runners import InMemoryRunner
@@ -85,6 +89,71 @@ async def run_agent[T: BaseModel](
         )
 
     return await with_retry(attempt, on_retry=note)
+
+
+@dataclass
+class WorkflowResult:
+    """What a workflow left in session state, typed, plus who took how long."""
+
+    outputs: dict[str, Any] = field(default_factory=dict)
+    latency: dict[str, float] = field(default_factory=dict)
+    errors: dict[str, str] = field(default_factory=dict)
+
+
+async def run_workflow(
+    agent: BaseAgent,
+    *,
+    prompt: str,
+    images: list[types.Part] | None = None,
+    state: dict[str, Any] | None = None,
+    outputs: dict[str, type[BaseModel]],
+    user_id: str = "system",
+    timeout: float | None = None,
+) -> WorkflowResult:
+    """Run a workflow agent (Sequential/Parallel/Loop) and collect its
+    sub-agents' ``output_key`` values from session state, validated against
+    ``outputs``. A sub-agent whose output is missing or malformed is reported
+    in ``errors`` rather than failing the run: the caller decides on quorum.
+    """
+    parts: list[types.Part] = [types.Part(text=prompt), *(images or [])]
+    message = types.Content(role="user", parts=parts)
+    runner = InMemoryRunner(agent=agent, app_name=APP_NAME)
+    session = await runner.session_service.create_session(
+        app_name=APP_NAME, user_id=user_id, state=dict(state or {})
+    )
+
+    started = time.monotonic()
+    last_seen: dict[str, float] = {}
+
+    async def drive() -> None:
+        async for event in runner.run_async(
+            user_id=user_id, session_id=session.id, new_message=message
+        ):
+            if event.author:
+                last_seen[event.author] = time.monotonic() - started
+
+    if timeout:
+        await asyncio.wait_for(drive(), timeout)
+    else:
+        await drive()
+
+    stored = await runner.session_service.get_session(
+        app_name=APP_NAME, user_id=user_id, session_id=session.id
+    )
+    state_out = dict(stored.state) if stored else {}
+
+    result = WorkflowResult(latency=last_seen)
+    for key, schema in outputs.items():
+        raw = state_out.get(key)
+        if raw is None:
+            result.errors[key] = "no output"
+            continue
+        try:
+            data = _loads(raw) if isinstance(raw, str) else raw
+            result.outputs[key] = schema.model_validate(data)
+        except Exception as error:  # noqa: BLE001 — reported, quorum decides
+            result.errors[key] = f"{type(error).__name__}: {str(error)[:160]}"
+    return result
 
 
 def _loads(text: str) -> dict:

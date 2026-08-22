@@ -67,6 +67,12 @@ def review_title(analysis: Analysis, quest: Quest | None, verdict: Verdict | Non
 
 def review_body(analysis: Analysis, verdict: Verdict | None) -> list[str]:
     body = [analysis.critique.strip()] if analysis.critique.strip() else []
+    if analysis.elements:
+        body.append(
+            "Elements: "
+            + " · ".join(f"{k} {v}/10" for k, v in analysis.elements.items())
+            + " (PPA merit-image rubric)"
+        )
     for index, move in enumerate(analysis.composition.moves, 1):
         body.append(
             f"{index}. {move.what}: {','.join(move.from_cells)} → {','.join(move.to_cells)}. "

@@ -1,26 +1,30 @@
-"""The Analyst: one shot in, evidence out.
+"""The Analyst: one shot in, evidence out, by a panel of three lenses.
 
-Model boundary rules (AGENTS.md): the model emits cell refs and technique
-ids only. ``validate()`` is pure and drops anything outside the grid or the
-catalogue, logging what it dropped, before the result is stored.
+An ADK ``SequentialAgent``: a ``ParallelAgent`` runs the Technician, the
+Composer and the Storyteller concurrently on the same shot (each with its
+own instruction and its own view of the inputs), then a Synthesizer writes
+the critique from their three readings. Deciding *what the frame shows* is
+not left to any of them: ``domain/panel.py`` takes the vote, and
+``validate()`` keeps only grid cells and catalogue ids (AGENTS.md: the
+model boundary is pure and tested).
 """
 
 import logging
+from dataclasses import dataclass, field
 
-from google.adk.agents import LlmAgent
+from google.adk.agents import LlmAgent, ParallelAgent, SequentialAgent
 from pydantic import BaseModel, Field
 
 from app.agents import prompts
-from app.agents.runtime import bytes_part, run_agent
+from app.agents.runtime import WorkflowResult, bytes_part, run_workflow
 from app.config import settings
-from app.domain import taxonomy
+from app.domain import panel, rubric, taxonomy
 from app.domain.entities import (
     Analysis,
     Composition,
     Exif,
     Move,
     Shot,
-    TechniqueEvidence,
     VideoMeta,
 )
 from app.domain.grid import Grid
@@ -28,7 +32,7 @@ from app.domain.grid import Grid
 logger = logging.getLogger(__name__)
 
 
-# --- the model's output shape ---------------------------------------------
+# --- the lenses' output shapes ----------------------------------------------
 
 
 class EvidenceOut(BaseModel):
@@ -52,25 +56,106 @@ class CompositionOut(BaseModel):
     moves: list[MoveOut] = Field(default_factory=list)
 
 
-class AnalystOutput(BaseModel):
+# Element scores are explicit, required fields per lens, not a dict: Gemini's
+# response schema has no additionalProperties (a dict is silently never
+# filled) and an optional field is too easily skipped.
+
+
+class TechnicianElements(BaseModel):
+    technical: int = Field(ge=1, le=10)
+
+
+class ComposerElements(BaseModel):
+    composition: int = Field(ge=1, le=10)
+    lighting: int = Field(ge=1, le=10)
+
+
+class StorytellerElements(BaseModel):
+    impact: int = Field(ge=1, le=10)
+    story: int = Field(ge=1, le=10)
+
+
+class LensOut(BaseModel):
+    observations: list[str] = Field(default_factory=list)
     techniques: list[EvidenceOut] = Field(default_factory=list)
+    elements: BaseModel
+    note: str = ""
+
+
+class TechnicianOut(LensOut):
+    elements: TechnicianElements
+
+
+class ComposerOut(LensOut):
+    elements: ComposerElements
     composition: CompositionOut = Field(default_factory=CompositionOut)
+
+
+class StorytellerOut(LensOut):
+    elements: StorytellerElements
+
+
+class SynthesisOut(BaseModel):
     critique: str = ""
-    score: int = Field(default=5, ge=1, le=10)
 
 
-# --- agent ----------------------------------------------------------------
+SCHEMAS: dict[str, type[LensOut]] = {
+    panel.TECHNICIAN: TechnicianOut,
+    panel.COMPOSER: ComposerOut,
+    panel.STORYTELLER: StorytellerOut,
+}
 
 
-def analyst_agent() -> LlmAgent:
+@dataclass
+class PanelResult:
+    reads: dict[str, LensOut] = field(default_factory=dict)
+    synthesis: SynthesisOut | None = None
+    #: Seconds each lens took; missing lenses are absent.
+    latency: dict[str, float] = field(default_factory=dict)
+
+
+# --- agents ---------------------------------------------------------------------
+
+
+def lens_agent(name: str) -> LlmAgent:
     return LlmAgent(
         model=settings.model_flash,
-        name="analyst",
-        description="Reads one shot and reports technique evidence, composition and a critique.",
-        instruction=prompts.load("analyst"),
-        output_schema=AnalystOutput,
-        output_key="analysis",
+        name=name,
+        description=f"The {name} lens of the Analyst panel.",
+        instruction=prompts.load(name),
+        output_schema=SCHEMAS[name],
+        output_key=name,
     )
+
+
+def synthesizer_agent() -> LlmAgent:
+    return LlmAgent(
+        model=settings.model_flash,
+        name="synthesizer",
+        description="Writes the critique from the three lenses' readings.",
+        instruction=prompts.load("synthesizer"),
+        output_schema=SynthesisOut,
+        output_key="synthesis",
+    )
+
+
+def analyst_agent() -> SequentialAgent:
+    """panel (parallel, three lenses) → synthesizer. Deterministic order."""
+    return SequentialAgent(
+        name="analyst",
+        description="Reads one shot with a panel of three lenses, then writes the critique.",
+        sub_agents=[
+            ParallelAgent(
+                name="panel",
+                description="Technician, Composer and Storyteller read the shot concurrently.",
+                sub_agents=[lens_agent(lens) for lens in panel.LENSES],
+            ),
+            synthesizer_agent(),
+        ],
+    )
+
+
+# --- prompt pieces ---------------------------------------------------------------
 
 
 def catalogue_text(video: bool) -> str:
@@ -115,61 +200,110 @@ def _shutter(seconds: float) -> str:
 
 
 def prompt_for(shot: Shot) -> str:
+    """The user turn every lens sees: the grid, the kind, the catalogue.
+    Camera facts go only to the Technician, through its instruction."""
     grid = shot.grid
     video = shot.kind.value == "video"
     return (
         f"Grid: {grid.cols} columns x {grid.rows} rows "
         f"(cells A1 to {chr(ord('A') + grid.cols - 1)}{grid.rows}).\n"
-        f"Shot kind: {'video contact sheet' if video else 'photo'}.\n\n"
-        f"Camera facts:\n{facts_text(shot.exif, shot.video)}\n\n"
+        f"Shot kind: {'video contact sheet' if video else 'photo'}.\n"
+        "Image 1 is the gridded frame; Image 2 is the clean frame.\n\n"
         f"Technique catalogue:\n{catalogue_text(video)}"
     )
 
 
-async def analyse(shot: Shot, gridded_png: bytes) -> AnalystOutput:
-    return await run_agent(
+def state_for(shot: Shot) -> dict[str, str]:
+    """Session state the instructions template from: facts for the
+    Technician only, anchors for every lens."""
+    return {
+        "facts": facts_text(shot.exif, shot.video),
+        "anchors": rubric.anchors_text(),
+    }
+
+
+async def analyse(shot: Shot, gridded_png: bytes, clean_jpeg: bytes) -> PanelResult:
+    result: WorkflowResult = await run_workflow(
         analyst_agent(),
         prompt=prompt_for(shot),
-        images=[bytes_part(gridded_png, "image/png")],
-        schema=AnalystOutput,
+        images=[bytes_part(gridded_png, "image/png"), bytes_part(clean_jpeg, "image/jpeg")],
+        state=state_for(shot),
+        outputs={**{lens: SCHEMAS[lens] for lens in panel.LENSES}, "synthesis": SynthesisOut},
         user_id=shot.user_id,
+        timeout=settings.panel_timeout_seconds,
+    )
+    reads = {lens: result.outputs[lens] for lens in panel.LENSES if lens in result.outputs}
+    if len(reads) < settings.panel_quorum:
+        raise RuntimeError(
+            f"analyst panel quorum not met: {sorted(reads)} answered "
+            f"({', '.join(f'{k}: {v}' for k, v in result.errors.items()) or 'no errors logged'})"
+        )
+    return PanelResult(
+        reads=reads,
+        synthesis=result.outputs.get("synthesis"),
+        latency={k: v for k, v in result.latency.items() if k in panel.LENSES},
     )
 
 
-# --- validation (pure) ----------------------------------------------------
+# --- validation (pure) ----------------------------------------------------------
 
 
-def validate(shot: Shot, raw: AnalystOutput) -> Analysis:
-    """Keep only what the grid and the catalogue can vouch for."""
-    grid = Grid(
-        cols=shot.grid.cols, rows=shot.grid.rows, width=shot.grid.width, height=shot.grid.height
-    )
+def lens_read(shot: Shot, lens: str, raw: LensOut) -> panel.LensRead:
+    """One lens's output with only grid cells and catalogue ids kept."""
+    grid = _grid(shot)
     video = shot.kind.value == "video"
-
-    techniques: list[TechniqueEvidence] = []
+    sightings: list[panel.Sighting] = []
     seen: set[str] = set()
     for item in raw.techniques:
         tid = item.technique_id.strip().lower()
         if tid not in taxonomy.BY_ID:
             logger.warning(
-                "analyst: dropped unknown technique %r on %s", item.technique_id, shot.id
+                "%s: dropped unknown technique %r on %s", lens, item.technique_id, shot.id
             )
             continue
         if taxonomy.BY_ID[tid].video_only and not video:
-            logger.warning("analyst: dropped video technique %r on a photo %s", tid, shot.id)
+            logger.warning("%s: dropped video technique %r on a photo %s", lens, tid, shot.id)
             continue
         if tid in seen:
             continue
         seen.add(tid)
-        techniques.append(
-            TechniqueEvidence(
+        sightings.append(
+            panel.Sighting(
                 technique_id=tid,
                 confidence=max(0.0, min(1.0, item.confidence)),
-                cells=_cells(grid, item.cells),
+                cells=tuple(_cells(grid, item.cells)),
                 note=item.note.strip()[:300],
             )
         )
+    elements = {
+        k: rubric.clamp(v)
+        for k, v in raw.elements.model_dump().items()
+        if k in panel.LENS_ELEMENTS.get(lens, ()) and v is not None
+    }
+    observations = [" ".join(o.split())[:240] for o in raw.observations if o.strip()][:6]
+    return panel.LensRead(
+        lens=lens, sightings=sightings, elements=elements, observations=observations
+    )
 
+
+def validate(shot: Shot, result: PanelResult) -> Analysis:
+    """The vote, then only what the grid and the catalogue can vouch for."""
+    grid = _grid(shot)
+    reads = [lens_read(shot, lens, raw) for lens, raw in result.reads.items()]
+    consensus = panel.aggregate(
+        reads,
+        min_confidence=settings.panel_min_confidence,
+        min_agreement=settings.panel_min_agreement,
+        owner_confidence=settings.panel_owner_confidence,
+        quorum=settings.panel_quorum,
+    )
+    for lens, tid, confidence in consensus.dissent:
+        logger.info(
+            "panel: %s alone saw %s at %.2f on %s; not counted", lens, tid, confidence, shot.id
+        )
+
+    composer = result.reads.get(panel.COMPOSER)
+    raw_comp = composer.composition if isinstance(composer, ComposerOut) else CompositionOut()
     moves = [
         Move(
             what=m.what.strip()[:80],
@@ -177,28 +311,40 @@ def validate(shot: Shot, raw: AnalystOutput) -> Analysis:
             to_cells=_cells(grid, m.to_cells),
             reason=m.reason.strip()[:300],
         )
-        for m in raw.composition.moves[:3]
+        for m in raw_comp.moves[:3]
         if m.what.strip()
     ]
     moves = [m for m in moves if m.from_cells or m.to_cells]
-
-    horizon = raw.composition.horizon_row
+    horizon = raw_comp.horizon_row
     if horizon is not None and not (1 <= horizon <= grid.rows):
         horizon = None
+
+    critique = (result.synthesis.critique if result.synthesis else "").strip()
+    if not critique:
+        critique = " ".join(r.note.strip() for r in result.reads.values() if r.note.strip())
 
     return Analysis(
         shot_id=shot.id,
         user_id=shot.user_id,
         model=settings.model_flash,
-        techniques=techniques,
+        techniques=consensus.techniques,
         composition=Composition(
-            subject_cells=_cells(grid, raw.composition.subject_cells),
+            subject_cells=_cells(grid, raw_comp.subject_cells),
             horizon_row=horizon,
-            suggested_crop_cells=_cells(grid, raw.composition.suggested_crop_cells),
+            suggested_crop_cells=_cells(grid, raw_comp.suggested_crop_cells),
             moves=moves,
         ),
-        critique=raw.critique.strip()[:2000],
-        score=max(1, min(10, raw.score)),
+        observations=consensus.observations,
+        elements=consensus.elements,
+        critique=critique[:2000],
+        score=rubric.overall(consensus.elements),
+        panel={lens: round(result.latency.get(lens, 0.0), 1) for lens in result.reads},
+    )
+
+
+def _grid(shot: Shot) -> Grid:
+    return Grid(
+        cols=shot.grid.cols, rows=shot.grid.rows, width=shot.grid.width, height=shot.grid.height
     )
 
 

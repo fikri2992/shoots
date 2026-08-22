@@ -143,6 +143,9 @@ class TechniqueEvidence(BaseModel):
     #: Cells where the evidence is visible. Empty for global qualities.
     cells: list[str] = Field(default_factory=list)
     note: str = ""
+    #: How many panel lenses saw it, and which (domain/panel.py).
+    agreement: int = 1
+    lenses: list[str] = Field(default_factory=list)
 
 
 class Move(BaseModel):
@@ -167,9 +170,15 @@ class Analysis(BaseModel):
     model: str
     techniques: list[TechniqueEvidence] = Field(default_factory=list)
     composition: Composition = Field(default_factory=Composition)
+    #: Neutral, cell-referenced description (Feldman's first step), before judgement.
+    observations: list[str] = Field(default_factory=list)
+    #: Rubric element scores 1-10 (domain/rubric.py), averaged over the lenses that rate each.
+    elements: dict[str, int] = Field(default_factory=dict)
     critique: str = ""
-    #: 1-10, the Analyst's overall read. Feeds best_score on the skill graph.
+    #: 1-10, computed from ``elements`` by the rubric's weights. Feeds best_score.
     score: int = Field(default=5, ge=1, le=10)
+    #: Seconds each lens took; a lens missing here did not answer.
+    panel: dict[str, float] = Field(default_factory=dict)
     created_at: datetime = Field(default_factory=now)
 
 

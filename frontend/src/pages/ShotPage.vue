@@ -45,6 +45,11 @@ export default {
     quest() {
       return this.shot?.quest_id ? this.questById(this.shot.quest_id) : null
     },
+    elements() {
+      const order = ['impact', 'composition', 'lighting', 'technical', 'story']
+      const scored = this.analysis?.elements || {}
+      return order.filter((k) => k in scored).map((k) => ({ key: k, value: scored[k] }))
+    },
   },
   async created() {
     if (!this.view) await this.fetchShot(this.shotId)
@@ -101,6 +106,25 @@ export default {
             <span class="font-mono text-sm">{{ analysis.score }}/10</span>
           </div>
           <p class="mt-2 text-sm leading-relaxed text-neutral-200">{{ analysis.critique }}</p>
+          <ul v-if="elements.length" class="mt-3 grid grid-cols-2 gap-x-4 gap-y-1.5 sm:grid-cols-5">
+            <li v-for="e in elements" :key="e.key" class="text-xs">
+              <div class="flex items-baseline justify-between">
+                <span class="text-neutral-400">{{ e.key }}</span>
+                <span class="font-mono text-neutral-300">{{ e.value }}</span>
+              </div>
+              <span class="mt-0.5 block h-1 overflow-hidden rounded bg-neutral-800"><span class="block h-full bg-amber-300/80" :style="{ width: `${e.value * 10}%` }" /></span>
+            </li>
+          </ul>
+          <p v-if="elements.length" class="mt-2 text-[10px] text-neutral-600">
+            Scored on the PPA merit-image elements by three lenses (technician, composer, storyteller); the overall is their weighted mean.
+          </p>
+        </div>
+
+        <div v-if="analysis.observations?.length" class="rounded-xl border border-edge bg-panel p-4">
+          <h2 class="text-sm font-semibold">Seen</h2>
+          <ul class="mt-2 space-y-1 text-sm text-neutral-300">
+            <li v-for="(o, i) in analysis.observations" :key="i" class="flex gap-2"><span class="text-neutral-600">·</span><span>{{ o }}</span></li>
+          </ul>
         </div>
 
         <div v-if="analysis.composition.moves.length" class="rounded-xl border border-edge bg-panel p-4">
@@ -121,6 +145,7 @@ export default {
             <li v-for="t in analysis.techniques" :key="t.technique_id">
               <div class="flex items-center gap-2">
                 <span class="text-neutral-100">{{ t.technique_id.replace(/_/g, ' ') }}</span>
+                <span v-if="t.agreement" class="font-mono text-[10px] tracking-widest text-neutral-500" :title="`seen by ${(t.lenses || []).join(', ')}`">{{ '●'.repeat(t.agreement) + '○'.repeat(Math.max(0, 3 - t.agreement)) }}</span>
                 <span class="h-1.5 flex-1 overflow-hidden rounded bg-neutral-800"><span class="block h-full bg-sky-400" :style="{ width: `${Math.round(t.confidence * 100)}%` }" /></span>
                 <span class="w-10 text-right font-mono text-[11px] text-neutral-400">{{ Math.round(t.confidence * 100) }}%</span>
               </div>

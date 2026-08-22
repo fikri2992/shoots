@@ -31,8 +31,10 @@ async def analyse(ctx: Context, message: dict) -> None:
         return
 
     gridded = await ctx.blobs.read(shot.blobs[GRIDDED])
-    raw = await agent.analyse(shot, gridded)
-    analysis = agent.validate(shot, raw)
+    clean_key = SHEET if SHEET in shot.blobs else ORIGINAL
+    clean = canvas.fit_for_model(canvas.load_bytes(await ctx.blobs.read(shot.blobs[clean_key])))
+    result = await agent.analyse(shot, gridded, canvas.to_jpeg_bytes(clean))
+    analysis = agent.validate(shot, result)
     await repo.put_analysis(ctx.store, analysis)
 
     # A rendered copy of the composition read, on the frame the model saw
@@ -58,9 +60,16 @@ async def analyse(ctx: Context, message: dict) -> None:
         {
             "score": analysis.score,
             "techniques": [
-                {"id": t.technique_id, "confidence": round(t.confidence, 2)}
+                {
+                    "id": t.technique_id,
+                    "confidence": round(t.confidence, 2),
+                    "agreement": t.agreement,
+                    "lenses": t.lenses,
+                }
                 for t in analysis.techniques
             ],
+            "elements": analysis.elements,
+            "panel": analysis.panel,
             "moves": len(analysis.composition.moves),
         },
         shot_id=shot.id,

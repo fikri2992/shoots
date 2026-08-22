@@ -382,7 +382,7 @@ TECHNIQUES: tuple[Technique, ...] = (
         Family.EXPOSURE,
         1,
         "Fast movement stopped dead: droplets, wings, a jump, no motion blur.",
-        exif={"shutter_max_s": 1 / 1000},
+        exif={"shutter_max_s": 1 / 500},
     ),
     _t(
         "panning",
@@ -390,7 +390,7 @@ TECHNIQUES: tuple[Technique, ...] = (
         Family.EXPOSURE,
         2,
         "Moving subject sharp, background streaked horizontally from following it.",
-        exif={"shutter_min_s": 1 / 60, "shutter_max_s": 1 / 10},
+        exif={"shutter_min_s": 1 / 125, "shutter_max_s": 1 / 8},
         requires=("freeze_action",),
     ),
     _t(
@@ -399,7 +399,7 @@ TECHNIQUES: tuple[Technique, ...] = (
         Family.EXPOSURE,
         2,
         "Water turned to mist, clouds streaked, moving people ghosted; static parts sharp.",
-        exif={"shutter_min_s": 1.0},
+        exif={"shutter_min_s": 0.5},
         requires=("deep_dof",),
     ),
     _t(
