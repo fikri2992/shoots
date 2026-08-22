@@ -14,3 +14,10 @@
 - Analyst quality on first run: `light_trails` 0.98 justified by the 10 s shutter; `slow_motion` 0.95 from 120 fps; declined to tag `panning` on a first-person bike shot (correct). Scores 3-7, critiques specific to the frame. Cells always valid after `validate()`.
 - Composition read renders well: crop dim, horizon, subject box, move arrows (`imaging/overlay.py`).
 - Local dev: `FileStore` (JSON) keeps users/shots across restarts. Stop the server via the task that started it; `taskkill` on the PID does not reach it.
+
+## Day 4 notes (2026-08-22)
+
+- `/api/skills/rebuild` re-derived 11 techniques from the 4 stored analyses; then `/api/quests/issue` produced `golden_hour` ("Catch the golden hour glow", 6 steps, why-now referencing the user's own shots, 3 grounded references). ~25 s for research + write.
+- Grounding chunk titles are bare domains (adobe.com, slrlounge.com) and URLs are `vertexaisearch.cloud.google.com/grounding-api-redirect/...` redirects. Acceptable; the dashboard shows the domain as the label.
+- Scout research uses google-genai directly with the Search tool because ADK disables tools when `output_schema` is set; the write step is an ADK agent. Worth one sentence in the architecture doc.
+- Day 5 next: Judge (pure EXIF checks + vision threshold, model feedback only), daily tick, backfill job.
