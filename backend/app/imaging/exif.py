@@ -6,7 +6,7 @@ becomes ``None``; the Judge treats ``None`` as "cannot check", never as a pass.
 """
 
 import io
-from datetime import datetime
+from datetime import UTC, datetime
 from fractions import Fraction
 from typing import Any
 
@@ -40,10 +40,12 @@ def _text(value: Any) -> str:
 
 
 def _when(value: Any) -> datetime | None:
+    """EXIF times carry no zone. Treat them as UTC so every datetime in the
+    system is comparable; the error is hours, the use is days."""
     text = _text(value)
     for fmt in _DATETIME_FORMATS:
         try:
-            return datetime.strptime(text, fmt)
+            return datetime.strptime(text, fmt).replace(tzinfo=UTC)
         except ValueError:
             continue
     return None

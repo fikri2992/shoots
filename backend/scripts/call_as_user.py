@@ -36,8 +36,13 @@ async def main(method: str, path: str, body: str | None) -> None:
     if not users:
         raise SystemExit("no users in the store")
     user = users[0]
+    # Git Bash rewrites a leading "/api/..." argument into a Windows path; pass
+    # "api/..." and let this add the slash.
+    path = "/" + path.lstrip("/")
     cookies = {"session": cookie_for({"id": user.id, "email": user.email, "name": user.name})}
-    async with httpx.AsyncClient(base_url=BASE, cookies=cookies, timeout=300) as client:
+    async with httpx.AsyncClient(
+        base_url=BASE, cookies=cookies, timeout=300, trust_env=False
+    ) as client:
         response = await client.request(
             method.upper(), path, content=body, headers={"Content-Type": "application/json"}
         )

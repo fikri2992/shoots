@@ -1,6 +1,6 @@
 """EXIF reader against JPEGs Pillow actually wrote. Hard evidence must be exact."""
 
-from datetime import datetime
+from datetime import UTC, datetime
 
 from app.imaging.exif import read_exif
 from tests.fixtures import jpeg_with_exif
@@ -16,7 +16,7 @@ def test_reads_the_fields_the_judge_uses():
     assert exif.flash_fired is False
     assert exif.make == "TestCam" and exif.model == "T1"
     assert exif.lens == "Test 50mm f/1.8"
-    assert exif.captured_at == datetime(2026, 8, 22, 18, 30)
+    assert exif.captured_at == datetime(2026, 8, 22, 18, 30, tzinfo=UTC)
 
 
 def test_long_exposure_and_flash():

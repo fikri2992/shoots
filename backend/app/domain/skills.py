@@ -73,11 +73,10 @@ def decay(skills: dict[str, SkillState], now: datetime, decay_days: int) -> list
     changed: list[SkillState] = []
     cutoff = now - timedelta(days=decay_days)
     for state in skills.values():
-        if (
-            state.status is SkillStatus.SOLID
-            and state.last_practiced is not None
-            and state.last_practiced < cutoff
-        ):
+        last = state.last_practiced
+        if last is not None and last.tzinfo is None:
+            last = last.replace(tzinfo=cutoff.tzinfo)  # older records from zone-less EXIF
+        if state.status is SkillStatus.SOLID and last is not None and last < cutoff:
             state.status = SkillStatus.RUSTY
             changed.append(state)
     return changed
