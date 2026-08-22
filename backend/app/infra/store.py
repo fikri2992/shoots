@@ -12,6 +12,8 @@ production. This is what AGENTS.md means by no mocked repositories: nothing here
 pretends to store something and then asserts it was asked to.
 """
 
+import json
+from pathlib import Path
 from typing import Any, Protocol, runtime_checkable
 
 Document = dict[str, Any]
@@ -92,6 +94,34 @@ def _clone(document: Document) -> Document:
 def _sort_key(value: Any) -> Any:
     """Order missing values consistently instead of raising on mixed types."""
     return (value is None, str(value) if value is not None else "")
+
+
+class FileStore(InMemoryStore):
+    """The in-memory store, persisted to one JSON file after every write.
+
+    Local development only: a backend restart keeps users, shots and the
+    connected folder. Not safe for concurrent processes, which is fine here.
+    """
+
+    def __init__(self, path: str | Path = "./.blobs/store.json"):
+        super().__init__()
+        self.path = Path(path)
+        if self.path.exists():
+            self._data = json.loads(self.path.read_text(encoding="utf-8"))
+
+    def _flush(self) -> None:
+        self.path.parent.mkdir(parents=True, exist_ok=True)
+        tmp = self.path.with_suffix(".json.tmp")
+        tmp.write_text(json.dumps(self._data), encoding="utf-8")
+        tmp.replace(self.path)
+
+    async def put(self, collection: str, doc_id: str, data: Document) -> None:
+        await super().put(collection, doc_id, data)
+        self._flush()
+
+    async def delete(self, collection: str, doc_id: str) -> None:
+        await super().delete(collection, doc_id)
+        self._flush()
 
 
 class FirestoreStore:

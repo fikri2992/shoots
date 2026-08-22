@@ -14,6 +14,7 @@ ORIGINAL = "original"
 GRIDDED = "gridded"
 SHEET = "sheet"
 THUMB = "thumb"
+ANNOTATED = "annotated"
 CLIP = "clip"
 
 

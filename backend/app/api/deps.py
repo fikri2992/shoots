@@ -13,12 +13,14 @@ from app.infra.bus import TOPICS, InProcessBus, PubSubBus
 from app.infra.drive import GoogleDriveClient, LocalDriveClient
 from app.infra.secrets import LocalTokenStore, SecretManagerTokenStore
 from app.infra.storage import GcsBlobStore, LocalBlobStore
-from app.infra.store import FirestoreStore, InMemoryStore
+from app.infra.store import FileStore, FirestoreStore
 from app.services.context import Context
 
 
 def build_context() -> Context:
-    store = FirestoreStore() if settings.cloud_state else InMemoryStore()
+    store = (
+        FirestoreStore() if settings.cloud_state else FileStore(settings.blob_root + "/store.json")
+    )
     blobs = GcsBlobStore() if settings.gcs_bucket else LocalBlobStore()
     tokens = SecretManagerTokenStore() if settings.cloud_state else LocalTokenStore()
     bus = InProcessBus() if settings.in_process_pipeline else PubSubBus()
@@ -32,12 +34,16 @@ def build_context() -> Context:
 
 def wire(ctx: Context) -> None:
     """Register every stage handler. Same registrations on either bus."""
-    from app.services import ingest
+    from app.services import analyst, ingest
 
     async def on_media_new(message: dict) -> None:
         await ingest.ingest(ctx, message)
 
+    async def on_media_ingested(message: dict) -> None:
+        await analyst.analyse(ctx, message)
+
     ctx.bus.subscribe(TOPICS["media.new"], on_media_new)
+    ctx.bus.subscribe(TOPICS["media.ingested"], on_media_ingested)
 
 
 context = build_context()

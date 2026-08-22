@@ -12,7 +12,7 @@ from app.domain.entities import Criteria, Quest, QuestStatus, Shot, ShotKind, Sk
 from app.infra import repository as repo
 from app.infra.bus import InProcessBus
 from app.infra.secrets import LocalTokenStore
-from app.infra.store import InMemoryStore
+from app.infra.store import FileStore, InMemoryStore
 
 
 def stores():
@@ -114,3 +114,16 @@ async def test_in_process_bus_runs_handlers_and_isolates_failures():
     await bus.publish("t", {"n": 2})
     await bus.drain()
     assert sorted(seen) == [1, 2]
+
+
+async def test_file_store_survives_a_restart(tmp_path):
+    path = tmp_path / "store.json"
+    first = FileStore(path)
+    await first.put("users", "u1", {"id": "u1", "drive_folder_id": "f"})
+    await first.put("users", "u2", {"id": "u2"})
+    await first.delete("users", "u2")
+
+    second = FileStore(path)  # a new process
+    assert (await second.get("users", "u1"))["drive_folder_id"] == "f"
+    assert await second.get("users", "u2") is None
+    assert len(await second.query("users")) == 1
