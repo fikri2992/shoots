@@ -1,0 +1,30 @@
+# Secrets — must never reach an image layer
+**/.env
+**/*-key.json
+**/service-account*.json
+
+# Build output and caches
+**/node_modules
+**/dist
+**/.venv
+**/__pycache__
+**/*.py[cod]
+**/.pytest_cache
+**/.ruff_cache
+**/.vite
+
+# Local runtime state
+backend/.blobs
+eval/images
+eval/output
+
+# Not needed at runtime
+backend/tests
+docs
+eval/*.md
+.git
+.github
+
+# NOTE: do not add a blanket **/*.md rule here. The agent prompts in
+# backend/app/agents/prompts/ are markdown and are loaded at runtime; excluding
+# them builds an image where every agent fails to start.

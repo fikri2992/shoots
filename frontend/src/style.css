@@ -1,0 +1,25 @@
+@import 'tailwindcss';
+
+@theme {
+  /* Severity — used by chips, pins, and filters. */
+  --color-blocker: oklch(0.58 0.21 25);
+  --color-warning: oklch(0.72 0.16 70);
+  --color-nitpick: oklch(0.68 0.09 240);
+
+  /* Monochrome surfaces — the only greys the chrome uses. */
+  --color-ink: #101011;
+  --color-panel: #141416;
+  --color-panel-2: #1a1a1d;
+  --color-edge: #212125;
+  --color-edge-strong: #2e2e33;
+}
+
+html,
+body,
+#app {
+  height: 100%;
+}
+
+body {
+  @apply bg-ink text-neutral-100 antialiased;
+}
