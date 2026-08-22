@@ -14,6 +14,7 @@ from app.domain import scout as rules
 from app.domain import skills as skill_rules
 from app.domain.entities import Quest, QuestStatus, new_id, now
 from app.infra import repository as repo
+from app.infra.bus import TOPICS
 from app.services import notify
 from app.services.context import Context
 
@@ -78,6 +79,7 @@ async def issue(ctx: Context, user_id: str, force: bool = False) -> Quest | None
         quest_id=quest.id,
     )
     await notify.quest_issued(ctx, quest)
+    await ctx.bus.publish(TOPICS["quest.issued"], {"user_id": user_id, "quest_id": quest.id})
     return quest
 
 

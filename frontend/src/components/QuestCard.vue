@@ -30,10 +30,13 @@ export default {
     compact: { type: Boolean, default: false },
   },
   data() {
-    return { open: !this.compact }
+    return { open: !this.compact, muted: true }
   },
   computed: {
     ...mapState(useShootsStore, ['busy']),
+    clipUrl() {
+      return this.quest.reference_clip ? `/api/blobs/${this.quest.reference_clip}` : ''
+    },
     steps() {
       return this.quest.brief
         .split(/\n+/)
@@ -101,6 +104,26 @@ export default {
     </button>
 
     <div v-if="open" class="space-y-4 border-t border-edge p-4">
+      <div v-if="clipUrl" class="flex gap-4">
+        <button
+          type="button"
+          class="relative w-36 shrink-0 overflow-hidden rounded-lg bg-black"
+          :title="muted ? 'Tap for sound' : 'Tap to mute'"
+          @click="muted = !muted"
+        >
+          <video :src="clipUrl" class="aspect-[9/16] w-full object-cover" autoplay loop playsinline :muted="muted" />
+          <span class="absolute bottom-1.5 right-1.5 rounded bg-black/60 px-1.5 py-0.5 font-mono text-[10px] text-neutral-200">
+            {{ muted ? 'sound off' : 'sound on' }}
+          </span>
+        </button>
+        <div class="text-xs text-neutral-400">
+          <p class="text-[11px] font-medium uppercase tracking-wide text-neutral-500">Reference</p>
+          <p class="mt-1">What the finished technique looks like, rendered by the Director for this quest.</p>
+          <p class="mt-2 font-mono text-[10px] text-neutral-600">Veo 3.1 · Lyria 3</p>
+        </div>
+      </div>
+      <p v-else-if="isOpen" class="text-[11px] text-neutral-600">Reference clip rendering…</p>
+
       <ol class="space-y-2 text-sm text-neutral-200">
         <li v-for="(step, i) in steps" :key="i" class="flex gap-3">
           <span class="w-5 shrink-0 text-right font-mono text-neutral-500">{{ i + 1 }}</span>

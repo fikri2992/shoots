@@ -23,6 +23,12 @@ class Settings(BaseSettings):
     model_music: str = "lyria-3-clip-preview"
     model_live: str = "gemini-live-2.5-flash-native-audio"
 
+    # --- Director: one reference clip per quest ----------------------------
+    #: Veo 3.1 accepts 4, 6 or 8 seconds. Long enough to show the technique.
+    clip_seconds: int = 6
+    clip_aspect: str = "9:16"
+    clip_resolution: str = "720p"
+
     # Veo/Lyria are long-running operations; these bound the polling loop.
     generate_poll_seconds: float = 5.0
     generate_timeout_seconds: float = 600.0
@@ -59,8 +65,10 @@ class Settings(BaseSettings):
     gcp_location: str = "asia-southeast2"
     #: Gemini 3.x is served from the global endpoint only.
     vertex_location: str = "global"
-    #: Veo and Lyria are us-central1 only.
+    #: Veo is us-central1 only.
     media_location: str = "us-central1"
+    #: Lyria 3 is served from the global endpoint (verified 2026-08-23).
+    music_location: str = "global"
     gcs_bucket: str = ""
     firestore_database: str = "(default)"
     use_vertex_ai: bool = False
@@ -74,6 +82,7 @@ class Settings(BaseSettings):
     topic_media_ingested: str = "shoots.media.ingested"
     topic_media_analyzed: str = "shoots.media.analyzed"
     topic_quest_closed: str = "shoots.quest.closed"
+    topic_quest_issued: str = "shoots.quest.issued"
     #: Empty = run stages in-process (local dev). Set to the public base URL of
     #: this service on Cloud Run so push subscriptions can reach /pubsub/*.
     pubsub_push_base_url: str = ""

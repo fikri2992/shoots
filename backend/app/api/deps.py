@@ -34,7 +34,7 @@ def build_context() -> Context:
 
 def wire(ctx: Context) -> None:
     """Register every stage handler. Same registrations on either bus."""
-    from app.services import analyst, cartographer, ingest, judge, scout
+    from app.services import analyst, cartographer, director, ingest, judge, scout
 
     async def on_media_new(message: dict) -> None:
         await ingest.ingest(ctx, message)
@@ -55,7 +55,12 @@ def wire(ctx: Context) -> None:
     ctx.bus.subscribe(TOPICS["media.ingested"], on_media_ingested)
     ctx.bus.subscribe(TOPICS["media.analyzed"], on_media_analyzed)
     ctx.bus.subscribe(TOPICS["media.analyzed"], on_media_analyzed_judge)
+
+    async def on_quest_issued(message: dict) -> None:
+        await director.direct(ctx, message)
+
     ctx.bus.subscribe(TOPICS["quest.closed"], on_quest_closed)
+    ctx.bus.subscribe(TOPICS["quest.issued"], on_quest_issued)
 
 
 context = build_context()
