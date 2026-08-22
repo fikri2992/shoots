@@ -96,11 +96,13 @@ Drive folder changes                       (watch)
 
 | Cartographer | `media.analyzed` | Analysis, SkillStates | SkillStates | none (pure) |
 
-| Judge | `media.analyzed` when shot.quest_id set | Analysis, Quest | Verdict, Quest status, `quest.closed` | gemini-3.7-flash (feedback only; pass/fail is pure) |
+| Judge | `media.analyzed` | Analysis, Quest | Verdict, Quest status, `media.judged` always, `quest.closed` on pass | gemini-3.7-flash (feedback only; pass/fail is pure) |
 
-| Scout | daily tick, `quest.closed` | skill graph, taxonomy | Quest, push, `quest.issued` | gemini-3.7-flash + Search grounding |
+| Scout | daily tick, `quest.closed` | skill graph, taxonomy, user location | Quest with `deliver_at`, push when due, `quest.issued` | gemini-3.7-flash + Search grounding |
 
-| Director | `quest.issued` | Quest, technique | reference clip blob on the Quest | gemini-3.7-flash (storyboard), veo-3.1-fast, lyria-3-clip |
+| Director | `quest.issued` | Quest, technique | reference clip blob on the Quest | gemini-3.7-flash (storyboard), veo-3.1-fast |
+
+| Scribe | `media.judged` | annotated frame, Analysis, Verdict | the reviewed copy in the user's Drive (`Shoots/Reviewed/`) | none (Pillow) |
 
 | Coach | a tap on the shot page (WebSocket) | gridded frame, Analysis, Quest | ActivityEvent with the transcript | gemini-live-2.5-flash-native-audio |
 
@@ -132,7 +134,7 @@ Cartographer and Judge pass/fail are pure code. That is deliberate: the skill gr
 
 8. **Secrets stay out of Firestore.** The Drive refresh token lives in Secret Manager (prod) or `.blobs/tokens` (local). Firestore holds the user's Drive folder id and page token only.
 
-9. **Gemini 3.7 and Lyria 3 via the Vertex global endpoint; Veo and Gemini Live via us-central1.** Verified per model on 2026-08-23; each has its own `*_location` setting. App infrastructure in asia-southeast2.
+9. **Gemini 3.7 via the Vertex global endpoint; Veo and Gemini Live via us-central1.** Verified per model on 2026-08-23; each has its own `*_location` setting. App infrastructure in asia-southeast2.
 
 10. **Voice review is a relay, not a browser-side Live client.** The phone opens one WebSocket to this service per shot; the service opens the Gemini Live session with the gridded frame and the Analyst's read as the first turn, and relays 16 kHz PCM in and 24 kHz PCM out, plus transcripts. The browser never holds a Google credential and the briefing never leaves the server. The session ends as one ActivityEvent with the transcript, so the feed shows what was discussed.
 
@@ -140,7 +142,11 @@ Cartographer and Judge pass/fail are pure code. That is deliberate: the skill gr
 
 12. **Quest delivery is Web Push to the PWA, not email.** Gmail send is a restricted scope with the same verification problem. Push lands on the phone, which is where the quest is acted on anyway.
 
-13. **The reference clip is a nicety the quest never waits on.** The Scout publishes `quest.issued` and returns; the Director renders the clip (Gemini writes the Veo and Lyria prompts, Veo renders 6 s vertical, Lyria plays 30 s, ffmpeg puts the first 6 s of music under the clip) and sets `quest.reference_clip` when it lands, about 80 s later. Lyria failing ships the clip silent; Veo failing dead-letters and the quest simply has no clip. A quest closed meanwhile gets no clip.
+13. **The reference clip is a nicety the quest never waits on.** The Scout publishes `quest.issued` and returns; the Director has Gemini write the Veo prompt, Veo renders 6 s vertical with its own ambient sound, and `quest.reference_clip` is set when it lands, about a minute later. Veo failing dead-letters and the quest simply has no clip; a quest closed meanwhile gets no clip. Lyria was tried and cut: a music bed under a reference clip decorated the bonus list, not the photographer.
 
 14. **One stage, one push subscription.** Handlers register under a stage name; `/pubsub/<stage>` delivers to exactly that handler. Cartographer and Judge both read `media.analyzed` but retry and dead-letter independently, and a replay from a DLQ re-runs one stage, not the fan-out.
+
+15. **The review goes back where the photo came from.** After the Judge, the Scribe writes `Shoots/Reviewed/<name> — <score> of 10.jpg` into the user's Drive as the user (`drive.file`): the frame with the composition read drawn on it and the critique, moves and verdict as a caption band and as the file description. It shows up in the Drive and Files apps on the phone and can be shared as-is; the app is optional for reading a review. The Judge therefore always publishes `media.judged`, verdict or not, so the first write already carries the outcome.
+
+16. **The Scout decides when, not just what.** Each technique has a light window (`taxonomy.LIGHT`); the user's location is the GPS of their own newest frame, never asked for. The quest is stored at issue time with `deliver_at` and a reason ("fifty minutes before sunset where you last shot"); the push goes out on the five-minute tick when that moment comes. Solar times are NOAA's equations in `domain/sun.py`, UTC throughout; the phone formats them.
 

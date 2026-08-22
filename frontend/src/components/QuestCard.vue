@@ -62,6 +62,18 @@ export default {
     isOpen() {
       return this.quest.status === 'open'
     },
+    /** "Lands at 17:10 · fifty minutes before sunset where you last shot." */
+    timingLine() {
+      const q = this.quest
+      if (!q.timing) return ''
+      const time = (iso) => new Date(iso).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+      const anchor = q.timing.anchor_at ? ` (${q.timing.anchor} ${time(q.timing.anchor_at)})` : ''
+      if (q.delivered_at) return `Sent ${time(q.delivered_at)} · ${q.timing.reason}${anchor}`
+      if (q.deliver_at && new Date(q.deliver_at) > Date.now()) {
+        return `Lands on your phone at ${time(q.deliver_at)} · ${q.timing.reason}${anchor}`
+      }
+      return `${q.timing.reason}${anchor}`
+    },
     reference() {
       return (ref) => {
         try {
@@ -87,6 +99,7 @@ export default {
         </p>
         <h2 class="mt-1 text-xl font-semibold leading-tight">{{ quest.title }}</h2>
         <p class="mt-2 text-sm text-neutral-400">{{ quest.why_now }}</p>
+        <p v-if="timingLine" class="mt-1.5 text-xs text-amber-200/80">{{ timingLine }}</p>
       </div>
       <div class="flex shrink-0 flex-col items-end gap-1">
         <StatusChip :status="quest.status" />
@@ -119,7 +132,7 @@ export default {
         <div class="text-xs text-neutral-400">
           <p class="text-[11px] font-medium uppercase tracking-wide text-neutral-500">Reference</p>
           <p class="mt-1">What the finished technique looks like, rendered by the Director for this quest.</p>
-          <p class="mt-2 font-mono text-[10px] text-neutral-600">Veo 3.1 · Lyria 3</p>
+          <p class="mt-2 font-mono text-[10px] text-neutral-600">Veo 3.1</p>
         </div>
       </div>
       <p v-else-if="isOpen" class="text-[11px] text-neutral-600">Reference clip rendering…</p>

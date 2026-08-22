@@ -24,6 +24,7 @@ def jpeg_with_exif(
     make: str = "TestCam",
     model: str = "T1",
     when: str = "2026:08:22 18:30:00",
+    gps: tuple[float, float] | None = None,
 ) -> bytes:
     """A real JPEG whose EXIF block Pillow wrote, so the reader is tested
     against the same encoding cameras produce."""
@@ -44,10 +45,49 @@ def jpeg_with_exif(
     detail[0x920A] = focal  # FocalLength
     detail[0xA405] = focal35  # FocalLengthIn35mmFilm
     detail[0xA434] = "Test 50mm f/1.8"  # LensModel
+    if gps is not None:
+        lat, lon = gps
+        info = exif.get_ifd(0x8825)  # GPS IFD
+        info[1] = "N" if lat >= 0 else "S"
+        info[2] = _dms(abs(lat))
+        info[3] = "E" if lon >= 0 else "W"
+        info[4] = _dms(abs(lon))
 
     buffer = io.BytesIO()
     image.save(buffer, format="JPEG", quality=90, exif=exif.tobytes())
     return buffer.getvalue()
+
+
+def _dms(value: float) -> tuple[float, float, float]:
+    degrees = int(value)
+    minutes = int((value - degrees) * 60)
+    seconds = round(((value - degrees) * 60 - minutes) * 60, 4)
+    return (float(degrees), float(minutes), seconds)
+
+
+def silent_clip(seconds: float) -> bytes:
+    """A grey mp4 from lavfi: what a generated clip looks like to the code."""
+    if not HAS_FFMPEG:
+        raise RuntimeError("ffmpeg not installed")
+    with tempfile.TemporaryDirectory() as tmp:
+        out = Path(tmp) / "clip.mp4"
+        subprocess.run(
+            [
+                "ffmpeg",
+                "-v",
+                "error",
+                "-y",
+                "-f",
+                "lavfi",
+                "-i",
+                f"color=c=gray:s=180x320:d={seconds}:r=24",
+                "-pix_fmt",
+                "yuv420p",
+                str(out),
+            ],
+            check=True,
+        )
+        return out.read_bytes()
 
 
 def two_shot_video(seconds: int = 2, fps: int = 30) -> bytes:

@@ -11,6 +11,7 @@ const AGENT_STYLE = {
   scout: 'text-amber-300',
   director: 'text-rose-300',
   coach: 'text-teal-300',
+  scribe: 'text-lime-300',
   scheduler: 'text-neutral-500',
   drive: 'text-neutral-400',
   user: 'text-neutral-400',
@@ -56,7 +57,13 @@ export default {
         case 'director.storyboard':
           return `storyboarded: ${(d.video_prompt || '').slice(0, 90)}…`
         case 'director.clip_ready':
-          return `reference clip ready, ${d.seconds}s${d.scored ? ' with a Lyria track' : ', silent'}`
+          return `reference clip ready, ${d.seconds}s`
+        case 'scribe.reviewed':
+          return `wrote the review into Drive: ${d.name}`
+        case 'scribe.updated':
+          return `updated the review in Drive: ${d.name}`
+        case 'scout.delivered':
+          return `delivered the quest · ${d.timing || ''}`
         case 'coach.session':
           return `voice session, ${d.turns} turn${d.turns === 1 ? '' : 's'} in ${d.seconds}s`
         case 'scheduler.daily':

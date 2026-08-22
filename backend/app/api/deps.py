@@ -34,7 +34,7 @@ def build_context() -> Context:
 
 def wire(ctx: Context) -> None:
     """Register every stage handler. Same registrations on either bus."""
-    from app.services import analyst, cartographer, director, ingest, judge, scout
+    from app.services import analyst, cartographer, director, ingest, judge, scout, scribe
 
     async def on_media_new(message: dict) -> None:
         await ingest.ingest(ctx, message)
@@ -54,11 +54,15 @@ def wire(ctx: Context) -> None:
     async def on_quest_issued(message: dict) -> None:
         await director.direct(ctx, message)
 
+    async def on_media_judged(message: dict) -> None:
+        await scribe.write_review(ctx, message)
+
     # Stage names match the push subscriptions in infra/topics.sh.
     ctx.bus.subscribe(TOPICS["media.new"], on_media_new, stage="ingest")
     ctx.bus.subscribe(TOPICS["media.ingested"], on_media_ingested, stage="analyst")
     ctx.bus.subscribe(TOPICS["media.analyzed"], on_media_analyzed, stage="cartographer")
     ctx.bus.subscribe(TOPICS["media.analyzed"], on_media_analyzed_judge, stage="judge")
+    ctx.bus.subscribe(TOPICS["media.judged"], on_media_judged, stage="scribe")
     ctx.bus.subscribe(TOPICS["quest.closed"], on_quest_closed, stage="scout")
     ctx.bus.subscribe(TOPICS["quest.issued"], on_quest_issued, stage="director")
 

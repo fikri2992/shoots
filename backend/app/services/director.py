@@ -1,12 +1,11 @@
 """Director stage: ``quest.issued`` → reference clip on the quest.
 
 The Scout says what to shoot; the Director shows it. A Veo clip of the
-technique, scored with a Lyria mood track, lands on ``quest.reference_clip``
-as a blob the quest card plays inline. Idempotent on the quest: a second
-delivery finds the blob and stops. The clip is a nicety, so if the quest was
-closed meanwhile nothing is generated, and a Lyria failure ships the clip
-silent rather than failing the stage. A Veo failure raises: Pub/Sub retries,
-then dead-letters, and the quest simply has no clip.
+technique lands on ``quest.reference_clip`` as a blob the quest card plays
+inline. Idempotent on the quest: a second delivery finds the blob and stops.
+The clip is a nicety, so if the quest was closed meanwhile nothing is
+generated, and a Veo failure raises: Pub/Sub retries, then dead-letters, and
+the quest simply has no clip.
 """
 
 import logging
@@ -15,7 +14,6 @@ from app.agents import director as agent
 from app.config import settings
 from app.domain import taxonomy
 from app.domain.entities import QuestStatus
-from app.imaging import mux
 from app.infra import repository as repo
 from app.infra.storage import quest_blob_path
 from app.services.context import Context
@@ -46,19 +44,11 @@ async def direct(
         quest.user_id,
         AGENT,
         "storyboard",
-        {"video_prompt": board.video_prompt, "music_prompt": board.music_prompt},
+        {"video_prompt": board.video_prompt},
         quest_id=quest.id,
     )
 
     clip = await gen.clip(board.video_prompt)
-    scored = False
-    try:
-        track = await gen.track(board.music_prompt)
-        clip = await mux.score(clip, track.data, duration=float(settings.clip_seconds))
-        scored = True
-    except Exception:  # the clip still shows the technique without music
-        logger.exception("director: track failed for %s; shipping the clip silent", quest.id)
-
     path = quest_blob_path(quest.user_id, quest.id, "reference", "mp4")
     await ctx.blobs.write(path, clip, "video/mp4")
 
@@ -71,13 +61,7 @@ async def direct(
         quest.user_id,
         AGENT,
         "clip_ready",
-        {
-            "seconds": settings.clip_seconds,
-            "scored": scored,
-            "bytes": len(clip),
-            "video_model": settings.model_video,
-            "music_model": settings.model_music if scored else "",
-        },
+        {"seconds": settings.clip_seconds, "bytes": len(clip), "video_model": settings.model_video},
         quest_id=quest.id,
     )
     return path

@@ -81,6 +81,17 @@ export default {
         <span class="ml-auto font-mono text-[11px] text-neutral-500">{{ facts.join(' · ') }}</span>
       </div>
 
+      <a
+        v-if="shot.drive_review_url"
+        :href="shot.drive_review_url"
+        target="_blank"
+        rel="noopener"
+        class="mt-3 flex items-center justify-between rounded-xl border border-lime-900/60 bg-lime-950/20 px-4 py-3 text-sm text-lime-100 hover:border-lime-700"
+      >
+        <span>The reviewed copy is in your Drive, under <span class="font-mono">Shoots/Reviewed</span>.</span>
+        <span class="text-xs text-lime-300">open ↗</span>
+      </a>
+
       <p v-if="shot.error" class="mt-3 rounded-lg border border-red-900 bg-red-950/40 p-3 text-sm text-red-200">{{ shot.error }}</p>
 
       <section v-if="analysis" class="mt-4 space-y-4">

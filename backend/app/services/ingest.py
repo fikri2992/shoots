@@ -12,11 +12,12 @@ Two entry points:
 """
 
 import logging
+from datetime import UTC
 
 from PIL import Image
 
 from app.config import settings
-from app.domain.entities import GridSpec, Shot, ShotKind, ShotStatus, User, VideoMeta
+from app.domain.entities import GridSpec, Shot, ShotKind, ShotStatus, User, VideoMeta, now
 from app.domain.grid import Grid
 from app.imaging import canvas, video
 from app.imaging.contact_sheet import tile_sheet
@@ -97,6 +98,7 @@ async def ingest(ctx: Context, message: dict) -> None:
 
     shot.status = ShotStatus.INGESTED
     await repo.put_shot(ctx.store, shot)
+    await _remember_location(ctx, shot)
     await repo.record(
         ctx.store,
         shot.user_id,
@@ -204,3 +206,22 @@ def sample_times(duration: float, cuts: list[float], minimum: int, maximum: int)
 def _mmss(seconds: float) -> str:
     whole = int(seconds)
     return f"{whole // 60}:{whole % 60:02d}"
+
+
+async def _remember_location(ctx: Context, shot: Shot) -> None:
+    """The newest frame with GPS tells the Scout where the user shoots, so a
+    quest can be timed to the light there (domain/timing.py)."""
+    if shot.exif.latitude is None or shot.exif.longitude is None:
+        return
+    user = await repo.find_user(ctx.store, shot.user_id)
+    if user is None:
+        return
+    when = shot.captured_at or now()
+    if when.tzinfo is None:
+        when = when.replace(tzinfo=UTC)
+    if user.location_at and when <= user.location_at:
+        return
+    user.last_latitude = shot.exif.latitude
+    user.last_longitude = shot.exif.longitude
+    user.location_at = when
+    await repo.put_user(ctx.store, user)

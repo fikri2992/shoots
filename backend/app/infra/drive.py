@@ -252,17 +252,32 @@ class UserDrive:
     def __init__(self, credentials: Any):
         self._credentials = credentials
 
-    async def create_folder(self, name: str) -> str:
+    async def create_folder(self, name: str, parent_id: str = "") -> str:
         def run() -> str:
             svc = _service(self._credentials)
-            created = (
-                svc.files()
-                .create(body={"name": name, "mimeType": FOLDER_MIME}, fields="id")
-                .execute()
-            )
+            body: dict[str, Any] = {"name": name, "mimeType": FOLDER_MIME}
+            if parent_id:
+                body["parents"] = [parent_id]
+            created = svc.files().create(body=body, fields="id").execute()
             return created["id"]
 
         return await asyncio.to_thread(run)
+
+    async def update(self, file_id: str, name: str = "", description: str = "") -> None:
+        """Rename and/or re-caption a file the app created."""
+
+        def run() -> None:
+            body: dict[str, Any] = {}
+            if name:
+                body["name"] = name
+            if description:
+                body["description"] = description
+            if body:
+                _service(self._credentials).files().update(
+                    fileId=file_id, body=body, fields="id"
+                ).execute()
+
+        await asyncio.to_thread(run)
 
     async def share_with(self, folder_id: str, email: str, role: str = "reader") -> None:
         def run() -> None:
@@ -276,20 +291,21 @@ class UserDrive:
 
         await asyncio.to_thread(run)
 
-    async def upload(self, folder_id: str, name: str, data: bytes, mime_type: str) -> str:
-        """The PWA Shoot button. Files the app uploads are visible to both the
-        user token (drive.file) and the reader (shared folder)."""
+    async def upload(
+        self, folder_id: str, name: str, data: bytes, mime_type: str, description: str = ""
+    ) -> str:
+        """The PWA Shoot button and the Scribe's reviews. Files the app uploads
+        are visible to both the user token (drive.file) and the reader."""
 
         def run() -> str:
             from googleapiclient.http import MediaIoBaseUpload
 
             svc = _service(self._credentials)
             media = MediaIoBaseUpload(io.BytesIO(data), mimetype=mime_type, resumable=False)
-            created = (
-                svc.files()
-                .create(body={"name": name, "parents": [folder_id]}, media_body=media, fields="id")
-                .execute()
-            )
+            body: dict[str, Any] = {"name": name, "parents": [folder_id]}
+            if description:
+                body["description"] = description
+            created = svc.files().create(body=body, media_body=media, fields="id").execute()
             return created["id"]
 
         return await asyncio.to_thread(run)

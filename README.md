@@ -6,7 +6,7 @@ Entry for the All Things Agentic Hackathon, Taskmaster track.
 
 - Docs: [domain model](docs/domain-model.md) · [build plan](docs/build-plan.md) · [codebase rules](AGENTS.md)
 - Stack: Vue 3 (Options API) + Vite + Tailwind PWA · FastAPI + Google ADK · Firestore + GCS + Pub/Sub + Cloud Scheduler + Secret Manager + Cloud Run
-- Models: `gemini-3.7-flash` (Analyst, Scout, Judge, Director storyboard) · `veo-3.1-fast` + `lyria-3-clip` (Director: the reference clip under every quest) · `gemini-live-2.5-flash-native-audio` (Coach: voice review of a shot from the phone)
+- Models: `gemini-3.7-flash` (Analyst, Scout, Judge, Director storyboard) · `veo-3.1-fast` (Director: the reference clip under every quest) · `gemini-live-2.5-flash-native-audio` (Coach: voice review of a shot from the phone)
 
 ## Prerequisites
 

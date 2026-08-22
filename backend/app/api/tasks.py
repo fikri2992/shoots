@@ -29,6 +29,7 @@ class DailyReport(BaseModel):
     expired: int
     decayed: int
     issued: int
+    delivered: int = 0
     errors: list[str]
 
 
@@ -60,6 +61,7 @@ async def daily(
         except Exception as error:  # one user's failure must not stop the tick
             logger.exception("daily tick failed for %s", user.id)
             report.errors.append(f"{user.id}: {type(error).__name__}: {error}"[:200])
+    report.delivered = await scout.deliver_due(ctx)
     await repo.record(
         ctx.store, "system", "scheduler", "daily", report.model_dump()
     ) if report.users else None
@@ -76,14 +78,15 @@ async def renew_channels(
     return {"renewed": await watch.renew_all(ctx)}
 
 
-@router.post("/sync")
-async def sync_all(
+@router.post("/tick")
+async def tick(
     x_tasks_token: str | None = Header(default=None), ctx: Context = Depends(get_context)
 ):
-    """Folder sync only. Runs every few minutes as a belt to the Drive
-    push channel's braces."""
+    """Every few minutes: sync every folder (the belt to the Drive channel's
+    braces) and push any quest whose light window has opened."""
     _authorised(x_tasks_token)
     queued = 0
     for user in await repo.list_users(ctx.store):
         queued += len(await ingest.sync(ctx, user))
-    return {"queued": queued}
+    delivered = await scout.deliver_due(ctx)
+    return {"queued": queued, "delivered": delivered}

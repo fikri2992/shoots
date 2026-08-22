@@ -48,3 +48,10 @@ def test_no_exif_is_all_none():
 
 def test_garbage_bytes_do_not_raise():
     assert read_exif(b"not an image") == read_exif(b"")
+
+
+def test_reads_gps_as_signed_degrees():
+    exif = read_exif(jpeg_with_exif(gps=(-6.8436, 107.6123)))
+    assert exif.latitude is not None and abs(exif.latitude + 6.8436) < 1e-4
+    assert exif.longitude is not None and abs(exif.longitude - 107.6123) < 1e-4
+    assert read_exif(jpeg_with_exif()).latitude is None

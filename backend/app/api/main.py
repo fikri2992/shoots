@@ -81,7 +81,6 @@ async def health():
         "models": {
             "flash": settings.model_flash,
             "video": settings.model_video,
-            "music": settings.model_music,
             "live": settings.model_live,
         },
         "pipeline": "in-process" if settings.in_process_pipeline else "pubsub",

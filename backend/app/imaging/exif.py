@@ -62,6 +62,7 @@ def read_exif(data: bytes) -> Exif:
         with Image.open(io.BytesIO(data)) as image:
             root = image.getexif()
             detail = root.get_ifd(ExifTags.IFD.Exif)
+            gps = root.get_ifd(ExifTags.IFD.GPSInfo)
     except Exception:
         return Exif()
 
@@ -84,4 +85,24 @@ def read_exif(data: bytes) -> Exif:
         flash_fired=_flash(detail.get(ExifTags.Base.Flash)),
         captured_at=_when(detail.get(ExifTags.Base.DateTimeOriginal))
         or _when(root.get(ExifTags.Base.DateTime)),
+        latitude=_coordinate(gps, 2, 1, "S"),
+        longitude=_coordinate(gps, 4, 3, "W"),
     )
+
+
+def _coordinate(gps, value_key: int, ref_key: int, negative: str) -> float | None:
+    """Degrees/minutes/seconds plus a hemisphere letter to signed decimal degrees."""
+    value = gps.get(value_key) if gps else None
+    if not value or len(value) != 3:
+        return None
+    try:
+        degrees, minutes, seconds = (float(v) for v in value)
+    except (TypeError, ValueError, ZeroDivisionError):
+        return None
+    out = degrees + minutes / 60 + seconds / 3600
+    ref = gps.get(ref_key)
+    if isinstance(ref, bytes):
+        ref = ref.decode(errors="ignore")
+    if str(ref or "").upper().startswith(negative):
+        out = -out
+    return round(out, 6) if out else None

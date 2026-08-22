@@ -1,12 +1,11 @@
-"""Director on a real store, real blob store and real ffmpeg; the three
-generators return bytes made here (Veo and Lyria themselves are checked by
-scripts/check_director.py against the models)."""
+"""Director on a real store and blob store; the generators return bytes made
+here (Veo itself is checked by scripts/check_director.py against the model)."""
 
 import tempfile
 
 import pytest
 
-from app.agents.director import Generators, Storyboard, Track
+from app.agents.director import Generators, Storyboard
 from app.domain.entities import Criteria, ExifRule, Quest, QuestStatus
 from app.infra import repository as repo
 from app.infra.bus import InProcessBus
@@ -16,7 +15,7 @@ from app.infra.storage import LocalBlobStore
 from app.infra.store import InMemoryStore
 from app.services import director
 from app.services.context import Context
-from tests.test_mux import silent_clip, sine_wav
+from tests.fixtures import silent_clip
 
 MESSAGE = {"user_id": "u1", "quest_id": "quest_1"}
 
@@ -44,29 +43,20 @@ def context(folder: str) -> Context:
     )
 
 
-def generators(calls: list[str], track_fails: bool = False) -> Generators:
+def generators(calls: list[str]) -> Generators:
     async def board(technique, q):
         calls.append("storyboard")
         assert technique.id == q.technique_id
-        return Storyboard(
-            video_prompt="A cyclist panned against a blurred street.", music_prompt="Soft lo-fi"
-        )
+        return Storyboard(video_prompt="A cyclist panned against a blurred street.")
 
     async def clip(prompt):
         calls.append("clip")
         return silent_clip(2.0)
 
-    async def track(prompt):
-        calls.append("track")
-        if track_fails:
-            raise RuntimeError("lyria down")
-        return Track(data=sine_wav(5.0), mime_type="audio/wav")
-
-    return Generators(storyboard=board, clip=clip, track=track)
+    return Generators(storyboard=board, clip=clip)
 
 
-async def test_clip_lands_on_quest_and_is_idempotent(monkeypatch):
-    monkeypatch.setattr(director.settings, "clip_seconds", 2)
+async def test_clip_lands_on_quest_and_is_idempotent():
     with tempfile.TemporaryDirectory() as folder:
         ctx = context(folder)
         await repo.put_quest(ctx.store, quest())
@@ -76,24 +66,12 @@ async def test_clip_lands_on_quest_and_is_idempotent(monkeypatch):
         assert await ctx.blobs.exists(path)
         stored = await repo.get_quest(ctx.store, "quest_1")
         assert stored.reference_clip == path
-        kinds = [e.stage for e in await repo.list_events(ctx.store, "u1")]
-        assert "storyboard" in kinds and "clip_ready" in kinds
-        assert calls == ["storyboard", "clip", "track"]
+        stages = [e.stage for e in await repo.list_events(ctx.store, "u1")]
+        assert "storyboard" in stages and "clip_ready" in stages
+        assert calls == ["storyboard", "clip"]
 
         again = await director.direct(ctx, MESSAGE, generators(calls))
-        assert again == path and calls == ["storyboard", "clip", "track"]
-
-
-async def test_music_failure_ships_silent_clip(monkeypatch):
-    monkeypatch.setattr(director.settings, "clip_seconds", 2)
-    with tempfile.TemporaryDirectory() as folder:
-        ctx = context(folder)
-        await repo.put_quest(ctx.store, quest())
-        path = await director.direct(ctx, MESSAGE, generators([], track_fails=True))
-        assert path and await ctx.blobs.exists(path)
-        events = await repo.list_events(ctx.store, "u1")
-        ready = next(e for e in events if e.stage == "clip_ready")
-        assert ready.detail["scored"] is False
+        assert again == path and calls == ["storyboard", "clip"]
 
 
 async def test_closed_quest_gets_no_clip():

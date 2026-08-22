@@ -22,6 +22,13 @@ AGENT = "judge"
 
 
 async def judge(ctx: Context, message: dict) -> None:
+    """Judge if there is something to judge, then always publish ``media.judged``
+    so the Scribe writes the review back with whatever verdict exists."""
+    await _judge(ctx, message)
+    await ctx.bus.publish(TOPICS["media.judged"], {"shot_id": message["shot_id"]})
+
+
+async def _judge(ctx: Context, message: dict) -> None:
     shot = await repo.get_shot(ctx.store, message["shot_id"])
     quest = await repo.open_quest(ctx.store, shot.user_id)
     if quest is None:

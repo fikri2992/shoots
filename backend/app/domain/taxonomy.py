@@ -60,6 +60,16 @@ class Technique:
     requires: tuple[str, ...] = ()
 
     @property
+    def light(self) -> str:
+        """When the light is right for it (domain/timing.py). Default: any time."""
+        return LIGHT.get(self.id, "any")
+
+    @property
+    def needs(self) -> tuple[str, ...]:
+        """Gear it cannot be done without; the Scout respects the user's constraints."""
+        return NEEDS.get(self.id, ())
+
+    @property
     def video_only(self) -> bool:
         return self.family is Family.VIDEO
 
@@ -650,8 +660,48 @@ def unlocked(attempted: set[str]) -> list[Technique]:
     ]
 
 
+#: Light window per technique (domain/timing.py): golden | blue | night | day.
+#: Not listed = any time. Kept here, not on the entries, so the whole timing
+#: policy is one table.
+LIGHT: dict[str, str] = {
+    "golden_hour": "golden",
+    "backlight": "golden",
+    "rim_light": "golden",
+    "silhouette": "golden",
+    "warm_cool": "golden",
+    "blue_hour": "blue",
+    "long_exposure": "blue",
+    "light_trails": "night",
+    "high_iso_night": "night",
+    "astro": "night",
+    "light_painting": "night",
+    "bokeh_balls": "night",
+    "hard_light": "day",
+    "dappled_light": "day",
+}
+
+#: Gear a technique cannot be done without. Matched against what the user
+#: told the Coach they lack.
+NEEDS: dict[str, tuple[str, ...]] = {
+    "long_exposure": ("tripod",),
+    "light_trails": ("tripod",),
+    "astro": ("tripod",),
+    "light_painting": ("tripod",),
+    "static_tripod": ("tripod",),
+    "timelapse": ("tripod",),
+    "telephoto_compression": ("telephoto",),
+    "macro": ("macro",),
+    "fill_flash": ("flash",),
+}
+
+
 def validate() -> None:
     """Catalogue invariants. Run by the test suite and at import in dev."""
+    ids = {t.id for t in TECHNIQUES}
+    for table_name, table in (("LIGHT", LIGHT), ("NEEDS", NEEDS)):
+        for tid in table:
+            if tid not in ids:
+                raise TaxonomyError(f"{table_name}: unknown technique {tid}")
     seen: set[str] = set()
     for t in TECHNIQUES:
         if t.id in seen:
@@ -659,6 +709,8 @@ def validate() -> None:
         seen.add(t.id)
         if t.level not in (1, 2, 3):
             raise TaxonomyError(f"{t.id}: level must be 1-3")
+        if t.light not in {"golden", "blue", "night", "day", "any"}:
+            raise TaxonomyError(f"{t.id}: unknown light window {t.light}")
         unknown = set(t.exif) - EXIF_RULE_KEYS
         if unknown:
             raise TaxonomyError(f"{t.id}: unknown exif keys {sorted(unknown)}")

@@ -1,9 +1,9 @@
-"""The Director's model half: a storyboard from the quest, then Veo and Lyria.
+"""The Director's model half: a storyboard from the quest, then Veo.
 
-Three calls, each replaceable: Gemini writes the two generation prompts
-(structured, via ADK), Veo renders the clip, Lyria plays the mood. The
-service glues them with ffmpeg. ``Generators`` is the seam: production uses
-``vertex_generators()``; tests hand in functions that return real bytes.
+Two calls, each replaceable: Gemini writes the generation prompt
+(structured, via ADK), Veo renders the clip with its own ambient sound.
+``Generators`` is the seam: production uses ``vertex_generators()``; tests
+hand in functions that return real bytes.
 """
 
 import asyncio
@@ -29,20 +29,12 @@ logger = logging.getLogger(__name__)
 
 class Storyboard(BaseModel):
     video_prompt: str = Field(min_length=20)
-    music_prompt: str = Field(min_length=10)
-
-
-@dataclass
-class Track:
-    data: bytes
-    mime_type: str
 
 
 @dataclass
 class Generators:
     storyboard: Callable[[Technique, Quest], Awaitable[Storyboard]]
     clip: Callable[[str], Awaitable[bytes]]
-    track: Callable[[str], Awaitable[Track]]
 
 
 # --- storyboard (Gemini, structured) ---------------------------------------
@@ -52,7 +44,7 @@ def director_agent() -> LlmAgent:
     return LlmAgent(
         model=settings.model_flash,
         name="director",
-        description="Writes the Veo and Lyria prompts for a quest's reference clip.",
+        description="Writes the Veo prompt for a quest's reference clip.",
         instruction=prompts.load("director"),
         output_schema=Storyboard,
         output_key="storyboard",
@@ -83,13 +75,11 @@ async def storyboard(technique: Technique, quest: Quest) -> Storyboard:
 # --- clip (Veo, long-running) ------------------------------------------------
 
 
-def _media_client(location: str) -> genai.Client:
-    return genai.Client(vertexai=True, project=settings.gcp_project, location=location)
-
-
 async def generate_clip(prompt: str) -> bytes:
-    """One silent vertical clip, bytes inline. Polls the operation to completion."""
-    client = _media_client(settings.media_location)
+    """One vertical clip with ambient audio, bytes inline. Polls to completion."""
+    client = genai.Client(
+        vertexai=True, project=settings.gcp_project, location=settings.media_location
+    )
 
     async def attempt() -> bytes:
         operation = await client.aio.models.generate_videos(
@@ -100,7 +90,7 @@ async def generate_clip(prompt: str) -> bytes:
                 duration_seconds=settings.clip_seconds,
                 aspect_ratio=settings.clip_aspect,
                 resolution=settings.clip_resolution,
-                generate_audio=False,
+                generate_audio=True,
                 person_generation="allow_adult",
             ),
         )
@@ -120,28 +110,5 @@ async def generate_clip(prompt: str) -> bytes:
     return await with_retry(attempt)
 
 
-# --- track (Lyria) -----------------------------------------------------------
-
-
-async def generate_track(prompt: str) -> Track:
-    """A 30 s instrumental. Lyria always returns a caption part too; we keep the audio."""
-    client = _media_client(settings.music_location)
-
-    async def attempt() -> Track:
-        response = await client.aio.models.generate_content(
-            model=settings.model_music,
-            contents=f"Instrumental, no vocals. {prompt}",
-            config=types.GenerateContentConfig(response_modalities=["AUDIO", "TEXT"]),
-        )
-        for candidate in response.candidates or []:
-            for part in (candidate.content and candidate.content.parts) or []:
-                blob = part.inline_data
-                if blob and blob.data and (blob.mime_type or "").startswith("audio/"):
-                    return Track(data=blob.data, mime_type=blob.mime_type or "")
-        raise RuntimeError("lyria returned no audio part")
-
-    return await with_retry(attempt)
-
-
 def vertex_generators() -> Generators:
-    return Generators(storyboard=storyboard, clip=generate_clip, track=generate_track)
+    return Generators(storyboard=storyboard, clip=generate_clip)

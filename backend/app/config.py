@@ -16,11 +16,9 @@ class Settings(BaseSettings):
     #
     #   gemini-3.7-flash     Analyst, Scout, Judge. Every image/contact sheet.
     #   veo-3.1-fast         One 5s reference clip per quest (bonus: Veo).
-    #   lyria-3-clip         Optional temp track for video-edit quests (bonus: Lyria).
     #   gemini-live-2.5      Voice review of a shot from the phone (Multimodal UX).
     model_flash: str = "gemini-3.7-flash"
     model_video: str = "veo-3.1-fast-generate-001"
-    model_music: str = "lyria-3-clip-preview"
     model_live: str = "gemini-live-2.5-flash-native-audio"
 
     # --- Director: one reference clip per quest ----------------------------
@@ -29,7 +27,7 @@ class Settings(BaseSettings):
     clip_aspect: str = "9:16"
     clip_resolution: str = "720p"
 
-    # Veo/Lyria are long-running operations; these bound the polling loop.
+    # Veo is a long-running operation; these bound the polling loop.
     generate_poll_seconds: float = 5.0
     generate_timeout_seconds: float = 600.0
 
@@ -71,8 +69,6 @@ class Settings(BaseSettings):
     vertex_location: str = "global"
     #: Veo is us-central1 only.
     media_location: str = "us-central1"
-    #: Lyria 3 is served from the global endpoint (verified 2026-08-23).
-    music_location: str = "global"
     gcs_bucket: str = ""
     firestore_database: str = "(default)"
     use_vertex_ai: bool = False
@@ -85,6 +81,7 @@ class Settings(BaseSettings):
     topic_media_new: str = "shoots.media.new"
     topic_media_ingested: str = "shoots.media.ingested"
     topic_media_analyzed: str = "shoots.media.analyzed"
+    topic_media_judged: str = "shoots.media.judged"
     topic_quest_closed: str = "shoots.quest.closed"
     topic_quest_issued: str = "shoots.quest.issued"
     #: Empty = run stages in-process (local dev). Set to the public base URL of

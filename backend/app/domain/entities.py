@@ -41,6 +41,11 @@ class User(BaseModel):
     drive_channel: DriveChannel | None = None
     #: Drive change-token cursor, so a notification costs one small list call.
     drive_page_token: str = ""
+    drive_review_folder_id: str = ""
+    #: Where they last shot, from the EXIF of their own frames (domain/timing.py).
+    last_latitude: float | None = None
+    last_longitude: float | None = None
+    location_at: datetime | None = None
     created_at: datetime = Field(default_factory=now)
 
 
@@ -72,6 +77,9 @@ class Exif(BaseModel):
     focal_length_35mm: int | None = None
     flash_fired: bool | None = None
     captured_at: datetime | None = None
+    #: From the GPS block when the camera wrote one. Feeds quest timing.
+    latitude: float | None = None
+    longitude: float | None = None
 
 
 class VideoMeta(BaseModel):
@@ -105,6 +113,9 @@ class Shot(BaseModel):
     blobs: dict[str, str] = Field(default_factory=dict)
     #: Set when the user shot this for a specific quest.
     quest_id: str = ""
+    #: The reviewed copy the Scribe wrote back into the user's Drive.
+    drive_review_id: str = ""
+    drive_review_url: str = ""
     error: str = ""
     captured_at: datetime | None = None
     ingested_at: datetime = Field(default_factory=now)
@@ -221,6 +232,15 @@ class Verdict(BaseModel):
     judged_at: datetime = Field(default_factory=now)
 
 
+class QuestTiming(BaseModel):
+    """Why the quest lands when it does (domain/timing.py)."""
+
+    light: str
+    reason: str
+    anchor: str = ""  # sunrise | sunset | dusk
+    anchor_at: datetime | None = None
+
+
 class Quest(BaseModel):
     id: str
     user_id: str
@@ -231,6 +251,10 @@ class Quest(BaseModel):
     criteria: Criteria
     references: list[Reference] = Field(default_factory=list)
     reference_clip: str = ""  # blob path of the Veo clip
+    #: When the push lands. The quest exists before that; the phone waits.
+    deliver_at: datetime | None = None
+    delivered_at: datetime | None = None
+    timing: QuestTiming | None = None
     status: QuestStatus = QuestStatus.OPEN
     verdicts: list[Verdict] = Field(default_factory=list)
     issued_at: datetime = Field(default_factory=now)

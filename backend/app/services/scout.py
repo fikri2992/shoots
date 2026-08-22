@@ -12,7 +12,8 @@ from app.agents import scout as agent
 from app.config import settings
 from app.domain import scout as rules
 from app.domain import skills as skill_rules
-from app.domain.entities import Quest, QuestStatus, new_id, now
+from app.domain import timing
+from app.domain.entities import Quest, QuestStatus, QuestTiming, new_id, now
 from app.infra import repository as repo
 from app.infra.bus import TOPICS
 from app.services import notify
@@ -63,6 +64,12 @@ async def issue(ctx: Context, user_id: str, force: bool = False) -> Quest | None
         status=QuestStatus.OPEN,
         due_at=now() + timedelta(days=settings.quest_ttl_days),
     )
+    user = await repo.get_user(ctx.store, user_id)
+    when = timing.deliver_at(technique.light, now(), user.last_latitude, user.last_longitude)
+    quest.deliver_at = when.at
+    quest.timing = QuestTiming(
+        light=when.light, reason=when.reason, anchor=when.anchor, anchor_at=when.anchor_at
+    )
     await repo.put_quest(ctx.store, quest)
     await repo.record(
         ctx.store,
@@ -75,12 +82,45 @@ async def issue(ctx: Context, user_id: str, force: bool = False) -> Quest | None
             "why": why,
             "references": len(quest.references),
             "hard_criteria": agent.hard_criteria_text(technique),
+            "deliver_at": quest.deliver_at.isoformat() if quest.deliver_at else "",
+            "timing": when.reason,
         },
         quest_id=quest.id,
     )
-    await notify.quest_issued(ctx, quest)
+    await deliver_if_due(ctx, quest)
     await ctx.bus.publish(TOPICS["quest.issued"], {"user_id": user_id, "quest_id": quest.id})
     return quest
+
+
+async def deliver_if_due(ctx: Context, quest: Quest) -> bool:
+    """Push the quest if its moment has come. The quest exists in the store
+    either way; this is only about when the phone buzzes."""
+    if quest.delivered_at or quest.status is not QuestStatus.OPEN:
+        return False
+    if quest.deliver_at and quest.deliver_at > now() + timing.SOON:
+        return False
+    await notify.quest_issued(ctx, quest)
+    quest.delivered_at = now()
+    await repo.put_quest(ctx.store, quest)
+    await repo.record(
+        ctx.store,
+        quest.user_id,
+        AGENT,
+        "delivered",
+        {"technique_id": quest.technique_id, "timing": quest.timing.reason if quest.timing else ""},
+        quest_id=quest.id,
+    )
+    return True
+
+
+async def deliver_due(ctx: Context) -> int:
+    """The frequent tick: every open, undelivered quest whose time has come."""
+    delivered = 0
+    for user in await repo.list_users(ctx.store):
+        quest = await repo.open_quest(ctx.store, user.id)
+        if quest and await deliver_if_due(ctx, quest):
+            delivered += 1
+    return delivered
 
 
 async def skip(ctx: Context, user_id: str, quest_id: str) -> Quest:
