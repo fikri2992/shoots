@@ -17,7 +17,10 @@ oauth.register(
     client_id=settings.google_client_id,
     client_secret=settings.google_client_secret,
     server_metadata_url="https://accounts.google.com/.well-known/openid-configuration",
-    client_kwargs={"scope": settings.oauth_scopes, "access_type": "offline", "prompt": "consent"},
+    client_kwargs={"scope": settings.oauth_scopes},
+    # Refresh token only comes back with offline access on a consent screen.
+    # These must be authorize params; client_kwargs does not reach the URL.
+    authorize_params={"access_type": "offline", "prompt": "consent"},
 )
 
 SESSION_USER_KEY = "user"
