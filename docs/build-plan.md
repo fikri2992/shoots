@@ -42,3 +42,9 @@ Cut order if behind: Lyria, Gemini Live, Capacitor APK, OTel, Veo, dashboard pol
 - Phone shots taken daily from Aug 22. Phones keep shutter/aperture/ISO/focal in EXIF.
 - Flickr Creative Commons originals (EXIF intact) to backfill ~40 shots across families.
 - Never stock sites: they strip EXIF.
+
+## Demo data status (2026-08-22)
+
+- `data/demo/commons/`: 26 CC-licensed originals from Wikimedia Commons with real EXIF, 11 techniques (panning, long exposure, light trails, silhouette, golden hour, shallow DOF, leading lines, reflections, macro, freeze action, astro). Sidecar `.json` per file holds licence, artist and source page. Fetched by `backend/scripts/fetch_commons_demo.py`. Telephoto compression returned nothing with EXIF; re-query later.
+- `data/demo/mine/`: the user's own phone shots pulled from Google Photos (originals keep EXIF). Most of the recent library is screenshots; real camera shots exist from Jul 21, Jul 26, Aug 5, Aug 6 plus a few videos.
+- Ingest edge case: manual lenses report `FNumber=0` and `FocalLength=0` (seen on `shallow_dof_1.jpg`). Treat 0 as unknown, never as f/0.

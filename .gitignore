@@ -32,3 +32,6 @@ eval/images/**/*
 # OS
 Thumbs.db
 .DS_Store
+
+# Demo media: real photos with EXIF, never committed
+data/demo/
