@@ -8,7 +8,7 @@ small set of events the socket forwards. The translation is pure and tested;
 the session itself is checked by ``scripts/check_coach.py``.
 """
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 from google import genai
 from google.adk.agents import LlmAgent
@@ -19,6 +19,7 @@ from app.agents import prompts
 from app.agents.analyst import facts_text
 from app.agents.runtime import run_agent
 from app.config import settings
+from app.domain import taxonomy
 from app.domain.entities import Analysis, Constraints, Quest, Shot
 
 #: What the browser sends us and what Live expects: 16 kHz mono PCM16.
@@ -29,10 +30,12 @@ OUTPUT_RATE = 24000
 
 @dataclass
 class Event:
-    kind: str  # audio | transcript | interrupted | turn_complete
+    kind: str  # audio | transcript | interrupted | turn_complete | tool_call
     data: bytes = b""
     role: str = ""  # transcript only: user | model
     text: str = ""
+    #: tool_call only: the model's function calls, in order.
+    calls: list = field(default_factory=list)
 
 
 def briefing(
@@ -94,6 +97,10 @@ def briefing(
             lines.append(f"- No {', '.join(constraints.missing_gear)}.")
         lines += [f"- {note}" for note in constraints.notes]
         lines.append("")
+    lines.append(
+        "Technique ids you may pass to issue_quest (only these): "
+        + ", ".join(t.id for t in taxonomy.TECHNIQUES if not t.video_only)
+    )
     lines.append("Begin the session as instructed.")
     return "\n".join(lines)
 
@@ -134,9 +141,59 @@ async def listen(transcript: list[dict], user_id: str) -> NotesOut:
     )
 
 
+TOOLS = types.Tool(
+    function_declarations=[
+        types.FunctionDeclaration(
+            name="issue_quest",
+            description=(
+                "Issue the photographer a new quest for a technique right now, replacing the "
+                "open one. Use when they ask for something else to shoot. Pass a technique id "
+                "from the list you were given; omit it to let the Scout choose."
+            ),
+            parameters=types.Schema(
+                type=types.Type.OBJECT,
+                properties={
+                    "technique_id": types.Schema(type=types.Type.STRING),
+                    "reason": types.Schema(
+                        type=types.Type.STRING, description="One sentence: why this, here, now."
+                    ),
+                },
+            ),
+        ),
+        types.FunctionDeclaration(
+            name="remember",
+            description=(
+                "Remember a standing fact about the photographer that should change future "
+                "quests: gear they lack (tripod, telephoto, macro, flash) or when/where they shoot."
+            ),
+            parameters=types.Schema(
+                type=types.Type.OBJECT,
+                properties={
+                    "missing_gear": types.Schema(
+                        type=types.Type.ARRAY, items=types.Schema(type=types.Type.STRING)
+                    ),
+                    "notes": types.Schema(
+                        type=types.Type.ARRAY, items=types.Schema(type=types.Type.STRING)
+                    ),
+                },
+            ),
+        ),
+        types.FunctionDeclaration(
+            name="skill_map",
+            description=(
+                "The photographer's skill graph: what they have attempted, what is solid, "
+                "what is next."
+            ),
+            parameters=types.Schema(type=types.Type.OBJECT, properties={}),
+        ),
+    ]
+)
+
+
 def live_config() -> types.LiveConnectConfig:
     return types.LiveConnectConfig(
         response_modalities=["AUDIO"],
+        tools=[TOOLS],
         system_instruction=prompts.load("coach"),
         speech_config=types.SpeechConfig(
             voice_config=types.VoiceConfig(
@@ -165,6 +222,8 @@ def opening_turn(image: bytes, mime_type: str, text: str) -> types.Content:
 
 def events_from(message: types.LiveServerMessage) -> list[Event]:
     """The few things the phone cares about, in arrival order."""
+    if message.tool_call and message.tool_call.function_calls:
+        return [Event("tool_call", calls=list(message.tool_call.function_calls))]
     content = message.server_content
     if content is None:
         return []

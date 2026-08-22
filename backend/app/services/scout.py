@@ -12,7 +12,7 @@ from app.agents import scout as agent
 from app.config import settings
 from app.domain import scout as rules
 from app.domain import skills as skill_rules
-from app.domain import timing
+from app.domain import taxonomy, timing
 from app.domain.entities import Quest, QuestStatus, QuestTiming, new_id, now
 from app.infra import repository as repo
 from app.infra.bus import TOPICS
@@ -26,12 +26,18 @@ AGENT = "scout"
 RECENT_QUESTS = 6
 
 
-async def issue(ctx: Context, user_id: str, force: bool = False) -> Quest | None:
-    """Issue one quest for the user if none is open. Returns it, or None."""
+async def issue(
+    ctx: Context, user_id: str, force: bool = False, technique_id: str = ""
+) -> Quest | None:
+    """Issue one quest for the user if none is open. Returns it, or None.
+    ``technique_id`` names the technique (the Coach, by voice); otherwise the
+    ranking chooses. With ``force`` an open quest is skipped first."""
     open_quest = await repo.open_quest(ctx.store, user_id)
     if open_quest and not force:
         logger.info("scout: %s already has open quest %s", user_id, open_quest.id)
         return None
+    if open_quest and force:
+        await skip(ctx, user_id, open_quest.id)
 
     skills = {s.technique_id: s for s in await repo.list_skills(ctx.store, user_id)}
     decayed = skill_rules.decay(skills, now(), settings.skill_decay_days)
@@ -42,7 +48,11 @@ async def issue(ctx: Context, user_id: str, force: bool = False) -> Quest | None
         q.technique_id for q in await repo.list_quests(ctx.store, user_id, limit=RECENT_QUESTS)
     ]
     user = await repo.get_user(ctx.store, user_id)
-    technique = rules.choose(skills, recent, missing_gear=user.constraints.missing_gear)
+    technique = (
+        taxonomy.BY_ID.get(technique_id)
+        if technique_id
+        else rules.choose(skills, recent, missing_gear=user.constraints.missing_gear)
+    )
     if technique is None:
         await repo.record(ctx.store, user_id, AGENT, "nothing_to_issue", {"recent": recent})
         return None

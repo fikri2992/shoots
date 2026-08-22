@@ -73,8 +73,8 @@ export default {
     <p v-if="mine && error" class="mt-3 rounded-lg border border-red-900 bg-red-950/40 px-3 py-2 text-xs text-red-200">{{ error }}</p>
 
     <div v-if="mine && lines.length" class="mt-3 max-h-64 space-y-2 overflow-y-auto text-sm">
-      <p v-for="(line, i) in lines" :key="i" :class="line.role === 'model' ? 'text-neutral-100' : 'text-neutral-500'">
-        <span class="mr-1 font-mono text-[10px] uppercase text-neutral-600">{{ line.role === 'model' ? 'coach' : 'you' }}</span>{{ line.text }}
+      <p v-for="(line, i) in lines" :key="i" :class="line.role === 'model' ? 'text-neutral-100' : line.role === 'tool' ? 'text-teal-300' : 'text-neutral-500'">
+        <span class="mr-1 font-mono text-[10px] uppercase text-neutral-600">{{ line.role === 'model' ? 'coach' : line.role === 'tool' ? '→' : 'you' }}</span>{{ line.text }}
       </p>
     </div>
 

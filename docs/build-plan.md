@@ -86,3 +86,13 @@
 - Two Gemini structured-output gotchas: a `dict[str, int]` field is never filled (no additionalProperties in the response schema), and optional fields get skipped; element scores are required ints per lens.
 - Bounds corrected from sources: freeze 1/500, panning 1/125–1/8, long exposure 0.5 s.
 - Frontend shows the five element bars and ●●○ agreement per technique; the feed says "(2 of 3)"; the Scribe's caption carries the element line.
+
+## Day 7e notes (2026-08-23), six ADK-shaped experiments, all checked on the real stack
+
+- Crop loop: the phone frame's suggested crop (A3-G9) was rendered and rated 5 -> 7 ("removes the bamboo pole"), kept; the overlay and Drive review now draw a tested crop.
+- Exposure arithmetic: EV, handheld limit, freeze thresholds and the 500 rule are facts in the Technician's and Judge's prompts. Caught my own error: 1/40 s at 23 mm is *slower* than the 1/46 s limit, which the test now asserts.
+- Judge vs previous best: feedback prompt gets the earlier best frame as Image 2 plus its observations; `compared_with` on the verdict.
+- Pre-flight: ~8-11 s on a 640 px preview. Front-lit child+dog against the backlight quest -> "shoot again: move so the sun is behind them"; the backlit frame passes light direction, fails rim light with a fix.
+- Scrub lens: `pan` on the camper-van clip went from composer-only 0.55 to x3 at 0.87 with the scrub confirming on exact frames; `static_tripod` x4 on the locked-off clip. Contact-sheet lenses take 20-30 s each on video; the scrub adds ~16 s.
+- Coach tools over Gemini Live function calling: "only my phone, no tripod, something else to shoot here" -> `remember` then `issue_quest` -> "Fill the entire frame" issued by voice, no tripod needed. Turn takes ~46 s because the Scout runs inside the tool call.
+- Gemini Live closed one session abnormally (1006) mid-tool-response on Windows (semaphore timeout); the retry ran clean. Worth a reconnect-with-resume later.

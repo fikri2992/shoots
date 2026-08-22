@@ -193,6 +193,13 @@ export default {
             </RouterLink>
           </div>
           <p class="whitespace-pre-line text-neutral-200">{{ v.feedback }}</p>
+          <RouterLink
+            v-if="v.compared_with"
+            :to="{ name: 'shot', params: { shotId: v.compared_with } }"
+            class="mt-1 inline-block text-[11px] text-neutral-500 hover:text-neutral-300"
+          >
+            judged against your previous best for this technique ↗
+          </RouterLink>
         </div>
       </div>
 

@@ -45,6 +45,10 @@ export default {
     quest() {
       return this.shot?.quest_id ? this.questById(this.shot.quest_id) : null
     },
+    cropUrl() {
+      const path = this.shot?.blobs?.crop
+      return path && this.analysis?.composition?.suggested_crop_cells?.length ? `/api/blobs/${path}` : ''
+    },
     elements() {
       const order = ['impact', 'composition', 'lighting', 'technical', 'story']
       const scored = this.analysis?.elements || {}
@@ -118,6 +122,20 @@ export default {
           <p v-if="elements.length" class="mt-2 text-[10px] text-neutral-600">
             Scored on the PPA merit-image elements by three lenses (technician, composer, storyteller); the overall is their weighted mean.
           </p>
+        </div>
+
+        <div v-if="cropUrl" class="rounded-xl border border-edge bg-panel p-4">
+          <div class="flex items-baseline justify-between">
+            <h2 class="text-sm font-semibold">Tested crop</h2>
+            <span class="font-mono text-xs text-neutral-400">composition {{ analysis.composition.crop_before }} → {{ analysis.composition.crop_after }}</span>
+          </div>
+          <div class="mt-2 flex gap-3">
+            <img :src="cropUrl" alt="tested crop" class="max-h-56 rounded-lg object-contain" />
+            <p class="text-xs text-neutral-400">
+              The Composer's crop was rendered and scored against the original as a finished frame; only a crop that scored higher is kept.
+              <span class="mt-1 block text-neutral-300">{{ analysis.composition.crop_reason }}</span>
+            </p>
+          </div>
         </div>
 
         <div v-if="analysis.observations?.length" class="rounded-xl border border-edge bg-panel p-4">

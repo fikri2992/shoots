@@ -24,6 +24,15 @@ Bounds are deliberately generous: they are the range within which the technique 
 
 Techniques without a bound (every composition, light and colour technique) are judged on the frame alone by the panel, which is what they are: ways of seeing, not settings.
 
+## Exposure arithmetic (`domain/exposure.py`)
+
+| Quantity | Formula | Source |
+|---|---|---|
+| EV at ISO 100 | `log2(N² / t) − log2(ISO / 100)`; sunny-16 ≈ EV 15 | [Exposure value, Wikipedia](https://en.wikipedia.org/wiki/Exposure_value) |
+| Handheld limit | `1 / (2 × focal length)` (35 mm eq.) — the reciprocal rule with a stop of margin | [John Greengo](https://www.johngreengo.com/blog/2026/07/my-favorite-shutter-speeds/) |
+| Freeze thresholds | ≥ 1/500 s people in motion, ≥ 1/1000 s sport | [Canon Europe](https://www.canon-europe.com/get-inspired/tips-and-techniques/how-to-use-shutter-speed/) |
+| Star-trail ceiling | 500 rule, `500 / focal length` | [PhotographyLife](https://photographylife.com/500-rule-vs-npf-rule) |
+
 ## The rubric
 
 Five elements, 1–10 each, weighted 30/25/20/15/10 (impact, composition, lighting, technical, story), the overall a weighted mean computed in code (`domain/rubric.py`). Derived from the Professional Photographers of America's *12 Elements of a Merit Image*, the judging standard for PPA print competitions, scored on 100 points with published bands (95–100 exceptional, 80–84 merit, 70–74 average, below 70 not exhibition standard). Presentation, Style and Technique are left out as they concern finished competition prints; Center of Interest is folded into Composition, Subject Matter and Creativity into Story, Color Balance into Technical. Our anchors map the bands onto 1–10.

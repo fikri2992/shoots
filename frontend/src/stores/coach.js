@@ -74,6 +74,7 @@ export const useCoachStore = defineStore('coach', {
         return
       }
       if (data.type === 'transcript') this.append(data.role, data.text)
+      else if (data.type === 'tool') this.lines.push({ role: 'tool', text: data.text })
       else if (data.type === 'interrupted') this.player?.flush()
       else if (data.type === 'timeout') this.finish()
       else if (data.type === 'error') this.fail(data.text)

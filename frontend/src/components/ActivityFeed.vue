@@ -69,6 +69,8 @@ export default {
           return `delivered the quest · ${d.timing || ''}`
         case 'coach.session':
           return `voice session, ${d.turns} turn${d.turns === 1 ? '' : 's'} in ${d.seconds}s`
+        case 'coach.issued_by_voice':
+          return `issued "${d.title}" by voice · ${d.reason || ''}`
         case 'coach.noted':
           return `remembered: ${[d.missing_gear?.length ? `no ${d.missing_gear.join(', ')}` : '', ...(d.notes || [])].filter(Boolean).join(' · ')}`
         case 'scout.nothing_to_issue':

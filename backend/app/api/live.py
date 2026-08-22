@@ -108,6 +108,26 @@ async def live(websocket: WebSocket, shot_id: str):
                             if event.kind == "audio":
                                 await websocket.send_bytes(event.data)
                                 continue
+                            if event.kind == "tool_call":
+                                responses = []
+                                for call in event.calls:
+                                    result = await coach_memory.run_tool(
+                                        ctx, shot.user_id, call.name, dict(call.args or {})
+                                    )
+                                    line = coach_memory.summarise_tool(call.name, result)
+                                    _append(transcript, "tool", line)
+                                    await websocket.send_text(
+                                        json.dumps(
+                                            {"type": "tool", "name": call.name, "text": line}
+                                        )
+                                    )
+                                    responses.append(
+                                        types.FunctionResponse(
+                                            id=call.id, name=call.name, response=result
+                                        )
+                                    )
+                                await session.send_tool_response(function_responses=responses)
+                                continue
                             if event.kind == "transcript":
                                 _append(transcript, event.role, event.text)
                             if event.kind == "turn_complete":
@@ -159,8 +179,9 @@ async def live(websocket: WebSocket, shot_id: str):
 
 
 def _append(transcript: list[dict], role: str, text: str) -> None:
-    """Transcripts arrive as fragments; stitch them into one line per speaker turn."""
-    if transcript and transcript[-1]["role"] == role:
+    """Transcripts arrive as fragments; stitch them into one line per speaker
+    turn. Tool lines are whole already and stay one per call."""
+    if role != "tool" and transcript and transcript[-1]["role"] == role:
         transcript[-1]["text"] += text
     else:
         transcript.append({"role": role, "text": text})

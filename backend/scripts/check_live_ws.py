@@ -26,7 +26,7 @@ from app.infra import repository as repo
 from app.infra.storage import GRIDDED
 from app.infra.store import FileStore
 
-QUESTION = "In one sentence: which cell holds the strongest light, and should I crop toward it?"
+QUESTION = "I only have my phone here, no tripod. Give me something else to shoot right where I am."
 
 
 def session_cookie(user: dict) -> str:
@@ -58,7 +58,8 @@ def main(shot_id: str | None) -> None:
     with client.websocket_connect(f"/api/live/{shot_id}") as socket:
         asked = False
         turns = 0
-        while turns < 2:
+        issued = False
+        while turns < 4 and not issued and time.monotonic() - started < 90:
             message = socket.receive()
             if message.get("bytes"):
                 audio += message["bytes"]
@@ -66,6 +67,10 @@ def main(shot_id: str | None) -> None:
             if not message.get("text"):
                 continue
             data = json.loads(message["text"])
+            if data["type"] == "tool":
+                lines.append({"role": "tool", "text": data["text"]})
+                issued = data["name"] == "issue_quest"
+                continue
             if data["type"] == "transcript":
                 if lines and lines[-1]["role"] == data["role"]:
                     lines[-1]["text"] += data["text"]
