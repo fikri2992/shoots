@@ -104,7 +104,7 @@ Drive folder changes                       (watch)
 
 | Scribe | `media.judged` | annotated frame, Analysis, Verdict | the reviewed copy in the user's Drive (`Shoots/Reviewed/`) | none (Pillow) |
 
-| Coach | a tap on the shot page (WebSocket) | gridded frame, Analysis, Quest | ActivityEvent with the transcript | gemini-live-2.5-flash-native-audio |
+| Coach | a tap on the shot page (WebSocket) | gridded frame, Analysis, Quest, the user's constraints | ActivityEvent with the transcript; the Listener turns what the user said into `User.constraints` | gemini-live-2.5-flash-native-audio; gemini-3.7-flash (Listener) |
 
 | Scheduler | Cloud Scheduler | Users | renews Drive channels, expires quests, triggers Scout | none |
 
@@ -149,4 +149,6 @@ Cartographer and Judge pass/fail are pure code. That is deliberate: the skill gr
 15. **The review goes back where the photo came from.** After the Judge, the Scribe writes `Shoots/Reviewed/<name> — <score> of 10.jpg` into the user's Drive as the user (`drive.file`): the frame with the composition read drawn on it and the critique, moves and verdict as a caption band and as the file description. It shows up in the Drive and Files apps on the phone and can be shared as-is; the app is optional for reading a review. The Judge therefore always publishes `media.judged`, verdict or not, so the first write already carries the outcome.
 
 16. **The Scout decides when, not just what.** Each technique has a light window (`taxonomy.LIGHT`); the user's location is the GPS of their own newest frame, never asked for. The quest is stored at issue time with `deliver_at` and a reason ("fifty minutes before sunset where you last shot"); the push goes out on the five-minute tick when that moment comes. Solar times are NOAA's equations in `domain/sun.py`, UTC throughout; the phone formats them.
+
+17. **Talking to the Coach is how the user steers the planner.** There is no settings form. After a voice session the Listener extracts standing facts ("no tripod", "shoots at lunch near the office") into `User.constraints`; the Scout's ranking drops techniques whose `taxonomy.NEEDS` gear is missing and its brief is written inside the notes. The Coach is briefed with the same facts so it never asks twice.
 

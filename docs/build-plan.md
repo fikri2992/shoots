@@ -67,3 +67,14 @@
 - Pub/Sub push: handlers register by stage name, `/pubsub/<stage>` verifies the OIDC token (service-account email + audience) and delivers to that one handler. Drive push: `files.watch` per folder on Connect and from the daily tick, `/tasks/renew-channels` twice a day, `/drive/notify` checks token and channel id. Both can only be exercised with a public HTTPS URL; that is day 7b.
 - FileStore caveat: two processes on one `store.json` lose writes to each other (a check script ran while the dev server was up and the server's next flush dropped the clip path). Stop the server before running a `check_*` script that writes, or accept a manual fix. Firestore has no such problem.
 - Day 7b (deploy): Cloud Run asia-southeast2 with identity shoots-ingest, Firestore + GCS + Secret Manager via `cloud_state`/`gcs_bucket`, `infra/topics.sh` with the service URL, Scheduler jobs for `/tasks/daily`, `/tasks/sync`, `/tasks/renew-channels`, VAPID + OAuth redirect on the real origin, push delivery and the Coach on the phone.
+
+## Day 7c notes (2026-08-23), the step back
+
+- Re-centred on "redefining interaction": the agent lives in the user's Drive and notifications, the app is the audit trail. Four moves, all shipped and checked on the real stack:
+  - **Scribe**: after the Judge, the review is written back into `Shoots/Reviewed/` as the user: overlay baked in, caption band with critique, moves and verdict, file named `✔/✘ <name> — <score> of 10.jpg`. Verified in Drive (two files).
+  - **Timing**: techniques carry a light window (`taxonomy.LIGHT`), the user's location is the GPS of their newest frame (`Exif.latitude/longitude`, `User.last_*`), `domain/sun.py` + `domain/timing.py` pick `deliver_at` and a reason; the push waits for the five-minute tick (`/tasks/tick`). Location picked up from a Xiaomi phone frame on the first sync.
+  - **Coach memory**: the Listener extracts `missing_gear` and notes from the transcript; Scout ranking and brief respect them; Coach is briefed with them. Real-model check: "only have my phone" → no tripod/telephoto/macro/flash.
+  - **Today**: the home tab is the quest with why-now and why-then; verdicts link to "Ask the Coach why".
+- Cut Lyria: Veo 3.1 generates its own ambient audio (`generate_audio=True`); the mux step and the music model are gone.
+- Judge now publishes `media.judged` on every shot so the Scribe runs after it; stage order is deterministic, no fan-out race for the verdict.
+- `scripts/call_as_user.py` calls the running dev server with a minted session cookie, for demos and checks that must not touch `store.json` while the server is up.
