@@ -86,9 +86,15 @@ class Settings(BaseSettings):
     session_secret: str = "dev-only-insecure-secret"
     oauth_redirect_uri: str = "http://localhost:8000/auth/callback"
     frontend_origin: str = "http://localhost:5173"
-    #: Drive scope is requested at sign-in. One consent, one refresh token, kept
-    #: in Secret Manager (prod) or .blobs/tokens (local). Never in Firestore.
+    #: Sign-in scopes. drive.file is non-sensitive, so the shared consent screen
+    #: stays in production untouched. The app creates the user's Shoots folder
+    #: with it and shares that folder with ``drive_service_account``, which then
+    #: watches and downloads everything dropped there (domain-model decision 11).
     oauth_scopes: str = "openid email profile https://www.googleapis.com/auth/drive.file"
+    #: The identity that reads the Drive folder and runs the pipeline on Cloud Run.
+    #: Locally, ADC impersonates it (``gcloud auth application-default login
+    #: --impersonate-service-account``).
+    drive_service_account: str = "shoots-ingest@your-gcp-project.iam.gserviceaccount.com"
     allow_dev_login: bool = False
 
     @property

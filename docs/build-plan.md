@@ -16,10 +16,10 @@ grid.py, canvas.py, grid_overlay.py, contact_sheet.py, video.py, runtime.py, ret
 
 | Day | Date | Deliver | Done |
 |---|---|---|---|
-| 1 | Aug 22 | Repo scaffold from Visual QA base, domain (entities, taxonomy), docs, GCP APIs enabled, Pub/Sub topics, OAuth client with Drive scope | |
-| 2 | Aug 23 | Ingest: Drive watch + webhook, download, EXIF, ffprobe, contact sheet, gridded frame, blobs. `media.new` → `media.ingested` | |
+| 1 | Aug 22 | Repo scaffold from Visual QA base, domain (entities, taxonomy), docs, GCP APIs enabled, Pub/Sub topics, OAuth client `shoots-local`, service account `shoots-ingest` | x |
+| 2 | Aug 23 | Connect: create + share folder with the service account. Ingest: changes.list sync, webhook, download, EXIF, ffprobe, contact sheet, gridded frame, blobs. `media.new` → `media.ingested` | |
 | 3 | Aug 24 | Analyst agent: prompt, structured output, unknown-id filter. Overlay renderer for moves. ShotCanvas in Vue | |
-| 4 | Aug 25 | Cartographer (pure) + Scout: gap ranking, Search grounding, quest with criteria, Gmail send | |
+| 4 | Aug 25 | Cartographer (pure) + Scout: gap ranking, Search grounding, quest with criteria, Web Push delivery | |
 | 5 | Aug 26 | Judge (pure checks + feedback), Scheduler jobs, backfill job. Loop closed end to end locally | |
 | 6 | Aug 27 | Dashboard: skill graph, shot timeline with overlays, quest card, activity feed. Phone-first. PWA manifest + Shoot button | |
 | 7 | Aug 28 | Deploy to Cloud Run, Pub/Sub push + DLQ, Secret Manager, idempotency checks, Veo reference clips, OTel traces | |
