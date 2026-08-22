@@ -123,6 +123,11 @@ def export_genai_environment(target: dict[str, str] | None = None) -> dict[str, 
             wanted["GOOGLE_CLOUD_PROJECT"] = settings.gcp_project
         if settings.vertex_location:
             wanted["GOOGLE_CLOUD_LOCATION"] = settings.vertex_location
+        # User ADC has no quota project by default and Vertex refuses such calls
+        # with a 403; google-auth honours this variable, so set it here rather
+        # than depending on every dev machine having run set-quota-project.
+        if settings.gcp_project:
+            wanted["GOOGLE_CLOUD_QUOTA_PROJECT"] = settings.gcp_project
     elif settings.google_api_key:
         wanted["GOOGLE_GENAI_USE_VERTEXAI"] = "false"
         wanted["GOOGLE_API_KEY"] = settings.google_api_key
