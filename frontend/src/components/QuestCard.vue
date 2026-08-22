@@ -38,10 +38,10 @@ export default {
       return this.quest.reference_clip ? `/api/blobs/${this.quest.reference_clip}` : ''
     },
     steps() {
-      return this.quest.brief
-        .split(/\n+/)
-        .map((line) => line.replace(/^\s*\d+[.)]\s*/, '').trim())
-        .filter(Boolean)
+      const brief = this.quest.brief.trim()
+      // Older quests may carry "1. … 2. …" on one line; split on the numbering.
+      const lines = brief.includes('\n') ? brief.split(/\n+/) : brief.split(/\s+(?=\d{1,2}[.)]\s)/)
+      return lines.map((line) => line.replace(/^\s*\d+[.)]\s*/, '').trim()).filter(Boolean)
     },
     hardCriteria() {
       return Object.entries(this.quest.criteria.exif)

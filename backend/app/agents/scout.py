@@ -8,6 +8,7 @@ plus its own id as the vision check (domain-model.md decision 4).
 """
 
 import logging
+import re
 from dataclasses import dataclass, field
 
 from google import genai
@@ -178,6 +179,20 @@ async def write(
         prompt=write_prompt(technique, why, critiques, notes, skills, constraints),
         schema=QuestOut,
     )
+
+
+_INLINE_STEP = re.compile(r"\s+(?=\d{1,2}[.)]\s)")
+
+
+def normalise_brief(brief: str) -> str:
+    """One numbered step per line. The model sometimes runs "1. … 2. …"
+    together on one line; the card and the Judge both read it line by line."""
+    text = " ".join(brief.split())
+    if "\n" in brief.strip():
+        lines = [" ".join(line.split()) for line in brief.strip().splitlines()]
+        return "\n".join(line for line in lines if line)
+    parts = [p.strip() for p in _INLINE_STEP.split(text) if p.strip()]
+    return "\n".join(parts)
 
 
 def pick_references(out: QuestOut, research: Research) -> list[Reference]:
