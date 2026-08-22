@@ -24,6 +24,7 @@ def shot() -> Shot:
         drive_file_id="f1",
         filename="bike.jpg",
         kind=ShotKind.PHOTO,
+        mime_type="image/jpeg",
         exif=Exif(exposure_time_s=1 / 30, f_number=5.6, iso=200, focal_length_35mm=50),
         grid=GridSpec(cols=8, rows=6, width=1600, height=1200),
     )

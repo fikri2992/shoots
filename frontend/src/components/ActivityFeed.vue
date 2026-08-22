@@ -9,6 +9,8 @@ const AGENT_STYLE = {
   cartographer: 'text-violet-300',
   judge: 'text-emerald-300',
   scout: 'text-amber-300',
+  director: 'text-rose-300',
+  coach: 'text-teal-300',
   scheduler: 'text-neutral-500',
   drive: 'text-neutral-400',
   user: 'text-neutral-400',
@@ -51,6 +53,12 @@ export default {
           return `issued "${d.title}" · ${d.why}`
         case 'scout.nothing_to_issue':
           return 'nothing left to issue'
+        case 'director.storyboard':
+          return `storyboarded: ${(d.video_prompt || '').slice(0, 90)}…`
+        case 'director.clip_ready':
+          return `reference clip ready, ${d.seconds}s${d.scored ? ' with a Lyria track' : ', silent'}`
+        case 'coach.session':
+          return `voice session, ${d.turns} turn${d.turns === 1 ? '' : 's'} in ${d.seconds}s`
         case 'scheduler.daily':
           return `daily tick: ${d.synced} synced, ${d.issued} issued, ${d.expired} expired`
         case 'scheduler.expired':

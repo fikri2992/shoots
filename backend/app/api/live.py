@@ -86,10 +86,13 @@ async def live(websocket: WebSocket, shot_id: str):
                         if data.get("type") == "end":
                             return
                         if data.get("type") == "text" and data.get("text", "").strip():
+                            text = data["text"].strip()
+                            _append(transcript, "user", text)
+                            await websocket.send_text(
+                                json.dumps({"type": "transcript", "role": "user", "text": text})
+                            )
                             await session.send_client_content(
-                                turns=types.Content(
-                                    role="user", parts=[types.Part(text=data["text"].strip())]
-                                ),
+                                turns=types.Content(role="user", parts=[types.Part(text=text)]),
                                 turn_complete=True,
                             )
 
