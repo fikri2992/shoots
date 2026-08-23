@@ -1,17 +1,18 @@
 @import 'tailwindcss';
 
 @theme {
-  /* Severity — used by chips, pins, and filters. */
-  --color-blocker: oklch(0.58 0.21 25);
-  --color-warning: oklch(0.72 0.16 70);
-  --color-nitpick: oklch(0.68 0.09 240);
+  /* Surfaces: four steps, dark to light. Nothing else is a background. */
+  --color-ink: #0b0b0c;
+  --color-panel: #131316;
+  --color-panel-2: #191920;
+  --color-edge: #232328;
+  --color-edge-strong: #34343c;
 
-  /* Monochrome surfaces — the only greys the chrome uses. */
-  --color-ink: #101011;
-  --color-panel: #141416;
-  --color-panel-2: #1a1a1d;
-  --color-edge: #212125;
-  --color-edge-strong: #2e2e33;
+  /* One accent: the agent's voice — timing, what it decided, what it wants.
+     `good` marks a pass, `bad` marks an error. No other colour has meaning. */
+  --color-accent: #f0b429;
+  --color-good: #3ddc97;
+  --color-bad: #ff6b6b;
 }
 
 html,
@@ -22,4 +23,40 @@ body,
 
 body {
   @apply bg-ink text-neutral-100 antialiased;
+}
+
+@layer components {
+  /* Three weights, and only three. Hero is the thing you act on, body is
+     what the agent said, meta is everything a human reads second. */
+  .t-hero {
+    @apply text-[26px] leading-[1.15] font-semibold tracking-[-0.02em] text-neutral-50 sm:text-[30px];
+  }
+  .t-title {
+    @apply text-[17px] leading-snug font-semibold text-neutral-100;
+  }
+  .t-body {
+    @apply text-[15px] leading-[1.6] text-neutral-200;
+  }
+  .t-meta {
+    @apply text-[12px] leading-[1.5] text-neutral-500;
+  }
+  .t-num {
+    @apply font-mono tabular-nums;
+  }
+
+  /* One gutter for prose, none for media: that contrast is the layout. */
+  .gutter {
+    @apply px-5;
+  }
+  .col {
+    @apply mx-auto w-full max-w-[560px];
+  }
+
+  /* The single primary action on a screen. */
+  .btn {
+    @apply inline-flex items-center justify-center gap-2 rounded-xl bg-neutral-100 px-4 py-3 text-[15px] font-medium text-neutral-900 transition select-none hover:bg-white disabled:opacity-40;
+  }
+  .btn-quiet {
+    @apply inline-flex items-center justify-center gap-2 rounded-xl border border-edge-strong px-4 py-3 text-[15px] text-neutral-300 transition hover:text-neutral-100 disabled:opacity-40;
+  }
 }

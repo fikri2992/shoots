@@ -23,7 +23,7 @@ export default {
       try {
         await api.post('/auth/dev-login', { email: this.email.trim() })
         await this.fetchMe()
-        this.$router.push({ name: 'dashboard' })
+        this.$router.push({ name: 'now' })
       } catch (error) {
         this.error = error.message
       }
@@ -33,54 +33,33 @@ export default {
 </script>
 
 <template>
-  <div class="flex h-full flex-col items-center justify-center gap-8 px-6">
-    <div class="max-w-md text-center">
-      <h1 class="text-3xl font-semibold tracking-tight">Shoots</h1>
-      <p class="mt-3 text-neutral-400">
-        You shoot. Shoots watches your Drive folder, maps the techniques you have actually used,
-        and issues one quest a day for the one you have not.
-      </p>
-    </div>
+  <div class="col gutter flex h-full flex-col justify-center">
+    <p class="t-meta text-accent">Shoots</p>
+    <h1 class="mt-2 t-hero">A photography coach that watches, decides, and tells you when to go out.</h1>
+    <p class="mt-4 t-body text-neutral-300">
+      It reads the photos you already take, maps what you can do, and sets you one thing to try — timed to the
+      light where you shot last.
+    </p>
 
-    <button
-      v-if="config.google"
-      class="rounded-lg bg-neutral-100 px-5 py-2.5 font-medium text-neutral-900 hover:bg-white"
-      @click="login"
-    >
-      Continue with Google
-    </button>
+    <button v-if="config.google" class="btn mt-10 w-full" @click="login">Continue with Google</button>
 
-    <form
-      v-if="config.dev_login"
-      class="w-full max-w-sm rounded-lg border border-dashed border-amber-700/60 p-4"
-      @submit.prevent="devLogin"
-    >
-      <p class="text-xs font-medium uppercase tracking-wide text-amber-400">Local development</p>
-      <p class="mt-1 text-xs text-neutral-500">
-        OAuth is not configured, so sign-in is by email only. This is disabled automatically on any
-        deployment with cloud storage configured.
-      </p>
+    <form v-if="config.dev_login" class="mt-8 rounded-2xl bg-panel p-4" @submit.prevent="devLogin">
+      <p class="t-meta text-accent">Local development</p>
+      <p class="mt-1 t-meta">OAuth is not configured here, so sign-in is by email only.</p>
       <div class="mt-3 flex gap-2">
         <input
           v-model="email"
           type="email"
           placeholder="you@company.com"
-          class="flex-1 rounded border border-neutral-700 bg-neutral-900 px-3 py-2 text-sm outline-none focus:border-neutral-500"
+          class="min-w-0 flex-1 rounded-xl border border-edge bg-panel-2 px-3 py-2.5 text-[15px] outline-none focus:border-edge-strong"
         />
-        <button
-          type="submit"
-          :disabled="!email.includes('@')"
-          class="rounded bg-neutral-800 px-3 py-2 text-sm font-medium hover:bg-neutral-700 disabled:opacity-40"
-        >
-          Sign in
-        </button>
+        <button type="submit" :disabled="!email.includes('@')" class="btn-quiet px-4 py-2.5">Sign in</button>
       </div>
-      <p v-if="error" class="mt-2 text-xs text-red-400">{{ error }}</p>
+      <p v-if="error" class="mt-2 t-meta text-bad">{{ error }}</p>
     </form>
 
-    <p v-if="!config.google && !config.dev_login" class="max-w-sm text-center text-sm text-red-400">
-      No sign-in method is configured. Set GOOGLE_CLIENT_ID, or ALLOW_DEV_LOGIN=true for local
-      development.
+    <p v-if="!config.google && !config.dev_login" class="mt-8 t-body text-bad">
+      No sign-in method is configured. Set GOOGLE_CLIENT_ID, or ALLOW_DEV_LOGIN=true for local development.
     </p>
   </div>
 </template>

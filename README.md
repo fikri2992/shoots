@@ -4,6 +4,8 @@ An autonomous photography coach. You shoot. It watches your Google Drive folder,
 
 Entry for the All Things Agentic Hackathon, Taskmaster track.
 
+The app is three screens on a phone: **Now** (the one thing to do, and nothing else), **Frames** (everything it has read), **Journey** (what you can do and what the agents did). Reviews are written back into Drive, so the app is optional for reading one.
+
 - Docs: [domain model](docs/domain-model.md) · [build plan](docs/build-plan.md) · [codebase rules](AGENTS.md)
 - Stack: Vue 3 (Options API) + Vite + Tailwind PWA · FastAPI + Google ADK · Firestore + GCS + Pub/Sub + Cloud Scheduler + Secret Manager + Cloud Run
 - Models: `gemini-3.7-flash` (Analyst panel of three lenses + synthesizer on ADK workflow agents, Scout, Judge, Director storyboard, Listener) · `veo-3.1-fast` (Director: the reference clip under every quest) · `gemini-live-2.5-flash-native-audio` (Coach: voice review of a shot from the phone)

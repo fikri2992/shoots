@@ -96,3 +96,17 @@
 - Scrub lens: `pan` on the camper-van clip went from composer-only 0.55 to x3 at 0.87 with the scrub confirming on exact frames; `static_tripod` x4 on the locked-off clip. Contact-sheet lenses take 20-30 s each on video; the scrub adds ~16 s.
 - Coach tools over Gemini Live function calling: "only my phone, no tripod, something else to shoot here" -> `remember` then `issue_quest` -> "Fill the entire frame" issued by voice, no tripod needed. Turn takes ~46 s because the Scout runs inside the tool call.
 - Gemini Live closed one session abnormally (1006) mid-tool-response on Windows (semaphore timeout); the retry ran clean. Worth a reconnect-with-resume later.
+
+## Day 8 (2026-08-23), the interaction rebuild
+
+Walked every screen in Chrome at phone and desktop width as a first-time user. Findings that drove the rebuild: the floating shutter skipped pre-flight and still got judged; "Reference clip rendering…" never resolved; the quest card put its Shoot button two screens down; Today repeated the whole skill map and a 60-row feed; "Ask the Coach why" jumped to an anchor and started nothing; the Coach refused to open without a microphone; three lenses' observations were shown three times each.
+
+Rebuilt around one decision per screen:
+
+- **Now** — connect / seed / reading / quest / idle, one at a time. `QuestHero` is media-first, criteria as sentences, `How to shoot it` / `Why the Scout picked this` / `What it read` behind disclosures, Shoot + Skip pinned above the tab bar.
+- **Frames** — one grid, newest ingest first, score and state on the tile, `Add frames` for anything outside a quest.
+- **Frame** — sticky media with `read` / `grid` toggles, verdict and moves in the open, observations deduped across lenses and cell refs stripped from prose, evidence and camera behind disclosures, Drive link in the footer.
+- **Journey** — six skill bars that open into chips, past quests, and the agent log condensed (identical consecutive lines fold into `×N`).
+- **Coach** — a sheet over the frame, text-first, mic opt-in, opened with the question the user clicked.
+
+Backend: `scout.issue_first` after the Cartographer, so the first quest needs no click (`tests/test_first_quest.py`). Frontend: design tokens and three type weights in `style.css`; `steps.spec.js` covers the states a returning account never sees. 200 backend tests, 11 frontend tests, ruff clean.

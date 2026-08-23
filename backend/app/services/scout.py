@@ -102,6 +102,22 @@ async def issue(
     return quest
 
 
+async def issue_first(ctx: Context, user_id: str) -> Quest | None:
+    """The first quest, unprompted.
+
+    A user who has just handed over their first frames has nothing to do next,
+    and waiting for tomorrow's tick to say so is the friction this whole thing
+    exists to remove. Fires once, on an empty quest history; after that the
+    daily tick and ``quest.closed`` are the only sources.
+    """
+    if await repo.list_quests(ctx.store, user_id, limit=1):
+        return None
+    quest = await issue(ctx, user_id)
+    if quest is not None:
+        logger.info("scout: first quest %s for %s", quest.id, user_id)
+    return quest
+
+
 async def deliver_if_due(ctx: Context, quest: Quest) -> bool:
     """Push the quest if its moment has come. The quest exists in the store
     either way; this is only about when the phone buzzes."""

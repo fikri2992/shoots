@@ -34,6 +34,7 @@ def build_context() -> Context:
 
 def wire(ctx: Context) -> None:
     """Register every stage handler. Same registrations on either bus."""
+    from app.infra import repository
     from app.services import analyst, cartographer, director, ingest, judge, scout, scribe
 
     async def on_media_new(message: dict) -> None:
@@ -44,6 +45,10 @@ def wire(ctx: Context) -> None:
 
     async def on_media_analyzed(message: dict) -> None:
         await cartographer.update(ctx, message)
+        # The map moved; if this user has never had a quest, that is enough to
+        # choose one. Nothing to click, on the first run or any other.
+        shot = await repository.get_shot(ctx.store, message["shot_id"])
+        await scout.issue_first(ctx, shot.user_id)
 
     async def on_media_analyzed_judge(message: dict) -> None:
         await judge.judge(ctx, message)

@@ -23,6 +23,7 @@ export const useShootsStore = defineStore('shoots', {
     timer: null,
     lastEventAt: '',
     push: 'unknown', // unknown | unsupported | off | on | denied
+    seeding: null, // { done, total, name } while the first frames upload
   }),
 
   getters: {
@@ -36,6 +37,28 @@ export const useShootsStore = defineStore('shoots', {
     },
     shotById: (state) => (id) => state.shots.find((v) => v.shot.id === id) || null,
     questById: (state) => (id) => state.quests.find((q) => q.id === id) || null,
+
+    /** Newest first by when we received it, not by when the camera says it was
+        taken: an old holiday photo dropped in today belongs at the top. */
+    frames: (state) =>
+      [...state.shots].sort((a, b) => (b.shot.ingested_at || '').localeCompare(a.shot.ingested_at || '')),
+
+    /** Still moving through the pipeline — the Now screen narrates these. */
+    working: (state) =>
+      state.shots.filter((v) => !v.analysis && v.shot.status !== 'failed' && v.shot.status !== 'analyzed'),
+
+    pastQuests: (state) => state.quests.filter((q) => q.status !== 'open'),
+
+    /** The newest verdict anywhere, with the quest it belongs to. */
+    lastVerdict: (state) => {
+      let best = null
+      for (const quest of state.quests) {
+        for (const verdict of quest.verdicts || []) {
+          if (!best || (verdict.judged_at || '') > (best.verdict.judged_at || '')) best = { quest, verdict }
+        }
+      }
+      return best
+    },
   },
 
   actions: {
@@ -164,6 +187,30 @@ export const useShootsStore = defineStore('shoots', {
         await this.poll()
         return result
       })
+    },
+
+    /**
+     * First run: a handful of frames in one go, so the agent has something to
+     * read before it is asked for an opinion. Sequential on purpose — each one
+     * goes through Drive, and the pipeline narrates them as they land.
+     */
+    async seed(files) {
+      this.error = ''
+      this.seeding = { done: 0, total: files.length, name: files[0]?.name || '' }
+      try {
+        for (const file of files) {
+          this.seeding.name = file.name
+          const form = new FormData()
+          form.append('file', file, file.name)
+          await api.postForm('/drive/shoot', form)
+          this.seeding.done += 1
+        }
+        await this.fetchAll()
+      } catch (error) {
+        this.error = error.message
+      } finally {
+        this.seeding = null
+      }
     },
 
     /** Where push stands on this device, without prompting. */
