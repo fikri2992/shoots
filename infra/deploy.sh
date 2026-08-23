@@ -9,7 +9,7 @@
 # into the service env); the secrets are mounted from Secret Manager.
 set -euo pipefail
 
-PROJECT="${GCP_PROJECT:-your-gcp-project}"
+PROJECT="${GCP_PROJECT:?set GCP_PROJECT to your Google Cloud project id}"
 REGION="${GCP_LOCATION:-asia-southeast2}"
 SERVICE="${SERVICE:-shoots}"
 SA="${SERVICE_ACCOUNT:-shoots-ingest@${PROJECT}.iam.gserviceaccount.com}"

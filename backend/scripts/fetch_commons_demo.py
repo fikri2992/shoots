@@ -7,12 +7,13 @@ Demo data only; never committed (data/demo/ is git-ignored).
 """
 
 import json
+import os
 import sys
 import urllib.parse
 import urllib.request
 from pathlib import Path
 
-UA = "Shoots-hackathon-demo/0.1 (your-contact@example.com)"
+UA = os.environ.get("COMMONS_UA", "Shoots-hackathon-demo/0.1 (+https://github.com/fikri2992/shoots)")
 API = "https://commons.wikimedia.org/w/api.php"
 OUT = Path(__file__).resolve().parents[2] / "data" / "demo" / "commons"
 PER_QUERY = 3

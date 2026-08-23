@@ -14,7 +14,7 @@
 # file cannot poison the queue, and the DLQ is replayable for the demo.
 set -euo pipefail
 
-PROJECT="${GCP_PROJECT:-your-gcp-project}"
+PROJECT="${GCP_PROJECT:?set GCP_PROJECT to your Google Cloud project id}"
 PUSH_BASE="${PUBSUB_PUSH_BASE_URL:?set PUBSUB_PUSH_BASE_URL to the Cloud Run service URL}"
 SA="${PUBSUB_PUSH_SA:?set PUBSUB_PUSH_SA to the service account email used for push auth}"
 MAX_ATTEMPTS=5

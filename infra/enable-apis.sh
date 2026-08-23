@@ -2,7 +2,7 @@
 # Enable every API Shoots uses. Idempotent. Run once per project.
 set -euo pipefail
 
-PROJECT="${GCP_PROJECT:-your-gcp-project}"
+PROJECT="${GCP_PROJECT:?set GCP_PROJECT to your Google Cloud project id}"
 
 gcloud services enable \
   aiplatform.googleapis.com \

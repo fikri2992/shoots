@@ -12,7 +12,7 @@ class Settings(BaseSettings):
 
     # --- Models -----------------------------------------------------------
     # Hackathon rule: "Gemini 3.5 or newer". All ids verified 2026-08-22 against
-    # the Vertex publisher model list for project your-gcp-project.
+    # the Vertex publisher model list for the deployment project.
     #
     #   gemini-3.7-flash     Analyst, Scout, Judge. Every image/contact sheet.
     #   veo-3.1-fast         One 5s reference clip per quest (bonus: Veo).
@@ -105,7 +105,8 @@ class Settings(BaseSettings):
     #: VAPID keys, base64url. Generate once; the public key ships to the PWA.
     vapid_public_key: str = ""
     vapid_private_key: str = ""
-    vapid_subject: str = "mailto:your-contact@example.com"
+    #: Contact for push services, from the environment (``mailto:`` or https).
+    vapid_subject: str = ""
 
     # --- Scheduled tasks --------------------------------------------------
     #: Shared secret Cloud Scheduler sends as X-Tasks-Token. Empty disables /tasks.
@@ -138,7 +139,8 @@ class Settings(BaseSettings):
     #: The identity that reads the Drive folder and runs the pipeline on Cloud Run.
     #: Locally, ADC impersonates it (``gcloud auth application-default login
     #: --impersonate-service-account``).
-    drive_service_account: str = "shoots-ingest@your-gcp-project.iam.gserviceaccount.com"
+    #: Set from the environment; ``infra/deploy.sh`` passes it into the service.
+    drive_service_account: str = ""
     allow_dev_login: bool = False
 
     @property
