@@ -92,12 +92,62 @@ and the student app already exists; fewer moving parts to keep per-student Drive
 
 - **Create class**: name → join link and six-character code.
 - **Assignment**: title, brief, technique (taxonomy pick), criteria (EXIF bounds,
-  seen, said — `Criteria` exists), Veo clip on/off (off by default, cost).
-  *Draft it for me* prefills from the Scout with the class's skill data.
+  seen, said — `Criteria` exists), a reference frame picked from the class (a
+  student's or the teacher's own), and the Veo storyboard: rendered on save, previewed
+  by the teacher, attached or dropped. *Draft it for me* prefills from the Scout with
+  the class's skill data.
 - **Verdict review**: feedback editable in place, pass/fail toggle, Approve,
   Approve all. Approval is the only way a verdict reaches a student.
 - **Class setting**: gate verdicts (default) or auto-send.
 - Cut for v1: roster edits, due dates, regenerating codes.
+
+## Generated media, and where it is allowed
+
+The artist's objection to AI is about generation standing in for the work. So the rule:
+**the agent never makes the photograph that gets graded.** It illustrates the brief,
+reads the work, and scores the celebration.
+
+- **Veo** renders the assignment's storyboard: the *move* ("pan with the rider at
+  1/30"), six seconds of motion, never a still presented as the target. For video
+  techniques it is the only honest reference. The teacher previews it and decides
+  whether the students see it — the human gate covers generated media too. In the
+  student's view it is captioned *generated storyboard of the brief — not a photograph*
+  and sits beside the real reference frame.
+- **Lyria** comes back under real frames, not under Veo (the Day 7c cut stands for
+  that). **Showcase**: when an assignment closes, the agent takes each student's best
+  approved frame, cuts a 30 s reel (ffmpeg, slow push per frame, name and technique as
+  caption) with a Lyria bed prompted from the assignment's mood, and writes
+  `Showcase — <assignment>.mp4` into the teacher's Drive. Sharing it is one tap, the
+  teacher's. A music bed under students' photographs is the one arrangement nobody
+  objects to, and teachers make these by hand today.
+- The crop loop renders the student's own pixels; that is a crop, not a generation.
+
+## Standing in the room
+
+What the 2026 climate says (sources in the session of 2026-08-23): 99 % of artists
+dislike AI, 58 % of UK AoP members have lost work to it, photographers' top worry is
+loss of creative control, art educators worry about AI skipping "the messy middle", and
+a student has already thanked a teacher for feedback the teacher never wrote. The
+hostility is almost entirely about generation; analytic tools are being adopted, and
+Adobe shipped AI critique in its camera app in July 2026.
+
+Built-in answers, not slide answers:
+
+- **The teacher is the author.** Drafts are pre-crit notes for the teacher. The student
+  sees feedback *from the teacher*; the Drive file says "Reviewed by <teacher> · read by
+  Shoots". Each verdict records whether it was edited before approval, and the class log
+  shows the edit rate — the audit trail keeps "Approve all" honest.
+- **Intent on submission.** One line, "what were you going for?", read by the Judge next
+  to the teacher's criteria. Answers the strongest pedagogical objection: a critic that
+  scores what it sees, not what was attempted.
+- **Technique, not taste.** The verdict is against the criteria the teacher wrote and the
+  EXIF arithmetic; PPA element scores stay in the teacher's view as evidence and never
+  reach the student's verdict. No leaderboards: trend and attention flags are
+  teacher-only, students never see each other's scores.
+- **Data sentence on join.** Frames are read by Google's model under Vertex terms, not
+  used to train it, and stay in the student's Drive.
+- **Reference is real.** The assignment's reference is a frame from the class; the Veo
+  clip is a storyboard, labelled as such, attached by the teacher.
 
 ## Screens
 
@@ -126,11 +176,14 @@ and the Coach unchanged. One new onboarding step: join a class.
   the student push move from `media.judged` to it. With auto-send on, the Judge
   approves its own draft and publishes both.
 - **Class Read** (new stage, `cohort.read`): on the daily tick and when an assignment's
-  submissions change, reads every member's skill map and the assignment's verdicts,
-  writes the paragraph and, if the assignment is mostly in, a draft next assignment.
-  Stored on the cohort; the Class tab shows the latest.
+  submissions change, reads every member's skill map and the assignment's verdicts and
+  writes the paragraph. Stored on the cohort; the Class tab shows the latest. The
+  drafted next assignment is the stretch, displaced by Showcase.
 - Scout becomes a drafter: same research and brief writing, `author=scout`, lands as a
-  draft assignment, never issued by itself.
+  draft assignment, never issued by itself. Reached from *Draft it for me* on the form.
+- **Showcase** (new stage on `assignment.closed`): best approved frame per student →
+  reel → Lyria bed → teacher's Drive. Director unchanged for the storyboard.
+- `Verdict.edited: bool` and `Shot.intent: str`.
 - Push: teacher on each new submission (folded: "3 new in Panning"), student on approval.
 
 ## Frontend state
@@ -154,20 +207,23 @@ the clip lands a minute later on a student phone.
 |---|---|
 | 1 | entities, cohort + membership repo, `owner_or_teacher_of`, `require_role`, `/auth/me`, join flow, tests |
 | 2 | Assignment → Quest fan-out, Verdict states, `verdict.approved`, Scribe/push rewired, Drive-optional ingest |
-| 3 | Class Read stage and prompt, Scout as drafter, teacher push |
+| 3 | Class Read paragraph, Scout as drafter behind the form, Showcase (Lyria back, reel cut), teacher push |
 | 4 | teacher UI: Class tab, roster, drill-in parametrisation |
 | 5 | teacher UI: Assignments tab, form, verdict review, approve all |
 | 6 | student side: join step, assignment on Now, pending verdict state; seed script |
 | 7 | walk both roles in the browser at phone width, fix; deploy on request |
 | 8 | video, README, submission |
 
-No slack. If day 3 slips, Class Read ships as the paragraph only, without the drafted
-assignment.
+No slack. If day 3 slips, Showcase ships without the Lyria bed (Veo's own audio is
+not a substitute; the reel goes out silent) and the Scout draft is cut.
 
 ## Decided
 
 - Students have their own accounts and their own (optional) Drive.
 - Every verdict is gated on teacher approval by default; auto-send is a class setting.
+- Veo and Lyria stay, pointed at the brief and the celebration, never at the graded
+  photograph. The teacher attaches generated media; it is never shown to a student
+  unasked.
 - Replace, do not add: the single-photographer mode is not maintained alongside.
   The working personal flow stays on `main` as the fallback demo; the pivot is built
   on a branch until day 7.
