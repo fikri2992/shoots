@@ -1,6 +1,8 @@
 # Light
 
 Technical note, 2026-08-23. How light is planned, shown, coached and verified.
+Weather, sky and air — what the sky does with the sun, and what the person needs to
+bring — are in `conditions.md`.
 Nothing here is built; decisions get numbered in `domain-model.md` when they ship.
 
 ## The split
