@@ -3,7 +3,7 @@ import { mapActions, mapState } from 'pinia'
 
 import DisclosureRow from '@/components/DisclosureRow.vue'
 import ShotCanvas from '@/components/ShotCanvas.vue'
-import { spanBox } from '@/domain/cells'
+import { plain, spanBox } from '@/domain/cells'
 import { GUIDE_LABELS, verdict as guideVerdict } from '@/domain/guides'
 import { useCoachStore } from '@/stores/coach'
 import { useShootsStore } from '@/stores/shoots'
@@ -12,21 +12,12 @@ const ELEMENTS = ['impact', 'composition', 'lighting', 'technical', 'story']
 const PICKABLE = ['thirds', 'phi', 'diagonals', 'centre', 'none']
 const KIND_LABEL = { move: 'reframe', crop: 'crop', camera: 'viewpoint' }
 
-/** Cell refs are precise and unreadable in prose; keep them out of the sentence. */
-function withoutCells(text) {
-  return text
-    .replace(/\b[A-H][1-9](\s*(?:to|-|–|,)\s*[A-H][1-9])?\b/g, '')
-    .replace(/\s{2,}/g, ' ')
-    .replace(/\s+([.,])/g, '$1')
-    .trim()
-}
-
 /** Three lenses describe the same frame, so the descriptions repeat. Keep one. */
-function dedupe(lines, limit) {
+function dedupe(lines, limit, grid) {
   const seen = new Set()
   const out = []
   for (const line of lines) {
-    const clean = withoutCells(line)
+    const clean = plain(line, grid).trim()
     const key = clean.toLowerCase().replace(/[^a-z ]/g, '').split(/\s+/).slice(0, 5).join(' ')
     if (!clean || seen.has(key)) continue
     seen.add(key)
@@ -38,9 +29,9 @@ function dedupe(lines, limit) {
 
 /**
  * One frame: what it looks like under the guide its own technique implies,
- * what the panel concluded, and one way in to talk about it. The model's cell
- * mesh is available under "What the agent saw" — it is an addressing system,
- * not something a photographer composes against.
+ * what the panel concluded, and one way in to talk about it. The cell grid the
+ * lenses use to point at things never appears here — not as a mesh and not as
+ * a coordinate in a sentence.
  */
 export default {
   name: 'FramePage',
@@ -64,10 +55,6 @@ export default {
       const blobs = this.shot?.blobs || {}
       const key = blobs.sheet ? 'sheet' : 'original'
       return blobs[key] ? `/api/blobs/${blobs[key]}` : ''
-    },
-    griddedSrc() {
-      const path = this.shot?.blobs?.gridded
-      return path ? `/api/blobs/${path}` : ''
     },
     /** The guide the frame's own technique implies, until the user picks one. */
     guide() {
@@ -100,7 +87,11 @@ export default {
       return (this.analysis?.techniques || []).slice(0, 3).map((t) => t.technique_id.replace(/_/g, ' '))
     },
     observations() {
-      return dedupe(this.analysis?.observations || [], 6)
+      return dedupe(this.analysis?.observations || [], 6, this.shot?.grid)
+    },
+    /** The critique, with any cell references said the way a person would. */
+    critique() {
+      return plain(this.analysis?.critique || '', this.shot?.grid)
     },
     moves() {
       const drawn = this.drawnMove
@@ -151,6 +142,9 @@ export default {
     },
     kindLabel() {
       return (kind) => KIND_LABEL[kind] || kind
+    },
+    reason() {
+      return (move) => plain(move.reason || '', this.shot?.grid)
     },
   },
   async created() {
@@ -215,7 +209,7 @@ export default {
 
         <template v-if="analysis">
           <p class="mt-1 t-meta">{{ tags.join(' · ') }}</p>
-          <p class="mt-4 t-body">{{ analysis.critique }}</p>
+          <p class="mt-4 t-body">{{ critique }}</p>
 
           <ul v-if="moves.length" class="mt-6 space-y-3">
             <li v-for="(m, i) in moves" :key="i" class="flex gap-3">
@@ -227,7 +221,7 @@ export default {
               </span>
               <span class="t-body">
                 <span class="text-neutral-100">{{ m.what }}</span>
-                <span class="mt-0.5 block text-neutral-400">{{ m.reason }}</span>
+                <span class="mt-0.5 block text-neutral-400">{{ reason(m) }}</span>
               </span>
             </li>
           </ul>
@@ -290,15 +284,6 @@ export default {
               <p class="mt-2 t-body text-neutral-400">
                 {{ analysis.composition.crop_reason }}
                 <span class="mt-1 block t-meta">Rendered and scored as a finished frame; kept only because it scored higher.</span>
-              </p>
-            </DisclosureRow>
-
-            <DisclosureRow v-if="griddedSrc" label="What the agent saw">
-              <img :src="griddedSrc" alt="the frame with the addressing grid the model reads" class="rounded-xl" />
-              <p class="mt-2 t-meta">
-                The lenses are given this: a labelled grid so they can point at things and code can map the answer
-                back to pixels. It is an addressing system, not a composition guide — yours is the one over the
-                frame above.
               </p>
             </DisclosureRow>
 

@@ -19,6 +19,7 @@ from typing import Protocol
 from app.config import settings
 from app.domain import taxonomy
 from app.domain.entities import Analysis, MoveKind, Quest, Shot, ShotStatus, Verdict
+from app.domain.grid import Grid
 from app.imaging import canvas
 from app.imaging.caption import add_caption
 from app.infra import repository as repo
@@ -65,7 +66,7 @@ def review_title(analysis: Analysis, quest: Quest | None, verdict: Verdict | Non
     return title
 
 
-def review_body(analysis: Analysis, verdict: Verdict | None) -> list[str]:
+def review_body(analysis: Analysis, verdict: Verdict | None, grid: Grid) -> list[str]:
     body = [analysis.critique.strip()] if analysis.critique.strip() else []
     if analysis.elements:
         body.append(
@@ -76,9 +77,9 @@ def review_body(analysis: Analysis, verdict: Verdict | None) -> list[str]:
     for index, move in enumerate(analysis.composition.moves, 1):
         where = ""
         if move.kind is MoveKind.MOVE and move.from_cells and move.to_cells:
-            where = f": {','.join(move.from_cells)} → {','.join(move.to_cells)}"
+            where = f": {grid.place(move.from_cells)} → {grid.place(move.to_cells)}"
         elif move.kind is MoveKind.CROP and move.to_cells:
-            where = f": keep {','.join(move.to_cells)}"
+            where = f": keep {grid.place(move.to_cells)}"
         body.append(f"{index}. {move.what}{where}. {move.reason}")
     if verdict:
         body.append(verdict.feedback.strip())
@@ -89,10 +90,9 @@ def review_description(
     shot: Shot, analysis: Analysis, quest: Quest | None, verdict: Verdict | None
 ) -> str:
     lines = [review_title(analysis, quest, verdict), ""]
-    lines += review_body(analysis, verdict)
-    grid = shot.grid
-    if grid:
-        lines += ["", f"Cells: {grid.cols}×{grid.rows} grid, A1 top-left. Reviewed by Shoots."]
+    lines += review_body(analysis, verdict, _grid(shot))
+    # No grid legend: cells never reach this text, so nothing needs explaining.
+    lines += ["", "Reviewed by Shoots."]
     return "\n".join(lines)[:4000]
 
 
@@ -143,7 +143,7 @@ async def write_review(
         captioned = add_caption(
             frame,
             review_title(analysis, quest, verdict),
-            review_body(analysis, verdict),
+            review_body(analysis, verdict, _grid(shot)),
             footer=f"Reviewed by Shoots · {shot.filename}",
         )
         data = canvas.to_jpeg_bytes(captioned, quality=88)
@@ -231,3 +231,9 @@ class LocalReviewPublisher:
 
     def url(self, file_id: str) -> str:
         return (self.root / file_id).as_posix()
+
+
+def _grid(shot: Shot) -> Grid:
+    return Grid(
+        cols=shot.grid.cols, rows=shot.grid.rows, width=shot.grid.width, height=shot.grid.height
+    )

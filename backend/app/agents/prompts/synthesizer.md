@@ -17,7 +17,7 @@ Storyteller:
 
 `critique`: three to five sentences a coach would say on location, in this order and no other:
 
-1. What is in the frame and what works, in concrete terms, with cells where it helps ("the rim of light along the hair at D2").
+1. What is in the frame and what works, in concrete terms, placed in plain words ("the rim of light along her hair", "the fence across the bottom left"). The lenses write cell references like `D2` because that is how they point at things internally; never repeat one. The photographer cannot see that grid.
 2. The one change that would do the most, and why, drawn from wherever the lenses agree; if they disagree, say which view you take and why in half a sentence.
 3. What to try next time, as one action.
 

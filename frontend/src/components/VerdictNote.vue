@@ -1,8 +1,10 @@
 <script>
-import { mapActions } from 'pinia'
+import { mapActions, mapState } from 'pinia'
 
 import DisclosureRow from '@/components/DisclosureRow.vue'
+import { plain } from '@/domain/cells'
 import { useCoachStore } from '@/stores/coach'
+import { useShootsStore } from '@/stores/shoots'
 
 /**
  * One attempt, read the way a photographer needs it: the verdict, then the one
@@ -17,9 +19,11 @@ export default {
     title: { type: String, default: '' },
   },
   computed: {
+    ...mapState(useShootsStore, ['shotById']),
     /** The Judge writes a paragraph and closes with a "Next:" line. */
     parts() {
-      const text = (this.verdict.feedback || '').trim()
+      const grid = this.shotById(this.verdict.shot_id)?.shot?.grid
+      const text = plain((this.verdict.feedback || '').trim(), grid)
       const at = text.lastIndexOf('Next:')
       if (at < 0) {
         const stop = text.indexOf('. ')

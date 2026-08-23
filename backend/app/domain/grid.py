@@ -117,6 +117,39 @@ class Grid:
             bottom=max(b.bottom for b in boxes),
         )
 
+    def place(self, refs: list[str]) -> str:
+        """Where a span sits, in the words a person would use.
+
+        The grid is how a lens points at things among themselves. Anything a
+        photographer reads or hears says "the bottom left", never "C7-E7":
+        a coordinate on a grid they cannot see is worse than no locator.
+        """
+        try:
+            box = self.span_bounds(refs)
+        except GridError:
+            return ""
+        wide = box.width / self.width > 0.6
+        tall = box.height / self.height > 0.6
+        if wide and tall:
+            return "most of the frame"
+
+        centre_x = (box.left + box.right) / 2 / self.width
+        centre_y = (box.top + box.bottom) / 2 / self.height
+        col = "left" if centre_x < 1 / 3 else "right" if centre_x > 2 / 3 else "centre"
+        row = "top" if centre_y < 1 / 3 else "bottom" if centre_y > 2 / 3 else "middle"
+
+        if wide:
+            return "across the middle" if row == "middle" else f"across the {row}"
+        if tall:
+            return "down the centre" if col == "centre" else f"down the {col}"
+        if row == "middle" and col == "centre":
+            return "the centre of the frame"
+        if row == "middle":
+            return f"the {col} of the frame"
+        if col == "centre":
+            return f"the {row} of the frame"
+        return f"the {row} {col}"
+
     def zoom_bounds(self, refs: list[str], margin_cells: int = 1) -> Box:
         """Span plus a margin of whole cells, clamped to the image.
 

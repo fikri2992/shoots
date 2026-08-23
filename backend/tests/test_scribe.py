@@ -101,7 +101,9 @@ async def test_review_lands_in_the_folder_with_caption_and_verdict():
             assert image.height > 600  # the caption band was added
         sidecar = path.with_suffix(".txt").read_text(encoding="utf-8")
         assert sidecar.startswith("PASSED · Follow the rider")
-        assert "rider: C3 → E3" in sidecar and "Clean pan." in sidecar
+        # Places, not coordinates: the reader has no grid in front of them.
+        assert "rider: the left of the frame → the centre of the frame" in sidecar
+        assert "Clean pan." in sidecar and "C3" not in sidecar
 
         shot = await repo.get_shot(ctx.store, "shot_1")
         assert shot.drive_review_id == file_id and shot.drive_review_url.endswith(file_id)
