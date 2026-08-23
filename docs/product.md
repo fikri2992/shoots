@@ -54,6 +54,63 @@ Things that do not appear in this table are cut: the classroom, the embedding
 reference, the mentor view, Gemma (kept only if pre-flight moves to it invisibly
 on a spare hour).
 
+## Who it is for
+
+One primary person; two at the edges. Written from the VSCO 2026 photographers
+survey, the critique-app landscape, and the fact that the author is the primary
+person.
+
+### The plateaued phone shooter (primary)
+
+Owns a good phone, maybe a used mirrorless with the kit lens. Shoots on weekends
+and trips, has done so for two or three years, and the photos look the same as they
+did two years ago.
+
+- **Believes**: that better photos come from better gear or a better place; that
+  "composition" is a talent other people have; that they would improve if someone
+  told them *what to do next*, because tutorials tell them everything at once.
+- **Goal**: to be able to look at a scene and know what to do. To get a frame they
+  are proud of once a week, not once a year. Secretly: to be told they are getting
+  better, by something that is not a friend being polite.
+- **Objections**: "AI will just say generic things about the rule of thirds." "I do
+  not want to upload my photos somewhere." "Another app that sends notifications."
+  "It will not know what I was trying to do." "I will not keep it up."
+- **Workaround today**: YouTube at night, a Reddit post that got two comments, a
+  "photo a day" challenge abandoned on day nine, a folder called *good ones*, and
+  asking a friend who shoots, who says "nice".
+- **What answers each objection, in the product**: the verdict reads EXIF and the
+  sun, not vibes — numbers where it acted; frames stay in their own Drive and the
+  review lands there; five pushes per shoot, all phase changes; the Coach asks what
+  they were going for; the Scout sets the next one by itself, so keeping it up is
+  showing up on Saturday.
+
+### The returning enthusiast (edge)
+
+Shot seriously ten years ago, has a real camera in a drawer, knows the words.
+Believes they have forgotten less than they have. Goal: a structured way back in
+without a course. Objection: "do not explain thirds to me." Workaround: none; the
+camera stays in the drawer. The product answers with the skill map (it reads what
+they already do and starts from there), the light row and the checks (specifics,
+not lessons), and the Coach as a peer.
+
+### The working photographer (edge, mostly not a user)
+
+Believes AI is taking their work and their images — 58 % of UK AoP members have
+lost work to it. Objection is moral, not functional: "you trained on us." Goal, if
+any: a second pair of eyes that is not a client. Workaround: peers, a paid mentor,
+their own taste. The product does not court them; it avoids offending them: it
+never generates the photograph, the storyboard is labelled, the review is signed
+as a read, not a judgement of art, and the person's frames are not training data,
+said in one sentence on connect.
+
+### The belief the product has to change
+
+Not "AI can critique photos" — that is accepted and crowded. The belief to change
+is *"improving is a matter of knowledge"*. It is a matter of being in the right
+light, ready, with one thing to try, and then being told honestly what happened.
+Every phase of the shoot is built to make that the felt experience, which is why
+the product is an appointment and not a critique.
+
 ## Language, once
 
 - *shoot*, not quest; *the light*, not the lighting plan; *moved*, not rescheduled;
