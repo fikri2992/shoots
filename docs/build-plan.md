@@ -110,3 +110,11 @@ Rebuilt around one decision per screen:
 - **Coach** — a sheet over the frame, text-first, mic opt-in, opened with the question the user clicked.
 
 Backend: `scout.issue_first` after the Cartographer, so the first quest needs no click (`tests/test_first_quest.py`). Frontend: design tokens and three type weights in `style.css`; `steps.spec.js` covers the states a returning account never sees. 200 backend tests, 11 frontend tests, ruff clean.
+
+### Day 8b: the overlay, rebuilt around the reader
+
+The overlay drew "crop below the bamboo pole" as a red arrow from the pole to the child's ear, because a crop and a move were the same object. Split them: `Move.kind` is `move` | `crop` | `camera`, required in the Composer's schema, and the prompt says what each is drawn as. On the first real run the model used it exactly as intended — "Trim top bamboo bar" came back as a `crop` (tested by the crop loop, composition 5 → 7, kept) and "Lower camera position" as a `camera` note with no cells and no mark.
+
+The human guide is now chosen from the agreed technique (`domain/guides.py`: thirds / centre / diagonals / fill / phi, thirds as the dimmed fallback), drawn thin and unlabelled with the subject's centre on it, and switchable under the frame. The cell mesh moved into "What the agent saw". The same three layers render in PIL for the Drive review (`imaging/overlay.py`), checked on pixels in `tests/test_overlay.py` — a `camera` change must leave the frame byte-identical.
+
+`subject_x`/`subject_y` in frame units give the guide something finer than a seventh of the width to measure against; a point that contradicts the lens's own cells is dropped, and no fit is claimed below half a cell.

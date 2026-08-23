@@ -3,10 +3,14 @@ import { mapActions, mapState } from 'pinia'
 
 import DisclosureRow from '@/components/DisclosureRow.vue'
 import ShotCanvas from '@/components/ShotCanvas.vue'
+import { spanBox } from '@/domain/cells'
+import { GUIDE_LABELS, verdict as guideVerdict } from '@/domain/guides'
 import { useCoachStore } from '@/stores/coach'
 import { useShootsStore } from '@/stores/shoots'
 
 const ELEMENTS = ['impact', 'composition', 'lighting', 'technical', 'story']
+const PICKABLE = ['thirds', 'phi', 'diagonals', 'centre', 'none']
+const KIND_LABEL = { move: 'reframe', crop: 'crop', camera: 'viewpoint' }
 
 /** Cell refs are precise and unreadable in prose; keep them out of the sentence. */
 function withoutCells(text) {
@@ -33,16 +37,17 @@ function dedupe(lines, limit) {
 }
 
 /**
- * One frame: what it looks like with the read drawn on it, what the panel
- * concluded, and one way in to talk about it. Evidence is available but never
- * in the way.
+ * One frame: what it looks like under the guide its own technique implies,
+ * what the panel concluded, and one way in to talk about it. The model's cell
+ * mesh is available under "What the agent saw" — it is an addressing system,
+ * not something a photographer composes against.
  */
 export default {
   name: 'FramePage',
   components: { DisclosureRow, ShotCanvas },
   props: { shotId: { type: String, required: true } },
   data() {
-    return { showGrid: false, showOverlay: true }
+    return { showRead: true, picked: '', guides: PICKABLE, labels: GUIDE_LABELS }
   },
   computed: {
     ...mapState(useShootsStore, ['shotById', 'questById']),
@@ -60,6 +65,37 @@ export default {
       const key = blobs.sheet ? 'sheet' : 'original'
       return blobs[key] ? `/api/blobs/${blobs[key]}` : ''
     },
+    griddedSrc() {
+      const path = this.shot?.blobs?.gridded
+      return path ? `/api/blobs/${path}` : ''
+    },
+    /** The guide the frame's own technique implies, until the user picks one. */
+    guide() {
+      return this.picked || this.analysis?.composition?.guide || 'thirds'
+    },
+    subjectPoint() {
+      const c = this.analysis?.composition
+      if (!c) return null
+      if (typeof c.subject_x === 'number' && typeof c.subject_y === 'number') {
+        return { x: c.subject_x, y: c.subject_y }
+      }
+      const box = spanBox(c.subject_cells || [])
+      const grid = this.shot?.grid
+      if (!box || !grid) return null
+      return { x: (box.x + box.w / 2) / grid.cols, y: (box.y + box.h / 2) / grid.rows }
+    },
+    /** How the frame sits on the guide — the only reason to draw one. */
+    fit() {
+      if (!this.showRead || !this.analysis) return ''
+      if (this.guide === 'fill') {
+        const box = spanBox(this.analysis.composition.subject_cells || [])
+        const grid = this.shot?.grid
+        if (!box || !grid) return ''
+        return `the subject fills ${Math.round((box.w * box.h * 100) / (grid.cols * grid.rows))}% of the frame`
+      }
+      const cellWidth = this.shot?.grid ? 1 / this.shot.grid.cols : 1 / 7
+      return guideVerdict(this.guide, this.subjectPoint, { cellWidth })
+    },
     tags() {
       return (this.analysis?.techniques || []).slice(0, 3).map((t) => t.technique_id.replace(/_/g, ' '))
     },
@@ -67,7 +103,24 @@ export default {
       return dedupe(this.analysis?.observations || [], 6)
     },
     moves() {
-      return (this.analysis?.composition?.moves || []).filter((m) => m.what)
+      const drawn = this.drawnMove
+      return (this.analysis?.composition?.moves || [])
+        .filter((m) => m.what)
+        .map((m) => ({ ...m, kind: m.kind || 'move', shown: this.showRead && m === drawn }))
+    },
+    /** The one mark the canvas draws, so the list can say which it is. */
+    drawnMove() {
+      const composition = this.analysis?.composition
+      if (!composition) return null
+      const moves = composition.moves || []
+      if (composition.suggested_crop_cells?.length) {
+        return moves.find((m) => m.kind === 'crop') || null
+      }
+      return (
+        moves.find(
+          (m) => (m.kind || 'move') === 'move' && m.from_cells?.length && m.to_cells?.length,
+        ) || null
+      )
     },
     elements() {
       const scored = this.analysis?.elements || {}
@@ -94,7 +147,10 @@ export default {
       return this.shot?.quest_id ? this.questById(this.shot.quest_id) : null
     },
     lenses() {
-      return this.analysis?.panel?.lenses?.join(', ') || 'technician, composer, storyteller'
+      return Object.keys(this.analysis?.panel || {}).join(', ') || 'three lenses'
+    },
+    kindLabel() {
+      return (kind) => KIND_LABEL[kind] || kind
     },
   },
   async created() {
@@ -122,27 +178,32 @@ export default {
             v-if="src && shot.grid"
             :src="src"
             :grid="shot.grid"
-            :composition="showOverlay ? analysis?.composition : null"
-            :show-grid="showGrid"
+            :composition="analysis?.composition"
+            :guide="guide"
+            :show-findings="showRead"
           />
-          <div class="absolute bottom-3 right-3 flex gap-2">
-            <button
-              type="button"
-              class="rounded-full bg-black/70 px-3 py-1 t-num text-[11px]"
-              :class="showOverlay ? 'text-neutral-100' : 'text-neutral-500'"
-              @click="showOverlay = !showOverlay"
-            >
-              read
-            </button>
-            <button
-              type="button"
-              class="rounded-full bg-black/70 px-3 py-1 t-num text-[11px]"
-              :class="showGrid ? 'text-neutral-100' : 'text-neutral-500'"
-              @click="showGrid = !showGrid"
-            >
-              grid
-            </button>
-          </div>
+          <button
+            type="button"
+            class="absolute bottom-3 right-3 rounded-full bg-black/70 px-3 py-1 t-num text-[11px]"
+            :class="showRead ? 'text-neutral-100' : 'text-neutral-500'"
+            @click="showRead = !showRead"
+          >
+            read
+          </button>
+        </div>
+
+        <div class="gutter mt-3 flex flex-wrap items-center gap-x-3 gap-y-2 md:px-0">
+          <button
+            v-for="g in guides"
+            :key="g"
+            type="button"
+            class="t-meta"
+            :class="guide === g ? 'text-neutral-100' : 'text-neutral-600 hover:text-neutral-400'"
+            @click="picked = g"
+          >
+            {{ labels[g] }}
+          </button>
+          <span v-if="fit" class="ml-auto t-meta text-accent">{{ fit }}</span>
         </div>
       </div>
 
@@ -156,17 +217,20 @@ export default {
           <p class="mt-1 t-meta">{{ tags.join(' · ') }}</p>
           <p class="mt-4 t-body">{{ analysis.critique }}</p>
 
-          <ol v-if="moves.length" class="mt-6 space-y-3">
+          <ul v-if="moves.length" class="mt-6 space-y-3">
             <li v-for="(m, i) in moves" :key="i" class="flex gap-3">
-              <span class="mt-0.5 h-5 w-5 shrink-0 rounded-full bg-[#ff5a5a] text-center t-num text-[11px] leading-5 text-black">
-                {{ i + 1 }}
+              <span
+                class="mt-0.5 shrink-0 whitespace-nowrap rounded px-1.5 py-0.5 t-num text-[10px]"
+                :class="m.shown ? 'bg-neutral-100 text-neutral-900' : 'bg-panel-2 text-neutral-500'"
+              >
+                {{ kindLabel(m.kind) }}
               </span>
               <span class="t-body">
                 <span class="text-neutral-100">{{ m.what }}</span>
                 <span class="mt-0.5 block text-neutral-400">{{ m.reason }}</span>
               </span>
             </li>
-          </ol>
+          </ul>
 
           <button type="button" class="btn-quiet mt-6 w-full" @click="talk('Talk me through this frame.')">
             Talk it through with the Coach
@@ -194,9 +258,7 @@ export default {
                   </span>
                 </li>
               </ul>
-              <p class="mt-3 t-meta">
-                The PPA merit-image elements, weighted. Scored by {{ lenses }} and averaged.
-              </p>
+              <p class="mt-3 t-meta">The PPA merit-image elements, weighted. Scored by {{ lenses }} and averaged.</p>
             </DisclosureRow>
 
             <DisclosureRow label="Techniques it agreed on" :count="analysis.techniques.length">
@@ -219,11 +281,24 @@ export default {
               </ul>
             </DisclosureRow>
 
-            <DisclosureRow v-if="cropUrl" label="A crop it tested" :count="`${analysis.composition.crop_before} → ${analysis.composition.crop_after}`">
+            <DisclosureRow
+              v-if="cropUrl"
+              label="A crop it tested"
+              :count="`${analysis.composition.crop_before} → ${analysis.composition.crop_after}`"
+            >
               <img :src="cropUrl" alt="tested crop" class="max-h-64 rounded-xl object-contain" />
               <p class="mt-2 t-body text-neutral-400">
                 {{ analysis.composition.crop_reason }}
                 <span class="mt-1 block t-meta">Rendered and scored as a finished frame; kept only because it scored higher.</span>
+              </p>
+            </DisclosureRow>
+
+            <DisclosureRow v-if="griddedSrc" label="What the agent saw">
+              <img :src="griddedSrc" alt="the frame with the addressing grid the model reads" class="rounded-xl" />
+              <p class="mt-2 t-meta">
+                The lenses are given this: a labelled grid so they can point at things and code can map the answer
+                back to pixels. It is an addressing system, not a composition guide — yours is the one over the
+                frame above.
               </p>
             </DisclosureRow>
 

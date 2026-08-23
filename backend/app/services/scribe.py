@@ -18,7 +18,7 @@ from typing import Protocol
 
 from app.config import settings
 from app.domain import taxonomy
-from app.domain.entities import Analysis, Quest, Shot, ShotStatus, Verdict
+from app.domain.entities import Analysis, MoveKind, Quest, Shot, ShotStatus, Verdict
 from app.imaging import canvas
 from app.imaging.caption import add_caption
 from app.infra import repository as repo
@@ -74,10 +74,12 @@ def review_body(analysis: Analysis, verdict: Verdict | None) -> list[str]:
             + " (PPA merit-image rubric)"
         )
     for index, move in enumerate(analysis.composition.moves, 1):
-        body.append(
-            f"{index}. {move.what}: {','.join(move.from_cells)} → {','.join(move.to_cells)}. "
-            f"{move.reason}"
-        )
+        where = ""
+        if move.kind is MoveKind.MOVE and move.from_cells and move.to_cells:
+            where = f": {','.join(move.from_cells)} → {','.join(move.to_cells)}"
+        elif move.kind is MoveKind.CROP and move.to_cells:
+            where = f": keep {','.join(move.to_cells)}"
+        body.append(f"{index}. {move.what}{where}. {move.reason}")
     if verdict:
         body.append(verdict.feedback.strip())
     return body

@@ -55,3 +55,16 @@ Three lenses with different instructions and different inputs (Technician: EXIF 
 - [LLMs-as-Judges: a comprehensive survey (2024)](https://arxiv.org/html/2412.05579v2)
 - [Nine Judges, Two Effective Votes: correlated errors undermine LLM panels](https://arxiv.org/html/2605.29800)
 - [ADK workflow agents: ParallelAgent, SequentialAgent](https://adk.dev/agents/workflow-agents/parallel-agents/)
+
+## The guides
+
+The overlay draws one compositional guide, chosen by the technique the panel agreed on. Only these four have geometry a photographer would recognise; everything else draws none.
+
+| Guide | Geometry | Source |
+|---|---|---|
+| Thirds | lines at 1/3 and 2/3, four power points | [Rule of thirds](https://en.wikipedia.org/wiki/Rule_of_thirds) |
+| Phi grid | 1 : 0.618 : 1, so the lines sit at 0.382 and 0.618 | [Golden ratio in composition](https://en.wikipedia.org/wiki/Golden_ratio#Art) |
+| Diagonal method | both diagonals plus a 45° bisector from each corner, at 45° on the print, which is why the renderer needs the aspect ratio | [Edwin Westhoff, the diagonal method](https://www.diagonalmethod.info/) |
+| Centre | the two mid-lines | conventional, for `centre_composition`, `symmetry`, `reflections` |
+
+The fit readout is quantisation-aware: cells are a seventh of the frame wide, so nothing is claimed unless the Composer gave a sub-cell subject point and the distance exceeds half a cell.

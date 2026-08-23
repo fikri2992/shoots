@@ -148,17 +148,38 @@ class TechniqueEvidence(BaseModel):
     lenses: list[str] = Field(default_factory=list)
 
 
+class MoveKind(StrEnum):
+    """What kind of change is being asked for, which decides how it is drawn.
+
+    A crop is not a translation and a camera position is not a 2D vector;
+    drawing either as an arrow is what made the overlay nonsense.
+    """
+
+    MOVE = "move"  # reposition something inside the frame: an arrow
+    CROP = "crop"  # take an edge away: a dimmed region, never an arrow
+    CAMERA = "camera"  # stand somewhere else: words, no mark on the frame
+
+
 class Move(BaseModel):
-    """A composition suggestion the dashboard draws as an arrow."""
+    """One concrete change to the frame."""
 
     what: str
-    from_cells: list[str]
-    to_cells: list[str]
-    reason: str
+    kind: MoveKind = MoveKind.MOVE
+    from_cells: list[str] = Field(default_factory=list)
+    to_cells: list[str] = Field(default_factory=list)
+    reason: str = ""
 
 
 class Composition(BaseModel):
     subject_cells: list[str] = Field(default_factory=list)
+    #: The subject's centre in frame units (0-1), when the Composer gave one
+    #: that falls inside ``subject_cells``. Cells quantise to a seventh of the
+    #: width; a guide that measures against a thirds line needs finer than that.
+    subject_x: float | None = None
+    subject_y: float | None = None
+    #: Which compositional guide a human should see over this frame
+    #: (``domain/guides.py``), chosen from the techniques the panel agreed on.
+    guide: str = ""
     horizon_row: int | None = None
     #: After the crop loop: only a crop that scored higher on the rendered
     #: image survives here (agents/crop.py). An untested suggestion is cleared.

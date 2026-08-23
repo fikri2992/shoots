@@ -11,6 +11,7 @@ model boundary is pure and tested).
 
 import logging
 from dataclasses import dataclass, field
+from typing import Literal
 
 from google.adk.agents import LlmAgent, ParallelAgent, SequentialAgent
 from pydantic import BaseModel, Field
@@ -18,12 +19,13 @@ from pydantic import BaseModel, Field
 from app.agents import prompts
 from app.agents.runtime import WorkflowResult, bytes_part, run_workflow
 from app.config import settings
-from app.domain import exposure, panel, rubric, taxonomy
+from app.domain import exposure, guides, panel, rubric, taxonomy
 from app.domain.entities import (
     Analysis,
     Composition,
     Exif,
     Move,
+    MoveKind,
     Shot,
     VideoMeta,
 )
@@ -44,6 +46,9 @@ class EvidenceOut(BaseModel):
 
 class MoveOut(BaseModel):
     what: str
+    #: Required, and an enum: how the change is drawn depends entirely on it,
+    #: and an optional field is too easily skipped.
+    kind: Literal["move", "crop", "camera"]
     from_cells: list[str] = Field(default_factory=list)
     to_cells: list[str] = Field(default_factory=list)
     reason: str = ""
@@ -51,6 +56,9 @@ class MoveOut(BaseModel):
 
 class CompositionOut(BaseModel):
     subject_cells: list[str] = Field(default_factory=list)
+    #: The subject's centre in frame units, finer than the cell grid can say.
+    subject_x: float
+    subject_y: float
     horizon_row: int | None = None
     suggested_crop_cells: list[str] = Field(default_factory=list)
     moves: list[MoveOut] = Field(default_factory=list)
@@ -309,18 +317,19 @@ def validate(shot: Shot, result: PanelResult) -> Analysis:
         )
 
     composer = result.reads.get(panel.COMPOSER)
-    raw_comp = composer.composition if isinstance(composer, ComposerOut) else CompositionOut()
-    moves = [
-        Move(
-            what=m.what.strip()[:80],
-            from_cells=_cells(grid, m.from_cells),
-            to_cells=_cells(grid, m.to_cells),
-            reason=m.reason.strip()[:300],
-        )
-        for m in raw_comp.moves[:3]
-        if m.what.strip()
-    ]
-    moves = [m for m in moves if m.from_cells or m.to_cells]
+    raw_comp = (
+        composer.composition
+        if isinstance(composer, ComposerOut)
+        else CompositionOut(subject_x=0.5, subject_y=0.5)
+    )
+    moves = _moves(grid, raw_comp)
+    # A crop asked for as a move is still a crop: send it to the crop loop,
+    # where it has to beat the original on the pixels before anyone sees it.
+    crop = _cells(grid, raw_comp.suggested_crop_cells) or next(
+        (m.to_cells for m in moves if m.kind is MoveKind.CROP and m.to_cells), []
+    )
+    subject_cells = _cells(grid, raw_comp.subject_cells)
+    point = _subject_point(grid, raw_comp, subject_cells)
     horizon = raw_comp.horizon_row
     if horizon is not None and not (1 <= horizon <= grid.rows):
         horizon = None
@@ -335,9 +344,12 @@ def validate(shot: Shot, result: PanelResult) -> Analysis:
         model=settings.model_flash,
         techniques=consensus.techniques,
         composition=Composition(
-            subject_cells=_cells(grid, raw_comp.subject_cells),
+            subject_cells=subject_cells,
+            subject_x=point[0],
+            subject_y=point[1],
+            guide=guides.choose(consensus.techniques),
             horizon_row=horizon,
-            suggested_crop_cells=_cells(grid, raw_comp.suggested_crop_cells),
+            suggested_crop_cells=crop,
             moves=moves,
         ),
         observations=consensus.observations,
@@ -356,6 +368,57 @@ def _grid(shot: Shot) -> Grid:
     return Grid(
         cols=shot.grid.cols, rows=shot.grid.rows, width=shot.grid.width, height=shot.grid.height
     )
+
+
+def _moves(grid: Grid, raw: CompositionOut) -> list[Move]:
+    """Keep only the changes that can be drawn as what they are.
+
+    An arrow is a repositioning inside the frame and needs both ends. A crop
+    only needs the region that survives. A camera change is words: it has no
+    honest mark on a flat image, so its cells are dropped.
+    """
+    out: list[Move] = []
+    for raw_move in raw.moves[:3]:
+        what = raw_move.what.strip()[:80]
+        if not what:
+            continue
+        kind = MoveKind(raw_move.kind)
+        move = Move(
+            what=what,
+            kind=kind,
+            from_cells=_cells(grid, raw_move.from_cells),
+            to_cells=_cells(grid, raw_move.to_cells),
+            reason=raw_move.reason.strip()[:300],
+        )
+        if kind is MoveKind.CAMERA:
+            move.from_cells = []
+            move.to_cells = []
+        elif kind is MoveKind.CROP:
+            move.from_cells = []
+            if not move.to_cells:
+                continue
+        elif not (move.from_cells and move.to_cells):
+            continue
+        out.append(move)
+    return out
+
+
+def _subject_point(
+    grid: Grid, raw: CompositionOut, subject_cells: list[str]
+) -> tuple[float | None, float | None]:
+    """The subject's centre in frame units, kept only if it agrees with the
+    cells the same lens named. A point that contradicts them is a guess."""
+    x, y = raw.subject_x, raw.subject_y
+    if not (0.0 <= x <= 1.0 and 0.0 <= y <= 1.0):
+        return None, None
+    if not subject_cells:
+        return round(x, 4), round(y, 4)
+    box = grid.span_bounds(subject_cells)
+    inside = (
+        box.left / grid.width <= x <= box.right / grid.width
+        and box.top / grid.height <= y <= box.bottom / grid.height
+    )
+    return (round(x, 4), round(y, 4)) if inside else (None, None)
 
 
 def _cells(grid: Grid, refs: list[str]) -> list[str]:

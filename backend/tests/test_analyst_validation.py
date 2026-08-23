@@ -16,7 +16,7 @@ from app.agents.analyst import (
     state_for,
     validate,
 )
-from app.domain.entities import Exif, GridSpec, Shot, ShotKind, VideoMeta
+from app.domain.entities import Exif, GridSpec, MoveKind, Shot, ShotKind, VideoMeta
 
 PHOTO = Shot(
     id="s1",
@@ -51,12 +51,18 @@ def panel_result() -> PanelResult:
         elements={"composition": 6, "lighting": 10},
         composition=CompositionOut(
             subject_cells=["D4", "E5", "Q1"],
+            subject_x=0.55,
+            subject_y=0.45,
             horizon_row=12,
             moves=[
-                MoveOut(what="subject", from_cells=["D4"], to_cells=["C3"], reason="thirds"),
-                MoveOut(what="nothing", from_cells=["Z1"], to_cells=["Z2"], reason="bad cells"),
-                MoveOut(what="", from_cells=["A1"], to_cells=["B1"]),
-                MoveOut(what="4th", from_cells=["A1"], to_cells=["B1"]),
+                MoveOut(
+                    what="subject", kind="move", from_cells=["D4"], to_cells=["C3"], reason="thirds"
+                ),
+                MoveOut(
+                    what="nothing", kind="move", from_cells=["Z1"], to_cells=["Z2"], reason="bad"
+                ),
+                MoveOut(what="", kind="move", from_cells=["A1"], to_cells=["B1"]),
+                MoveOut(what="4th", kind="move", from_cells=["A1"], to_cells=["B1"]),
             ],
         ),
     )
@@ -99,6 +105,46 @@ def test_vote_cells_and_catalogue_are_enforced():
     )
     assert analysis.critique.startswith("The pan works")
     assert analysis.panel == {"technician": 4.2, "composer": 5.1, "storyteller": 3.9}
+
+
+def test_a_crop_is_never_drawn_as_an_arrow():
+    """The overlay's worst bug: "crop below the pole" rendered as a vector
+    across the frame. A crop keeps only the region that survives, and it goes
+    to the crop loop, which has to prove it on the pixels."""
+    result = panel_result()
+    result.reads["composer"].composition.moves = [
+        MoveOut(
+            what="crop below the pole",
+            kind="crop",
+            from_cells=["A1", "H2"],
+            to_cells=["A3", "H8"],
+            reason="the pole cuts across the top",
+        ),
+        MoveOut(
+            what="kneel to her eye level",
+            kind="camera",
+            from_cells=["D4"],
+            to_cells=["D6"],
+            reason="a downward angle flattens her",
+        ),
+    ]
+    analysis = validate(PHOTO, result)
+
+    crop, camera = analysis.composition.moves
+    assert crop.kind is MoveKind.CROP and crop.from_cells == [] and crop.to_cells == ["A3", "H8"]
+    assert camera.kind is MoveKind.CAMERA and not camera.from_cells and not camera.to_cells
+    assert analysis.composition.suggested_crop_cells == ["A3", "H8"]
+
+
+def test_a_subject_point_the_same_lens_contradicts_is_dropped():
+    result = panel_result()
+    result.reads["composer"].composition.subject_x = 0.05  # far left of D4-E5
+    assert validate(PHOTO, result).composition.subject_x is None
+    assert validate(PHOTO, panel_result()).composition.subject_x == 0.55
+
+
+def test_the_guide_follows_the_agreed_technique():
+    assert validate(PHOTO, panel_result()).composition.guide == "thirds"
 
 
 def test_missing_synthesis_falls_back_to_lens_notes_and_two_lenses_suffice():
