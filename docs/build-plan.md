@@ -120,3 +120,14 @@ The human guide is now chosen from the agreed technique (`domain/guides.py`: thi
 `subject_x`/`subject_y` in frame units give the guide something finer than a seventh of the width to measure against; a point that contradicts the lens's own cells is dropped, and no fit is claimed below half a cell.
 
 The first pass of this took the split too literally and put the agent's gridded frame on the frame page as "What the agent saw". It came out again: an addressing system is not a feature. The same rule then applied to prose — the critique still said "the umbrella across B3-F6" to a reader with no grid — so the prompts now ask for plain positions, and `cells.plain` / `Grid.place` rewrite anything older on the way to the screen, the caption and the Drive description (whose cell legend is gone with it).
+
+## Day 8c notes (2026-08-23), the design day
+
+No code. Four notes, each a decision with its reasons, all in `docs/`:
+
+- `classroom.md` — the teacher pivot, explored and dropped. Taskmaster's own criterion asks for a workflow completed *without human intervention* on a *unique, personal* problem; an approval queue for a persona neither of us is fails both. Kept as the record, with the market check and the generated-media rule that survived it.
+- `lighting.md` — light as plan / show / coach / verify. Code computes the sun, the heading, the cast, the ratio, the edge; agents reason inside a recipe envelope (which window, which pattern, for this person on Saturday) and read what only a reader can (catchlight, nose shadow); code diffs plan against facts with tolerances. Indoors the window is the sun and the diagram is the strip.
+- `conditions.md` — sky and air: Weather + Air Quality APIs, derive/fit/prep with a number on every item, the Replanner on the tick (keep / shift / swap / hold, only over slots code offered), and excused checks in the Judge so the cloud is never the person's fault.
+- `product.md` — the whole thing as one object: a *shoot* is an appointment with the light, and Now renders its phase (planned, moved, soon, open, reading, verdict, idle). Who it is for, why the critique tools work and where they stop, the drivers under them and which we keep, the language, the demo day, and the eight days from 08-24 with Stage One first.
+
+Rubric facts found on the way: Veo, Lyria and Gemma are +0.2 each, blog and social +0.2 each, on a 1–6 scale; the video is four minutes with an unedited live run and visible Cloud Run proof; the architecture diagram is mandatory. None of the three Stage One artefacts exists yet; that is day 1.
