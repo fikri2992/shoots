@@ -180,6 +180,50 @@ photographers both file that under solved-and-crowded. Say what happens before t
 photo. The critique tools prove the demand for honest feedback; the demand they
 cannot serve is for the next Saturday.
 
+## Why people use them — the drivers under the mechanics
+
+The six mechanics above are how the tools are built; these are the reasons a
+person opens one. Each names the need it serves and how it wears out.
+
+1. **The taste gap.** A beginner can see that the photo is not as good as the ones
+   they admire and cannot say why. The gap is uncomfortable; the photo feels
+   unfinished until someone names the problem. The app gives the name — "it's the
+   background" — and the pull is *closure*, not improvement. Wears out when the
+   names repeat.
+2. **Honest feedback is socially expensive; the machine makes it free.** A friend
+   costs a favour and returns politeness; a critique forum costs exposure and a
+   wait; a mentor costs money. The app removes all three at once — honest, private,
+   instant — and spares the shame of being seen to be bad. Never wears out; this is
+   the floor every tool stands on.
+3. **The number is a loop, not a result.** 72/100 says less than the paragraph, but
+   the number is what people return for: photography has no score, and the app
+   invents one, so progress becomes legible the way a step counter makes walking
+   legible. The paragraph is read once; the number is chased. Wears out when it
+   saturates — everyone gets 85 and there is nowhere to go.
+4. **Uncertainty reduction at the moment of most doubt.** The upload happens right
+   after the shoot, when "is this any good?" is loudest. Feedback works when it is
+   specific and timely; the tools are timely by accident of being instant, and the
+   timing is why generic content still feels useful. Wears out because the timing is
+   always *after*: nothing can be acted on without another Saturday that nobody
+   schedules.
+5. **Permission to feel competent.** Competence is a base need and a beginner gets
+   almost none of it; nobody praises a mediocre photo. "Excellent use of light" from
+   a machine counts just enough to feel earned — it is "objective" — while costing
+   nothing to obtain. The "brutal honesty" positioning is marketing; the default
+   output is kind. Wears out once the person notices the kindness is uniform.
+6. **Autonomy.** Nobody assigned this. No teacher, no course, no deadline; upload
+   when you want, ignore what you want. For an adult hobby, being allowed not to be
+   a student is the product. Never wears out, and any design that adds obligation
+   spends it.
+
+**Keep the drivers, move the moment.** Shoots keeps closure (one named thing per
+frame, never a list), the number (the score, the elements, the skill map — moving
+only when the work does, not when the model is kind), the free honest voice
+(numbers where it acted, no flattery setting), and autonomy (Skip is the only
+obligation; no streaks, no guilt). It moves the moment of doubt from *after* the
+photo to *before* it: "is this any good?" becomes "what do I do on Saturday?" —
+the need the critique tools cannot serve, and the one that compounds.
+
 ## Language, once
 
 - *shoot*, not quest; *the light*, not the lighting plan; *moved*, not rescheduled;
