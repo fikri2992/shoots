@@ -52,12 +52,13 @@ join link makes it a student.
 | Collect | Drive / Classroom / chat | student shoots in-app (pre-flight) or drops into their own Drive folder |
 | Review | one by one, by hand | Analyst + Judge produce a **draft** verdict per frame; queue in the app; approve, edit, or approve all |
 | Track | spreadsheet | Cartographer per student; roster shows trend and an attention flag |
-| Plan | gut feel | **Class Read**: "6 of 12 in. 4 missed shutter speed. Aisha and Ben ready for harder. Dev stuck twice → nudge drafted" |
+| Plan | gut feel | **Class Read**: "6 of 12 in. 4 missed shutter speed. Aisha and Ben ready for harder. Dev stuck twice." |
+| Celebrate | slideshow by hand | **Showcase**: best approved frame per student, a reel with a Lyria bed, in the teacher's Drive |
 
-Autonomy stays in exactly two places: Class Read runs on its own and leaves a
-ready-to-approve next assignment; a stuck student gets a nudge drafted. Everything
-outward — feedback to a student, a new assignment — needs a teacher tap, one tap for
-the batch. The Scout no longer issues quests to anyone by itself (`issue_first` off
+Autonomy stays in exactly two places: Class Read runs on its own and names who needs
+attention; Showcase cuts itself when an assignment closes. Everything outward —
+feedback to a student, a new assignment, the reel, the storyboard — needs a teacher
+tap, one tap for the batch. (Scout-drafted next assignment from Class Read: stretch.) The Scout no longer issues quests to anyone by itself (`issue_first` off
 for members of a class).
 
 ## Roles and access
