@@ -111,6 +111,75 @@ light, ready, with one thing to try, and then being told honestly what happened.
 Every phase of the shoot is built to make that the felt experience, which is why
 the product is an appointment and not a critique.
 
+## Why AI photo critique works today, and for whom
+
+Read on 2026-08-23: LENSIC, PhotoCritic.ai, PhotoMentor, Vision Mentor, Jenova's
+coach, the GPT-store critics, Adobe's Project Indigo critique, and one working
+photographer's write-up of using them.
+
+**The job they are hired for** is not "make me better". It is *"tell me if this one
+is good, now, without asking anyone."* The moment is after the shoot, photo in hand,
+nobody to show it to whose opinion is both honest and safe. Every product is shaped
+by that moment: upload, 20 seconds, a number, a paragraph, optionally a share link.
+
+**Why it works (the mechanics, all of them present in every tool):**
+
+1. *A number.* 87/100, 7.5/10, five categories out of 100. The score is the product;
+   the paragraph is the justification. People come back to move the number.
+2. *No friction at all.* No login (LENSIC, PhotoMentor, PhotoCritic), free first
+   uses, web only. The job is impulsive; a sign-up kills it.
+3. *The promise of honesty.* "Honest critique. Real growth." "An editor's honest
+   critique." "Dispense with the false compliments." The value is explicitly that
+   the machine will say what a friend will not.
+4. *Safety.* Private, no audience, no comments section. The Reddit critique thread
+   is the competitor and its failure mode is public.
+5. *Categories from the competition rubric.* Composition, lighting, colour,
+   storytelling, technical — the PPA-shaped five. It reads as authoritative because
+   it sounds like judging.
+6. *Marks on the image.* PhotoMentor draws bounding boxes "where attention leaks";
+   Indigo uses deterministic buttons instead of prompts because, in Levoy's words,
+   prompts are "tricky". Specific beats conversational.
+
+**Who they target, and the two business models:**
+
+- *Enthusiasts and intermediates, by genre.* Landscape / portrait / street / still
+  life selectors; "from beginners to working professionals" in the copy, enthusiasts
+  in practice. Free or $5 a month. Volume claims are small (PhotoMentor: 6,000+
+  photos; Jenova: 28,000 users of a coach persona). This is a long tail of tiny
+  tools, not a category leader.
+- *Working photographers, for culling.* PhotoMentor's $15 "Pro Workflow" ranks the
+  strongest frames of a shoot and explains the cut; a Chrome extension scores inside
+  Google Photos. This is the only segment paying real money, and the job is
+  throughput, not learning.
+- *Platforms.* Adobe is putting critique inside the camera app, as buttons.
+  Once that ships, "upload a photo, get a score" is a feature, not a product.
+
+**Where every one of them stops** (the gap is the same in all):
+
+- The unit is one photo. None keeps a model of the person across frames
+  (PhotoMentor has a "progress dashboard" of scores; none has a skill map).
+- Nothing happens *before* the photo. No tool tells you when to go, where to stand,
+  or what to try; the critique arrives after the only moment it could have helped.
+- No hard evidence. None reads EXIF against a bound, none knows where the sun was.
+  Scores are impressions, which is why the working photographer's review says they
+  "flag deliberate artistic choices as flaws" and give "bland (and often banal)
+  critique" without context.
+- No intent. The same review's central finding: "the more information the tool has,
+  the more useful the feedback" — and none of the tools asks.
+- Nothing leaves the tool. The photo goes in, the text stays on their site.
+
+**What Shoots keeps from them, deliberately:** the number (the score and the five
+elements stay), the marks on the image (the guide and the one instruction), the
+honesty promise (as numbers, not as a tone setting), and privacy (the person's own
+Drive). **What it refuses:** the upload box as the front door — the front door is a
+push that says *Saturday 17:40*. The critique is the last phase of the shoot, not
+the product.
+
+**Consequence for the pitch:** do not say "AI photo critique"; judges and
+photographers both file that under solved-and-crowded. Say what happens before the
+photo. The critique tools prove the demand for honest feedback; the demand they
+cannot serve is for the next Saturday.
+
 ## Language, once
 
 - *shoot*, not quest; *the light*, not the lighting plan; *moved*, not rescheduled;
