@@ -1,0 +1,173 @@
+# Shoots for a class
+
+Design note for the pivot from one photographer to a teacher running a class.
+Written 2026-08-23, eight days before the deadline (2026-08-31 17:00 PDT).
+Nothing here is built yet; decisions get numbered in `domain-model.md` when they ship.
+
+## Why
+
+- Taskmaster is about an agent managing work on someone's behalf. One photographer,
+  one frame at a time, is a thin queue. Fifteen students handing in an assignment is a
+  real one, and the pipeline was already built as per-shot fan-out over events.
+- Operational utility becomes countable: hours of review per week, frames per minute.
+- Human-in-the-loop becomes the feature. The agent reads every frame, reads the class,
+  drafts the next brief and the feedback; the teacher only signs.
+
+### What already exists (checked 2026-08-23)
+
+- AI photo critique, single user, upload → scores + paragraph: LENSIC, PhotoCritique.ai,
+  PhotoCritic.ai, PhotoMentor, Vision Mentor, a dozen GPTs. None track a learner,
+  set the next task, draw on the frame, or have a class.
+- AI grading with a teacher approval queue, for text: CoGrader, GradeWithAI,
+  TimelyGrader, GPTZero Reviewer, MagicSchool, OpenEduCat. The approve-before-send
+  pattern is validated, not novel; it is not the pitch.
+- Nobody joins the two for visual work, and nobody plans the next lesson from the
+  aggregate.
+
+Pitch: *one agent runs a photography class — reads every frame, reads the class,
+drafts the next brief; the teacher only signs.*
+
+Known objection (EdSurge, a student thanked a teacher for words they never wrote):
+feedback the teacher did not touch must still be visibly theirs to approve, and the
+Drive review carries the teacher's name, not "Reviewed by Shoots".
+
+## People
+
+**Teacher.** Runs one or more classes. Today: sets the week's assignment, collects
+submissions from a mess of channels, reviews each one (the slow part), keeps a mental
+or spreadsheet record of who is progressing, and plans the next lesson from the
+class's common failure.
+
+**Student.** In one class. Shoots the assignment, hands it in, wants to know what to
+fix. The app they get is today's app: Now / Frames / Journey / Coach.
+
+No admin. No role picker. Creating a class makes an account a teacher; opening a
+join link makes it a student.
+
+## The workflow, with the agent in it
+
+| Step | Teacher today | With Shoots |
+|---|---|---|
+| Set the assignment | writes a brief | Scout drafts title, brief, criteria, clip from the class's skill data; teacher edits, approves, it is issued to every student |
+| Collect | Drive / Classroom / chat | student shoots in-app (pre-flight) or drops into their own Drive folder |
+| Review | one by one, by hand | Analyst + Judge produce a **draft** verdict per frame; queue in the app; approve, edit, or approve all |
+| Track | spreadsheet | Cartographer per student; roster shows trend and an attention flag |
+| Plan | gut feel | **Class Read**: "6 of 12 in. 4 missed shutter speed. Aisha and Ben ready for harder. Dev stuck twice → nudge drafted" |
+
+Autonomy stays in exactly two places: Class Read runs on its own and leaves a
+ready-to-approve next assignment; a stuck student gets a nudge drafted. Everything
+outward — feedback to a student, a new assignment — needs a teacher tap, one tap for
+the batch. The Scout no longer issues quests to anyone by itself (`issue_first` off
+for members of a class).
+
+## Roles and access
+
+- `User.role`: `teacher` | `student`. Set on first class created / first join.
+- `Cohort` {id, teacher_id, name, join_code, created_at}.
+- `Membership` {user_id, cohort_id, joined_at}. One class per student, many per teacher.
+- `Shot.cohort_id`, `Quest.cohort_id`, `Quest.assignment_id`.
+- `/auth/me` returns role and cohort ids; the router lands teachers on Class, students on Now.
+
+Authorisation is object-level, not route-level: a teacher can read anything that
+belongs to a student of their cohorts; a student reads only their own. Every read of
+shots, analyses, skill maps, quests, events and the Coach socket goes through
+`owner_or_teacher_of(user_id)`; class, assignment and approve endpoints need
+`require_role("teacher")`. Today every endpoint compares `user_id` with the session;
+this is the RBAC work, about ten endpoints.
+
+## Uploading and syncing
+
+Kept: a student's own Drive folder, the watcher, the in-app Shoot button
+(`/drive/shoot`), the Scribe writing the review back into `Reviewed/`.
+
+New: Drive is optional for students. Upload → blob → ingest with no Drive target,
+Scribe skipped. Sending fifteen teenagers through a Drive consent screen is not an
+onboarding flow.
+
+Rejected: a folder tree in the teacher's Drive with one subfolder per student. It
+would need a folder→student map in the watcher and the teacher's token in the Scribe,
+and the student app already exists; fewer moving parts to keep per-student Drive.
+
+## Teacher forms
+
+- **Create class**: name → join link and six-character code.
+- **Assignment**: title, brief, technique (taxonomy pick), criteria (EXIF bounds,
+  seen, said — `Criteria` exists), Veo clip on/off (off by default, cost).
+  *Draft it for me* prefills from the Scout with the class's skill data.
+- **Verdict review**: feedback editable in place, pass/fail toggle, Approve,
+  Approve all. Approval is the only way a verdict reaches a student.
+- **Class setting**: gate verdicts (default) or auto-send.
+- Cut for v1: roster edits, due dates, regenerating codes.
+
+## Screens
+
+Teacher, three tabs:
+
+- **Class** — Class Read at the top (one paragraph, written by the agent, dated),
+  roster below: last frame, score trend, attention / on track / quiet, unreviewed count.
+  Tapping a student opens their Journey / Frames / Frame — the existing pages
+  parametrised by `userId` instead of the session.
+- **Assignments** — current and past; detail is the brief, criteria, clip, and the
+  submissions grid with draft verdicts and the approve controls. The review queue lives
+  here (a separate Queue tab is cut).
+- **Student** drill-in as above; the Coach opens on any student frame for the teacher.
+
+Student: today's app. Now shows the current assignment in place of a Scout quest and
+the verdict once approved (before that: "handed in, being reviewed"); Frames, Journey
+and the Coach unchanged. One new onboarding step: join a class.
+
+## Pipeline changes
+
+- `Assignment` (cohort-level: title, brief, technique, criteria, clip, author
+  `teacher` | `scout`, state `draft` | `issued` | `closed`) fans into one `Quest` per
+  student on issue. Judge and Cartographer untouched.
+- `Verdict.state`: `draft` → `approved`; `approved_by`, `approved_at`; `feedback` is
+  editable. The Judge writes drafts. `verdict.approved` is a new event; the Scribe and
+  the student push move from `media.judged` to it. With auto-send on, the Judge
+  approves its own draft and publishes both.
+- **Class Read** (new stage, `cohort.read`): on the daily tick and when an assignment's
+  submissions change, reads every member's skill map and the assignment's verdicts,
+  writes the paragraph and, if the assignment is mostly in, a draft next assignment.
+  Stored on the cohort; the Class tab shows the latest.
+- Scout becomes a drafter: same research and brief writing, `author=scout`, lands as a
+  draft assignment, never issued by itself.
+- Push: teacher on each new submission (folded: "3 new in Panning"), student on approval.
+
+## Frontend state
+
+- `class` store (Options syntax): roster, assignments, queue, per-student cache keyed
+  by user id. `shoots` stays "mine" for the student app and is reused for drill-in by
+  passing the user id through actions.
+- Router `meta.role`; `TABS` by role; landing redirect by role.
+- Components: `ClassRead`, `Roster`, `AssignmentForm`, `AssignmentDetail`, `VerdictReview`.
+
+## Demo
+
+Seed script: a class of eight, frames from a folder, two assignments (one closed,
+one half in), a queue of six drafts. Demo beat: Class Read says what the class missed,
+teacher approves six verdicts in one tap, opens the drafted next assignment, issues it,
+the clip lands a minute later on a student phone.
+
+## Plan
+
+| Day | Work |
+|---|---|
+| 1 | entities, cohort + membership repo, `owner_or_teacher_of`, `require_role`, `/auth/me`, join flow, tests |
+| 2 | Assignment → Quest fan-out, Verdict states, `verdict.approved`, Scribe/push rewired, Drive-optional ingest |
+| 3 | Class Read stage and prompt, Scout as drafter, teacher push |
+| 4 | teacher UI: Class tab, roster, drill-in parametrisation |
+| 5 | teacher UI: Assignments tab, form, verdict review, approve all |
+| 6 | student side: join step, assignment on Now, pending verdict state; seed script |
+| 7 | walk both roles in the browser at phone width, fix; deploy on request |
+| 8 | video, README, submission |
+
+No slack. If day 3 slips, Class Read ships as the paragraph only, without the drafted
+assignment.
+
+## Decided
+
+- Students have their own accounts and their own (optional) Drive.
+- Every verdict is gated on teacher approval by default; auto-send is a class setting.
+- Replace, do not add: the single-photographer mode is not maintained alongside.
+  The working personal flow stays on `main` as the fallback demo; the pivot is built
+  on a branch until day 7.
