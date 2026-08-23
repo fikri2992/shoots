@@ -43,9 +43,19 @@ export const useShootsStore = defineStore('shoots', {
     frames: (state) =>
       [...state.shots].sort((a, b) => (b.shot.ingested_at || '').localeCompare(a.shot.ingested_at || '')),
 
-    /** Still moving through the pipeline — the Now screen narrates these. */
+    /**
+     * Still moving through the pipeline — the Now screen narrates these. Bounded
+     * in time: a frame the Analyst never got to must not pin the home screen on
+     * "reading it now" for the rest of the week.
+     */
     working: (state) =>
-      state.shots.filter((v) => !v.analysis && v.shot.status !== 'failed' && v.shot.status !== 'analyzed'),
+      state.shots.filter(
+        (v) =>
+          !v.analysis &&
+          v.shot.status !== 'failed' &&
+          v.shot.status !== 'analyzed' &&
+          Date.now() - new Date(v.shot.ingested_at) < 15 * 60 * 1000,
+      ),
 
     pastQuests: (state) => state.quests.filter((q) => q.status !== 'open'),
 
