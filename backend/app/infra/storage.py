@@ -10,6 +10,43 @@ from typing import Protocol, runtime_checkable
 
 from app.config import settings
 
+#: The media types the pipeline stores, and the extension each is written with.
+#: The extension is the only carrier of the content type once a blob is on disk:
+#: the blob endpoint has a path, not a Shot. Anything absent here is stored as
+#: ``.bin`` and sniffed on read.
+EXTENSIONS: dict[str, str] = {
+    "image/jpeg": "jpg",
+    "image/png": "png",
+    "image/webp": "webp",
+    "image/avif": "avif",
+    "image/gif": "gif",
+    "image/heic": "heic",
+    "image/heif": "heif",
+    "video/mp4": "mp4",
+    "video/quicktime": "mov",
+}
+CONTENT_TYPES: dict[str, str] = {ext: mime for mime, ext in EXTENSIONS.items()}
+CONTENT_TYPES["jpeg"] = "image/jpeg"
+OCTET_STREAM = "application/octet-stream"
+
+#: Leading bytes that identify a format, for blobs whose extension says nothing.
+#: ISO base media files (mp4, avif, heic) share the ``ftyp`` box at offset 4 and
+#: are told apart by the brand that follows it.
+_SIGNATURES: tuple[tuple[bytes, str], ...] = (
+    (bytes.fromhex("ffd8ff"), "image/jpeg"),
+    (bytes.fromhex("89504e470d0a1a0a"), "image/png"),
+    (b"GIF87a", "image/gif"),
+    (b"GIF89a", "image/gif"),
+)
+_BRANDS: tuple[tuple[bytes, str], ...] = (
+    (b"avif", "image/avif"),
+    (b"avis", "image/avif"),
+    (b"heic", "image/heic"),
+    (b"heix", "image/heic"),
+    (b"mif1", "image/heif"),
+    (b"qt  ", "video/quicktime"),
+)
+
 ORIGINAL = "original"
 GRIDDED = "gridded"
 SHEET = "sheet"
@@ -17,6 +54,38 @@ THUMB = "thumb"
 ANNOTATED = "annotated"
 CROP = "crop"  # the crop that won the crop loop, as a finished frame
 CLIP = "clip"
+
+
+def extension_for(mime_type: str) -> str:
+    """The extension a blob of this media type is written with."""
+    return EXTENSIONS.get((mime_type or "").split(";", 1)[0].strip().lower(), "bin")
+
+
+def sniff(data: bytes) -> str:
+    """The media type of these bytes, or the octet stream when unrecognised."""
+    for signature, mime in _SIGNATURES:
+        if data.startswith(signature):
+            return mime
+    if len(data) >= 12 and data[4:8] == b"ftyp":
+        brand = data[8:12]
+        for candidate, mime in _BRANDS:
+            if brand == candidate:
+                return mime
+        return "video/mp4"
+    if len(data) >= 12 and data[:4] == b"RIFF" and data[8:12] == b"WEBP":
+        return "image/webp"
+    return OCTET_STREAM
+
+
+def content_type_for(path: str, data: bytes = b"") -> str:
+    """The type to serve a stored blob as. The extension decides; when it says
+    nothing (older blobs written before ``EXTENSIONS`` covered their format) the
+    bytes do."""
+    extension = path.rsplit(".", 1)[-1].lower()
+    mime = CONTENT_TYPES.get(extension)
+    if mime:
+        return mime
+    return sniff(data) if data else OCTET_STREAM
 
 
 def user_prefix(user_id: str) -> str:

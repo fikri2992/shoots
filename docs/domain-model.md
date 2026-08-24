@@ -54,7 +54,9 @@ Drive folder changes                       (watch)
 
 
 
-**Analysis.** Everything the Analyst said about one shot: evidence list, composition read (subject cells, horizon row, suggested crop, moves), a critique paragraph, a 1-10 score.
+**Fault.** Something wrong with a shot, decided by arithmetic in `domain/faults.py` and never by a model. The mirror of Evidence: Evidence says what the frame achieved and carries a confidence because a lens saw it; a Fault says what the frame gets wrong and carries the figure it was computed from. There are four: camera shake, no centre of interest, a horizon that splits the frame, a subject on no line. The list is closed like the technique catalogue. A Fault is excused by the technique the panel agreed on — a two-second light trail is not camera shake — which is why detection runs after the vote.
+
+**Analysis.** Everything the Analyst said about one shot: evidence list, faults, composition read (subject cells, horizon row, suggested crop, moves), a critique paragraph, a 1-10 score.
 
 
 

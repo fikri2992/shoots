@@ -89,6 +89,14 @@ export default {
     observations() {
       return dedupe(this.analysis?.observations || [], 6, this.shot?.grid)
     },
+    /**
+     * What the arithmetic says is wrong. Not the lenses' opinion: every one of
+     * these was computed from EXIF or from the grid, so each carries its own
+     * number and is shown before the suggestions a model wrote.
+     */
+    faults() {
+      return this.analysis?.faults || []
+    },
     /** The critique, with any cell references said the way a person would. */
     critique() {
       return plain(this.analysis?.critique || '', this.shot?.grid)
@@ -210,6 +218,20 @@ export default {
         <template v-if="analysis">
           <p class="mt-1 t-meta">{{ tags.join(' · ') }}</p>
           <p class="mt-4 t-body">{{ critique }}</p>
+
+          <ul v-if="faults.length" class="mt-6 space-y-3">
+            <li v-for="f in faults" :key="f.fault_id" class="flex gap-3">
+              <span
+                class="mt-0.5 shrink-0 whitespace-nowrap rounded bg-accent/15 px-1.5 py-0.5 t-num text-[10px] text-accent"
+              >
+                fix
+              </span>
+              <span class="t-body">
+                <span class="text-neutral-100">{{ f.what }}</span>
+                <span class="mt-0.5 block t-num text-[11px] text-neutral-500">{{ f.why }}</span>
+              </span>
+            </li>
+          </ul>
 
           <ul v-if="moves.length" class="mt-6 space-y-3">
             <li v-for="(m, i) in moves" :key="i" class="flex gap-3">

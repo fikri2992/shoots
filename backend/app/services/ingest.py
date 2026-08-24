@@ -26,7 +26,7 @@ from app.imaging.grid_overlay import apply_grid
 from app.infra import repository as repo
 from app.infra.bus import TOPICS
 from app.infra.drive import DriveFile
-from app.infra.storage import GRIDDED, ORIGINAL, SHEET, THUMB, blob_path
+from app.infra.storage import GRIDDED, ORIGINAL, SHEET, THUMB, blob_path, extension_for
 from app.services.context import Context
 
 logger = logging.getLogger(__name__)
@@ -120,7 +120,7 @@ async def _ingest_photo(ctx: Context, shot: Shot, data: bytes) -> Shot:
     shot.captured_at = shot.exif.captured_at
     image = canvas.load_bytes(data)
 
-    extension = "jpg" if shot.mime_type == "image/jpeg" else "bin"
+    extension = extension_for(shot.mime_type)
     shot.blobs[ORIGINAL] = await ctx.blobs.write(
         blob_path(shot.user_id, shot.id, ORIGINAL, extension), data, shot.mime_type
     )
@@ -145,7 +145,7 @@ async def _ingest_video(ctx: Context, shot: Shot, data: bytes) -> Shot:
         lufs=loudness.lufs if loudness else None,
     )
 
-    extension = "mp4" if shot.mime_type == "video/mp4" else "bin"
+    extension = extension_for(shot.mime_type)
     shot.blobs[ORIGINAL] = await ctx.blobs.write(
         blob_path(shot.user_id, shot.id, ORIGINAL, extension), data, shot.mime_type
     )

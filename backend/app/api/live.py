@@ -22,7 +22,7 @@ from app.api.auth import SESSION_USER_KEY
 from app.api.deps import get_context
 from app.config import settings
 from app.infra import repository as repo
-from app.infra.storage import GRIDDED, ORIGINAL, SHEET
+from app.infra.storage import GRIDDED, ORIGINAL, SHEET, content_type_for
 from app.services import coach as coach_memory
 
 logger = logging.getLogger(__name__)
@@ -58,7 +58,7 @@ async def live(websocket: WebSocket, shot_id: str):
         await websocket.close(code=4409)
         return
     image = await ctx.blobs.read(shot.blobs[key])
-    mime = "image/jpeg" if shot.blobs[key].endswith((".jpg", ".jpeg")) else "image/png"
+    mime = content_type_for(shot.blobs[key], image)
     owner = await repo.get_user(ctx.store, shot.user_id)
 
     await websocket.accept()

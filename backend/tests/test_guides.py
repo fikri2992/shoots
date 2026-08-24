@@ -24,3 +24,32 @@ def test_techniques_with_no_geometry_do_not_vote():
 def test_every_mapped_guide_is_one_the_renderers_know():
     assert set(guides.BY_TECHNIQUE.values()) <= set(guides.GUIDES)
     assert guides.FALLBACK in guides.GUIDES
+
+
+def test_the_subject_picks_between_the_two_placement_grids():
+    """Thirds and phi are 0.049 apart. No lens can see that, so the choice is
+    measured from the point the Composer gave."""
+    thirds = evidence(("rule_of_thirds", 0.9))
+    assert guides.choose(thirds, subject_x=0.34, subject_y=0.5) == "thirds"
+    assert guides.choose(thirds, subject_x=0.38, subject_y=0.5) == "phi"
+    assert guides.choose(thirds, subject_x=0.61, subject_y=0.5) == "phi"
+    assert guides.choose(thirds, subject_x=0.67, subject_y=0.5) == "thirds"
+
+
+def test_without_a_point_the_technique_still_decides_alone():
+    assert guides.choose(evidence(("rule_of_thirds", 0.9))) == "thirds"
+    assert guides.choose([], subject_x=None, subject_y=None) == guides.FALLBACK
+
+
+def test_only_a_placement_guide_is_refined():
+    """A centred or diagonal frame is not a placement question; redrawing it on
+    a phi grid would answer something nobody asked."""
+    for guide in ("centre", "diagonals", "fill", "none"):
+        assert guides.refine(guide, 0.382, 0.382) == guide
+
+
+def test_phi_is_reachable_at_all():
+    """It was not: nothing in BY_TECHNIQUE ever returned it, so the grid the
+    renderers draw and test could never be chosen for anyone."""
+    assert guides.PHI not in set(guides.BY_TECHNIQUE.values())
+    assert guides.choose(evidence(("rule_of_thirds", 0.9)), 0.382, 0.5) == guides.PHI

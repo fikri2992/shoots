@@ -7,18 +7,10 @@ from app.api.auth import current_user
 from app.api.deps import get_context
 from app.domain.entities import ActivityEvent, Analysis, Shot, User
 from app.infra import repository as repo
-from app.infra.storage import user_prefix
+from app.infra.storage import content_type_for, user_prefix
 from app.services.context import Context
 
 router = APIRouter(prefix="/api", tags=["shots"])
-
-_CONTENT_TYPES = {
-    "png": "image/png",
-    "jpg": "image/jpeg",
-    "jpeg": "image/jpeg",
-    "mp4": "video/mp4",
-    "bin": "application/octet-stream",
-}
 
 
 @router.get("/me", response_model=User | None)
@@ -74,9 +66,8 @@ async def blob(
     if not await ctx.blobs.exists(path):
         raise HTTPException(404, "not found")
     data = await ctx.blobs.read(path)
-    extension = path.rsplit(".", 1)[-1].lower()
     return Response(
         data,
-        media_type=_CONTENT_TYPES.get(extension, "application/octet-stream"),
+        media_type=content_type_for(path, data),
         headers={"Cache-Control": "private, max-age=3600"},
     )

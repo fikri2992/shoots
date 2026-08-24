@@ -121,3 +121,28 @@ def test_describe_checks_is_plain():
         "iso min: could not check (no EXIF)",
         "panning: seen (70%)",
     ]
+
+
+def test_computed_faults_reach_the_feedback_prompt():
+    """The Judge writes; the arithmetic decides. A figure the model can quote is
+    the difference between "work on your technique" and "1/25 s at 85 mm"."""
+    from app.agents.judge import feedback_prompt
+    from app.domain.entities import Fault
+
+    quest = Quest(
+        id="q1",
+        user_id="u1",
+        technique_id="panning",
+        title="Panning",
+        brief="Follow the rider.",
+        why_now="Your last three are frozen.",
+        criteria=Criteria(text=["1/30 s or slower"]),
+    )
+    analysis = Analysis(shot_id="s1", user_id="u1", model="m")
+    assert "the arithmetic found nothing wrong" in feedback_prompt(quest, True, {}, {}, analysis)
+
+    analysis.faults = [
+        Fault(fault_id="camera_shake", what="That softness is shake.", why="1/25 s at 85 mm")
+    ]
+    text = feedback_prompt(quest, False, {}, {}, analysis)
+    assert "That softness is shake. (1/25 s at 85 mm)" in text

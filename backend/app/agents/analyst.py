@@ -19,7 +19,7 @@ from pydantic import BaseModel, Field
 from app.agents import prompts
 from app.agents.runtime import WorkflowResult, bytes_part, run_workflow
 from app.config import settings
-from app.domain import exposure, guides, panel, rubric, taxonomy
+from app.domain import exposure, faults, guides, panel, rubric, taxonomy
 from app.domain.entities import (
     Analysis,
     Composition,
@@ -338,6 +338,20 @@ def validate(shot: Shot, result: PanelResult) -> Analysis:
     if not critique:
         critique = " ".join(r.note.strip() for r in result.reads.values() if r.note.strip())
 
+    # After the vote, so a technique can excuse the side effect it asks for: a
+    # two-second light trail is not camera shake.
+    found = faults.detect(
+        exif=shot.exif,
+        grid=grid,
+        technique_ids=[t.technique_id for t in consensus.techniques],
+        subject_cells=subject_cells,
+        subject_x=point[0],
+        subject_y=point[1],
+        horizon_row=horizon,
+    )
+    for fault in found:
+        logger.info("faults: %s on %s (%s)", fault.fault_id, shot.id, fault.why)
+
     return Analysis(
         shot_id=shot.id,
         user_id=shot.user_id,
@@ -347,11 +361,12 @@ def validate(shot: Shot, result: PanelResult) -> Analysis:
             subject_cells=subject_cells,
             subject_x=point[0],
             subject_y=point[1],
-            guide=guides.choose(consensus.techniques),
+            guide=guides.choose(consensus.techniques, point[0], point[1]),
             horizon_row=horizon,
             suggested_crop_cells=crop,
             moves=moves,
         ),
+        faults=found,
         observations=consensus.observations,
         elements=consensus.elements,
         critique=critique[:2000],

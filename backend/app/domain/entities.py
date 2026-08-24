@@ -148,6 +148,24 @@ class TechniqueEvidence(BaseModel):
     lenses: list[str] = Field(default_factory=list)
 
 
+class Fault(BaseModel):
+    """Something wrong with a frame, decided by arithmetic (``domain/faults.py``).
+
+    The mirror of ``TechniqueEvidence``: that says what the frame achieved and
+    carries a confidence because a model saw it; this says what the frame gets
+    wrong and carries a figure because code computed it. No confidence field —
+    a fault the numbers cannot settle is never raised.
+    """
+
+    fault_id: str
+    #: The fault in the photographer's words. Reads on its own.
+    what: str
+    #: The arithmetic behind it. Never empty: a fault without a figure is an
+    #: opinion, and opinions belong to the lenses.
+    why: str
+    cells: list[str] = Field(default_factory=list)
+
+
 class MoveKind(StrEnum):
     """What kind of change is being asked for, which decides how it is drawn.
 
@@ -200,6 +218,9 @@ class Analysis(BaseModel):
     composition: Composition = Field(default_factory=Composition)
     #: Neutral, cell-referenced description (Feldman's first step), before judgement.
     observations: list[str] = Field(default_factory=list)
+    #: What the arithmetic says is wrong with the frame (domain/faults.py).
+    #: Computed after the vote, so a technique can excuse its own side effect.
+    faults: list[Fault] = Field(default_factory=list)
     #: Rubric element scores 1-10 (domain/rubric.py), averaged over the lenses that rate each.
     elements: dict[str, int] = Field(default_factory=dict)
     critique: str = ""

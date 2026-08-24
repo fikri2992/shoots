@@ -143,8 +143,17 @@ def test_a_subject_point_the_same_lens_contradicts_is_dropped():
     assert validate(PHOTO, panel_result()).composition.subject_x == 0.55
 
 
-def test_the_guide_follows_the_agreed_technique():
-    assert validate(PHOTO, panel_result()).composition.guide == "thirds"
+def test_the_guide_follows_the_agreed_technique_then_the_subject_picks_the_grid():
+    """Panning votes for a placement guide; where the subject actually sits
+    decides which of the two placement grids gets drawn."""
+    result = panel_result()  # subject at 0.55, 0.45
+    assert validate(PHOTO, result).composition.guide == "phi"
+
+    on_thirds = panel_result()
+    on_thirds.reads["composer"].composition.subject_x = 0.66
+    on_thirds.reads["composer"].composition.subject_y = 0.66
+    on_thirds.reads["composer"].composition.subject_cells = ["D4", "E5", "F6", "G7"]
+    assert validate(PHOTO, on_thirds).composition.guide == "thirds"
 
 
 def test_missing_synthesis_falls_back_to_lens_notes_and_two_lenses_suffice():
