@@ -67,9 +67,26 @@ def choose(
     recent_technique_ids: list[str],
     video: bool = False,
     missing_gear: tuple[str, ...] | list[str] = (),
+    prefer: tuple[str, ...] | list[str] = (),
 ) -> Technique | None:
+    """The next technique to ask for.
+
+    ``prefer`` is what the Tendency Profile suggests would push against the
+    photographer's own narrowest dimension (``domain/tendency.py``). It reorders
+    the ranking; it never widens it. A preferred technique whose prerequisites
+    are unmet, which was asked for recently, or which needs gear the
+    photographer does not have, is not in ``rank``'s output and so cannot be
+    chosen here — the curriculum still decides what is *possible*, and the
+    profile only decides what is *interesting* among those.
+    """
     ranked = rank(skills, recent_technique_ids, video, missing_gear)
-    return ranked[0] if ranked else None
+    if not ranked:
+        return None
+    wanted = list(prefer)
+    if wanted:
+        order = {tid: i for i, tid in enumerate(wanted)}
+        ranked.sort(key=lambda t: order.get(t.id, len(order)))
+    return ranked[0]
 
 
 def why_now(technique: Technique, skills: dict[str, SkillState]) -> str:

@@ -207,6 +207,16 @@ class Shot(BaseModel):
     blobs: dict[str, str] = Field(default_factory=dict)
     #: Set when the user shot this for a specific quest.
     quest_id: str = ""
+    #: The photographer marked this one worth keeping. One optional tap, never
+    #: asked for, and the only source of taste in the system (decision 40): it
+    #: separates "you do this often", which the Tendency Profile measures, from
+    #: "this is what you value", which nothing else here can supply. It is not
+    #: a score, it promotes nothing, and it is never second-guessed.
+    keeper: bool = False
+    #: The camera's pitch when the shutter fired, degrees from level: negative
+    #: is aimed down, positive up. Only shots taken through the Shoots camera
+    #: carry it, which is why height is a declared blind spot of the profile.
+    pitch_deg: float | None = None
     #: The reviewed copy the Scribe wrote back into the user's Drive.
     drive_review_id: str = ""
     drive_review_url: str = ""
@@ -438,6 +448,47 @@ class Quest(BaseModel):
 
 
 # --- audit trail ----------------------------------------------------------
+
+
+class JourneyUpdate(BaseModel):
+    """The agent's current conclusion about the photographer (decision 39).
+
+    The finished artifact of the whole product, and the thing the hobbyist
+    actually wanted when they installed a photography app: not a quest ticket
+    closed, an honest answer to *what kind of photographer am I becoming, and
+    am I improving?* One paragraph, written when the Tendency Profile
+    meaningfully moves rather than on a schedule.
+
+    Every clause is anchored: ``evidence`` holds the counts and corroborations
+    the writer was given, and the writer may not say anything it cannot point
+    at. What it may never claim is that the photographs got *better* — that is
+    the panel's opinion and is labelled as such. It claims that the
+    photographer changed, which is arithmetic, and where Keepers exist that
+    they are moving toward what they value, which is the photographer's own
+    verdict rather than the model's.
+    """
+
+    id: str
+    user_id: str
+    #: The paragraph the photographer reads.
+    body: str
+    #: What it was written from: exploration per dimension, what widened, which
+    #: techniques became repeatable, the dwell figure, the keeper lifts.
+    evidence: list[str] = Field(default_factory=list)
+    #: Dimension ids that widened since the last update, widest first.
+    widened: list[str] = Field(default_factory=list)
+    #: The profile as it stood when this was written: dimension id → bucket →
+    #: count. Stored so the *next* update can diff against it exactly, rather
+    #: than re-reporting the whole body of work as new every time.
+    counts: dict[str, dict[str, int]] = Field(default_factory=dict)
+    #: Techniques that reached solid since the last update.
+    became_solid: list[str] = Field(default_factory=list)
+    #: How many shots the profile behind this one was built from.
+    shots: int = 0
+    #: True when the photographer had marked enough Keepers for the update to
+    #: speak about taste rather than only about change.
+    taste_is_known: bool = False
+    created_at: datetime = Field(default_factory=now)
 
 
 class ActivityEvent(BaseModel):

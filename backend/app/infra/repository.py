@@ -7,6 +7,7 @@ collection names and document ids are decided here and nowhere else.
 from app.domain.entities import (
     ActivityEvent,
     Analysis,
+    JourneyUpdate,
     Quest,
     QuestStatus,
     Shot,
@@ -22,6 +23,7 @@ ANALYSES = "analyses"
 SKILLS = "skills"
 QUESTS = "quests"
 EVENTS = "events"
+JOURNEY = "journey"
 
 
 class UnknownEntity(LookupError):
@@ -172,3 +174,26 @@ async def list_events(store: Store, user_id: str, limit: int = 100) -> list[Acti
         EVENTS, where={"user_id": user_id}, order_by="at", descending=True, limit=limit
     )
     return [ActivityEvent.model_validate(d) for d in rows]
+
+
+# --- journey updates -------------------------------------------------------
+
+
+async def put_journey_update(store: Store, update: JourneyUpdate) -> None:
+    await store.put(JOURNEY, update.id, _dump(update))
+
+
+async def list_journey_updates(
+    store: Store, user_id: str, limit: int = 20
+) -> list[JourneyUpdate]:
+    """Newest first: the photographer reads the current conclusion, and the
+    older ones are the record of how it changed."""
+    rows = await store.query(
+        JOURNEY, where={"user_id": user_id}, order_by="created_at", descending=True, limit=limit
+    )
+    return [JourneyUpdate.model_validate(d) for d in rows]
+
+
+async def latest_journey_update(store: Store, user_id: str) -> JourneyUpdate | None:
+    found = await list_journey_updates(store, user_id, limit=1)
+    return found[0] if found else None

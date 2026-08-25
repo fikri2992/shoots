@@ -12,7 +12,7 @@ from app.agents import scout as agent
 from app.config import settings
 from app.domain import scout as rules
 from app.domain import skills as skill_rules
-from app.domain import taxonomy, timing
+from app.domain import taxonomy, tendency, timing
 from app.domain.entities import Quest, QuestStatus, QuestTiming, new_id, now
 from app.infra import repository as repo
 from app.infra.bus import TOPICS
@@ -24,6 +24,9 @@ logger = logging.getLogger(__name__)
 AGENT = "scout"
 #: How many recent quests' techniques are skipped when choosing the next one.
 RECENT_QUESTS = 6
+#: How far back the Tendency Profile reads. A tendency is about a body of
+#: work, so this is deliberately the whole of it rather than a recent window.
+TENDENCY_CORPUS = 500
 
 
 async def issue(
@@ -48,16 +51,26 @@ async def issue(
         q.technique_id for q in await repo.list_quests(ctx.store, user_id, limit=RECENT_QUESTS)
     ]
     user = await repo.get_user(ctx.store, user_id)
+    challenge = await read_tendency(ctx, user_id)
     technique = (
         taxonomy.BY_ID.get(technique_id)
         if technique_id
-        else rules.choose(skills, recent, missing_gear=user.constraints.missing_gear)
+        else rules.choose(
+            skills,
+            recent,
+            missing_gear=user.constraints.missing_gear,
+            prefer=challenge.prefers if challenge else (),
+        )
     )
     if technique is None:
         await repo.record(ctx.store, user_id, AGENT, "nothing_to_issue", {"recent": recent})
         return None
 
     why = rules.why_now(technique, skills)
+    # The citation is the point: a challenge that cannot name the arithmetic
+    # behind it is the generic advice this product exists to rise above.
+    if challenge and challenge.prefers and technique.id in challenge.prefers:
+        why = f"{why} Your own work says so: {challenge.citation}."
     critiques = await _recent_critiques(ctx, user_id)
 
     research = await agent.research(technique)
@@ -90,6 +103,8 @@ async def issue(
             "technique_id": technique.id,
             "title": quest.title,
             "why": why,
+            "tendency": challenge.citation if challenge else "",
+            "tendency_source": challenge.source if challenge else "",
             "references": len(quest.references),
             "hard_criteria": agent.hard_criteria_text(technique),
             "deliver_at": quest.deliver_at.isoformat() if quest.deliver_at else "",
@@ -100,6 +115,20 @@ async def issue(
     await deliver_if_due(ctx, quest)
     await ctx.bus.publish(TOPICS["quest.issued"], {"user_id": user_id, "quest_id": quest.id})
     return quest
+
+
+async def read_tendency(ctx: Context, user_id: str) -> tendency.Challenge | None:
+    """What the photographer's own work suggests trying next, or nothing.
+
+    Pure arithmetic over measurements already on disk (``domain/tendency.py``):
+    no model is called here. Nothing is a real answer — a photographer whose
+    work is spread across every dimension has no tendency worth naming, and the
+    Scout falls back to the skill graph alone.
+    """
+    shots = await repo.list_shots(ctx.store, user_id, limit=TENDENCY_CORPUS)
+    rows = [(shot, await repo.find_analysis(ctx.store, shot.id)) for shot in shots]
+    keepers = {shot.id for shot in shots if shot.keeper}
+    return tendency.challenge_for(tendency.build(rows, keepers))
 
 
 async def issue_first(ctx: Context, user_id: str) -> Quest | None:
