@@ -6,7 +6,7 @@ import tempfile
 import pytest
 
 from app.agents.director import Generators, Storyboard
-from app.domain.entities import Criteria, ExifRule, Quest, QuestStatus
+from app.domain.entities import Criteria, ExifRule, Experiment, ExperimentStatus
 from app.infra import repository as repo
 from app.infra.bus import InProcessBus
 from app.infra.drive import LocalDriveClient
@@ -17,11 +17,11 @@ from app.services import director
 from app.services.context import Context
 from tests.fixtures import silent_clip
 
-MESSAGE = {"user_id": "u1", "quest_id": "quest_1"}
+MESSAGE = {"user_id": "u1", "experiment_id": "quest_1"}
 
 
-def quest(status=QuestStatus.OPEN) -> Quest:
-    return Quest(
+def experiment(status=ExperimentStatus.OPEN) -> Experiment:
+    return Experiment(
         id="quest_1",
         user_id="u1",
         technique_id="panning",
@@ -59,12 +59,12 @@ def generators(calls: list[str]) -> Generators:
 async def test_clip_lands_on_quest_and_is_idempotent():
     with tempfile.TemporaryDirectory() as folder:
         ctx = context(folder)
-        await repo.put_quest(ctx.store, quest())
+        await repo.put_experiment(ctx.store, experiment())
         calls: list[str] = []
         path = await director.direct(ctx, MESSAGE, generators(calls))
-        assert path == "users/u1/quests/quest_1/reference.mp4"
+        assert path == "users/u1/experiments/quest_1/reference.mp4"
         assert await ctx.blobs.exists(path)
-        stored = await repo.get_quest(ctx.store, "quest_1")
+        stored = await repo.get_experiment(ctx.store, "quest_1")
         assert stored.reference_clip == path
         stages = [e.stage for e in await repo.list_events(ctx.store, "u1")]
         assert "storyboard" in stages and "clip_ready" in stages
@@ -77,7 +77,7 @@ async def test_clip_lands_on_quest_and_is_idempotent():
 async def test_closed_quest_gets_no_clip():
     with tempfile.TemporaryDirectory() as folder:
         ctx = context(folder)
-        await repo.put_quest(ctx.store, quest(QuestStatus.SKIPPED))
+        await repo.put_experiment(ctx.store, experiment(ExperimentStatus.SKIPPED))
         calls: list[str] = []
         assert await director.direct(ctx, MESSAGE, generators(calls)) is None
         assert calls == []
@@ -85,4 +85,4 @@ async def test_closed_quest_gets_no_clip():
 
 async def test_unknown_quest_raises():
     with tempfile.TemporaryDirectory() as folder, pytest.raises(repo.UnknownEntity):
-        await director.direct(context(folder), {**MESSAGE, "quest_id": "nope"}, generators([]))
+        await director.direct(context(folder), {**MESSAGE, "experiment_id": "nope"}, generators([]))

@@ -31,7 +31,7 @@ export default {
       <h1 class="mt-2 t-hero">Show it three or four photos you have already taken.</h1>
       <p class="mt-4 t-body text-neutral-300">
         It reads them the way a print judge would — what you did well, what you have not tried — and that read is
-        what the first quest is built from. Old photos are fine. Anything on this phone is fine.
+        what the first experiment is built from. Old photos are fine. Anything on this phone is fine.
       </p>
 
       <label class="btn mt-8 w-full cursor-pointer">

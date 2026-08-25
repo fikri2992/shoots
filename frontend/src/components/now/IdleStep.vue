@@ -29,7 +29,7 @@ export default {
 
 <template>
   <section class="col gutter pb-32 pt-10">
-    <p class="t-meta text-accent">No quest open</p>
+    <p class="t-meta text-accent">No experiment open</p>
     <h1 class="mt-2 t-hero">The Scout issues the next one in the morning.</h1>
     <p class="mt-4 t-body text-neutral-300">
       It picks from what your frames already show it, and holds it until the light suits the technique.
@@ -40,7 +40,7 @@ export default {
     </button>
 
     <div v-if="lastVerdict" class="mt-10 rounded-2xl bg-panel p-4">
-      <VerdictNote :verdict="lastVerdict.verdict" :title="lastVerdict.quest.title" />
+      <VerdictNote :verdict="lastVerdict.verdict" :title="lastVerdict.experiment.title" />
     </div>
 
     <RouterLink

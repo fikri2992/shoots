@@ -16,13 +16,13 @@ export default {
   name: 'NowPage',
   components: { ConnectStep, IdleStep, QuestHero, ReadingStep, SeedStep },
   computed: {
-    ...mapState(useShootsStore, ['quest', 'shots', 'connected', 'loading', 'error', 'push', 'busy', 'working', 'seeding']),
+    ...mapState(useShootsStore, ['experiment', 'shots', 'connected', 'loading', 'error', 'push', 'busy', 'working', 'seeding']),
     step() {
       if (this.loading && !this.shots.length && !this.connected) return 'loading'
       if (!this.connected) return 'connect'
-      if (this.seeding || (!this.shots.length && !this.quest)) return 'seed'
+      if (this.seeding || (!this.shots.length && !this.experiment)) return 'seed'
       if (this.working.length) return 'reading'
-      if (this.quest) return 'quest'
+      if (this.experiment) return 'experiment'
       return 'idle'
     },
   },
@@ -44,11 +44,11 @@ export default {
     <ConnectStep v-if="step === 'connect'" />
     <SeedStep v-else-if="step === 'seed'" />
     <ReadingStep v-else-if="step === 'reading'" :shots="working" />
-    <QuestHero v-else-if="step === 'quest'" :quest="quest" />
+    <QuestHero v-else-if="step === 'experiment'" :experiment="experiment" />
     <IdleStep v-else-if="step === 'idle'" />
     <p v-else class="col gutter pt-12 t-meta">Loading…</p>
 
-    <div v-if="push === 'off' && quest" class="col gutter mt-8">
+    <div v-if="push === 'off' && experiment" class="col gutter mt-8">
       <button
         type="button"
         class="flex w-full items-center gap-3 rounded-2xl bg-panel px-4 py-3 text-left"

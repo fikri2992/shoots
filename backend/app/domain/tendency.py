@@ -168,7 +168,7 @@ def _framing(shot: Shot, analysis: Analysis | None) -> str | None:
 
 
 def _light(shot: Shot, analysis: Analysis | None) -> str | None:
-    """Where the sun was, by the same NOAA equations the Scout times quests
+    """Where the sun was, by the same NOAA equations the Scout times experiments
     with. Golden and blue hour are claims about the sun's position, which is
     why they can be bucketed at all."""
     exif = shot.exif

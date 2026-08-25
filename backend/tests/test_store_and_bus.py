@@ -8,7 +8,15 @@ import os
 
 import pytest
 
-from app.domain.entities import Criteria, Quest, QuestStatus, Shot, ShotKind, TechniqueState, User
+from app.domain.entities import (
+    Criteria,
+    Experiment,
+    ExperimentStatus,
+    Shot,
+    ShotKind,
+    TechniqueState,
+    User,
+)
 from app.infra import repository as repo
 from app.infra.bus import InProcessBus
 from app.infra.secrets import LocalTokenStore
@@ -63,7 +71,7 @@ async def test_repository_round_trips_every_entity(store):
     await repo.put_skill(store, skill)
     assert (await repo.list_skills(store, "u1"))[0].attempts == 2
 
-    quest = Quest(
+    experiment = Experiment(
         id="q1",
         user_id="u1",
         technique_id="panning",
@@ -72,11 +80,11 @@ async def test_repository_round_trips_every_entity(store):
         why_now="w",
         criteria=Criteria(),
     )
-    await repo.put_quest(store, quest)
-    assert (await repo.open_quest(store, "u1")).id == "q1"
-    quest.status = QuestStatus.PASSED
-    await repo.put_quest(store, quest)
-    assert await repo.open_quest(store, "u1") is None
+    await repo.put_experiment(store, experiment)
+    assert (await repo.open_experiment(store, "u1")).id == "q1"
+    experiment.status = ExperimentStatus.COMPLETED
+    await repo.put_experiment(store, experiment)
+    assert await repo.open_experiment(store, "u1") is None
 
     await repo.record(store, "u1", "ingest", "queued", {"x": 1}, shot_id=shot.id)
     events = await repo.list_events(store, "u1")

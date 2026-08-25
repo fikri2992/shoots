@@ -1,7 +1,7 @@
 """The technique catalogue: the finite vocabulary the whole product speaks.
 
 Every agent refers to techniques by ``id``. The Analyst may only tag ids from
-this list; the Scout may only issue quests for ids from this list; the skill
+this list; the Scout may only issue experiments for ids from this list; the skill
 graph has exactly one node per id. Open-ended "discover a technique" is not a
 thing here, on purpose: a finite taxonomy is what makes the graph legible and
 the Judge checkable.
@@ -13,8 +13,8 @@ Each technique carries two kinds of evidence:
 * ``cue``   — what the Analyst is told to look for in the frame. Soft evidence
   with a confidence, counted only above ``settings.judge_min_confidence``.
 
-``requires`` lists prerequisites. The Scout issues a quest only when every
-prerequisite is at least *attempted*, so quests climb rather than jump.
+``requires`` lists prerequisites. The Scout issues a experiment only when every
+prerequisite is at least *attempted*, so experiments climb rather than jump.
 """
 
 from dataclasses import dataclass, field

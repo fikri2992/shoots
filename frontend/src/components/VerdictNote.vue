@@ -38,7 +38,7 @@ export default {
       this.openFor(this.verdict.shot_id, {
         opener: this.verdict.passed
           ? 'What made this one work, and what would take it further?'
-          : 'Why did this not pass the quest? Point at the frame.',
+          : 'Why did this not pass the experiment? Point at the frame.',
       })
     },
   },

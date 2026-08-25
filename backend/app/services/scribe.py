@@ -4,7 +4,7 @@ The photographer's workflow ends in a folder, so the agent's answer lands
 in that folder too: ``Shoots/Reviewed/<name> — <finding>.jpg`` is the frame
 with the composition read drawn on it, any finding marked on the pixels it was
 measured from, and the critique as a caption band, plus the verdict if the
-shot was a quest attempt. It shows up in the Drive and Files apps on the phone
+shot was a experiment attempt. It shows up in the Drive and Files apps on the phone
 without opening this app, and it can be shared as-is. The file is written *as
 the user* (``drive.file`` token), the only thing that token is used for
 besides creating the folder.
@@ -24,7 +24,7 @@ from typing import Protocol
 
 from app.config import settings
 from app.domain import findings, taxonomy
-from app.domain.entities import Analysis, MoveKind, Quest, Shot, ShotStatus, Verdict
+from app.domain.entities import Analysis, Experiment, MoveKind, Shot, ShotStatus, Verdict
 from app.domain.grid import Grid
 from app.imaging import canvas
 from app.imaging.caption import add_caption
@@ -105,7 +105,7 @@ def review_name(shot: Shot, analysis: Analysis, verdict: Verdict | None) -> str:
     return f"{mark}{stem} — {review_finding(analysis)}.jpg"
 
 
-def review_title(analysis: Analysis, quest: Quest | None, verdict: Verdict | None) -> str:
+def review_title(analysis: Analysis, experiment: Experiment | None, verdict: Verdict | None) -> str:
     """The bold line on the caption band: what the frame does, then what to fix.
 
     That order is the product's, not a stylistic preference: praise first and
@@ -116,8 +116,8 @@ def review_title(analysis: Analysis, quest: Quest | None, verdict: Verdict | Non
     seen = ", ".join(_seen(analysis))
     wrong = findings.FINDINGS.get(analysis.findings[0].finding_id, "") if analysis.findings else ""
     title = " · ".join(part for part in (seen, wrong) if part) or f"{analysis.score} of 10"
-    if verdict and quest:
-        title = f"{'PASSED' if verdict.passed else 'NOT YET'} · {quest.title}  —  {title}"
+    if verdict and experiment:
+        title = f"{'PASSED' if verdict.passed else 'NOT YET'} · {experiment.title}  —  {title}"
     return title
 
 
@@ -151,9 +151,9 @@ def review_body(analysis: Analysis, verdict: Verdict | None, grid: Grid) -> list
 
 
 def review_description(
-    shot: Shot, analysis: Analysis, quest: Quest | None, verdict: Verdict | None
+    shot: Shot, analysis: Analysis, experiment: Experiment | None, verdict: Verdict | None
 ) -> str:
-    lines = [review_title(analysis, quest, verdict), ""]
+    lines = [review_title(analysis, experiment, verdict), ""]
     lines += review_body(analysis, verdict, _grid(shot))
     # No grid legend: cells never reach this text, so nothing needs explaining.
     lines += ["", "Reviewed by Shoots."]
@@ -182,16 +182,16 @@ async def write_review(
         logger.info("scribe: no Drive token for %s, skipping", user.id)
         return None
 
-    quest = verdict = None
-    if shot.quest_id:
+    experiment = verdict = None
+    if shot.experiment_id:
         try:
-            quest = await repo.get_quest(ctx.store, shot.quest_id)
-            verdict = next((v for v in quest.verdicts if v.shot_id == shot.id), None)
+            experiment = await repo.get_experiment(ctx.store, shot.experiment_id)
+            verdict = next((v for v in experiment.verdicts if v.shot_id == shot.id), None)
         except repo.UnknownEntity:
-            quest = None
+            experiment = None
 
     name = review_name(shot, analysis, verdict)
-    description = review_description(shot, analysis, quest, verdict)
+    description = review_description(shot, analysis, experiment, verdict)
 
     if shot.drive_review_id:
         await publisher.update(shot.drive_review_id, name, description)
@@ -209,7 +209,7 @@ async def write_review(
         frame = mark_faults(frame, analysis.findings)
         captioned = add_caption(
             frame,
-            review_title(analysis, quest, verdict),
+            review_title(analysis, experiment, verdict),
             review_body(analysis, verdict, _grid(shot)),
             footer=f"Reviewed by Shoots · {shot.filename}",
         )
@@ -228,7 +228,7 @@ async def write_review(
         stage,
         {"name": name, "file_id": shot.drive_review_id, "verdict": bool(verdict)},
         shot_id=shot.id,
-        quest_id=shot.quest_id,
+        experiment_id=shot.experiment_id,
     )
     return shot.drive_review_id
 

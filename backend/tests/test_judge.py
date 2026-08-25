@@ -8,7 +8,7 @@ from app.domain.entities import (
     Criteria,
     Exif,
     ExifRule,
-    Quest,
+    Experiment,
     Shot,
     ShotKind,
     TechniqueEvidence,
@@ -85,7 +85,7 @@ def test_evaluate_uses_analysis_confidence():
 
 def test_submission_rule():
     issued = datetime(2026, 8, 22, 12, tzinfo=UTC)
-    quest = Quest(
+    experiment = Experiment(
         id="q1",
         user_id="u",
         technique_id="golden_hour",
@@ -96,7 +96,7 @@ def test_submission_rule():
         issued_at=issued,
     )
 
-    def shot(ingested: datetime, quest_id: str = "") -> Shot:
+    def shot(ingested: datetime, experiment_id: str = "") -> Shot:
         return Shot(
             id="s",
             user_id="u",
@@ -105,13 +105,14 @@ def test_submission_rule():
             filename="a.jpg",
             mime_type="image/jpeg",
             ingested_at=ingested,
-            quest_id=quest_id,
+            experiment_id=experiment_id,
         )
 
-    assert judge.is_submission(shot(issued + timedelta(hours=1)), quest)
-    assert not judge.is_submission(shot(issued - timedelta(hours=1)), quest)
-    assert judge.is_submission(shot(issued - timedelta(days=9), quest_id="q1"), quest)
-    assert not judge.is_submission(shot(issued + timedelta(hours=1), quest_id="other"), quest)
+    assert judge.is_submission(shot(issued + timedelta(hours=1)), experiment)
+    assert not judge.is_submission(shot(issued - timedelta(hours=1)), experiment)
+    assert judge.is_submission(shot(issued - timedelta(days=9), experiment_id="q1"), experiment)
+    other = shot(issued + timedelta(hours=1), experiment_id="other")
+    assert not judge.is_submission(other, experiment)
 
 
 def test_describe_checks_is_plain():
@@ -129,7 +130,7 @@ def test_computed_findings_reach_the_feedback_prompt():
     from app.agents.judge import feedback_prompt
     from app.domain.entities import Finding
 
-    quest = Quest(
+    experiment = Experiment(
         id="q1",
         user_id="u1",
         technique_id="panning",
@@ -139,10 +140,11 @@ def test_computed_findings_reach_the_feedback_prompt():
         criteria=Criteria(text=["1/30 s or slower"]),
     )
     analysis = Analysis(shot_id="s1", user_id="u1", model="m")
-    assert "the arithmetic found nothing wrong" in feedback_prompt(quest, True, {}, {}, analysis)
+    prompt = feedback_prompt(experiment, True, {}, {}, analysis)
+    assert "the arithmetic found nothing wrong" in prompt
 
     analysis.findings = [
         Finding(finding_id="camera_shake", what="That softness is shake.", why="1/25 s at 85 mm")
     ]
-    text = feedback_prompt(quest, False, {}, {}, analysis)
+    text = feedback_prompt(experiment, False, {}, {}, analysis)
     assert "That softness is shake. (1/25 s at 85 mm)" in text

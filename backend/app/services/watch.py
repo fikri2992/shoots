@@ -5,7 +5,7 @@ user's folder, with the user id as the channel token so ``/drive/notify``
 knows whose folder to sync. Channels live at most a day; ``renew_all`` runs
 from the Scheduler and replaces any that are near expiry. Polling
 (``/tasks/sync``) stays on as the belt to these braces, so a missed
-notification costs minutes, not a quest.
+notification costs minutes, not a experiment.
 """
 
 import logging

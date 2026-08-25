@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # One-time state and identity for the Cloud Run service. Idempotent.
 #
-#   Firestore (native, asia-southeast2)   -> users, shots, analyses, skills, quests, events, push
+#   Firestore (native, asia-southeast2)   -> users, shots, analyses, skills, experiments, events, push
 #   GCS bucket                            -> originals, gridded frames, sheets, clips
 #   Secret Manager                        -> one secret per user for the Drive refresh token,
 #                                            plus the app secrets deploy.sh mounts as env vars

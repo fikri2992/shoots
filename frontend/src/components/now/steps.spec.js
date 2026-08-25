@@ -14,7 +14,7 @@ import { useShootsStore } from '@/stores/shoots'
 
 const stubs = { RouterLink: { template: '<a><slot /></a>' } }
 
-function quest(extra = {}) {
+function experiment(extra = {}) {
   return {
     id: 'quest_1',
     technique_id: 'fill_the_frame',
@@ -91,18 +91,18 @@ describe('ReadingStep', () => {
 
 describe('QuestHero', () => {
   it('leads with the criteria and keeps the steps behind a disclosure', () => {
-    const wrapper = mount(QuestHero, { props: { quest: quest() }, global: { stubs } })
+    const wrapper = mount(QuestHero, { props: { experiment: experiment() }, global: { stubs } })
     expect(wrapper.text()).toContain('The subject fills the frame.')
     expect(wrapper.text()).not.toContain('Step closer.')
     expect(wrapper.text()).toContain('How to shoot it')
   })
 
   it('only promises a clip while the Director could still be rendering one', () => {
-    const fresh = mount(QuestHero, { props: { quest: quest() }, global: { stubs } })
+    const fresh = mount(QuestHero, { props: { experiment: experiment() }, global: { stubs } })
     expect(fresh.text()).toContain('rendering a reference clip')
 
     const old = mount(QuestHero, {
-      props: { quest: quest({ issued_at: new Date(Date.now() - 3600_000).toISOString() }) },
+      props: { experiment: experiment({ issued_at: new Date(Date.now() - 3600_000).toISOString() }) },
       global: { stubs },
     })
     expect(old.text()).not.toContain('rendering a reference clip')
@@ -113,7 +113,7 @@ describe('QuestHero', () => {
       { shot_id: 's1', passed: false, feedback: 'Old one. Next: old action.', compared_with: '' },
       { shot_id: 's2', passed: false, feedback: 'It stayed wide. Next: step closer.', compared_with: '' },
     ]
-    const wrapper = mount(QuestHero, { props: { quest: quest({ verdicts }) }, global: { stubs } })
+    const wrapper = mount(QuestHero, { props: { experiment: experiment({ verdicts }) }, global: { stubs } })
     expect(wrapper.text()).toContain('step closer.')
     expect(wrapper.text()).toContain('2 attempts so far')
     expect(wrapper.text()).not.toContain('It stayed wide.') // behind "What it looked at"

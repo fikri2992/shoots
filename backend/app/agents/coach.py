@@ -20,7 +20,7 @@ from app.agents.analyst import facts_text
 from app.agents.runtime import run_agent
 from app.config import settings
 from app.domain import taxonomy
-from app.domain.entities import Analysis, Constraints, Quest, Shot
+from app.domain.entities import Analysis, Constraints, Experiment, Shot
 
 #: What the browser sends us and what Live expects: 16 kHz mono PCM16.
 INPUT_MIME = "audio/pcm;rate=16000"
@@ -41,7 +41,7 @@ class Event:
 def briefing(
     shot: Shot,
     analysis: Analysis | None,
-    quest: Quest | None,
+    experiment: Experiment | None,
     constraints: Constraints | None = None,
 ) -> str:
     """Everything the Coach knows about the frame before the first word."""
@@ -84,11 +84,11 @@ def briefing(
         ]
     else:
         lines += ["The Analyst has not read this frame yet; work from the image alone.", ""]
-    if quest:
+    if experiment:
         lines += [
-            f"This frame was shot for the quest '{quest.title}' (technique {quest.technique_id}, "
-            f"status {quest.status.value}).",
-            "Criteria: " + "; ".join(quest.criteria.text),
+            f"This frame was shot for the experiment '{experiment.title}' "
+            f"(technique {experiment.technique_id}, status {experiment.status.value}).",
+            "Criteria: " + "; ".join(experiment.criteria.text),
             "",
         ]
     if constraints and (constraints.missing_gear or constraints.notes):
@@ -146,7 +146,7 @@ TOOLS = types.Tool(
         types.FunctionDeclaration(
             name="issue_quest",
             description=(
-                "Issue the photographer a new quest for a technique right now, replacing the "
+                "Issue the photographer a new experiment for a technique right now, replacing the "
                 "open one. Use when they ask for something else to shoot. Pass a technique id "
                 "from the list you were given; omit it to let the Scout choose."
             ),
@@ -163,8 +163,9 @@ TOOLS = types.Tool(
         types.FunctionDeclaration(
             name="remember",
             description=(
-                "Remember a standing fact about the photographer that should change future "
-                "quests: gear they lack (tripod, telephoto, macro, flash) or when/where they shoot."
+                "Remember a standing fact about the photographer that should change "
+                "future experiments: gear they lack (tripod, telephoto, macro, flash) "
+                "or when and where they shoot."
             ),
             parameters=types.Schema(
                 type=types.Type.OBJECT,

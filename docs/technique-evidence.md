@@ -2,7 +2,7 @@
 
 The Judge's hard criteria are EXIF bounds in `backend/app/domain/taxonomy.py`. Each one below is either sourced from published guidance or marked as a house rule. The Analyst's rubric and the panel design are sourced at the end.
 
-Bounds are deliberately generous: they are the range within which the technique is *possible*, not the ideal. The panel's vision check decides whether it was *achieved*. A bound exists to make a quest un-fakeable, not to grade it.
+Bounds are deliberately generous: they are the range within which the technique is *possible*, not the ideal. The panel's vision check decides whether it was *achieved*. A bound exists to make a experiment un-fakeable, not to grade it.
 
 | Technique | Bound | Why | Source |
 |---|---|---|---|

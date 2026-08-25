@@ -62,7 +62,7 @@ async def sync(ctx: Context, user: User) -> list[Shot]:
     return created
 
 
-def new_shot(shot_id: str, user_id: str, file: DriveFile, quest_id: str = "") -> Shot:
+def new_shot(shot_id: str, user_id: str, file: DriveFile, experiment_id: str = "") -> Shot:
     kind = ShotKind.VIDEO if file.mime_type.startswith("video/") else ShotKind.PHOTO
     return Shot(
         id=shot_id,
@@ -71,7 +71,7 @@ def new_shot(shot_id: str, user_id: str, file: DriveFile, quest_id: str = "") ->
         drive_file_id=file.id,
         filename=file.name,
         mime_type=file.mime_type,
-        quest_id=quest_id,
+        experiment_id=experiment_id,
     )
 
 
@@ -226,7 +226,7 @@ def _mmss(seconds: float) -> str:
 
 async def _remember_location(ctx: Context, shot: Shot) -> None:
     """The newest frame with GPS tells the Scout where the user shoots, so a
-    quest can be timed to the light there (domain/timing.py)."""
+    experiment can be timed to the light there (domain/timing.py)."""
     if shot.exif.latitude is None or shot.exif.longitude is None:
         return
     user = await repo.find_user(ctx.store, shot.user_id)

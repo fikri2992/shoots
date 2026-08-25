@@ -3,7 +3,7 @@
 A voice session is the one place the photographer talks *to* the planner.
 After each session the Listener pulls out standing facts (no tripod, shoots
 at lunch, walks everywhere) and they are merged into ``User.constraints``,
-which the Scout's ranking and brief respect from the next quest on. Merge is
+which the Scout's ranking and brief respect from the next experiment on. Merge is
 pure and tested; extraction is a model call checked by
 ``scripts/check_listener.py``.
 """
@@ -79,24 +79,24 @@ async def run_tool(ctx: Context, user_id: str, name: str, args: dict) -> dict:
         reason = str(args.get("reason", "") or "").strip()[:200]
         if technique_id and technique_id not in taxonomy.BY_ID:
             return {"ok": False, "error": f"unknown technique id {technique_id}"}
-        quest = await scout.issue(ctx, user_id, force=True, technique_id=technique_id)
-        if quest is None:
+        experiment = await scout.issue(ctx, user_id, force=True, technique_id=technique_id)
+        if experiment is None:
             return {"ok": False, "error": "nothing could be issued"}
         await repo.record(
             ctx.store,
             user_id,
             AGENT,
             "issued_by_voice",
-            {"technique_id": quest.technique_id, "title": quest.title, "reason": reason},
-            quest_id=quest.id,
+            {"technique_id": experiment.technique_id, "title": experiment.title, "reason": reason},
+            experiment_id=experiment.id,
         )
         return {
             "ok": True,
-            "quest_id": quest.id,
-            "title": quest.title,
-            "technique_id": quest.technique_id,
-            "first_step": quest.brief.split("\n", 1)[0],
-            "lands_at": quest.deliver_at.isoformat() if quest.deliver_at else "now",
+            "experiment_id": experiment.id,
+            "title": experiment.title,
+            "technique_id": experiment.technique_id,
+            "first_step": experiment.brief.split("\n", 1)[0],
+            "lands_at": experiment.deliver_at.isoformat() if experiment.deliver_at else "now",
         }
     if name == "remember":
         user = await repo.get_user(ctx.store, user_id)
@@ -135,7 +135,7 @@ def summarise_tool(name: str, result: dict) -> str:
     if not result.get("ok"):
         return f"{name}: {result.get('error', 'failed')}"
     if name == "issue_quest":
-        return f"issued a quest: {result['title']}"
+        return f"issued a experiment: {result['title']}"
     if name == "remember":
         bits = []
         if result.get("missing_gear"):

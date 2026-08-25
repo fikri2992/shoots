@@ -1,9 +1,9 @@
-"""When a quest should land on the phone.
+"""When a experiment should land on the phone.
 
 A technique has a light window (``taxonomy.LIGHT``); the user's last known
 location comes from the EXIF of their own frames. From those two facts the
-Scout decides *when* to deliver, not just what: a golden-hour quest arrives
-fifty minutes before sunset where you last shot, a night quest after dusk.
+Scout decides *when* to deliver, not just what: a golden-hour experiment arrives
+fifty minutes before sunset where you last shot, a night experiment after dusk.
 Nothing here needs a timezone: instants are UTC, the phone shows local time.
 """
 

@@ -143,8 +143,8 @@ export default {
       const path = this.shot?.blobs?.crop
       return path && this.analysis?.composition?.suggested_crop_cells?.length ? `/api/blobs/${path}` : ''
     },
-    quest() {
-      return this.shot?.quest_id ? this.questById(this.shot.quest_id) : null
+    experiment() {
+      return this.shot?.experiment_id ? this.questById(this.shot.experiment_id) : null
     },
     lenses() {
       return Object.keys(this.analysis?.panel || {}).join(', ') || 'three lenses'
@@ -345,8 +345,8 @@ export default {
             <a v-if="shot.drive_review_url" :href="shot.drive_review_url" target="_blank" rel="noopener" class="block hover:text-neutral-200">
               The reviewed copy is in your Drive ↗
             </a>
-            <RouterLink v-if="quest" :to="{ name: 'now' }" class="block hover:text-neutral-200">
-              Sent for “{{ quest.title }}” ▸
+            <RouterLink v-if="experiment" :to="{ name: 'now' }" class="block hover:text-neutral-200">
+              Sent for “{{ experiment.title }}” ▸
             </RouterLink>
             <p>{{ shot.filename }}</p>
           </div>

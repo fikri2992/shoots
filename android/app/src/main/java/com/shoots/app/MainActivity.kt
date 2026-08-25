@@ -167,10 +167,10 @@ private fun fieldColours() = androidx.compose.material3.OutlinedTextFieldDefault
     cursorColor = Color.White,
 )
 
-/** The shutter, the quest it answers, and what came back. */
+/** The shutter, the experiment it answers, and what came back. */
 @Composable
 fun ShutterRow(
-    quest: Api.Quest?,
+    experiment: Api.Experiment?,
     pulse: Api.Pulse?,
     sending: Boolean,
     shotId: String,
@@ -205,7 +205,7 @@ fun ShutterRow(
         }
         Spacer(Modifier.height(10.dp))
         Text(
-            quest?.title ?: "no open challenge",
+            experiment?.title ?: "no open challenge",
             color = Color.White.copy(alpha = 0.75f),
             fontSize = 13.sp,
             textAlign = TextAlign.Center,

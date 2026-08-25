@@ -1,6 +1,6 @@
 # AGENTS.md — Codebase rules
 
-Read `docs/domain-model.md` first. Its vocabulary (Shot, Scene, Scene Probe, Evidence, Finding, Technique, Technique Map, Tendency, Keeper, Experiment, Experiment Record, Inspiration, Criteria, Verdict, Change, Journey Update, Intent, Companion; the agents Ingest, Analyst, Cartographer, Scout, Judge, Scribe, Coach) is the ubiquitous language. Use these exact names in new code, APIs, prompts, and UI copy. Do not use "photo" for Shot, "skill" for Technique, "habit" for Tendency, "Quest" or "challenge" for Experiment, "Fault" for Finding, or "Progress" for unqualified Change. Existing `Quest`, `Fault`, and `TechniqueState` identifiers are migration targets tracked in `docs/feature-list.md`, not precedent for new names.
+Read `docs/domain-model.md` first. Its vocabulary (Shot, Scene, Scene Probe, Evidence, Finding, Technique, Technique Map, Tendency, Keeper, Experiment, Experiment Record, Inspiration, Criteria, Verdict, Change, Journey Update, Intent, Companion; the agents Ingest, Analyst, Cartographer, Scout, Judge, Scribe, Coach) is the ubiquitous language. Use these exact names in new code, APIs, prompts, and UI copy. Do not use "photo" for Shot, "skill" for Technique, "habit" for Tendency, "Experiment" or "challenge" for Experiment, "Fault" for Finding, or "Progress" for unqualified Change. Existing `Experiment`, `Fault`, and `TechniqueState` identifiers are migration targets tracked in `docs/feature-list.md`, not precedent for new names.
 
 ## What this is
 

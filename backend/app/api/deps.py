@@ -45,7 +45,7 @@ def wire(ctx: Context) -> None:
 
     async def on_media_analyzed(message: dict) -> None:
         await cartographer.update(ctx, message)
-        # The map moved; if this user has never had a quest, that is enough to
+        # The map moved; if this user has never had a experiment, that is enough to
         # choose one. Nothing to click, on the first run or any other.
         shot = await repository.get_shot(ctx.store, message["shot_id"])
         await scout.issue_first(ctx, shot.user_id)
@@ -68,8 +68,8 @@ def wire(ctx: Context) -> None:
     ctx.bus.subscribe(TOPICS["media.analyzed"], on_media_analyzed, stage="cartographer")
     ctx.bus.subscribe(TOPICS["media.analyzed"], on_media_analyzed_judge, stage="judge")
     ctx.bus.subscribe(TOPICS["media.judged"], on_media_judged, stage="scribe")
-    ctx.bus.subscribe(TOPICS["quest.closed"], on_quest_closed, stage="scout")
-    ctx.bus.subscribe(TOPICS["quest.issued"], on_quest_issued, stage="director")
+    ctx.bus.subscribe(TOPICS["experiment.closed"], on_quest_closed, stage="scout")
+    ctx.bus.subscribe(TOPICS["experiment.issued"], on_quest_issued, stage="director")
 
 
 context = build_context()

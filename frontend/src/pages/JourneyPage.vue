@@ -15,7 +15,7 @@ export default {
   components: { AgentLog, DisclosureRow, JourneyUpdate, TechniqueMap, TendencyProfile },
   computed: {
     ...mapState(useShootsStore, ['pastQuests', 'me', 'push', 'busy', 'connected', 'pairCode']),
-    quests() {
+    experiments() {
       return this.pastQuests.map((q) => ({
         id: q.id,
         title: q.title,
@@ -50,10 +50,10 @@ export default {
 
     <div class="gutter mt-12"><TechniqueMap /></div>
 
-    <section v-if="quests.length" class="gutter mt-12">
-      <h2 class="t-title">Quests</h2>
+    <section v-if="experiments.length" class="gutter mt-12">
+      <h2 class="t-title">Experiments</h2>
       <ul class="mt-4 space-y-3">
-        <li v-for="q in quests" :key="q.id" class="flex items-baseline gap-3">
+        <li v-for="q in experiments" :key="q.id" class="flex items-baseline gap-3">
           <span class="w-14 shrink-0 t-meta">{{ q.when }}</span>
           <RouterLink
             v-if="q.shotId"

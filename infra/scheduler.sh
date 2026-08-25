@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 # Cloud Scheduler: the clock that makes Shoots autonomous. Idempotent.
 #
-#   shoots-tick     every 5 min   POST /tasks/tick            sync folders, push quests whose light window opened
-#   shoots-daily    06:00 Jakarta POST /tasks/daily           expire, decay, issue the day's quest, renew channels
+#   shoots-tick     every 5 min   POST /tasks/tick            sync folders, push experiments whose light window opened
+#   shoots-daily    06:00 Jakarta POST /tasks/daily           expire, decay, issue the day's experiment, renew channels
 #   shoots-renew    every 12 h    POST /tasks/renew-channels  Drive push channels cap at one day
 #
 # Each job carries an OIDC token for the service account and the shared

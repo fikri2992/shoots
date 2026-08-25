@@ -82,7 +82,7 @@ async def tick(
     x_tasks_token: str | None = Header(default=None), ctx: Context = Depends(get_context)
 ):
     """Every few minutes: sync every folder (the belt to the Drive channel's
-    braces) and push any quest whose light window has opened."""
+    braces) and push any experiment whose light window has opened."""
     _authorised(x_tasks_token)
     queued = 0
     for user in await repo.list_users(ctx.store):

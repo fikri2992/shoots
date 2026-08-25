@@ -36,39 +36,39 @@ function clock(iso) {
 export default {
   name: 'QuestHero',
   components: { DisclosureRow, ShootAction, VerdictNote },
-  props: { quest: { type: Object, required: true } },
+  props: { experiment: { type: Object, required: true } },
   data() {
     return { muted: true }
   },
   computed: {
     ...mapState(useShootsStore, ['busy']),
     clipUrl() {
-      return this.quest.reference_clip ? `/api/blobs/${this.quest.reference_clip}` : ''
+      return this.experiment.reference_clip ? `/api/blobs/${this.experiment.reference_clip}` : ''
     },
     /** The Director takes about a minute; after that, stop promising a clip. */
     rendering() {
-      if (this.clipUrl || this.quest.status !== 'open') return false
-      return (Date.now() - new Date(this.quest.issued_at)) / 60000 < RENDER_MINUTES
+      if (this.clipUrl || this.experiment.status !== 'open') return false
+      return (Date.now() - new Date(this.experiment.issued_at)) / 60000 < RENDER_MINUTES
     },
     technique() {
-      return this.quest.technique_id.replace(/_/g, ' ')
+      return this.experiment.technique_id.replace(/_/g, ' ')
     },
     steps() {
-      const brief = (this.quest.brief || '').trim()
+      const brief = (this.experiment.brief || '').trim()
       const lines = brief.includes('\n') ? brief.split(/\n+/) : brief.split(/\s+(?=\d{1,2}[.)]\s)/)
       return lines.map((line) => line.replace(/^\s*\d+[.)]\s*/, '').trim()).filter(Boolean)
     },
     criteria() {
-      return this.quest.criteria?.text || []
+      return this.experiment.criteria?.text || []
     },
     cameraRules() {
-      return Object.entries(this.quest.criteria?.exif || {})
+      return Object.entries(this.experiment.criteria?.exif || {})
         .filter(([, value]) => value !== null && value !== undefined)
         .map(([key, value]) => EXIF_LABELS[key]?.(value) || `${key}: ${value}`)
     },
     /** One line: when it lands, why then, how long is left. */
     when() {
-      const q = this.quest
+      const q = this.experiment
       const bits = []
       if (q.timing) {
         if (q.deliver_at && new Date(q.deliver_at) > Date.now()) bits.push(`Lands ${clock(q.deliver_at)}`)
@@ -82,7 +82,7 @@ export default {
       return bits.filter(Boolean).join(' · ')
     },
     attempts() {
-      return [...(this.quest.verdicts || [])].reverse()
+      return [...(this.experiment.verdicts || [])].reverse()
     },
     host() {
       return (ref) => {
@@ -120,8 +120,8 @@ export default {
     <div class="col gutter">
       <p v-if="rendering" class="pt-5 t-meta text-accent">The Director is rendering a reference clip…</p>
 
-      <p class="pt-6 t-meta">{{ quest.status === 'open' ? 'Today' : 'Quest' }} · {{ technique }}</p>
-      <h1 class="mt-1 t-hero">{{ quest.title }}</h1>
+      <p class="pt-6 t-meta">{{ experiment.status === 'open' ? 'Today' : 'Experiment' }} · {{ technique }}</p>
+      <h1 class="mt-1 t-hero">{{ experiment.title }}</h1>
       <p v-if="when" class="mt-2 t-meta text-accent">{{ when }}</p>
 
       <ul class="mt-6 space-y-2">
@@ -148,12 +148,12 @@ export default {
         </DisclosureRow>
 
         <DisclosureRow label="Why the Scout picked this">
-          <p class="t-body">{{ quest.why_now }}</p>
+          <p class="t-body">{{ experiment.why_now }}</p>
         </DisclosureRow>
 
-        <DisclosureRow v-if="quest.references.length" label="What it read" :count="quest.references.length">
+        <DisclosureRow v-if="experiment.references.length" label="What it read" :count="experiment.references.length">
           <ul class="space-y-2">
-            <li v-for="(ref, i) in quest.references" :key="i">
+            <li v-for="(ref, i) in experiment.references" :key="i">
               <a :href="ref.url" target="_blank" rel="noopener" class="t-body text-neutral-400 hover:text-neutral-100">
                 {{ host(ref) }} ↗
               </a>
@@ -164,13 +164,13 @@ export default {
     </div>
 
     <div
-      v-if="quest.status === 'open'"
+      v-if="experiment.status === 'open'"
       class="sticky bottom-16 z-10 mt-10 border-t border-edge bg-ink/95 backdrop-blur md:bottom-0"
       style="padding-bottom: calc(0.75rem + env(safe-area-inset-bottom))"
     >
       <div class="col gutter flex items-center gap-3 pt-3">
-        <div class="flex-1"><ShootAction :quest-id="quest.id" label="Shoot for this" /></div>
-        <button type="button" class="btn-quiet px-4" :disabled="busy === 'skip'" @click="skipQuest(quest.id)">
+        <div class="flex-1"><ShootAction :experiment-id="experiment.id" label="Shoot for this" /></div>
+        <button type="button" class="btn-quiet px-4" :disabled="busy === 'skip'" @click="skipQuest(experiment.id)">
           Skip
         </button>
       </div>

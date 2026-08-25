@@ -122,7 +122,7 @@ def solar_context(exif: Exif) -> str:
     """Where the sun was when the frame was taken, when the camera recorded
     enough to say. Golden hour and blue hour are claims about the sun's
     position, so they are the two light techniques that can be checked rather
-    than believed — the same NOAA equations the Scout times quests with."""
+    than believed — the same NOAA equations the Scout times experiments with."""
     if exif.captured_at is None or exif.latitude is None or exif.longitude is None:
         return ""
     when = exif.captured_at

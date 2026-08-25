@@ -74,7 +74,7 @@ fun Viewfinder(onUnpair: () -> Unit) {
     val scope = rememberCoroutineScope()
 
     var blown by remember { mutableStateOf<Tone.BlownMap?>(null) }
-    var quest by remember { mutableStateOf<Api.Quest?>(null) }
+    var experiment by remember { mutableStateOf<Api.Experiment?>(null) }
     var pulse by remember { mutableStateOf<Api.Pulse?>(null) }
     var shotId by remember { mutableStateOf("") }
     var sending by remember { mutableStateOf(false) }
@@ -89,7 +89,7 @@ fun Viewfinder(onUnpair: () -> Unit) {
         onDispose { pitch.stop() }
     }
     LaunchedEffect(Unit) {
-        quest = withContext(Dispatchers.IO) { Api.openQuest(context) }
+        experiment = withContext(Dispatchers.IO) { Api.openQuest(context) }
         while (true) {
             kotlinx.coroutines.delay(200)
             pitchDeg = pitch.rounded()
@@ -104,10 +104,10 @@ fun Viewfinder(onUnpair: () -> Unit) {
 
         ZebraOverlay(blown)
         ThirdsGrid()
-        TopReadout(blown, pitchDeg, quest, error, onUnpair)
+        TopReadout(blown, pitchDeg, experiment, error, onUnpair)
 
         ShutterRow(
-            quest = quest,
+            experiment = experiment,
             pulse = pulse,
             sending = sending,
             shotId = shotId,
@@ -125,7 +125,7 @@ fun Viewfinder(onUnpair: () -> Unit) {
                         }
                         val name = "shoots_${System.currentTimeMillis()}.jpg"
                         val sent = withContext(Dispatchers.IO) {
-                            Api.shoot(context, jpeg, name, quest?.id.orEmpty(), pitch.degrees)
+                            Api.shoot(context, jpeg, name, experiment?.id.orEmpty(), pitch.degrees)
                         }
                         sending = false
                         sent.fold(
@@ -133,9 +133,9 @@ fun Viewfinder(onUnpair: () -> Unit) {
                                 shotId = id
                                 scope.launch {
                                     pulse = awaitPulse(context, id)
-                                    // A closed quest means the next one is
+                                    // A closed experiment means the next one is
                                     // already waiting; ask for it.
-                                    quest = withContext(Dispatchers.IO) { Api.openQuest(context) }
+                                    experiment = withContext(Dispatchers.IO) { Api.openQuest(context) }
                                 }
                             },
                             onFailure = { error = it.message.orEmpty().take(90) },
@@ -279,7 +279,7 @@ private fun ThirdsGrid() {
 private fun TopReadout(
     map: Tone.BlownMap?,
     pitchDeg: Int?,
-    quest: Api.Quest?,
+    experiment: Api.Experiment?,
     error: String,
     onUnpair: () -> Unit,
 ) {
@@ -309,7 +309,7 @@ private fun TopReadout(
                 Text("unpair", color = Color.White.copy(alpha = 0.45f), fontSize = 12.sp)
             }
         }
-        if (quest != null) {
+        if (experiment != null) {
             Spacer(Modifier.height(10.dp))
             Column(
                 Modifier
@@ -317,11 +317,11 @@ private fun TopReadout(
                     .background(Color.Black.copy(alpha = 0.55f), RoundedCornerShape(10.dp))
                     .padding(12.dp)
             ) {
-                Text(quest.title, color = AMBER, fontSize = 14.sp, fontWeight = FontWeight.Bold)
-                if (quest.whyNow.isNotEmpty()) {
+                Text(experiment.title, color = AMBER, fontSize = 14.sp, fontWeight = FontWeight.Bold)
+                if (experiment.whyNow.isNotEmpty()) {
                     Spacer(Modifier.height(4.dp))
                     Text(
-                        quest.whyNow,
+                        experiment.whyNow,
                         color = Color.White.copy(alpha = 0.75f),
                         fontSize = 12.sp,
                     )

@@ -9,9 +9,9 @@ from datetime import datetime
 from app.domain.entities import (
     ActivityEvent,
     Analysis,
+    Experiment,
+    ExperimentStatus,
     JourneyUpdate,
-    Quest,
-    QuestStatus,
     Shot,
     TechniqueState,
     User,
@@ -24,7 +24,7 @@ USERS = "users"
 SHOTS = "shots"
 ANALYSES = "analyses"
 SKILLS = "skills"
-QUESTS = "quests"
+EXPERIMENTS = "experiments"
 EVENTS = "events"
 JOURNEY = "journey"
 PAIRING = "pairing_codes"
@@ -121,32 +121,34 @@ async def list_skills(store: Store, user_id: str) -> list[TechniqueState]:
     return [TechniqueState.model_validate(d) for d in rows]
 
 
-# --- quests ---------------------------------------------------------------
+# --- experiments ---------------------------------------------------------------
 
 
-async def put_quest(store: Store, quest: Quest) -> None:
-    await store.put(QUESTS, quest.id, _dump(quest))
+async def put_experiment(store: Store, experiment: Experiment) -> None:
+    await store.put(EXPERIMENTS, experiment.id, _dump(experiment))
 
 
-async def get_quest(store: Store, quest_id: str) -> Quest:
-    data = await store.get(QUESTS, quest_id)
+async def get_experiment(store: Store, experiment_id: str) -> Experiment:
+    data = await store.get(EXPERIMENTS, experiment_id)
     if data is None:
-        raise UnknownEntity(f"quest {quest_id}")
-    return Quest.model_validate(data)
+        raise UnknownEntity(f"experiment {experiment_id}")
+    return Experiment.model_validate(data)
 
 
-async def open_quest(store: Store, user_id: str) -> Quest | None:
+async def open_experiment(store: Store, user_id: str) -> Experiment | None:
     rows = await store.query(
-        QUESTS, where={"user_id": user_id, "status": QuestStatus.OPEN.value}, limit=1
+        EXPERIMENTS, where={"user_id": user_id, "status": ExperimentStatus.OPEN.value}, limit=1
     )
-    return Quest.model_validate(rows[0]) if rows else None
+    return Experiment.model_validate(rows[0]) if rows else None
 
 
-async def list_quests(store: Store, user_id: str, limit: int | None = None) -> list[Quest]:
+async def list_experiments(
+    store: Store, user_id: str, limit: int | None = None
+) -> list[Experiment]:
     rows = await store.query(
-        QUESTS, where={"user_id": user_id}, order_by="issued_at", descending=True, limit=limit
+        EXPERIMENTS, where={"user_id": user_id}, order_by="issued_at", descending=True, limit=limit
     )
-    return [Quest.model_validate(d) for d in rows]
+    return [Experiment.model_validate(d) for d in rows]
 
 
 # --- events ---------------------------------------------------------------
@@ -159,7 +161,7 @@ async def record(
     stage: str,
     detail: dict | None = None,
     shot_id: str = "",
-    quest_id: str = "",
+    experiment_id: str = "",
 ) -> ActivityEvent:
     event = ActivityEvent(
         id=new_id("evt"),
@@ -168,7 +170,7 @@ async def record(
         stage=stage,
         detail=detail or {},
         shot_id=shot_id,
-        quest_id=quest_id,
+        experiment_id=experiment_id,
     )
     await store.put(EVENTS, event.id, _dump(event))
     return event

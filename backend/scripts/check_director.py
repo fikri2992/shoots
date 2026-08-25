@@ -1,6 +1,6 @@
-"""Render the reference clip for the open quest with the real models.
+"""Render the reference clip for the open experiment with the real models.
 
-    uv run python scripts/check_director.py [quest_id]
+    uv run python scripts/check_director.py [experiment_id]
 
 Uses the dev FileStore and LocalBlobStore, so the dashboard plays the clip
 afterwards. Prints the storyboard, timing and the blob path.
@@ -21,7 +21,7 @@ from app.services import director
 from app.services.context import Context
 
 
-async def main(quest_id: str | None) -> None:
+async def main(experiment_id: str | None) -> None:
     store = FileStore(settings.blob_root + "/store.json")
     ctx = Context(
         store=store,
@@ -33,25 +33,30 @@ async def main(quest_id: str | None) -> None:
     users = await repo.list_users(store)
     if not users:
         raise SystemExit("no users in the store; sign in to the dev server first")
-    quest = None
-    if quest_id:
-        quest = await repo.get_quest(store, quest_id)
+    experiment = None
+    if experiment_id:
+        experiment = await repo.get_experiment(store, experiment_id)
     else:
         for user in users:
-            quest = await repo.open_quest(store, user.id)
-            if quest:
+            experiment = await repo.open_experiment(store, user.id)
+            if experiment:
                 break
-    if quest is None:
-        raise SystemExit("no open quest; issue one first (scripts/check_scout.py)")
-    print(f"quest {quest.id}: {quest.title} [{quest.technique_id}] clip={quest.reference_clip!r}")
-    if quest.reference_clip:
-        quest.reference_clip = ""
-        await repo.put_quest(store, quest)
+    if experiment is None:
+        raise SystemExit("no open experiment; issue one first (scripts/check_scout.py)")
+    print(
+        f"experiment {experiment.id}: {experiment.title} "
+        f"[{experiment.technique_id}] clip={experiment.reference_clip!r}"
+    )
+    if experiment.reference_clip:
+        experiment.reference_clip = ""
+        await repo.put_experiment(store, experiment)
 
     started = time.monotonic()
-    path = await director.direct(ctx, {"user_id": quest.user_id, "quest_id": quest.id})
+    path = await director.direct(
+        ctx, {"user_id": experiment.user_id, "experiment_id": experiment.id}
+    )
     print(f"done in {time.monotonic() - started:.0f}s -> {path}")
-    for event in await repo.list_events(store, quest.user_id, limit=5):
+    for event in await repo.list_events(store, experiment.user_id, limit=5):
         if event.agent == "director":
             print(f"  {event.stage}: {event.detail}")
 

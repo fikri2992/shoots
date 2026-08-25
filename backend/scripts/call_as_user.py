@@ -1,7 +1,7 @@
 """Call the running dev server as the signed-in user, from the shell.
 
     uv run python scripts/call_as_user.py GET /api/me
-    uv run python scripts/call_as_user.py POST /api/quests/<id>/skip
+    uv run python scripts/call_as_user.py POST /api/experiments/<id>/skip
 
 Mints the session cookie the way the app does (SESSION_SECRET from .env)
 for the first user in the dev store and prints only the response. Unlike the

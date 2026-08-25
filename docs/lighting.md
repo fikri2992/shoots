@@ -51,7 +51,7 @@ class LightPlan(BaseModel):
     quality: Quality
     fill_stops: float | None = None          # key minus fill, in stops; None = no fill asked
     modifiers: list[str] = []                # "white card opposite", "lamps off", "1 m from the glass"
-    say: str                                 # one sentence for the quest hero
+    say: str                                 # one sentence for the experiment hero
     # computed
     at: datetime | None = None               # deliver_at
     sun_azimuth_deg: float | None = None
@@ -96,7 +96,7 @@ class LightCheck(BaseModel):
     hard: bool                               # from facts (hard) or from the read (soft)
 ```
 
-`Quest.light: LightPlan | None`, `Analysis.light_facts`, `Analysis.light_read`,
+`Experiment.light: LightPlan | None`, `Analysis.light_facts`, `Analysis.light_read`,
 `Verdict.light_checks: list[LightCheck]`. `Exif.heading_deg` is new (GPSImgDirection;
 the `M`/`T` ref is ignored, magnetic declination is under 1° where this is demoed).
 
@@ -136,7 +136,7 @@ which the planned key lands, `heading = sun_az - (key_azimuth - 180)`.
 Direct sun enters a window facing `W` when the sun is in front of it and not too high
 for the reveal: `|((sun_az - W + 540) mod 360) - 180| < 75` and `3° < elevation < 55°`.
 Step the day in five-minute intervals; the complement between dawn and dusk is soft.
-The quest's `soft_until` is the end of the soft interval containing `deliver_at`.
+The experiment's `soft_until` is the end of the soft interval containing `deliver_at`.
 The window's azimuth is a standing fact in `User.constraints` ("big window faces
 north-west"), written by the Listener from a Coach session — asked once, never a form.
 
@@ -194,7 +194,7 @@ direct sun"; `say` names no angle in degrees). A violation re-runs the designer 
 with the violation quoted, like the panel's quorum retry; a second violation falls
 back to the recipe's default plan with a logged event, never a silent one.
 
-The brief writer gets the completed plan and writes the quest in sentences.
+The brief writer gets the completed plan and writes the experiment in sentences.
 
 ### The Technician — the read
 
@@ -224,7 +224,7 @@ the read's `key_azimuth_deg` is set by code and the model is told so.
 | clipping | technique-specific (`high_key` allows highlights; `silhouette` allows blacks) | `facts.clipped_*` | yes |
 
 A hard check beats a soft one on the same name. Light checks gate the verdict only
-when the technique is in `Family.LIGHT` or the quest's criteria text mentions light;
+when the technique is in `Family.LIGHT` or the experiment's criteria text mentions light;
 otherwise they are advice in the feedback. The feedback model receives the list
 verbatim and turns it into the one next thing ("face went black: a white wall on
 your left next time"), never a new judgement.
@@ -266,7 +266,7 @@ designer is not run for them.
 
 ## What the phone receives
 
-- `quest.light`: the completed plan, plus the day's `SunTimes` for the strip. The
+- `experiment.light`: the completed plan, plus the day's `SunTimes` for the strip. The
   hero shows the strip outdoors (blue–golden–day–golden–blue from the real times,
   the slot marked, "now" marked) or the **diagram** indoors — an SVG drawn from
   `key_azimuth_deg`, `key_elevation_deg` and `modifiers` (subject at the centre,

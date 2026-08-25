@@ -58,7 +58,7 @@ join link makes it a student.
 Autonomy stays in exactly two places: Class Read runs on its own and names who needs
 attention; Showcase cuts itself when an assignment closes. Everything outward —
 feedback to a student, a new assignment, the reel, the storyboard — needs a teacher
-tap, one tap for the batch. (Scout-drafted next assignment from Class Read: stretch.) The Scout no longer issues quests to anyone by itself (`issue_first` off
+tap, one tap for the batch. (Scout-drafted next assignment from Class Read: stretch.) The Scout no longer issues experiments to anyone by itself (`issue_first` off
 for members of a class).
 
 ## Roles and access
@@ -66,12 +66,12 @@ for members of a class).
 - `User.role`: `teacher` | `student`. Set on first class created / first join.
 - `Cohort` {id, teacher_id, name, join_code, created_at}.
 - `Membership` {user_id, cohort_id, joined_at}. One class per student, many per teacher.
-- `Shot.cohort_id`, `Quest.cohort_id`, `Quest.assignment_id`.
+- `Shot.cohort_id`, `Experiment.cohort_id`, `Experiment.assignment_id`.
 - `/auth/me` returns role and cohort ids; the router lands teachers on Class, students on Now.
 
 Authorisation is object-level, not route-level: a teacher can read anything that
 belongs to a student of their cohorts; a student reads only their own. Every read of
-shots, analyses, skill maps, quests, events and the Coach socket goes through
+shots, analyses, skill maps, experiments, events and the Coach socket goes through
 `owner_or_teacher_of(user_id)`; class, assignment and approve endpoints need
 `require_role("teacher")`. Today every endpoint compares `user_id` with the session;
 this is the RBAC work, about ten endpoints.
@@ -163,14 +163,14 @@ Teacher, three tabs:
   here (a separate Queue tab is cut).
 - **Student** drill-in as above; the Coach opens on any student frame for the teacher.
 
-Student: today's app. Now shows the current assignment in place of a Scout quest and
+Student: today's app. Now shows the current assignment in place of a Scout experiment and
 the verdict once approved (before that: "handed in, being reviewed"); Frames, Journey
 and the Coach unchanged. One new onboarding step: join a class.
 
 ## Pipeline changes
 
 - `Assignment` (cohort-level: title, brief, technique, criteria, clip, author
-  `teacher` | `scout`, state `draft` | `issued` | `closed`) fans into one `Quest` per
+  `teacher` | `scout`, state `draft` | `issued` | `closed`) fans into one `Experiment` per
   student on issue. Judge and Cartographer untouched.
 - `Verdict.state`: `draft` → `approved`; `approved_by`, `approved_at`; `feedback` is
   editable. The Judge writes drafts. `verdict.approved` is a new event; the Scribe and
@@ -207,7 +207,7 @@ the clip lands a minute later on a student phone.
 | Day | Work |
 |---|---|
 | 1 | entities, cohort + membership repo, `owner_or_teacher_of`, `require_role`, `/auth/me`, join flow, tests |
-| 2 | Assignment → Quest fan-out, Verdict states, `verdict.approved`, Scribe/push rewired, Drive-optional ingest |
+| 2 | Assignment → Experiment fan-out, Verdict states, `verdict.approved`, Scribe/push rewired, Drive-optional ingest |
 | 3 | Class Read paragraph, Scout as drafter behind the form, Showcase (Lyria back, reel cut), teacher push |
 | 4 | teacher UI: Class tab, roster, drill-in parametrisation |
 | 5 | teacher UI: Assignments tab, form, verdict review, approve all |

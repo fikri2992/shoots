@@ -112,5 +112,5 @@ The common advice is a process, not a score:
 
 Shoots should therefore avoid claiming that it detects whether a Shot is
 boring. A more defensible job is to find the photographer's repeated choices,
-turn one into a concrete Quest, and later verify whether the new Shot departed
+turn one into a concrete Experiment, and later verify whether the new Shot departed
 from that habit. The human still decides whether the result is meaningful.

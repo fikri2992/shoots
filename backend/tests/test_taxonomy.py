@@ -51,5 +51,5 @@ def test_get_unknown_raises():
 
 
 def test_size_is_in_the_useful_range():
-    # Small enough to be a legible graph, large enough that quests do not repeat in a month.
+    # Small enough to be a legible graph, large enough that experiments do not repeat in a month.
     assert 55 <= len(TECHNIQUES) <= 90

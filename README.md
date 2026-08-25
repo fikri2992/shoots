@@ -12,7 +12,7 @@ Entry for the All Things Agentic Hackathon, Taskmaster track.
 
 **The web** is three screens: **Now** for the active Experiment, **Frames** for every Shot it has read, and **Journey** for the evidence-backed longitudinal record. Reviewed Shots are written back into Drive.
 
-**The camera** (`android/`, Kotlin + CameraX) is the quiet Companion. The current build measures clipping and pitch locally, shows a guide and the active legacy Quest, captures a Shot, uploads it into the same pipeline, and returns a praise-first pulse. The [feature list](docs/feature-list.md) tracks the remaining Experiment and Companion migration honestly.
+**The camera** (`android/`, Kotlin + CameraX) is the quiet Companion. The current build measures clipping and pitch locally, shows a guide and the active legacy Experiment, captures a Shot, uploads it into the same pipeline, and returns a praise-first pulse. The [feature list](docs/feature-list.md) tracks the remaining Experiment and Companion migration honestly.
 
 - Docs: [product](docs/product.md) · [decisions](docs/product-decisions.md) · [feature list](docs/feature-list.md) · [domain model](docs/domain-model.md) · [agents](docs/agents.md) · [build plan](docs/build-plan.md) · [codebase rules](AGENTS.md)
 - Stack: Vue 3 (Options API) + Vite + Tailwind PWA · Kotlin + CameraX + Compose (native camera, `android/`) · FastAPI + Google ADK · Firestore + GCS + Pub/Sub + Cloud Scheduler + Secret Manager + Cloud Run

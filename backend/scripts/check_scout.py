@@ -1,10 +1,10 @@
-"""Issue a quest with the real model against the local dev store.
+"""Issue a experiment with the real model against the local dev store.
 
     uv run python scripts/check_scout.py [user_id]
 
 Reads backend/.blobs/store.json (the FileStore the dev server writes), so it
 sees the real skill graph built from your analysed shots, runs Scout
-(grounded research + structured write) and prints the quest. Writes it back
+(grounded research + structured write) and prints the experiment. Writes it back
 to the same store, so the dashboard shows it.
 """
 
@@ -42,20 +42,20 @@ async def main(user_id: str | None) -> None:
             f"  {s.technique_id:22} {s.status.value:10} attempts={s.attempts} best={s.best_score}"
         )
 
-    quest = await scout.issue(ctx, user.id, force=True)
-    if quest is None:
-        print("nothing issued (open quest exists or nothing to issue)")
+    experiment = await scout.issue(ctx, user.id, force=True)
+    if experiment is None:
+        print("nothing issued (open experiment exists or nothing to issue)")
         return
-    print(f"\n=== {quest.title}  [{quest.technique_id}]")
-    print(f"why now: {quest.why_now}")
-    print(f"brief:\n{quest.brief}")
+    print(f"\n=== {experiment.title}  [{experiment.technique_id}]")
+    print(f"why now: {experiment.why_now}")
+    print(f"brief:\n{experiment.brief}")
     print("criteria:")
-    print(f"  exif: {quest.criteria.exif.model_dump(exclude_none=True)}")
-    print(f"  vision: {quest.criteria.vision}")
-    for t in quest.criteria.text:
+    print(f"  exif: {experiment.criteria.exif.model_dump(exclude_none=True)}")
+    print(f"  vision: {experiment.criteria.vision}")
+    for t in experiment.criteria.text:
         print(f"  - {t}")
     print("references:")
-    for r in quest.references:
+    for r in experiment.references:
         print(f"  - {r.title}  {r.url}")
 
 

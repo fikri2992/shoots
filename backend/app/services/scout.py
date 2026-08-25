@@ -1,7 +1,7 @@
-"""Scout stage: issue the next quest.
+"""Scout stage: issue the next experiment.
 
-Triggered by the daily tick, by ``quest.closed``, and by the dashboard's
-"issue now" for demos. One open quest per user (decision 6): if one is open
+Triggered by the daily tick, by ``experiment.closed``, and by the dashboard's
+"issue now" for demos. One open experiment per user (decision 6): if one is open
 this is a no-op, so every trigger is safe to repeat.
 """
 
@@ -13,7 +13,14 @@ from app.config import settings
 from app.domain import scout as rules
 from app.domain import taxonomy, tendency, timing
 from app.domain import technique_map as map_rules
-from app.domain.entities import Quest, QuestStatus, QuestTiming, TendencyGrade, new_id, now
+from app.domain.entities import (
+    Experiment,
+    ExperimentStatus,
+    ExperimentTiming,
+    TendencyGrade,
+    new_id,
+    now,
+)
 from app.infra import repository as repo
 from app.infra.bus import TOPICS
 from app.services import notify
@@ -22,8 +29,8 @@ from app.services.context import Context
 logger = logging.getLogger(__name__)
 
 AGENT = "scout"
-#: How many recent quests' techniques are skipped when choosing the next one.
-RECENT_QUESTS = 6
+#: How many recent experiments' techniques are skipped when choosing the next one.
+RECENT_EXPERIMENTS = 6
 #: How far back the Tendency Profile reads. A tendency is about a body of
 #: work, so this is deliberately the whole of it rather than a recent window.
 TENDENCY_CORPUS = 500
@@ -31,16 +38,16 @@ TENDENCY_CORPUS = 500
 
 async def issue(
     ctx: Context, user_id: str, force: bool = False, technique_id: str = ""
-) -> Quest | None:
-    """Issue one quest for the user if none is open. Returns it, or None.
+) -> Experiment | None:
+    """Issue one experiment for the user if none is open. Returns it, or None.
     ``technique_id`` names the technique (the Coach, by voice); otherwise the
-    ranking chooses. With ``force`` an open quest is skipped first."""
-    open_quest = await repo.open_quest(ctx.store, user_id)
-    if open_quest and not force:
-        logger.info("scout: %s already has open quest %s", user_id, open_quest.id)
+    ranking chooses. With ``force`` an open experiment is skipped first."""
+    open_experiment = await repo.open_experiment(ctx.store, user_id)
+    if open_experiment and not force:
+        logger.info("scout: %s already has open experiment %s", user_id, open_experiment.id)
         return None
-    if open_quest and force:
-        await skip(ctx, user_id, open_quest.id)
+    if open_experiment and force:
+        await skip(ctx, user_id, open_experiment.id)
 
     skills = {s.technique_id: s for s in await repo.list_skills(ctx.store, user_id)}
     # Not a demotion: what recurred keeps having recurred. This only asks which
@@ -48,7 +55,8 @@ async def issue(
     stale = map_rules.stale_ids(skills, now(), settings.revisit_after_days)
 
     recent = [
-        q.technique_id for q in await repo.list_quests(ctx.store, user_id, limit=RECENT_QUESTS)
+        q.technique_id
+        for q in await repo.list_experiments(ctx.store, user_id, limit=RECENT_EXPERIMENTS)
     ]
     user = await repo.get_user(ctx.store, user_id)
     profile = await profile_for(ctx, user_id)
@@ -78,8 +86,8 @@ async def issue(
     research = await agent.research(technique)
     out = await agent.write(technique, why, critiques, research, skills, user.constraints)
 
-    quest = Quest(
-        id=new_id("quest"),
+    experiment = Experiment(
+        id=new_id("experiment"),
         user_id=user_id,
         technique_id=technique.id,
         title=out.title.strip()[:60] or technique.name,
@@ -87,23 +95,23 @@ async def issue(
         why_now=(out.why_now.strip() or why)[:500],
         criteria=agent.criteria_for(technique, out.criteria_text),
         references=agent.pick_references(out, research),
-        status=QuestStatus.OPEN,
-        due_at=now() + timedelta(days=settings.quest_ttl_days),
+        status=ExperimentStatus.OPEN,
+        due_at=now() + timedelta(days=settings.experiment_ttl_days),
     )
     # Freeze what this advice was aimed at, so it can be graded later against
     # arithmetic rather than against anybody's impression of how it went.
     if challenge:
-        quest.tendency = TendencyGrade(
+        experiment.tendency = TendencyGrade(
             source=challenge.source,
             citation=challenge.citation,
             at_issue=_snapshot(profile, challenge.source),
         )
     when = timing.deliver_at(technique.light, now(), user.last_latitude, user.last_longitude)
-    quest.deliver_at = when.at
-    quest.timing = QuestTiming(
+    experiment.deliver_at = when.at
+    experiment.timing = ExperimentTiming(
         light=when.light, reason=when.reason, anchor=when.anchor, anchor_at=when.anchor_at
     )
-    await repo.put_quest(ctx.store, quest)
+    await repo.put_experiment(ctx.store, experiment)
     await repo.record(
         ctx.store,
         user_id,
@@ -111,20 +119,22 @@ async def issue(
         "issued",
         {
             "technique_id": technique.id,
-            "title": quest.title,
+            "title": experiment.title,
             "why": why,
             "tendency": challenge.citation if challenge else "",
             "tendency_source": challenge.source if challenge else "",
-            "references": len(quest.references),
+            "references": len(experiment.references),
             "hard_criteria": agent.hard_criteria_text(technique),
-            "deliver_at": quest.deliver_at.isoformat() if quest.deliver_at else "",
+            "deliver_at": experiment.deliver_at.isoformat() if experiment.deliver_at else "",
             "timing": when.reason,
         },
-        quest_id=quest.id,
+        experiment_id=experiment.id,
     )
-    await deliver_if_due(ctx, quest)
-    await ctx.bus.publish(TOPICS["quest.issued"], {"user_id": user_id, "quest_id": quest.id})
-    return quest
+    await deliver_if_due(ctx, experiment)
+    await ctx.bus.publish(
+        TOPICS["experiment.issued"], {"user_id": user_id, "experiment_id": experiment.id}
+    )
+    return experiment
 
 
 async def profile_for(ctx: Context, user_id: str) -> tendency.Profile:
@@ -148,12 +158,12 @@ def _snapshot(profile: tendency.Profile, source: str) -> dict[str, int]:
     return dict(found.counts) if found else {}
 
 
-async def grade_advice(ctx: Context, user_id: str) -> list[Quest]:
+async def grade_advice(ctx: Context, user_id: str) -> list[Experiment]:
     """Did the Scout's own advice change anything?
 
-    Decision 37. Every quest that named a tendency is compared against where
+    Decision 37. Every experiment that named a tendency is compared against where
     that tendency stands now — counts against counts, no model adjudicating —
-    and the answer is written on the quest. An agent that never checks its own
+    and the answer is written on the experiment. An agent that never checks its own
     recommendations is a critique queue, not a coach.
 
     What this does not claim: that moved counts mean better photographs. That
@@ -161,9 +171,9 @@ async def grade_advice(ctx: Context, user_id: str) -> list[Quest]:
     """
     profile = await profile_for(ctx, user_id)
     graded = []
-    for quest in await repo.list_quests(ctx.store, user_id, limit=RECENT_QUESTS):
-        mark = quest.tendency
-        if mark is None or mark.moved is not None or quest.status is QuestStatus.OPEN:
+    for experiment in await repo.list_experiments(ctx.store, user_id, limit=RECENT_EXPERIMENTS):
+        mark = experiment.tendency
+        if mark is None or mark.moved is not None or experiment.status is ExperimentStatus.OPEN:
             continue
         if mark.source == "dwell":
             result = _grade_dwell(mark.at_issue, profile.dwell)
@@ -175,22 +185,22 @@ async def grade_advice(ctx: Context, user_id: str) -> list[Quest]:
         mark.moved = result.moved
         mark.outcome = result.outcome
         mark.graded_at = now()
-        await repo.put_quest(ctx.store, quest)
+        await repo.put_experiment(ctx.store, experiment)
         await repo.record(
             ctx.store,
             user_id,
             AGENT,
             "graded",
             {
-                "technique_id": quest.technique_id,
+                "technique_id": experiment.technique_id,
                 "tendency": mark.source,
                 "moved": mark.moved,
                 "outcome": mark.outcome,
                 "cited": mark.citation,
             },
-            quest_id=quest.id,
+            experiment_id=experiment.id,
         )
-        graded.append(quest)
+        graded.append(experiment)
     return graded
 
 
@@ -217,91 +227,95 @@ def _grade_dwell(at_issue: dict[str, int], now_dwell: tendency.Dwell) -> tendenc
     )
 
 
-async def issue_first(ctx: Context, user_id: str) -> Quest | None:
-    """The first quest, unprompted.
+async def issue_first(ctx: Context, user_id: str) -> Experiment | None:
+    """The first experiment, unprompted.
 
     A user who has just handed over their first frames has nothing to do next,
     and waiting for tomorrow's tick to say so is the friction this whole thing
-    exists to remove. Fires once, on an empty quest history; after that the
-    daily tick and ``quest.closed`` are the only sources.
+    exists to remove. Fires once, on an empty experiment history; after that the
+    daily tick and ``experiment.closed`` are the only sources.
     """
-    if await repo.list_quests(ctx.store, user_id, limit=1):
+    if await repo.list_experiments(ctx.store, user_id, limit=1):
         return None
-    quest = await issue(ctx, user_id)
-    if quest is not None:
-        logger.info("scout: first quest %s for %s", quest.id, user_id)
-    return quest
+    experiment = await issue(ctx, user_id)
+    if experiment is not None:
+        logger.info("scout: first experiment %s for %s", experiment.id, user_id)
+    return experiment
 
 
-async def deliver_if_due(ctx: Context, quest: Quest) -> bool:
-    """Push the quest if its moment has come. The quest exists in the store
+async def deliver_if_due(ctx: Context, experiment: Experiment) -> bool:
+    """Push the experiment if its moment has come. The experiment exists in the store
     either way; this is only about when the phone buzzes."""
-    if quest.delivered_at or quest.status is not QuestStatus.OPEN:
+    if experiment.delivered_at or experiment.status is not ExperimentStatus.OPEN:
         return False
-    if quest.deliver_at and quest.deliver_at > now() + timing.SOON:
+    if experiment.deliver_at and experiment.deliver_at > now() + timing.SOON:
         return False
-    await notify.quest_issued(ctx, quest)
-    quest.delivered_at = now()
-    await repo.put_quest(ctx.store, quest)
+    await notify.quest_issued(ctx, experiment)
+    experiment.delivered_at = now()
+    await repo.put_experiment(ctx.store, experiment)
     await repo.record(
         ctx.store,
-        quest.user_id,
+        experiment.user_id,
         AGENT,
         "delivered",
-        {"technique_id": quest.technique_id, "timing": quest.timing.reason if quest.timing else ""},
-        quest_id=quest.id,
+        {
+            "technique_id": experiment.technique_id,
+            "timing": experiment.timing.reason if experiment.timing else "",
+        },
+        experiment_id=experiment.id,
     )
     return True
 
 
 async def deliver_due(ctx: Context) -> int:
-    """The frequent tick: every open, undelivered quest whose time has come."""
+    """The frequent tick: every open, undelivered experiment whose time has come."""
     delivered = 0
     for user in await repo.list_users(ctx.store):
-        quest = await repo.open_quest(ctx.store, user.id)
-        if quest and await deliver_if_due(ctx, quest):
+        experiment = await repo.open_experiment(ctx.store, user.id)
+        if experiment and await deliver_if_due(ctx, experiment):
             delivered += 1
     return delivered
 
 
-async def skip(ctx: Context, user_id: str, quest_id: str) -> Quest:
+async def skip(ctx: Context, user_id: str, experiment_id: str) -> Experiment:
     """The human gate. Logged, never deleted; the next tick issues another."""
-    quest = await repo.get_quest(ctx.store, quest_id)
-    if quest.user_id != user_id:
-        raise repo.UnknownEntity(f"quest {quest_id}")
-    if quest.status is QuestStatus.OPEN:
-        quest.status = QuestStatus.SKIPPED
-        quest.closed_at = now()
-        await repo.put_quest(ctx.store, quest)
+    experiment = await repo.get_experiment(ctx.store, experiment_id)
+    if experiment.user_id != user_id:
+        raise repo.UnknownEntity(f"experiment {experiment_id}")
+    if experiment.status is ExperimentStatus.OPEN:
+        experiment.status = ExperimentStatus.SKIPPED
+        experiment.closed_at = now()
+        await repo.put_experiment(ctx.store, experiment)
         await repo.record(
             ctx.store,
             user_id,
             "user",
             "skipped",
-            {"technique_id": quest.technique_id},
-            quest_id=quest.id,
+            {"technique_id": experiment.technique_id},
+            experiment_id=experiment.id,
         )
-    return quest
+    return experiment
 
 
-async def expire(ctx: Context, user_id: str) -> list[Quest]:
-    """Open quests past due become expired. Called by the daily tick."""
-    expired: list[Quest] = []
+async def expire(ctx: Context, user_id: str) -> list[Experiment]:
+    """Open experiments past due become expired. Called by the daily tick."""
+    expired: list[Experiment] = []
     current = now()
-    for quest in await repo.list_quests(ctx.store, user_id):
-        if quest.status is QuestStatus.OPEN and quest.due_at and quest.due_at < current:
-            quest.status = QuestStatus.EXPIRED
-            quest.closed_at = current
-            await repo.put_quest(ctx.store, quest)
+    for experiment in await repo.list_experiments(ctx.store, user_id):
+        expired = experiment.due_at and experiment.due_at < current
+        if experiment.status is ExperimentStatus.OPEN and expired:
+            experiment.status = ExperimentStatus.EXPIRED
+            experiment.closed_at = current
+            await repo.put_experiment(ctx.store, experiment)
             await repo.record(
                 ctx.store,
                 user_id,
                 "scheduler",
                 "expired",
-                {"technique_id": quest.technique_id},
-                quest_id=quest.id,
+                {"technique_id": experiment.technique_id},
+                experiment_id=experiment.id,
             )
-            expired.append(quest)
+            expired.append(experiment)
     return expired
 
 

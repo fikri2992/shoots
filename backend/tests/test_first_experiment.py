@@ -1,13 +1,13 @@
-"""The first quest arrives without being asked.
+"""The first experiment arrives without being asked.
 
 The model calls are replaced with the values a run would return; everything
-else — store, bus, timing, the "one open quest" rule — is the real thing.
+else — store, bus, timing, the "one open experiment" rule — is the real thing.
 """
 
 import tempfile
 
-from app.agents.scout import QuestOut, Research
-from app.domain.entities import Criteria, ExifRule, Quest, QuestStatus, User
+from app.agents.scout import ExperimentOut, Research
+from app.domain.entities import Criteria, ExifRule, Experiment, ExperimentStatus, User
 from app.infra import repository as repo
 from app.infra.bus import InProcessBus
 from app.infra.drive import LocalDriveClient
@@ -35,7 +35,7 @@ def stub_model(monkeypatch, calls: list[str]) -> None:
 
     async def write(technique, why, critiques, notes, skills, constraints):
         calls.append("write")
-        return QuestOut(
+        return ExperimentOut(
             title=f"Try {technique.name}",
             brief="1. Go outside.\n2. Take the photo.",
             why_now=why,
@@ -53,11 +53,11 @@ async def test_first_frames_earn_a_quest_with_no_one_asking(monkeypatch):
         ctx = context(folder)
         await repo.put_user(ctx.store, User(id="u1", email="a@b.c", name="A"))
 
-        quest = await scout.issue_first(ctx, "u1")
+        experiment = await scout.issue_first(ctx, "u1")
 
-        assert quest is not None and quest.status is QuestStatus.OPEN
+        assert experiment is not None and experiment.status is ExperimentStatus.OPEN
         assert calls == ["research", "write"]
-        assert await repo.open_quest(ctx.store, "u1") is not None
+        assert await repo.open_experiment(ctx.store, "u1") is not None
 
 
 async def test_it_only_ever_fires_once(monkeypatch):
@@ -66,10 +66,10 @@ async def test_it_only_ever_fires_once(monkeypatch):
     with tempfile.TemporaryDirectory() as folder:
         ctx = context(folder)
         await repo.put_user(ctx.store, User(id="u1", email="a@b.c", name="A"))
-        # A quest that is already finished still counts as a history.
-        await repo.put_quest(
+        # A experiment that is already finished still counts as a history.
+        await repo.put_experiment(
             ctx.store,
-            Quest(
+            Experiment(
                 id="quest_old",
                 user_id="u1",
                 technique_id="panning",
@@ -77,7 +77,7 @@ async def test_it_only_ever_fires_once(monkeypatch):
                 brief="1. Stand by the road.",
                 why_now="",
                 criteria=Criteria(exif=ExifRule(), vision=["panning"], text=[]),
-                status=QuestStatus.PASSED,
+                status=ExperimentStatus.COMPLETED,
             ),
         )
 

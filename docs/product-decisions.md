@@ -93,7 +93,7 @@ Rules:
 | Technique Map | The longitudinal record of observed and recurring Techniques | skill graph, curriculum |
 | Tendency | A neutral repeated pattern across Shots | habit, flaw, default |
 | Keeper | A Shot the photographer positively marks as valued | like, model pick, rejected/unrejected binary |
-| Experiment | One bounded thing to try, with a reason, Criteria, and a later result | Quest, challenge, assignment |
+| Experiment | One bounded thing to try, with a reason, Criteria, and a later result | Experiment, challenge, assignment |
 | Experiment Record | The baseline, Criteria, results, Verdicts, and Change left by one Experiment | advice transcript |
 | Inspiration | Optional sourced reference material supporting an Experiment | the Experiment itself, generated filler |
 | Criteria | The checks declared before an Experiment result | rubric score |

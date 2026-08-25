@@ -1,4 +1,4 @@
-"""Skill graph and quests for the dashboard, plus the human gate (skip)."""
+"""Skill graph and experiments for the dashboard, plus the human gate (skip)."""
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
@@ -6,12 +6,12 @@ from pydantic import BaseModel
 from app.api.auth import current_user
 from app.api.deps import get_context
 from app.domain import taxonomy
-from app.domain.entities import Quest, TechniqueState, TechniqueStatus
+from app.domain.entities import Experiment, TechniqueState, TechniqueStatus
 from app.infra import repository as repo
 from app.services import scout
 from app.services.context import Context
 
-router = APIRouter(prefix="/api", tags=["quests"])
+router = APIRouter(prefix="/api", tags=["experiments"])
 
 
 class SkillNode(BaseModel):
@@ -73,23 +73,23 @@ async def rebuild_skills(
     return {"shots_applied": applied, "techniques": len(skills)}
 
 
-@router.get("/quests", response_model=list[Quest])
-async def list_quests(
+@router.get("/experiments", response_model=list[Experiment])
+async def list_experiments(
     limit: int = 20,
     session_user: dict = Depends(current_user),
     ctx: Context = Depends(get_context),
 ):
-    return await repo.list_quests(ctx.store, session_user["id"], limit=limit)
+    return await repo.list_experiments(ctx.store, session_user["id"], limit=limit)
 
 
-@router.get("/quests/open", response_model=Quest | None)
-async def open_quest(
+@router.get("/experiments/open", response_model=Experiment | None)
+async def open_experiment(
     session_user: dict = Depends(current_user), ctx: Context = Depends(get_context)
 ):
-    return await repo.open_quest(ctx.store, session_user["id"])
+    return await repo.open_experiment(ctx.store, session_user["id"])
 
 
-@router.post("/quests/issue", response_model=Quest | None)
+@router.post("/experiments/issue", response_model=Experiment | None)
 async def issue_quest(
     force: bool = False,
     session_user: dict = Depends(current_user),
@@ -99,11 +99,13 @@ async def issue_quest(
     return await scout.issue(ctx, session_user["id"], force=force)
 
 
-@router.post("/quests/{quest_id}/skip", response_model=Quest)
-async def skip_quest(
-    quest_id: str, session_user: dict = Depends(current_user), ctx: Context = Depends(get_context)
+@router.post("/experiments/{experiment_id}/skip", response_model=Experiment)
+async def skip_experiment(
+    experiment_id: str,
+    session_user: dict = Depends(current_user),
+    ctx: Context = Depends(get_context),
 ):
     try:
-        return await scout.skip(ctx, session_user["id"], quest_id)
+        return await scout.skip(ctx, session_user["id"], experiment_id)
     except repo.UnknownEntity as exc:
-        raise HTTPException(404, "quest not found") from exc
+        raise HTTPException(404, "experiment not found") from exc

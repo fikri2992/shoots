@@ -15,13 +15,13 @@ class Settings(BaseSettings):
     # the Vertex publisher model list for the deployment project.
     #
     #   gemini-3.7-flash     Analyst, Scout, Judge. Every image/contact sheet.
-    #   veo-3.1-fast         One 5s reference clip per quest (bonus: Veo).
+    #   veo-3.1-fast         One 5s reference clip per experiment (bonus: Veo).
     #   gemini-live-2.5      Voice review of a shot from the phone (Multimodal UX).
     model_flash: str = "gemini-3.7-flash"
     model_video: str = "veo-3.1-fast-generate-001"
     model_live: str = "gemini-live-2.5-flash-native-audio"
 
-    # --- Director: one reference clip per quest ----------------------------
+    # --- Director: one reference clip per experiment ----------------------------
     #: Veo 3.1 accepts 4, 6 or 8 seconds. Long enough to show the technique.
     clip_seconds: int = 6
     clip_aspect: str = "9:16"
@@ -59,10 +59,10 @@ class Settings(BaseSettings):
     panel_timeout_seconds: float = 180.0
     #: Below this the Judge will not count a vision tag as evidence.
     judge_min_confidence: float = 0.6
-    #: Quests issued per user per daily tick.
+    #: Experiments issued per user per daily tick.
     quests_per_day: int = 1
-    #: A quest nobody shoots for expires after this many days.
-    quest_ttl_days: int = 3
+    #: A experiment nobody shoots for expires after this many days.
+    experiment_ttl_days: int = 3
     #: A recurring Technique unseen for this long is worth offering again. It
     #: is not demoted for it: the record says what the Evidence observed, and
     #: age is a reason to suggest, never to un-observe (decision 46).
@@ -95,8 +95,8 @@ class Settings(BaseSettings):
     topic_media_ingested: str = "shoots.media.ingested"
     topic_media_analyzed: str = "shoots.media.analyzed"
     topic_media_judged: str = "shoots.media.judged"
-    topic_quest_closed: str = "shoots.quest.closed"
-    topic_quest_issued: str = "shoots.quest.issued"
+    topic_experiment_closed: str = "shoots.experiment.closed"
+    topic_experiment_issued: str = "shoots.experiment.issued"
     #: Empty = run stages in-process (local dev). Set to the public base URL of
     #: this service on Cloud Run so push subscriptions can reach /pubsub/*.
     pubsub_push_base_url: str = ""

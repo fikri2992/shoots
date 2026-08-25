@@ -12,8 +12,8 @@ const POLL_MS = 5000
 export const useShootsStore = defineStore('shoots', {
   state: () => ({
     me: null, // User record (drive_folder_id tells us if Connect happened)
-    quest: null, // open quest or null
-    quests: [],
+    experiment: null, // open experiment or null
+    experiments: [],
     skills: [],
     shots: [], // [{ shot, analysis }]
     events: [],
@@ -39,7 +39,7 @@ export const useShootsStore = defineStore('shoots', {
       return groups
     },
     shotById: (state) => (id) => state.shots.find((v) => v.shot.id === id) || null,
-    questById: (state) => (id) => state.quests.find((q) => q.id === id) || null,
+    questById: (state) => (id) => state.experiments.find((q) => q.id === id) || null,
 
     /** Newest first by when we received it, not by when the camera says it was
         taken: an old holiday photo dropped in today belongs at the top. */
@@ -60,14 +60,14 @@ export const useShootsStore = defineStore('shoots', {
           Date.now() - new Date(v.shot.ingested_at) < 15 * 60 * 1000,
       ),
 
-    pastQuests: (state) => state.quests.filter((q) => q.status !== 'open'),
+    pastQuests: (state) => state.experiments.filter((q) => q.status !== 'open'),
 
-    /** The newest verdict anywhere, with the quest it belongs to. */
+    /** The newest verdict anywhere, with the experiment it belongs to. */
     lastVerdict: (state) => {
       let best = null
-      for (const quest of state.quests) {
-        for (const verdict of quest.verdicts || []) {
-          if (!best || (verdict.judged_at || '') > (best.verdict.judged_at || '')) best = { quest, verdict }
+      for (const experiment of state.experiments) {
+        for (const verdict of experiment.verdicts || []) {
+          if (!best || (verdict.judged_at || '') > (best.verdict.judged_at || '')) best = { experiment, verdict }
         }
       }
       return best
@@ -79,10 +79,10 @@ export const useShootsStore = defineStore('shoots', {
       this.loading = true
       this.error = ''
       try {
-        const [me, quest, quests, skills, shots, events, profile, journey] = await Promise.all([
+        const [me, experiment, experiments, skills, shots, events, profile, journey] = await Promise.all([
           api.get('/api/me'),
-          api.get('/api/quests/open'),
-          api.get('/api/quests?limit=20'),
+          api.get('/api/experiments/open'),
+          api.get('/api/experiments?limit=20'),
           api.get('/api/skills'),
           api.get('/api/shots?limit=100'),
           api.get('/api/events?limit=60'),
@@ -90,8 +90,8 @@ export const useShootsStore = defineStore('shoots', {
           api.get('/api/journey?limit=10'),
         ])
         this.me = me
-        this.quest = quest
-        this.quests = quests
+        this.experiment = experiment
+        this.experiments = experiments
         this.skills = skills
         this.shots = shots
         this.events = events
@@ -105,7 +105,7 @@ export const useShootsStore = defineStore('shoots', {
       }
     },
 
-    /** Cheap tick: only events and the open quest; refetch the rest when something moved. */
+    /** Cheap tick: only events and the open experiment; refetch the rest when something moved. */
     async poll() {
       try {
         const events = await api.get('/api/events?limit=60')
@@ -113,14 +113,14 @@ export const useShootsStore = defineStore('shoots', {
         if (newest !== this.lastEventAt) {
           this.events = events
           this.lastEventAt = newest
-          const [quest, quests, skills, shots] = await Promise.all([
-            api.get('/api/quests/open'),
-            api.get('/api/quests?limit=20'),
+          const [experiment, experiments, skills, shots] = await Promise.all([
+            api.get('/api/experiments/open'),
+            api.get('/api/experiments?limit=20'),
             api.get('/api/skills'),
             api.get('/api/shots?limit=100'),
           ])
-          this.quest = quest
-          this.quests = quests
+          this.experiment = experiment
+          this.experiments = experiments
           this.skills = skills
           this.shots = shots
         }
@@ -172,25 +172,25 @@ export const useShootsStore = defineStore('shoots', {
 
     issueQuest(force = false) {
       return this.run('issue', async () => {
-        const quest = await api.post(`/api/quests/issue?force=${force}`)
+        const experiment = await api.post(`/api/experiments/issue?force=${force}`)
         await this.fetchAll()
-        return quest
+        return experiment
       })
     },
 
     skipQuest(id) {
       return this.run('skip', async () => {
-        await api.post(`/api/quests/${id}/skip`)
+        await api.post(`/api/experiments/${id}/skip`)
         await this.fetchAll()
       })
     },
 
-    /** On location: the quest's criteria on a preview, before the upload. */
+    /** On location: the experiment's criteria on a preview, before the upload. */
     preflight(file, questId) {
       return this.run('preflight', async () => {
         const form = new FormData()
         form.append('file', file, file.name)
-        form.append('quest_id', questId)
+        form.append('experiment_id', questId)
         return api.postForm('/drive/preflight', form)
       })
     },
@@ -199,7 +199,7 @@ export const useShootsStore = defineStore('shoots', {
       return this.run('shoot', async () => {
         const form = new FormData()
         form.append('file', file, file.name)
-        if (questId) form.append('quest_id', questId)
+        if (questId) form.append('experiment_id', questId)
         const result = await api.postForm('/drive/shoot', form)
         await this.poll()
         return result

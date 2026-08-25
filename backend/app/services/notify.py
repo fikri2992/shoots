@@ -9,7 +9,7 @@ import hashlib
 import logging
 
 from app.config import settings
-from app.domain.entities import Quest, Verdict
+from app.domain.entities import Experiment, Verdict
 from app.infra import push
 from app.infra.store import Store
 from app.services.context import Context
@@ -65,23 +65,23 @@ async def notify(
 # --- the events that matter ------------------------------------------------
 
 
-async def quest_issued(ctx: Context, quest: Quest) -> None:
+async def quest_issued(ctx: Context, experiment: Experiment) -> None:
     await notify(
         ctx,
-        quest.user_id,
-        f"Today's quest: {quest.title}",
-        quest.why_now or quest.brief.split("\n", 1)[0],
+        experiment.user_id,
+        f"Today's experiment: {experiment.title}",
+        experiment.why_now or experiment.brief.split("\n", 1)[0],
         url="/",
-        tag=f"quest-{quest.id}",
+        tag=f"experiment-{experiment.id}",
     )
 
 
-async def verdict_given(ctx: Context, quest: Quest, verdict: Verdict) -> None:
+async def verdict_given(ctx: Context, experiment: Experiment, verdict: Verdict) -> None:
     first_line = verdict.feedback.split("\n", 1)[0]
     await notify(
         ctx,
-        quest.user_id,
-        f"{'Passed' if verdict.passed else 'Not yet'}: {quest.title}",
+        experiment.user_id,
+        f"{'Passed' if verdict.passed else 'Not yet'}: {experiment.title}",
         first_line,
         url=f"/shots/{verdict.shot_id}",
         tag=f"verdict-{verdict.shot_id}",

@@ -151,7 +151,7 @@ async def notify(
 class ShootResponse(BaseModel):
     shot_id: str
     drive_file_id: str
-    quest_id: str
+    experiment_id: str
 
 
 MAX_UPLOAD_BYTES = 200 * 1024 * 1024
@@ -160,7 +160,7 @@ MAX_UPLOAD_BYTES = 200 * 1024 * 1024
 @router.post("/shoot", response_model=ShootResponse)
 async def shoot(
     file: UploadFile = File(...),
-    quest_id: str = Form(default=""),
+    experiment_id: str = Form(default=""),
     pitch_deg: float | None = Form(default=None),
     session_user: dict = Depends(current_user),
     ctx: Context = Depends(get_context),
@@ -168,7 +168,7 @@ async def shoot(
     """The Shoot button, from the web app or from the native camera.
 
     The file goes to the user's Drive folder, so the folder stays the single
-    source of truth; the shot is tagged with the quest it answers; and the
+    source of truth; the shot is tagged with the experiment it answers; and the
     pipeline starts now rather than at the next sync.
 
     ``pitch_deg`` only ever arrives from the native camera. It is the one fact
@@ -208,7 +208,7 @@ async def shoot(
     shot_id = repo.shot_id_for(user.id, drive_file.id)
     existing = await repo.find_shot(ctx.store, shot_id)
     if existing is None:
-        shot = ingest.new_shot(shot_id, user.id, drive_file, quest_id=quest_id)
+        shot = ingest.new_shot(shot_id, user.id, drive_file, experiment_id=experiment_id)
         shot.pitch_deg = pitch_deg
         await repo.put_shot(ctx.store, shot)
         await repo.record(
@@ -220,7 +220,7 @@ async def shoot(
             shot_id=shot_id,
         )
         await ctx.bus.publish(TOPICS["media.new"], {"shot_id": shot_id})
-    return ShootResponse(shot_id=shot_id, drive_file_id=drive_file.id, quest_id=quest_id)
+    return ShootResponse(shot_id=shot_id, drive_file_id=drive_file.id, experiment_id=experiment_id)
 
 
 class PreflightCheck(BaseModel):
@@ -239,18 +239,18 @@ class PreflightResponse(BaseModel):
 @router.post("/preflight", response_model=PreflightResponse)
 async def preflight(
     file: UploadFile = File(...),
-    quest_id: str = Form(...),
+    experiment_id: str = Form(...),
     session_user: dict = Depends(current_user),
     ctx: Context = Depends(get_context),
 ):
-    """On location, before upload: the quest's criteria checked on a preview
+    """On location, before upload: the experiment's criteria checked on a preview
     in a few seconds, so a miss is reshot now rather than judged later."""
     import time
 
     user = await _load_user(ctx, session_user)
-    quest = await repo.get_quest(ctx.store, quest_id)
-    if quest.user_id != user.id:
-        raise HTTPException(404, "quest not found")
+    experiment = await repo.get_experiment(ctx.store, experiment_id)
+    if experiment.user_id != user.id:
+        raise HTTPException(404, "experiment not found")
     if not (file.content_type or "").startswith("image/"):
         raise HTTPException(415, "photos only; videos go straight to the pipeline")
     data = await file.read()
@@ -259,7 +259,7 @@ async def preflight(
     preview = canvas.fit_for_model(canvas.load_bytes(data), preflight_agent.PREVIEW_EDGE)
     started = time.monotonic()
     out = await preflight_agent.check(
-        quest, taxonomy.get(quest.technique_id), canvas.to_jpeg_bytes(preview, quality=80)
+        experiment, taxonomy.get(experiment.technique_id), canvas.to_jpeg_bytes(preview, quality=80)
     )
     seconds = round(time.monotonic() - started, 1)
     await repo.record(
@@ -273,7 +273,7 @@ async def preflight(
             "unmet": [c.criterion for c in out.checks if not c.met],
             "seconds": seconds,
         },
-        quest_id=quest.id,
+        experiment_id=experiment.id,
     )
     return PreflightResponse(
         ready=out.ready,

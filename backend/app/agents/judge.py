@@ -8,7 +8,7 @@ from app.agents.analyst import facts_text
 from app.agents.runtime import bytes_part, run_agent
 from app.config import settings
 from app.domain import judge as rules
-from app.domain.entities import Analysis, Quest, Shot
+from app.domain.entities import Analysis, Experiment, Shot
 
 
 class FeedbackOut(BaseModel):
@@ -20,7 +20,7 @@ def judge_agent() -> LlmAgent:
     return LlmAgent(
         model=settings.model_flash,
         name="judge",
-        description="Writes the feedback for a rule-decided quest verdict.",
+        description="Writes the feedback for a rule-decided experiment verdict.",
         instruction=prompts.load("judge"),
         output_schema=FeedbackOut,
         output_key="feedback",
@@ -28,7 +28,7 @@ def judge_agent() -> LlmAgent:
 
 
 def feedback_prompt(
-    quest: Quest,
+    experiment: Experiment,
     passed: bool,
     exif_checks: dict[str, rules.Check],
     vision_checks: dict[str, float],
@@ -69,9 +69,9 @@ def feedback_prompt(
         else "- the arithmetic found nothing wrong"
     )
     return (
-        f"Quest: {quest.title} (technique `{quest.technique_id}`)\n"
-        f"Brief:\n{quest.brief}\n\n"
-        f"Criteria:\n" + "\n".join(f"- {c}" for c in quest.criteria.text) + "\n\n"
+        f"Experiment: {experiment.title} (technique `{experiment.technique_id}`)\n"
+        f"Brief:\n{experiment.brief}\n\n"
+        f"Criteria:\n" + "\n".join(f"- {c}" for c in experiment.criteria.text) + "\n\n"
         f"Result: {'PASSED' if passed else 'NOT PASSED'}\n"
         f"Checks:\n{checks}\n\n"
         f"Analyst evidence:\n{seen}\n"
@@ -84,7 +84,7 @@ def feedback_prompt(
 
 
 async def feedback(
-    quest: Quest,
+    experiment: Experiment,
     passed: bool,
     exif_checks: dict[str, rules.Check],
     vision_checks: dict[str, float],
@@ -96,8 +96,10 @@ async def feedback(
     """``images``: the current gridded frame, then the previous best's, as PNG bytes."""
     return await run_agent(
         judge_agent(),
-        prompt=feedback_prompt(quest, passed, exif_checks, vision_checks, analysis, shot, previous),
+        prompt=feedback_prompt(
+            experiment, passed, exif_checks, vision_checks, analysis, shot, previous
+        ),
         images=[bytes_part(data, "image/png") for data in (images or [])],
         schema=FeedbackOut,
-        user_id=quest.user_id,
+        user_id=experiment.user_id,
     )

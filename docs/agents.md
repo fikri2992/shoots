@@ -1,7 +1,7 @@
 # Agents
 
 The implemented agent architecture on Google ADK, written from the code as it is.
-The code still uses the legacy `Quest`, `Fault`, `TechniqueState`, and score schemas.
+The code still uses the legacy `Experiment`, `Fault`, `TechniqueState`, and score schemas.
 [Product decisions](product-decisions.md) define the target Experiment, Finding,
 Technique Map, and Change language. [Feature list](feature-list.md) tracks the
 migration. This file remains the source for the submission architecture diagram,
@@ -35,7 +35,7 @@ them as finished product language.
    half-written state.
 6. **An agent may refuse, and is graded.** `panel.aggregate` returns an abstention when
    every lens saw something and no two saw the same thing, rather than averaging three
-   opinions into a Verdict nobody held (decision 38). Every legacy Quest freezes the
+   opinions into a Verdict nobody held (decision 38). Every legacy Experiment freezes the
    Tendency it was aimed at, the current implementation of the Experiment baseline.
    `scout.grade_advice` compares counts afterward and records whether behaviour changed
    after the advice. It does not claim causation. No model adjudicates either result.
@@ -56,11 +56,11 @@ flowchart LR
   ANZ --> JUD[Judge<br/>code + feedback agent]
   JUD --> JUDG[media.judged]
   JUDG --> SCR[Scribe<br/>code → Drive]
-  JUD -->|passed| QC[quest.closed]
+  JUD -->|passed| QC[experiment.closed]
   CART -->|first time| SC
   QC --> SC[Scout<br/>research + designer + writer]
   TICK[/tasks/tick 5 min/] --> SC
-  SC --> QI[quest.issued]
+  SC --> QI[experiment.issued]
   QI --> DIR[Director<br/>storyboard agent → Veo]
   SC --> PUSH[(Web Push)]
   JUD -->|verdict pulse, polled| CAM
@@ -111,12 +111,12 @@ Not ADK, on purpose:
 | `scrub` | lens, video only | two exact frames pulled by ffmpeg at the Composer's timestamps | `ScrubOut` (`scrub`) | Analyst stage, after the panel | fourth vote on camera-move techniques; rates no elements |
 | `crop_rater` | `LlmAgent` | original + rendered crop | `CropVerdict` (`crop`) | Analyst stage crop loop | ≤ 2 rounds; kept only if composition rose |
 | `judge` (feedback) | `LlmAgent` | verdict facts from code, frame, previous best with its observations | `FeedbackOut` (`feedback`) | Judge stage, after pass/fail is decided in code | writes words; decides nothing |
-| `scout` (writer) | `LlmAgent` | technique, why-now, recent critiques, research text, skills, constraints | `QuestOut` (`quest`): title, brief, criteria text, references | Scout stage, after `rules.choose` and research | criteria bounds come from the taxonomy, not the model |
-| `director` (storyboard) | `LlmAgent` | technique + quest | `Storyboard` (`storyboard`): Veo prompt | Director stage | then Veo 3.1 fast, 6 s vertical with its own audio |
-| `preflight` | `LlmAgent` | quest's SEEN criteria + 640 px preview | `PreflightOut` (`preflight`): per-check ok + fix | `/drive/preflight`, synchronous, ~8 s | never guesses camera settings |
+| `scout` (writer) | `LlmAgent` | technique, why-now, recent critiques, research text, skills, constraints | `ExperimentOut` (`experiment`): title, brief, criteria text, references | Scout stage, after `rules.choose` and research | criteria bounds come from the taxonomy, not the model |
+| `director` (storyboard) | `LlmAgent` | technique + experiment | `Storyboard` (`storyboard`): Veo prompt | Director stage | then Veo 3.1 fast, 6 s vertical with its own audio |
+| `preflight` | `LlmAgent` | experiment's SEEN criteria + 640 px preview | `PreflightOut` (`preflight`): per-check ok + fix | `/drive/preflight`, synchronous, ~8 s | never guesses camera settings |
 | `listener` | `LlmAgent` | Coach transcript | `NotesOut` (`notes`): missing gear, notes | after a Coach session | the post-session fallback for `remember` |
 | `journey` | `LlmAgent` | only measured evidence: counts, exploration, what widened, what became repeatable, keeper lifts | `JourneyOut` (`journey`): one paragraph | Cartographer stage, only when the profile moved | sees no photograph; may not say anything it cannot point at |
-| Coach | Gemini Live, tools `issue_quest`, `remember`, `skill_map` | gridded frame + Analyst read + constraints as the first turn; text and 16 kHz PCM | audio, transcript, tool calls | `/api/live/{shot_id}` | a quest issued by voice is an ordinary quest |
+| Coach | Gemini Live, tools `issue_quest`, `remember`, `skill_map` | gridded frame + Analyst read + constraints as the first turn; text and 16 kHz PCM | audio, transcript, tool calls | `/api/live/{shot_id}` | a experiment issued by voice is an ordinary experiment |
 
 All `LlmAgent`s run `gemini-3.7-flash` on the Vertex global endpoint.
 
@@ -145,8 +145,8 @@ All `LlmAgent`s run `gemini-3.7-flash` on the Vertex global endpoint.
   profile reorders the curriculum and never widens it) →
   `rules.why_now` → research (grounded) → writer → `criteria_for` from the taxonomy
   → `timing.deliver_at` (light window, sun, last location) → push on the tick.
-- **Director**: storyboard agent → Veo → `quest.reference_clip`. Veo failing
-  dead-letters; the quest simply has no clip.
+- **Director**: storyboard agent → Veo → `experiment.reference_clip`. Veo failing
+  dead-letters; the experiment simply has no clip.
 
 ## State and sessions
 
@@ -156,9 +156,9 @@ All `LlmAgent`s run `gemini-3.7-flash` on the Vertex global endpoint.
   missing or malformed one in `errors` so the stage can decide on quorum instead of
   failing.
 - Durable state is the store: `User` (constraints, location, Drive cursor), `Shot`,
-  `Analysis`, `TechniqueState`, `Quest` (verdicts inside), `ActivityEvent`. Firestore in
+  `Analysis`, `TechniqueState`, `Experiment` (verdicts inside), `ActivityEvent`. Firestore in
   the cloud, one `store.json` locally. Every stage is idempotent on shot id or
-  quest id: a redelivery finds the status already advanced and returns.
+  experiment id: a redelivery finds the status already advanced and returns.
 - Secrets never enter the store or a prompt: the Drive refresh token is in Secret
   Manager (local: `.blobs/tokens`), the Live session is opened server-side.
 
@@ -170,7 +170,7 @@ All `LlmAgent`s run `gemini-3.7-flash` on the Vertex global endpoint.
 | workflow | per-sub-agent errors collected, not raised; quorum decides; 180 s timeout on the panel |
 | stage | idempotent on id; exceptions propagate to the transport |
 | transport | Pub/Sub: 5 attempts, 10 s–300 s backoff, then `<topic>.dlq`; a DLQ replay re-runs one stage, never the fan-out |
-| cross-stage | the Judge publishes on every shot; the Director never blocks the quest; the Scribe updates in place on redelivery |
+| cross-stage | the Judge publishes on every shot; the Director never blocks the experiment; the Scribe updates in place on redelivery |
 
 ## What is deliberately not an agent
 
@@ -189,7 +189,7 @@ The following proposal predates the locked product and is not in the current
 | agent | kind | bounded by | returns | stage |
 |---|---|---|---|---|
 | `lighting_designer` | `LlmAgent`, first of a `SequentialAgent[designer → (code) → writer]` | the technique's recipe envelope, narrowed by the sky; the slots code offers with sun and weather; constraints; recent light facts | `LightPlanOut`: setting, source, pattern, key angles, quality, fill, modifiers, `say` | Scout |
-| `brief_writer` | the existing `scout` writer, now reading `{light_plan}` from state | the completed plan | `QuestOut` | Scout |
+| `brief_writer` | the existing `scout` writer, now reading `{light_plan}` from state | the completed plan | `ExperimentOut` | Scout |
 | `replanner` | `LlmAgent` | the old and new `Derived`, three alternative slots with fits (a `Literal` over their ids built per call), constraints | `ReplanOut`: `keep` \| `shift(slot)` \| `swap(technique, slot)` \| `hold`, reason | the tick, only when code's delta exceeds threshold |
 
 The designer → writer pair is the second place the panel pattern is reused: a
@@ -224,7 +224,7 @@ sequenceDiagram
   Judge->>Judge: feedback agent (words only)
   Judge->>Scribe: media.judged
   Scribe->>Drive: Reviewed/✔ name — 7 of 10.jpg
-  Judge->>Scout: quest.closed (if passed)
+  Judge->>Scout: experiment.closed (if passed)
   Scout->>Scout: choose, research, designer, writer, timing
   Scout->>Phone: push at the light
 ```

@@ -97,8 +97,8 @@ def blob_path(user_id: str, shot_id: str, kind: str, extension: str = "png") -> 
     return f"{user_prefix(user_id)}shots/{shot_id}/{kind}.{extension}"
 
 
-def quest_blob_path(user_id: str, quest_id: str, kind: str, extension: str = "mp4") -> str:
-    return f"{user_prefix(user_id)}quests/{quest_id}/{kind}.{extension}"
+def quest_blob_path(user_id: str, experiment_id: str, kind: str, extension: str = "mp4") -> str:
+    return f"{user_prefix(user_id)}experiments/{experiment_id}/{kind}.{extension}"
 
 
 @runtime_checkable

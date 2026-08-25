@@ -68,7 +68,7 @@ export default {
         <div ref="scroll" class="min-h-24 flex-1 space-y-4 overflow-y-auto px-5 py-4">
           <p v-if="!lines.length" class="t-body text-neutral-500">
             It has the frame and the panel's read in front of it. Ask anything — or tell it what you do not have with
-            you, and it will remember for the next quest.
+            you, and it will remember for the next experiment.
           </p>
 
           <template v-for="(line, i) in lines" :key="i">

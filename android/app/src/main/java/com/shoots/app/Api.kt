@@ -46,10 +46,10 @@ object Api {
     }
 
     /** The open challenge, pinned in the viewfinder. Null when there is none. */
-    fun openQuest(context: Context): Quest? = runCatching {
-        val json = get(context, "/api/quests/open") ?: return@runCatching null
+    fun openQuest(context: Context): Experiment? = runCatching {
+        val json = get(context, "/api/experiments/open") ?: return@runCatching null
         if (!json.has("id")) return@runCatching null
-        Quest(
+        Experiment(
             id = json.getString("id"),
             title = json.optString("title"),
             whyNow = json.optString("why_now"),
@@ -85,7 +85,7 @@ object Api {
                 out.write(value.toByteArray())
                 out.writeBytes("\r\n")
             }
-            if (questId.isNotEmpty()) field("quest_id", questId)
+            if (questId.isNotEmpty()) field("experiment_id", questId)
             if (pitchDeg != null) field("pitch_deg", pitchDeg.toString())
             out.writeBytes("--$boundary\r\n")
             out.writeBytes(
@@ -180,7 +180,7 @@ object Api {
 
     private fun deviceName(): String = "${android.os.Build.MANUFACTURER} ${android.os.Build.MODEL}"
 
-    data class Quest(val id: String, val title: String, val whyNow: String)
+    data class Experiment(val id: String, val title: String, val whyNow: String)
 
     data class Pulse(val praise: String, val finding: String, val keeper: Boolean)
 }

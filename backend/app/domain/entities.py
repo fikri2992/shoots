@@ -2,7 +2,7 @@
 
 Vocabulary is docs/domain-model.md. A *shot* is one photo or video file. The
 *Analyst* turns a shot into *evidence* for techniques. The *skill graph* is the
-per-user state of every technique. A *quest* asks for one technique and says,
+per-user state of every technique. A *experiment* asks for one technique and says,
 in machine-checkable terms, what counts as done.
 """
 
@@ -92,7 +92,7 @@ class Exif(BaseModel):
     focal_length_35mm: int | None = None
     flash_fired: bool | None = None
     captured_at: datetime | None = None
-    #: From the GPS block when the camera wrote one. Feeds quest timing.
+    #: From the GPS block when the camera wrote one. Feeds experiment timing.
     latitude: float | None = None
     longitude: float | None = None
 
@@ -205,8 +205,8 @@ class Shot(BaseModel):
     grid: GridSpec | None = None
     #: Blob paths by kind: original, gridded, contact_sheet, thumb.
     blobs: dict[str, str] = Field(default_factory=dict)
-    #: Set when the user shot this for a specific quest.
-    quest_id: str = ""
+    #: Set when the user shot this for a specific experiment.
+    experiment_id: str = ""
     #: When the photographer marked this Shot as one they value, or None.
     #:
     #: Positive only, and the distinction is the whole point (decision 45).
@@ -397,7 +397,7 @@ class TechniqueState(BaseModel):
     shot_ids: list[str] = Field(default_factory=list)
 
 
-# --- quests ---------------------------------------------------------------
+# --- experiments ---------------------------------------------------------------
 
 
 class ExifRule(BaseModel):
@@ -427,10 +427,12 @@ class Reference(BaseModel):
     url: str
 
 
-class QuestStatus(StrEnum):
+class ExperimentStatus(StrEnum):
     OPEN = "open"
-    PASSED = "passed"
-    SKIPPED = "skipped"  # the human gate: user declined it
+    #: The Criteria were met. "Passed" graded the photographer; an Experiment
+    #: is something they tried, and it either completed or it did not.
+    COMPLETED = "completed"
+    SKIPPED = "skipped"  # the human gate: the photographer declined it
     EXPIRED = "expired"
 
 
@@ -449,7 +451,7 @@ class TendencyGrade(BaseModel):
     """What the Scout's own advice was aimed at, and whether it landed.
 
     Decision 37: an agent that never checks its own recommendations is a
-    critique queue, not a coach. The dimension this quest pushed against is
+    critique queue, not a coach. The dimension this experiment pushed against is
     frozen here at issue time, and when later shots arrive the counts are
     compared - arithmetic, no model adjudicating.
 
@@ -462,7 +464,7 @@ class TendencyGrade(BaseModel):
     source: str = ""
     #: The sentence the photographer was shown: "12 of 18 readable: centred".
     citation: str = ""
-    #: Bucket -> count for that dimension, frozen when the quest was issued.
+    #: Bucket -> count for that dimension, frozen when the experiment was issued.
     at_issue: dict[str, int] = Field(default_factory=dict)
     #: Filled in when the grading runs. None until then.
     moved: bool | None = None
@@ -471,8 +473,8 @@ class TendencyGrade(BaseModel):
     graded_at: datetime | None = None
 
 
-class QuestTiming(BaseModel):
-    """Why the quest lands when it does (domain/timing.py)."""
+class ExperimentTiming(BaseModel):
+    """Why the experiment lands when it does (domain/timing.py)."""
 
     light: str
     reason: str
@@ -480,7 +482,7 @@ class QuestTiming(BaseModel):
     anchor_at: datetime | None = None
 
 
-class Quest(BaseModel):
+class Experiment(BaseModel):
     id: str
     user_id: str
     technique_id: str
@@ -490,13 +492,13 @@ class Quest(BaseModel):
     criteria: Criteria
     references: list[Reference] = Field(default_factory=list)
     reference_clip: str = ""  # blob path of the Veo clip
-    #: When the push lands. The quest exists before that; the phone waits.
+    #: When the push lands. The experiment exists before that; the phone waits.
     deliver_at: datetime | None = None
     delivered_at: datetime | None = None
-    timing: QuestTiming | None = None
-    #: The tendency this quest was aimed at, and whether the aim was any good.
+    timing: ExperimentTiming | None = None
+    #: The tendency this experiment was aimed at, and whether the aim was any good.
     tendency: TendencyGrade | None = None
-    status: QuestStatus = QuestStatus.OPEN
+    status: ExperimentStatus = ExperimentStatus.OPEN
     verdicts: list[Verdict] = Field(default_factory=list)
     issued_at: datetime = Field(default_factory=now)
     due_at: datetime | None = None
@@ -510,7 +512,7 @@ class JourneyUpdate(BaseModel):
     """The agent's current conclusion about the photographer (decision 39).
 
     The finished artifact of the whole product, and the thing the hobbyist
-    actually wanted when they installed a photography app: not a quest ticket
+    actually wanted when they installed a photography app: not a experiment ticket
     closed, an honest answer to *what kind of photographer am I becoming, and
     am I improving?* One paragraph, written when the Tendency Profile
     meaningfully moves rather than on a schedule.
@@ -556,5 +558,5 @@ class ActivityEvent(BaseModel):
     stage: str
     detail: dict = Field(default_factory=dict)
     shot_id: str = ""
-    quest_id: str = ""
+    experiment_id: str = ""
     at: datetime = Field(default_factory=now)

@@ -1,8 +1,8 @@
-"""The Scout's model half: research with Search grounding, then write the quest.
+"""The Scout's model half: research with Search grounding, then write the experiment.
 
 Two calls on purpose. ADK disables tools when ``output_schema`` is set, so
 the grounded research is a plain google-genai call whose grounding metadata
-gives real URLs, and the quest text comes from an ADK agent against a schema.
+gives real URLs, and the experiment text comes from an ADK agent against a schema.
 Criteria never come from the model: they are the technique's EXIF bounds
 plus its own id as the vision check (domain-model.md decision 4).
 """
@@ -81,7 +81,7 @@ def _references(response: types.GenerateContentResponse) -> list[Reference]:
 # --- writing (structured) --------------------------------------------------
 
 
-class QuestOut(BaseModel):
+class ExperimentOut(BaseModel):
     title: str
     brief: str
     why_now: str = ""
@@ -93,10 +93,10 @@ def scout_agent() -> LlmAgent:
     return LlmAgent(
         model=settings.model_flash,
         name="scout",
-        description="Writes one shootable quest for a chosen technique from grounded notes.",
+        description="Writes one shootable experiment for a chosen technique from grounded notes.",
         instruction=prompts.load("scout"),
-        output_schema=QuestOut,
-        output_key="quest",
+        output_schema=ExperimentOut,
+        output_key="experiment",
     )
 
 
@@ -173,11 +173,11 @@ async def write(
     notes: Research,
     skills: dict[str, TechniqueState],
     constraints: Constraints | None = None,
-) -> QuestOut:
+) -> ExperimentOut:
     return await run_agent(
         scout_agent(),
         prompt=write_prompt(technique, why, critiques, notes, skills, constraints),
-        schema=QuestOut,
+        schema=ExperimentOut,
     )
 
 
@@ -195,7 +195,7 @@ def normalise_brief(brief: str) -> str:
     return "\n".join(parts)
 
 
-def pick_references(out: QuestOut, research: Research) -> list[Reference]:
+def pick_references(out: ExperimentOut, research: Research) -> list[Reference]:
     """Only URLs the grounded call actually returned; titles are the model's pick."""
     wanted = [t.strip().lower() for t in out.reference_titles]
     chosen = [r for r in research.references if r.title.strip().lower() in wanted]

@@ -6,7 +6,7 @@ code measures and derives, agents decide between trade-offs, code verifies.
 
 ## Why it belongs in the loop
 
-A quest is an appointment with the sky. The sun's position is certain; what the sky
+A experiment is an appointment with the sky. The sun's position is certain; what the sky
 does with it is not: 85 % cloud cancels golden hour, haze kills backlight and makes
 the sunset redder, rain makes reflections and ruins the phone. And the person is out
 in it: 34 °C that feels like 39 °C is a 40-minute shoot, not a 2-hour one; a phone
@@ -26,7 +26,7 @@ changes, and judged against what the sky actually did.
   billing account.
 
 Fetched by `infra/weather.py`, cached per rounded coordinate (0.05°) and hour in the
-store, so one quest costs a handful of calls across its life. The location is the one
+store, so one experiment costs a handful of calls across its life. The location is the one
 the Scout already uses: the GPS of the person's newest frame.
 
 ## Data
@@ -82,8 +82,8 @@ class Fit(BaseModel):
     reasons: list[str]
 ```
 
-`Quest.conditions_at_issue: Conditions`, `Quest.conditions_latest: Conditions`,
-`Quest.prep: list[PrepItem]`, `Quest.replans: list[Replan]`,
+`Experiment.conditions_at_issue: Conditions`, `Experiment.conditions_latest: Conditions`,
+`Experiment.prep: list[PrepItem]`, `Experiment.replans: list[Replan]`,
 `Verdict.conditions: Conditions | None` (observed at `captured_at`).
 
 ## Derivation: the arithmetic — `domain/weather.py`
@@ -132,25 +132,25 @@ Three decisions need judgment, and only these run a model.
    envelope is already narrowed by the sky. The designer reasons over the trade-off
    the table cannot: Saturday is clear but hot (fit 0.6), Sunday is broken and fine
    (0.85) but the person wrote "weekday lunches only"; it chooses and says why.
-2. **Re-planning** — the five-minute tick (`/tasks/tick`) already delivers quests.
+2. **Re-planning** — the five-minute tick (`/tasks/tick`) already delivers experiments.
    Add: at T−24 h, T−6 h and T−90 min, refetch; code computes the delta
    (`sky` changed band, `rain` crossed "likely", `comfort` crossed "hot", fit fell by
    more than 0.3). Below threshold, nothing runs. Above it, the **Replanner** — an
-   `LlmAgent` with `output_schema=ReplanOut` — is given the quest, the old and new
+   `LlmAgent` with `output_schema=ReplanOut` — is given the experiment, the old and new
    `Derived`, the next three alternative slots with fits, and the person's
    constraints, and returns one of `keep | shift(slot) | swap(technique, slot) |
    hold`, with a one-sentence reason. Code applies it: `shift` rewrites `deliver_at`
    and re-completes the light plan; `swap` re-runs the designer for the new
-   technique; `hold` keeps the quest open without a delivery and tries again next
-   tick. The person gets one push with the reason, and `quest.replanned` lands in the
+   technique; `hold` keeps the experiment open without a delivery and tries again next
+   tick. The person gets one push with the reason, and `experiment.replanned` lands in the
    log. The Replanner cannot invent a slot that code did not offer.
 3. **The verdict under the sky that was** — the Judge gets `Verdict.conditions` as
    observed at `captured_at` (fetched at judge time; current conditions when the
    frame is fresh, the cached hour otherwise). `light.check` is run against the
    plan *as the sky allowed it*: if `rim_possible` was false at capture, the rim
    check is marked `excused`, and the feedback model is told that the light, not the
-   person, failed. An excused quest is not closed and not failed: the Replanner is
-   invoked with `reason="sky"` and the quest moves. That is the considerate part, and
+   person, failed. An excused experiment is not closed and not failed: the Replanner is
+   invoked with `reason="sky"` and the experiment moves. That is the considerate part, and
    it is a rule, not a mood.
 
 Everything else — thresholds, fits, prep, deltas — is code, tested, and logged with
@@ -161,12 +161,12 @@ choose, and one watchdog that has to change its mind.
 
 ## What the phone shows
 
-- **Quest hero, the `when` line**: `Sat 17:40 · 31°, feels 36 · 20 % cloud · rain 10 %`.
+- **Experiment hero, the `when` line**: `Sat 17:40 · 31°, feels 36 · 20 % cloud · rain 10 %`.
   Nothing else; the numbers are the honesty.
 - **Before you go** — a disclosure row with the prep items, each with its reason in
   meta type. The `gear` items that are time-bound ("take the phone out of the
   air-con") are also pushed at T−30 min.
-- **Moved** — an amber line above the `when` line when the quest was re-planned:
+- **Moved** — an amber line above the `when` line when the experiment was re-planned:
   *Moved from Fri 17:10 — 82 % rain*. Tapping opens the log entry.
 - **Frame page, light row**: adds `sky: overcast 85 %` and `haze: AQI 140` when
   observed conditions exist.
@@ -186,8 +186,8 @@ choose, and one watchdog that has to change its mind.
 - Delta thresholds: a 15 % cloud change does not invoke the Replanner; a band change
   does; the Replanner's `shift` can only name an offered slot (schema `Literal`
   over the offered ids, built per call).
-- Judge: rim plan, `rim_possible=False` at capture → check excused, quest not
-  closed, `quest.replanned` published once.
+- Judge: rim plan, `rim_possible=False` at capture → check excused, experiment not
+  closed, `experiment.replanned` published once.
 - Weather client against recorded responses; the cache keyed by rounded coordinate
   and hour; Open-Meteo fallback selected when no Maps key is configured.
 

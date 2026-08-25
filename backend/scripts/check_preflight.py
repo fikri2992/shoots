@@ -1,6 +1,6 @@
-"""Pre-flight a local image against the open quest with the real model.
+"""Pre-flight a local image against the open experiment with the real model.
 
-    uv run python scripts/check_preflight.py <image> [quest_id]
+    uv run python scripts/check_preflight.py <image> [experiment_id]
 
 Reads the dev store (read-only), prints the checks and the timing.
 """
@@ -18,27 +18,27 @@ from app.infra import repository as repo
 from app.infra.store import FileStore
 
 
-async def main(path: str, quest_id: str | None) -> None:
+async def main(path: str, experiment_id: str | None) -> None:
     store = FileStore(settings.blob_root + "/store.json")
     users = await repo.list_users(store)
-    quest = None
-    if quest_id:
-        quest = await repo.get_quest(store, quest_id)
+    experiment = None
+    if experiment_id:
+        experiment = await repo.get_experiment(store, experiment_id)
     else:
         for user in users:
-            quest = await repo.open_quest(store, user.id)
-            if quest:
+            experiment = await repo.open_experiment(store, user.id)
+            if experiment:
                 break
-    if quest is None:
-        raise SystemExit("no open quest")
-    technique = taxonomy.get(quest.technique_id)
-    print(f"quest: {quest.title} [{technique.id}]")
-    for c in quest.criteria.text:
+    if experiment is None:
+        raise SystemExit("no open experiment")
+    technique = taxonomy.get(experiment.technique_id)
+    print(f"experiment: {experiment.title} [{technique.id}]")
+    for c in experiment.criteria.text:
         print(f"  - {c}")
     data = pathlib.Path(path).read_bytes()
     preview = canvas.fit_for_model(canvas.load_bytes(data), preflight.PREVIEW_EDGE)
     started = time.monotonic()
-    out = await preflight.check(quest, technique, canvas.to_jpeg_bytes(preview, quality=80))
+    out = await preflight.check(experiment, technique, canvas.to_jpeg_bytes(preview, quality=80))
     verdict = "READY" if out.ready else "SHOOT AGAIN"
     print(f"\n{verdict} in {time.monotonic() - started:.1f}s: {out.say}")
     for c in out.checks:

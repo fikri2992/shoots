@@ -3,7 +3,7 @@
 Research note, 2026-08-25.
 
 This is a market and implementation snapshot, not the current product vocabulary.
-The later [product decisions](product-decisions.md) replace Quest with Experiment,
+The later [product decisions](product-decisions.md) replace Experiment with Experiment,
 skill graph with Technique Map, and progress claims with Change. Competitor facts
 remain useful; use [feature list](feature-list.md) for current implementation status.
 
@@ -19,7 +19,7 @@ Its defensible difference is architectural:
 > automatic Shot trigger, separately bounded expert readers, measured Evidence
 > that can overrule model opinion, a persistent per-Technique skill graph, a
 > fixed-criteria Judge, an artifact written back to the photographer's Drive,
-> and the next Quest issued without another prompt.
+> and the next Experiment issued without another prompt.
 
 That difference is real, but it is mostly invisible until the demo shows a
 disagreement, a deterministic decision, an external action, and the next state
@@ -49,18 +49,18 @@ the exact camera moment.
 
 | Dimension | Current behavior | Evidence in this repo |
 |---|---|---|
-| Trigger | A new Drive Shot starts an event-driven pipeline. A passed Quest triggers Scout; scheduled ticks also issue and deliver Quests. | `docs/domain-model.md`; `backend/app/services/scout.py:1-5,193-194` |
+| Trigger | A new Drive Shot starts an event-driven pipeline. A passed Experiment triggers Scout; scheduled ticks also issue and deliver Experiments. | `docs/domain-model.md`; `backend/app/services/scout.py:1-5,193-194` |
 | Perception | Ingest measures EXIF, Tone, and Motion. Analyst runs Technician, Composer, and Storyteller concurrently with different instructions and inputs, then a Synthesizer writes the critique. | `backend/app/agents/analyst.py:152-165`; `docs/domain-model.md`, decision 18 |
 | Evidence control | The panel requires agreement. Measured motion can corroborate or veto a claimed Technique after the model calls. Unknown Technique ids and invalid cells are rejected at validation boundaries. | `backend/app/agents/analyst.py:326-346`; `backend/app/domain/panel.py:120-180` |
-| Planning | Pure ranking selects an unlocked Technique using prerequisites, level, family coverage, recent Quests, decay, and missing gear. Gemini Search grounds the brief and references. Solar arithmetic picks delivery time from the Technique's light window and the user's last Shot location. | `backend/app/domain/scout.py`; `backend/app/services/scout.py:42-101` |
-| Persistent memory | TechniqueState stores per-Technique attempts, corroboration, status, scores, and recent Shot ids. User constraints, Quests, Verdicts, and ActivityEvents persist separately. | `backend/app/domain/technique_map.py`; `backend/app/domain/entities.py` |
-| Verification | Pure code checks fixed EXIF bounds and required vision Evidence. Missing EXIF cannot pass an EXIF-dependent Quest. Gemini writes feedback but cannot change pass or fail. Only Judge closes a passed Quest. | `backend/app/domain/judge.py`; `backend/app/services/judge.py:31-101` |
-| External action | Scribe uploads or updates an annotated reviewed Shot in `Shoots/Reviewed/`. Scout sends a push and Director can add a reference clip. Coach can issue a Quest, remember constraints, and read the skill graph. | `backend/app/services/scribe.py:134-194`; `backend/app/services/coach.py:73-145` |
-| Adaptation | A pass closes the Quest and triggers the next one. A failed attempt appends a Verdict and leaves the same Quest open. There is no failure classification or bounded replan yet. | `backend/app/services/judge.py:70-101`; `backend/app/services/scout.py:193-194` |
+| Planning | Pure ranking selects an unlocked Technique using prerequisites, level, family coverage, recent Experiments, decay, and missing gear. Gemini Search grounds the brief and references. Solar arithmetic picks delivery time from the Technique's light window and the user's last Shot location. | `backend/app/domain/scout.py`; `backend/app/services/scout.py:42-101` |
+| Persistent memory | TechniqueState stores per-Technique attempts, corroboration, status, scores, and recent Shot ids. User constraints, Experiments, Verdicts, and ActivityEvents persist separately. | `backend/app/domain/technique_map.py`; `backend/app/domain/entities.py` |
+| Verification | Pure code checks fixed EXIF bounds and required vision Evidence. Missing EXIF cannot pass an EXIF-dependent Experiment. Gemini writes feedback but cannot change pass or fail. Only Judge closes a passed Experiment. | `backend/app/domain/judge.py`; `backend/app/services/judge.py:31-101` |
+| External action | Scribe uploads or updates an annotated reviewed Shot in `Shoots/Reviewed/`. Scout sends a push and Director can add a reference clip. Coach can issue a Experiment, remember constraints, and read the skill graph. | `backend/app/services/scribe.py:134-194`; `backend/app/services/coach.py:73-145` |
+| Adaptation | A pass closes the Experiment and triggers the next one. A failed attempt appends a Verdict and leaves the same Experiment open. There is no failure classification or bounded replan yet. | `backend/app/services/judge.py:70-101`; `backend/app/services/scout.py:193-194` |
 
 The strongest design decision is authority separation. Models interpret and
 write. Code owns taxonomy, measurement, progression, and Verdict. The system
-does not let the model that helps create a Quest decide whether the Quest
+does not let the model that helps create a Experiment decide whether the Experiment
 passed.
 
 ## Closest systems
@@ -113,7 +113,7 @@ Sources: [GudoCam product and architecture FAQ](https://gudocam.com/en/),
 
 GudoCam already tells the clean "fast arithmetic or vision loop plus slow LLM
 advice" story. Shoots must demonstrate why its three-reader Evidence and
-longitudinal Quest loop matter after the shutter.
+longitudinal Experiment loop matter after the shutter.
 
 ### 3. ShutterCoach
 
@@ -221,7 +221,7 @@ publish its models, evaluator contract, or planning logic.
 
 Source: [PickEpic App Store listing](https://apps.apple.com/ca/app/pickepic/id6748054107).
 
-Shoots cannot use "Quest, Judge, skill graph" as proof of novelty by themselves.
+Shoots cannot use "Experiment, Judge, skill graph" as proof of novelty by themselves.
 The market already has challenges, submission judgments, progression, and
 unlocking. Shoots' distinction is autonomous assignment based on observed
 Evidence rather than a fixed tier map, plus a Judge whose authority is separate
@@ -254,7 +254,7 @@ Sources: [HauShot official product page](https://www.haushot.com/),
 HauShot is the strongest answer to "what work was accomplished?" in this set.
 It does not teach a photographer's eye, but it turns a property visit into
 listing-ready assets. Shoots needs an equally concrete terminal state, such as
-"reviewed Shot written back, Quest verified, next Quest scheduled."
+"reviewed Shot written back, Experiment verified, next Experiment scheduled."
 
 ### 8. Aftershoot and Narrative Select
 
@@ -304,10 +304,10 @@ the photographer's selection preferences or an emerging style.
 | Personalized assignment | Scout selects from observed skill state, prerequisites, recency, gear, location, and light | ShutterCoach personalized challenges; PickEpic tier unlocks; PhotoCritique Next Best Shot | Shoots has deeper documented selection logic |
 | Fixed verification | Pure EXIF checks plus bounded vision Evidence; model cannot change Verdict | Competitors advertise AI scores and challenge checks but do not publish authority boundaries | Shoots' clearest technical advantage |
 | Work in another system | Reviewed Shot written to Drive; push delivery | Aftershoot gallery delivery and creative-app workflow | Shoots has credible external action, but Aftershoot's finished work is easier to value |
-| Automatic background trigger | Drive Shot, scheduled tick, passed Quest | None in this sample publicly describes an equivalent coaching trigger | Strong Shoots distinction |
+| Automatic background trigger | Drive Shot, scheduled tick, passed Experiment | None in this sample publicly describes an equivalent coaching trigger | Strong Shoots distinction |
 | Failure replan | Not implemented | Not publicly documented by the sampled coaches | Open opportunity, and the missing proof of adaptive agency |
 | Style learning | Not implemented | Aftershoot culling and editing profiles; Photo DNA and Style Fingerprint | Shoots behind |
-| Intent handling | Inferred Technique and current Quest; proposed explicit Intent is not implemented | PhotoCritique lets the photographer declare special techniques and critique focus | Shoots can currently misread intentional rule-breaking |
+| Intent handling | Inferred Technique and current Experiment; proposed explicit Intent is not implemented | PhotoCritique lets the photographer declare special techniques and critique focus | Shoots can currently misread intentional rule-breaking |
 
 ## What this means for the hackathon story
 
@@ -320,14 +320,14 @@ authority and show it in motion:
 4. Cartographer updates only supported skill state.
 5. Judge applies Criteria that the feedback model cannot move.
 6. Scribe writes the reviewed Shot into Drive.
-7. A pass closes the Quest and Scout issues the next one from the updated graph.
+7. A pass closes the Experiment and Scout issues the next one from the updated graph.
 
 The demo should expose the ActivityEvents and the exact Evidence behind the
 transition. That is what makes the system look intentional rather than like
 several prompts connected in sequence.
 
 The next architectural improvement should be bounded failure adaptation, not
-another agent persona. A failed Quest should produce a classified reason, then
+another agent persona. A failed Experiment should produce a classified reason, then
 allow Scout to change timing, instruction, or required setup while preserving
 the original Criteria. The next Shot must still face the same Judge. That would
 demonstrate replanning without moving the goalposts.
@@ -342,7 +342,7 @@ Safe:
 
 > In the products reviewed here, none publicly documents Shoots' combination of
 > automatic Shot intake, multi-reader Evidence, fixed-criteria Verdicts, Drive
-> writeback, and automatic next-Quest planning.
+> writeback, and automatic next-Experiment planning.
 
 Unsafe:
 

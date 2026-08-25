@@ -10,9 +10,9 @@ from app.domain.entities import (
     Composition,
     Criteria,
     ExifRule,
+    Experiment,
     GridSpec,
     Move,
-    Quest,
     Shot,
     ShotKind,
     ShotStatus,
@@ -50,7 +50,7 @@ async def seed(folder: str, with_verdict: bool) -> Context:
         kind=ShotKind.PHOTO,
         status=ShotStatus.ANALYZED,
         grid=GridSpec(cols=8, rows=6, width=800, height=600),
-        quest_id="quest_1" if with_verdict else "",
+        experiment_id="quest_1" if with_verdict else "",
     )
     frame = Image.new("RGB", (800, 600), (30, 90, 140))
     shot.blobs[ANNOTATED] = await ctx.blobs.write(
@@ -72,9 +72,9 @@ async def seed(folder: str, with_verdict: bool) -> Context:
         ),
     )
     if with_verdict:
-        await repo.put_quest(
+        await repo.put_experiment(
             ctx.store,
-            Quest(
+            Experiment(
                 id="quest_1",
                 user_id="u1",
                 technique_id="panning",

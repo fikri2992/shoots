@@ -1,4 +1,4 @@
-"""The Judge's rules: does a shot meet a quest's criteria? Pure.
+"""The Judge's rules: does a shot meet a experiment's criteria? Pure.
 
 Hard evidence first (decision 4). Each EXIF bound resolves to True, False or
 None, where None means the tag was missing and nothing can be said. A single
@@ -9,14 +9,14 @@ Analyst's confidence for the technique; it counts at or above a threshold.
              and every required technique seen at >= threshold
              and (some exif check is True, or there were no checkable bounds)
 
-The last clause stops a photo with stripped EXIF from passing a quest whose
-whole point is a camera setting: if the quest has bounds and none of them
+The last clause stops a photo with stripped EXIF from passing a experiment whose
+whole point is a camera setting: if the experiment has bounds and none of them
 could be checked, vision alone is not enough.
 """
 
 from datetime import datetime
 
-from app.domain.entities import Analysis, Criteria, Exif, ExifRule, Quest, Shot
+from app.domain.entities import Analysis, Criteria, Exif, ExifRule, Experiment, Shot
 
 Check = bool | None
 
@@ -73,12 +73,12 @@ def evaluate(
     return passes(exif_checks, vision_checks, threshold), exif_checks, vision_checks
 
 
-def is_submission(shot: Shot, quest: Quest) -> bool:
-    """A shot answers the quest if it was tagged for it, or added to the folder
-    after the quest was issued (decision 6: the folder is the inbox)."""
-    if shot.quest_id:
-        return shot.quest_id == quest.id
-    return _aware(shot.ingested_at) >= _aware(quest.issued_at)
+def is_submission(shot: Shot, experiment: Experiment) -> bool:
+    """A shot answers the experiment if it was tagged for it, or added to the folder
+    after the experiment was issued (decision 6: the folder is the inbox)."""
+    if shot.experiment_id:
+        return shot.experiment_id == experiment.id
+    return _aware(shot.ingested_at) >= _aware(experiment.issued_at)
 
 
 def _aware(value: datetime) -> datetime:

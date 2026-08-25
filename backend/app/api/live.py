@@ -47,12 +47,12 @@ async def live(websocket: WebSocket, shot_id: str):
         return
 
     analysis = await repo.find_analysis(ctx.store, shot.id)
-    quest = None
-    if shot.quest_id:
+    experiment = None
+    if shot.experiment_id:
         try:
-            quest = await repo.get_quest(ctx.store, shot.quest_id)
+            experiment = await repo.get_experiment(ctx.store, shot.experiment_id)
         except repo.UnknownEntity:
-            quest = None
+            experiment = None
     key = next((k for k in (GRIDDED, SHEET, ORIGINAL) if shot.blobs.get(k)), None)
     if key is None:
         await websocket.close(code=4409)
@@ -70,7 +70,7 @@ async def live(websocket: WebSocket, shot_id: str):
         async with agent.connect() as session:
             await session.send_client_content(
                 turns=agent.opening_turn(
-                    image, mime, agent.briefing(shot, analysis, quest, owner.constraints)
+                    image, mime, agent.briefing(shot, analysis, experiment, owner.constraints)
                 ),
                 turn_complete=True,
             )
@@ -170,7 +170,7 @@ async def live(websocket: WebSocket, shot_id: str):
                     "model": settings.model_live,
                 },
                 shot_id=shot.id,
-                quest_id=shot.quest_id,
+                experiment_id=shot.experiment_id,
             )
         with contextlib.suppress(Exception):  # already gone is fine
             await websocket.close()

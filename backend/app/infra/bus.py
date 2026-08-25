@@ -2,7 +2,7 @@
 
     media.new → ingest → media.ingested → analyst → media.analyzed → ...
     media.analyzed → judge → media.judged → scribe (review written back to Drive)
-    quest.closed → scout → quest.issued → director
+    experiment.closed → scout → experiment.issued → director
 
 ``InProcessBus`` runs the next stage as a task in this process, which is how
 local development and the test suite work. ``PubSubBus`` publishes to Cloud
@@ -108,6 +108,6 @@ TOPICS = {
     "media.ingested": settings.topic_media_ingested,
     "media.analyzed": settings.topic_media_analyzed,
     "media.judged": settings.topic_media_judged,
-    "quest.closed": settings.topic_quest_closed,
-    "quest.issued": settings.topic_quest_issued,
+    "experiment.closed": settings.topic_experiment_closed,
+    "experiment.issued": settings.topic_experiment_issued,
 }

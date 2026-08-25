@@ -1,4 +1,4 @@
-"""The Director's model half: a storyboard from the quest, then Veo.
+"""The Director's model half: a storyboard from the experiment, then Veo.
 
 Two calls, each replaceable: Gemini writes the generation prompt
 (structured, via ADK), Veo renders the clip with its own ambient sound.
@@ -21,7 +21,7 @@ from app.agents import prompts
 from app.agents.retry import with_retry
 from app.agents.runtime import run_agent
 from app.config import settings
-from app.domain.entities import Quest
+from app.domain.entities import Experiment
 from app.domain.taxonomy import Technique
 
 logger = logging.getLogger(__name__)
@@ -33,7 +33,7 @@ class Storyboard(BaseModel):
 
 @dataclass
 class Generators:
-    storyboard: Callable[[Technique, Quest], Awaitable[Storyboard]]
+    storyboard: Callable[[Technique, Experiment], Awaitable[Storyboard]]
     clip: Callable[[str], Awaitable[bytes]]
 
 
@@ -44,31 +44,31 @@ def director_agent() -> LlmAgent:
     return LlmAgent(
         model=settings.model_flash,
         name="director",
-        description="Writes the Veo prompt for a quest's reference clip.",
+        description="Writes the Veo prompt for a experiment's reference clip.",
         instruction=prompts.load("director"),
         output_schema=Storyboard,
         output_key="storyboard",
     )
 
 
-def storyboard_prompt(technique: Technique, quest: Quest) -> str:
-    criteria = "\n".join(f"- {c}" for c in quest.criteria.text) or "- (none)"
+def storyboard_prompt(technique: Technique, experiment: Experiment) -> str:
+    criteria = "\n".join(f"- {c}" for c in experiment.criteria.text) or "- (none)"
     return (
         f"Technique: {technique.name} ({technique.family.value}, level {technique.level})\n"
         f"Recognised by: {technique.cue}\n\n"
-        f"Quest: {quest.title}\n"
-        f"Brief:\n{quest.brief}\n\n"
+        f"Experiment: {experiment.title}\n"
+        f"Brief:\n{experiment.brief}\n\n"
         f"Criteria:\n{criteria}\n\n"
         f"Clip length: {settings.clip_seconds} seconds, vertical {settings.clip_aspect}."
     )
 
 
-async def storyboard(technique: Technique, quest: Quest) -> Storyboard:
+async def storyboard(technique: Technique, experiment: Experiment) -> Storyboard:
     return await run_agent(
         director_agent(),
-        prompt=storyboard_prompt(technique, quest),
+        prompt=storyboard_prompt(technique, experiment),
         schema=Storyboard,
-        user_id=quest.user_id,
+        user_id=experiment.user_id,
     )
 
 

@@ -4,10 +4,10 @@ import { mapActions, mapState } from 'pinia'
 import { useShootsStore } from '@/stores/shoots'
 
 /**
- * The shutter, always attached to the quest it answers. `capture="environment"`
+ * The shutter, always attached to the experiment it answers. `capture="environment"`
  * opens the rear camera on a phone; on desktop it is a file picker.
  *
- * Every frame for a quest goes through pre-flight first — the quest's own
+ * Every frame for a experiment goes through pre-flight first — the experiment's own
  * criteria read on a 640px preview in a few seconds — so a miss is reshot
  * where the user is standing rather than found out an hour later.
  */

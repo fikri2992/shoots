@@ -1,8 +1,8 @@
-"""Judge stage: ``media.analyzed`` → verdict on the open quest → ``quest.closed``.
+"""Judge stage: ``media.analyzed`` → verdict on the open experiment → ``experiment.closed``.
 
 Runs alongside the Cartographer on the same topic. Skips quietly when the
-user has no open quest or the shot is not a submission. A shot is judged
-once: a second delivery finds its verdict already on the quest.
+user has no open experiment or the shot is not a submission. A shot is judged
+once: a second delivery finds its verdict already on the experiment.
 """
 
 import logging
@@ -10,7 +10,7 @@ import logging
 from app.agents import judge as agent
 from app.config import settings
 from app.domain import judge as rules
-from app.domain.entities import QuestStatus, Verdict, now
+from app.domain.entities import ExperimentStatus, Verdict, now
 from app.infra import repository as repo
 from app.infra.bus import TOPICS
 from app.infra.storage import GRIDDED
@@ -31,27 +31,27 @@ async def judge(ctx: Context, message: dict) -> None:
 
 async def _judge(ctx: Context, message: dict) -> None:
     shot = await repo.get_shot(ctx.store, message["shot_id"])
-    quest = await repo.open_quest(ctx.store, shot.user_id)
-    if quest is None:
+    experiment = await repo.open_experiment(ctx.store, shot.user_id)
+    if experiment is None:
         return
-    if not rules.is_submission(shot, quest):
+    if not rules.is_submission(shot, experiment):
         return
-    if any(v.shot_id == shot.id for v in quest.verdicts):
-        logger.info("judge: %s already judged for %s", shot.id, quest.id)
+    if any(v.shot_id == shot.id for v in experiment.verdicts):
+        logger.info("judge: %s already judged for %s", shot.id, experiment.id)
         return
 
     analysis = await repo.find_analysis(ctx.store, shot.id)
     passed, exif_checks, vision_checks = rules.evaluate(
-        quest.criteria, shot.exif, analysis, settings.judge_min_confidence
+        experiment.criteria, shot.exif, analysis, settings.judge_min_confidence
     )
 
-    previous = await _previous_best(ctx, shot, quest.technique_id)
+    previous = await _previous_best(ctx, shot, experiment.technique_id)
     try:
         images = [await ctx.blobs.read(shot.blobs[GRIDDED])] if GRIDDED in shot.blobs else []
         if previous and GRIDDED in previous[0].blobs and images:
             images.append(await ctx.blobs.read(previous[0].blobs[GRIDDED]))
         written = await agent.feedback(
-            quest, passed, exif_checks, vision_checks, analysis, shot, previous, images
+            experiment, passed, exif_checks, vision_checks, analysis, shot, previous, images
         )
         text = written.feedback.strip()
         if written.tip.strip():
@@ -69,14 +69,14 @@ async def _judge(ctx: Context, message: dict) -> None:
         feedback=text[:2000],
         compared_with=previous[0].id if previous else "",
     )
-    quest.verdicts.append(verdict)
+    experiment.verdicts.append(verdict)
     if passed:
-        quest.status = QuestStatus.PASSED
-        quest.closed_at = now()
-    await repo.put_quest(ctx.store, quest)
+        experiment.status = ExperimentStatus.COMPLETED
+        experiment.closed_at = now()
+    await repo.put_experiment(ctx.store, experiment)
 
-    if not shot.quest_id:
-        shot.quest_id = quest.id
+    if not shot.experiment_id:
+        shot.experiment_id = experiment.id
         await repo.put_shot(ctx.store, shot)
 
     await repo.record(
@@ -85,18 +85,18 @@ async def _judge(ctx: Context, message: dict) -> None:
         AGENT,
         "passed" if passed else "not_passed",
         {
-            "technique_id": quest.technique_id,
+            "technique_id": experiment.technique_id,
             "exif_checks": verdict.exif_checks,
             "vision_checks": {k: round(v, 2) for k, v in vision_checks.items()},
             "compared_with": previous[0].id if previous else "",
         },
         shot_id=shot.id,
-        quest_id=quest.id,
+        experiment_id=experiment.id,
     )
-    await notify.verdict_given(ctx, quest, verdict)
+    await notify.verdict_given(ctx, experiment, verdict)
     if passed:
         await ctx.bus.publish(
-            TOPICS["quest.closed"], {"user_id": shot.user_id, "quest_id": quest.id}
+            TOPICS["experiment.closed"], {"user_id": shot.user_id, "experiment_id": experiment.id}
         )
 
 

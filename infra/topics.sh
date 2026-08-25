@@ -5,10 +5,10 @@
 #   media.new       → ingest      → media.ingested
 #   media.ingested  → analyst     → media.analyzed
 #   media.analyzed  → cartographer (fan-out)
-#   media.analyzed  → judge        (fan-out) → media.judged, quest.closed
+#   media.analyzed  → judge        (fan-out) → media.judged, experiment.closed
 #   media.judged    → scribe       (review written back to Drive)
-#   quest.closed    → scout       → quest.issued
-#   quest.issued    → director    (Veo + Lyria reference clip)
+#   experiment.closed    → scout       → experiment.issued
+#   experiment.issued    → director    (Veo + Lyria reference clip)
 #
 # Every subscription dead-letters after MAX_ATTEMPTS to <topic>.dlq so a bad
 # file cannot poison the queue, and the DLQ is replayable for the demo.
@@ -20,7 +20,7 @@ SA="${PUBSUB_PUSH_SA:?set PUBSUB_PUSH_SA to the service account email used for p
 MAX_ATTEMPTS=5
 ACK_DEADLINE=540  # seconds; the Analyst on a 12-frame contact sheet can take a while
 
-TOPICS=(shoots.media.new shoots.media.ingested shoots.media.analyzed shoots.media.judged shoots.quest.closed shoots.quest.issued)
+TOPICS=(shoots.media.new shoots.media.ingested shoots.media.analyzed shoots.media.judged shoots.experiment.closed shoots.experiment.issued)
 
 ensure_topic() {
   gcloud pubsub topics describe "$1" --project "$PROJECT" >/dev/null 2>&1 \
@@ -55,7 +55,7 @@ ensure_push_sub shoots-analyst       shoots.media.ingested  analyst
 ensure_push_sub shoots-cartographer  shoots.media.analyzed  cartographer
 ensure_push_sub shoots-judge         shoots.media.analyzed  judge
 ensure_push_sub shoots-scribe        shoots.media.judged    scribe
-ensure_push_sub shoots-scout         shoots.quest.closed    scout
-ensure_push_sub shoots-director      shoots.quest.issued    director
+ensure_push_sub shoots-scout         shoots.experiment.closed    scout
+ensure_push_sub shoots-director      shoots.experiment.issued    director
 
 echo "topics and subscriptions ready on $PROJECT"

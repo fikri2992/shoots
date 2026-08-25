@@ -38,7 +38,7 @@ async def main(shot_id: str | None) -> None:
     shot = next((s for s in shots if s.id == shot_id), None) if shot_id else None
     if shot is None:
         shot = next(s for s in shots if s.status.value == "analyzed" and not s.drive_review_id)
-    print(f"shot {shot.id} {shot.filename} quest={shot.quest_id or '-'}")
+    print(f"shot {shot.id} {shot.filename} experiment={shot.experiment_id or '-'}")
     file_id = await scribe.write_review(ctx, {"shot_id": shot.id})
     shot = await repo.get_shot(store, shot.id)
     print(f"wrote {file_id}\n{shot.drive_review_url}")
