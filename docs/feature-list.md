@@ -17,14 +17,14 @@ These features make the one-liner true and make the completed work visible.
 | ID | Feature | State | Done when |
 |---|---|---|---|
 | P0.1 | Tendency Profile | built | Pure code recomputes dimension counts, exploration, dwell, and named blind spots from stored Shot measurements. |
-| P0.2 | Positive-only Keeper signal | partial | `kept` and `unknown` are distinct. An unmarked Shot never enters the rejected side of a correlation. Sparse samples stay silent. |
-| P0.3 | Technique Map | partial | The UI and API use `unobserved`, `observed`, and `recurring`. Corroborated Evidence moves state. Scores do not. |
+| P0.2 | Positive-only Keeper signal | built | `kept_at` and absence are distinct; unmarking returns a Shot to unknown. Concentration is marks over shots taken, so an unmarked Shot is only ever exposure. Sparse samples stay silent. |
+| P0.3 | Technique Map | built | The UI and API use `unobserved`, `observed`, and `recurring`. Corroborated Evidence moves state. Scores do not. |
 | P0.4 | Explore Experiment | partial | Scout creates one Experiment from a cited Tendency, freezes its baseline, declares Criteria, accepts results, and records a Verdict. No user-facing Experiment language remains. |
 | P0.5 | Experiment Change check | partial | Current code freezes counts and records whether they moved, but still needs explicit comparability and `insufficient evidence` states. It must not claim causation. |
 | P0.6 | Journey Update | built | A meaningful profile difference creates one update from supplied figures. The first update does not compare against an empty history, and the copy avoids unsupported improvement. |
-| P0.7 | Claim provenance | partial | Every longitudinal claim stores Shot ids, sample size, calculation version, and any contributing model and prompt version. Replaying the same version reproduces measured claims. |
-| P0.8 | Score removal | needed | The 1 to 10 score disappears from the phone, web, reviewed filename, Journey, Coach, and user-facing API. Old stored values may remain for migration only. |
-| P0.9 | Vocabulary migration | needed | Experiment becomes Experiment, Fault becomes Finding, Skill graph becomes Technique Map, and Progress becomes Change unless grounded in an explicit user goal. Events, schemas, UI, prompts, and docs agree. |
+| P0.7 | Claim provenance | built | `Provenance` on every Journey Update: Shot ids, sample size, `CALC_VERSION`, and model plus prompt digest only where a model wrote words. Grading refuses to compare baselines across a version bump. |
+| P0.8 | Score removal | built | No score on the phone, web, reviewed filename, caption, Journey, Coach prompt, Judge prompt or user-facing API. It no longer chooses the previous-best comparison either. Stored and read by nothing. |
+| P0.9 | Vocabulary migration | built | Quest is now Experiment (Pub/Sub topics included), Fault is now Finding, and the skill graph is the Technique Map with three states. Events, schemas, UI, prompts, docs and stored data agree; `scripts/migrate_vocabulary.py` moves an old store and is idempotent. |
 | P0.10 | Android Shot to pipeline | built | A paired phone captures a Shot, uploads through the same ingest path, sends pitch, and receives a praise-first pulse. |
 | P0.11 | Evidence-first pulse | partial | The pulse leads with the strongest corroborated Technique and its proof, then one Finding. It never says Keeper unless the photographer marked it. |
 | P0.12 | Agent desk | partial | One screen shows Shot arrival, measurements, panel reads, abstention or veto, Technique Map update, Experiment selection, Verdict, and Change check in order. |
@@ -86,7 +86,7 @@ If P0 is unstable, C3 through C10 wait. The Companion is the first fallback cut.
 |---|---|---|
 | User-facing 1 to 10 score | remove | It collapses model opinion into false precision and conflicts with the thesis. |
 | Solid, rusty, and level-up language | replace | It turns a neutral Technique record into a curriculum and claims ability beyond Evidence. |
-| Experiment, challenge, assignment, homework | replace | Experiment better covers exploration, reproduction, and comparison without coercion. |
+| Quest, challenge, assignment, homework | replace | Experiment better covers exploration, reproduction, and comparison without coercion. Done 2026-08-25. |
 | AI-generated reference clip as a core step | remove from core | It adds latency and spectacle but does not improve the longitudinal work. |
 | Director as a required pipeline stage | demote or remove | The Experiment must not wait for generated media. |
 | Constant viewfinder narration | forbid | It makes photography annoying and makes the agent the photographer. |
@@ -98,8 +98,8 @@ If P0 is unstable, C3 through C10 wait. The Companion is the first fallback cut.
 
 ## Recommended implementation order
 
-1. Fix Keeper semantics and migrate product vocabulary.
-2. Remove user-facing scores and add claim provenance.
+1. ~~Fix Keeper semantics and migrate product vocabulary.~~ Done 2026-08-25.
+2. ~~Remove user-facing scores and add claim provenance.~~ Done 2026-08-25.
 3. Polish the existing Explore Experiment through Experiment Record and Journey Update.
 4. Deploy and record the continuous P0 demo.
 5. Add one Companion capability, the summonable one-move Coach.
