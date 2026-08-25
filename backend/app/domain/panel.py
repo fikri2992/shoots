@@ -56,7 +56,7 @@ MEASURED = "measured"
 #: lens's own number: ``domain/motion.py`` says of its settled set that it can
 #: "prove or disprove" them, and a proof does not get less certain because a
 #: model was only half sure. This is also what carries the sighting past the
-#: skill graph's corroboration bar (decision 33), which is correct — arithmetic
+#: Technique Map's corroboration bar (decision 33), which is correct — arithmetic
 #: is the one voter in the system that cannot share the panel's blind spots.
 MEASURED_CONFIDENCE = 1.0
 

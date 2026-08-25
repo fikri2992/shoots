@@ -123,7 +123,7 @@ def test_one_bucket_for_everything_is_no_exploration():
     assert placement.dominant_share == 1.0
     assert placement.exploration == 0.0
     assert placement.narrow is True
-    assert placement.unexplored == ("off centre", "near the edge")
+    assert placement.never_used == ("off centre", "near the edge")
 
 
 def test_an_even_spread_is_full_exploration():
@@ -193,7 +193,9 @@ def test_without_keepers_the_profile_knows_no_taste():
     profile = tendency.build(corpus(10, subject=(0.5, 0.5)))
     assert profile.keepers == 0
     assert profile.taste_is_known is False
-    assert profile.dimensions["placement"].keeper_lift("centred", profile.keeper_rate) is None
+    assert (
+        profile.dimensions["placement"].keeper_lift("centred", profile.keeper_rate, 0) is None
+    )
 
 
 def test_keeper_lift_is_the_photographers_own_verdict():
@@ -208,8 +210,8 @@ def test_keeper_lift_is_the_photographers_own_verdict():
 
     assert profile.keepers == 5 and profile.taste_is_known is True
     assert profile.keeper_rate == pytest.approx(5 / 16)
-    centred = placement.keeper_lift("centred", profile.keeper_rate)
-    edge = placement.keeper_lift("near the edge", profile.keeper_rate)
+    centred = placement.keeper_lift("centred", profile.keeper_rate, profile.keepers)
+    edge = placement.keeper_lift("near the edge", profile.keeper_rate, profile.keepers)
     assert centred is not None and edge is not None
     assert edge > 2.0 > centred  # kept far more often than the habit
 
@@ -394,8 +396,12 @@ def test_concentration_is_marks_over_shots_not_marks_over_rejections():
     diluted = tendency.build(
         base + edge + [shot(f"x{i}", subject=(0.1, 0.5)) for i in range(6)], keepers
     )
-    before = tight.dimensions["placement"].keeper_lift("near the edge", tight.keeper_rate)
-    after = diluted.dimensions["placement"].keeper_lift("near the edge", diluted.keeper_rate)
+    before = tight.dimensions["placement"].keeper_lift(
+        "near the edge", tight.keeper_rate, tight.keepers
+    )
+    after = diluted.dimensions["placement"].keeper_lift(
+        "near the edge", diluted.keeper_rate, diluted.keepers
+    )
     assert before is not None and after is not None and after < before
 
 
@@ -403,6 +409,33 @@ def test_taste_stays_unknown_until_enough_has_been_marked():
     """Silence is the usual state, and a fine one. Two marks is not a taste."""
     rows = [shot(f"s{i}", subject=(0.5, 0.5)) for i in range(12)]
     assert tendency.build(rows, {"s0", "s1"}).taste_is_known is False
+
+
+def test_the_lift_is_silent_wherever_the_profile_says_it_knows_no_taste():
+    """The figure has to be silenced by the same bar that silences the words.
+
+    Two taps on the same kind of frame produce a lift of six, and six reads as
+    a discovered preference. The profile refuses to speak about taste at that
+    point; if the number is still published the profile says in arithmetic what
+    it has just declined to say in prose, and a screen renders "kept x6" beside
+    "mark a few frames and this can show where your keepers gather".
+    """
+    rows = [shot(f"c{i}", subject=(0.5, 0.5)) for i in range(30)]
+    rows += [shot(f"e{i}", subject=(0.1, 0.5)) for i in range(6)]
+    profile = tendency.build(rows, {"e0", "e1"})
+    placement = profile.dimensions["placement"]
+
+    assert profile.taste_is_known is False
+    for bucket in ("centred", "near the edge"):
+        assert placement.keeper_lift(bucket, profile.keeper_rate, profile.keepers) is None
+
+    # And it speaks as soon as there is a habit of marking behind it.
+    spoken = tendency.build(rows, {"e0", "e1", "e2", "e3", "e4"})
+    assert spoken.taste_is_known is True
+    lift = spoken.dimensions["placement"].keeper_lift(
+        "near the edge", spoken.keeper_rate, spoken.keepers
+    )
+    assert lift is not None and lift > 2.0
     assert tendency.build(rows, set()).taste_is_known is False
 
 

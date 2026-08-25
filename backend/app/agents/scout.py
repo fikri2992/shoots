@@ -1,8 +1,11 @@
 """The Scout's model half: research with Search grounding, then write the experiment.
 
-Two calls on purpose. ADK disables tools when ``output_schema`` is set, so
-the grounded research is a plain google-genai call whose grounding metadata
-gives real URLs, and the experiment text comes from an ADK agent against a schema.
+Two calls on purpose, and not because ADK forbids one: 2.7.1 supports
+``output_schema`` alongside tools. It is that only the grounded call's response
+carries grounding metadata, and that metadata is where the real source URLs
+live, so ``pick_references`` can never hand the photographer a URL a model
+invented. Research is one grounded google-genai call; the experiment text comes
+from an ADK agent against a schema, with the research handed to it as state.
 Criteria never come from the model: they are the technique's EXIF bounds
 plus its own id as the vision check (domain-model.md decision 4).
 """

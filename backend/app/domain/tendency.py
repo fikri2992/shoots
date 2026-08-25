@@ -40,7 +40,7 @@ from math import log, sqrt
 
 from app.domain import sun
 from app.domain import tone as tone_rules
-from app.domain.entities import Analysis, Shot
+from app.domain.entities import Analysis, Change, ChangeState, Comparability, Shot
 
 #: The version of the arithmetic in this module. Bump it whenever a bucket
 #: edge, a threshold or a formula moves, because every stored claim records the
@@ -292,7 +292,7 @@ class DimensionProfile:
         return self.counts.get(self.dominant, 0) / self.n if self.n else 0.0
 
     @property
-    def unexplored(self) -> tuple[str, ...]:
+    def never_used(self) -> tuple[str, ...]:
         """Buckets of this dimension the photographer has never used."""
         return tuple(b for b in self.dimension.buckets if not self.counts.get(b))
 
@@ -311,7 +311,7 @@ class DimensionProfile:
     def narrow(self) -> bool:
         return self.readable and self.exploration < NARROW_BELOW
 
-    def keeper_lift(self, bucket: str, overall_rate: float) -> float | None:
+    def keeper_lift(self, bucket: str, overall_rate: float, keepers: int) -> float | None:
         """How much more of this bucket the photographer marked than their
         marking rate overall. Above 1 means their Keepers concentrate here.
 
@@ -320,8 +320,17 @@ class DimensionProfile:
         so it is only ever exposure in a denominator. ``None`` when too little
         has been marked for the ratio to be worth a sentence, which is the
         usual state and a fine one.
+
+        ``keepers`` is how many marks the photographer has made in total, and
+        it has to clear ``MIN_KEEPERS_FOR_LIFT`` before any lift is returned.
+        Two taps on the same kind of frame produce a lift of six, which reads
+        as a discovered preference and is really two taps: the same bar that
+        makes ``Profile.taste_is_known`` false has to silence the figure, or
+        the profile says in numbers what it has just refused to say in words.
         """
         shots = self.counts.get(bucket, 0)
+        if keepers < MIN_KEEPERS_FOR_LIFT:
+            return None
         if shots < MIN_BUCKET_FOR_LIFT or overall_rate <= 0:
             return None
         return (self.keepers.get(bucket, 0) / shots) / overall_rate
@@ -524,7 +533,7 @@ def diff(before: Profile, after: Profile) -> list[Movement]:
 
 #: Which techniques push against a dimension's dominant bucket. This is the
 #: whole bridge from "you always do X" to "here is something to try": the Scout
-#: still chooses from the skill graph and its prerequisites, but a technique
+#: still chooses from the Technique Map and its prerequisites, but a technique
 #: named here is preferred when the profile has something to say. Ids are
 #: checked against the catalogue by a test, so a rename cannot rot this quietly.
 PUSHES_AGAINST: dict[tuple[str, str], tuple[str, ...]] = {
@@ -603,8 +612,8 @@ def challenge_for(profile: Profile) -> Challenge | None:
     bucket = narrowest.dominant
     count = narrowest.counts.get(bucket, 0)
     citation = f"{count} of {narrowest.n} readable shots: {bucket}"
-    if narrowest.unexplored:
-        citation += f" — never {', '.join(narrowest.unexplored)}"
+    if narrowest.never_used:
+        citation += f" — never {', '.join(narrowest.never_used)}"
     return Challenge(
         citation=citation,
         prefers=PUSHES_AGAINST.get((narrowest.dimension.id, bucket), ()),
@@ -612,57 +621,155 @@ def challenge_for(profile: Profile) -> Challenge | None:
     )
 
 
-# --- did the advice work? -------------------------------------------------------
+# --- did comparable behaviour change? -------------------------------------------
 
-
-@dataclass(frozen=True)
-class Grade:
-    """Whether a dimension actually widened after a challenge was set.
-
-    The coach grading itself (decision 37). Two things count as movement, and
-    they are not the same: shooting something the photographer had never shot
-    is unambiguous, while a spread that merely evens out is weaker and needs to
-    clear a threshold before it counts.
-    """
-
-    moved: bool
-    outcome: str
-    new_buckets: tuple[str, ...] = ()
-    added: int = 0
-
-
-#: Exploration has to move at least this much to count as movement rather than
+#: Exploration has to move at least this much to count as a change rather than
 #: one shot's arithmetic.
-GRADE_MOVED_BY = 0.05
+WIDENED_BY = 0.05
+
+#: Fewer shots than this since the Baseline and there is nothing to compare.
+#: A single frame can put a bucket on the board, and calling that a change
+#: would credit the advice for arithmetic. This is the difference between
+#: "unchanged" and "I cannot tell yet", and the whole reason the second answer
+#: exists: a photographer who did not go out has not ignored anything.
+MIN_SHOTS_FOR_CHANGE = 3
+
+#: Frames per scene is a ratio, so it needs more than one scene to be one.
+MIN_SCENES_FOR_CHANGE = 2
+
+#: How much further a scene has to be worked before the ratio counts as risen.
+DWELL_ROSE_BY = 0.5
 
 
-def grade(dimension: Dimension, at_issue: dict[str, int], now_counts: dict[str, int]) -> Grade:
+def change(
+    dimension: Dimension,
+    at_issue: dict[str, int],
+    now_counts: dict[str, int],
+    shots_since: int,
+) -> Change:
     """Compare a frozen dimension against where it stands now.
 
     Both halves are plain counts, so this is reproducible from the store years
-    later and no model is involved in deciding whether the advice worked.
+    later and no model decides whether the advice landed. Two things count as
+    a change, and they are not the same: shooting something the photographer
+    had never shot is unambiguous, while a spread that merely evens out is
+    weaker and has to clear ``WIDENED_BY`` first.
+
+    ``shots_since`` is how many frames the photographer actually took, which is
+    *not* the difference between the two count totals. Those totals hold only
+    the frames this dimension could read, and a dimension can read almost
+    nothing: height needs the Shoots camera's pitch, light needs GPS and a
+    timestamp. Forty imports carrying neither move the totals by zero, and
+    telling a photographer who shot forty frames that they shot none is the
+    exact failure this module exists to avoid. So the sentence counts frames
+    and the comparison counts readable frames, and when the two disagree the
+    Change says which one ran out.
+
+    Every sentence it can produce is a statement about counts. None of them
+    says the Experiment caused anything, because these two numbers cannot know
+    that (``entities.Change``).
     """
-    added = sum(now_counts.values()) - sum(at_issue.values())
-    fresh = tuple(b for b in dimension.buckets if now_counts.get(b) and not at_issue.get(b))
+    readable_since = sum(now_counts.values()) - sum(at_issue.values())
+    if readable_since < MIN_SHOTS_FOR_CHANGE:
+        return _too_few(shots_since, readable_since, dimension)
+
+    fresh = [b for b in dimension.buckets if now_counts.get(b) and not at_issue.get(b)]
     before = _entropy(at_issue, len(dimension.buckets))
     after = _entropy(now_counts, len(dimension.buckets))
 
     if fresh:
-        return Grade(
-            moved=True,
-            outcome=f"first {', '.join(fresh)} in {added} shots since",
+        return Change(
+            state=ChangeState.CHANGED,
+            outcome=f"first {', '.join(fresh)} in {_shots(shots_since)} since",
             new_buckets=fresh,
+            added=shots_since,
+        )
+    if after - before >= WIDENED_BY:
+        return Change(
+            state=ChangeState.CHANGED,
+            outcome=(
+                f"spread wider over {_shots(shots_since)} since ({before:.2f} to {after:.2f})"
+            ),
+            added=shots_since,
+        )
+    return Change(
+        state=ChangeState.UNCHANGED,
+        outcome=f"{_shots(shots_since)} since, same distribution",
+        added=shots_since,
+    )
+
+
+def dwell_change(at_issue: dict[str, int], current: Dwell) -> Change:
+    """Working the scene is a ratio rather than a distribution, so it is
+    compared on whether that ratio rose - over enough scenes to be a ratio.
+
+    One scene shot hard is an afternoon, not a tendency, which is why the scene
+    floor is separate from the shot floor and reported separately when it bites.
+    """
+    was_shots = at_issue.get("shots", 0)
+    was_scenes = at_issue.get("scenes", 0)
+    added = current.shots - was_shots
+    scenes_since = current.scenes - was_scenes
+    if added < MIN_SHOTS_FOR_CHANGE:
+        # Dwell reads every Shot - a frame with no timestamp is its own scene -
+        # so here the frame count and the readable count are the same number.
+        return _too_few(added, added, None)
+    if scenes_since < MIN_SCENES_FOR_CHANGE:
+        return Change(
+            state=ChangeState.INSUFFICIENT,
+            comparability=Comparability.TOO_FEW_SHOTS,
+            outcome=f"{added} shots since, but across {_scenes(scenes_since)} - nothing to average",
             added=added,
         )
-    if after - before >= GRADE_MOVED_BY:
-        return Grade(
-            moved=True,
-            outcome=f"spread wider over {added} shots since ({before:.2f} to {after:.2f})",
+
+    per_scene = added / scenes_since
+    was = was_shots / was_scenes if was_scenes else 0.0
+    if per_scene >= was + DWELL_ROSE_BY:
+        return Change(
+            state=ChangeState.CHANGED,
+            outcome=f"{per_scene:.1f} frames a scene since, up from {was:.1f}",
             added=added,
         )
-    if added == 0:
-        return Grade(moved=False, outcome="nothing shot since", added=0)
-    return Grade(moved=False, outcome=f"{added} shots since, same distribution", added=added)
+    return Change(
+        state=ChangeState.UNCHANGED,
+        outcome=f"{per_scene:.1f} frames a scene since, was {was:.1f}",
+        added=added,
+    )
+
+
+def _too_few(shots_since: int, readable_since: int, dimension: Dimension | None) -> Change:
+    """Too little has happened since the Baseline to compare anything.
+
+    Four ways that happens, and they read differently to a photographer: they
+    shot nothing, they shot a few frames, they shot plenty but none of them
+    could be read on this dimension, or the corpus they were measured against
+    is no longer all there.
+    """
+    if shots_since < 0 or readable_since < 0:
+        outcome = "the shots this was frozen against are no longer all there"
+    elif shots_since == 0:
+        outcome = "nothing shot since"
+    elif readable_since == 0 and dimension is not None:
+        outcome = f"{_shots(shots_since)} since, none of them showing {dimension.label}"
+    else:
+        outcome = (
+            f"{_shots(shots_since)} since, {readable_since} of them readable — "
+            f"{MIN_SHOTS_FOR_CHANGE} needed to compare"
+        )
+    return Change(
+        state=ChangeState.INSUFFICIENT,
+        comparability=Comparability.TOO_FEW_SHOTS,
+        outcome=outcome,
+        added=shots_since,
+    )
+
+
+def _shots(n: int) -> str:
+    return f"{n} shot" if n == 1 else f"{n} shots"
+
+
+def _scenes(n: int) -> str:
+    return f"{n} scene" if n == 1 else f"{n} scenes"
 
 
 def _entropy(counts: dict[str, int], buckets: int) -> float:

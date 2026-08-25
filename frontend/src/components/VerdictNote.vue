@@ -36,9 +36,9 @@ export default {
     ...mapActions(useCoachStore, ['openFor']),
     askWhy() {
       this.openFor(this.verdict.shot_id, {
-        opener: this.verdict.passed
+        opener: this.verdict.criteria_met
           ? 'What made this one work, and what would take it further?'
-          : 'Why did this not pass the experiment? Point at the frame.',
+          : 'Which of the criteria did this miss, and why? Point at the frame.',
       })
     },
   },
@@ -47,8 +47,12 @@ export default {
 
 <template>
   <div>
+    <!-- A Verdict answers the criteria the photographer declared in advance,
+         and nothing else. "Passed" graded them for it. -->
     <p class="t-meta">
-      <span :class="verdict.passed ? 'text-good' : 'text-accent'">{{ verdict.passed ? 'Passed' : 'Not yet' }}</span>
+      <span :class="verdict.criteria_met ? 'text-good' : 'text-accent'">
+        {{ verdict.criteria_met ? 'Criteria met' : 'Not yet' }}
+      </span>
       <span v-if="title"> · {{ title }}</span>
     </p>
     <p class="mt-2 t-body text-neutral-100">{{ parts.lead }}</p>
@@ -63,7 +67,7 @@ export default {
         :to="{ name: 'frame', params: { shotId: verdict.compared_with } }"
         class="hover:text-neutral-200"
       >
-        Against your best ▸
+        Against your earlier one ▸
       </RouterLink>
     </div>
 

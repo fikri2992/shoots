@@ -66,7 +66,7 @@ async def test_it_only_ever_fires_once(monkeypatch):
     with tempfile.TemporaryDirectory() as folder:
         ctx = context(folder)
         await repo.put_user(ctx.store, User(id="u1", email="a@b.c", name="A"))
-        # A experiment that is already finished still counts as a history.
+        # An experiment that is already finished still counts as a history.
         await repo.put_experiment(
             ctx.store,
             Experiment(

@@ -143,7 +143,7 @@ async def test_a_technique_becoming_repeatable_earns_an_update_on_its_own():
     )
     update = await journey.maybe_write(c, "u1")
     assert update is not None
-    assert "backlight" in update.became_solid
+    assert "backlight" in update.became_recurring
     assert any("now does reliably" in line for line in update.evidence)
 
 

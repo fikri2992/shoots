@@ -1,15 +1,15 @@
-"""The Judge's rules: does a shot meet a experiment's criteria? Pure.
+"""The Judge's rules: does a shot meet an experiment's criteria? Pure.
 
 Hard evidence first (decision 4). Each EXIF bound resolves to True, False or
 None, where None means the tag was missing and nothing can be said. A single
 False fails the shot whatever the model saw. The vision half is the
 Analyst's confidence for the technique; it counts at or above a threshold.
 
-    passed = no False in exif checks
+    criteria met = no False in exif checks
              and every required technique seen at >= threshold
              and (some exif check is True, or there were no checkable bounds)
 
-The last clause stops a photo with stripped EXIF from passing a experiment whose
+The last clause stops a photo with stripped EXIF from passing an experiment whose
 whole point is a camera setting: if the experiment has bounds and none of them
 could be checked, vision alone is not enough.
 """

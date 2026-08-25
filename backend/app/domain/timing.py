@@ -1,4 +1,4 @@
-"""When a experiment should land on the phone.
+"""When an experiment should land on the phone.
 
 A technique has a light window (``taxonomy.LIGHT``); the user's last known
 location comes from the EXIF of their own frames. From those two facts the

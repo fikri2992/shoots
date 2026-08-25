@@ -7,7 +7,7 @@ Only the Analyst stage runs, on a bare context with no bus subscribers, so
 the Cartographer does not count the same shot twice and no verdict moves.
 Afterwards, rebuild the skill graph from the new analyses:
 
-    uv run python scripts/call_as_user.py POST api/skills/rebuild
+    uv run python scripts/call_as_user.py POST api/techniques/rebuild
 """
 
 import asyncio
@@ -60,7 +60,7 @@ async def main(shot_ids: list[str]) -> None:
             f"{d['lens']} {d['technique_id']} {d['confidence']}" for d in analysis.dissent
         )
         print(
-            f"  {shot.filename}: {analysis.score}/10 {analysis.elements} "
+            f"  {shot.filename}: {len(analysis.techniques)} techniques "
             f"in {time.monotonic() - started:.0f}s · {seen}"
         )
         if lost:

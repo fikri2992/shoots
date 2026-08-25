@@ -41,7 +41,7 @@ async def _judge(ctx: Context, message: dict) -> None:
         return
 
     analysis = await repo.find_analysis(ctx.store, shot.id)
-    passed, exif_checks, vision_checks = rules.evaluate(
+    met, exif_checks, vision_checks = rules.evaluate(
         experiment.criteria, shot.exif, analysis, settings.judge_min_confidence
     )
 
@@ -51,7 +51,7 @@ async def _judge(ctx: Context, message: dict) -> None:
         if previous and GRIDDED in previous[0].blobs and images:
             images.append(await ctx.blobs.read(previous[0].blobs[GRIDDED]))
         written = await agent.feedback(
-            experiment, passed, exif_checks, vision_checks, analysis, shot, previous, images
+            experiment, met, exif_checks, vision_checks, analysis, shot, previous, images
         )
         text = written.feedback.strip()
         if written.tip.strip():
@@ -59,18 +59,18 @@ async def _judge(ctx: Context, message: dict) -> None:
     except Exception:  # the verdict must land even if the model does not
         logger.exception("judge: feedback model failed for %s", shot.id)
         lines = rules.describe_checks(exif_checks, vision_checks, settings.judge_min_confidence)
-        text = ("Passed. " if passed else "Not yet. ") + "; ".join(lines)
+        text = ("Criteria met. " if met else "Not yet. ") + "; ".join(lines)
 
     verdict = Verdict(
         shot_id=shot.id,
-        passed=passed,
+        criteria_met=met,
         exif_checks={k: (None if v is None else bool(v)) for k, v in exif_checks.items()},
         vision_checks=vision_checks,
         feedback=text[:2000],
         compared_with=previous[0].id if previous else "",
     )
     experiment.verdicts.append(verdict)
-    if passed:
+    if met:
         experiment.status = ExperimentStatus.COMPLETED
         experiment.closed_at = now()
     await repo.put_experiment(ctx.store, experiment)
@@ -83,7 +83,7 @@ async def _judge(ctx: Context, message: dict) -> None:
         ctx.store,
         shot.user_id,
         AGENT,
-        "passed" if passed else "not_passed",
+        "criteria_met" if met else "criteria_not_met",
         {
             "technique_id": experiment.technique_id,
             "exif_checks": verdict.exif_checks,
@@ -94,7 +94,7 @@ async def _judge(ctx: Context, message: dict) -> None:
         experiment_id=experiment.id,
     )
     await notify.verdict_given(ctx, experiment, verdict)
-    if passed:
+    if met:
         await ctx.bus.publish(
             TOPICS["experiment.closed"], {"user_id": shot.user_id, "experiment_id": experiment.id}
         )

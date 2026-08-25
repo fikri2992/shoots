@@ -1,9 +1,9 @@
-"""Issue a experiment with the real model against the local dev store.
+"""Issue an experiment with the real model against the local dev store.
 
     uv run python scripts/check_scout.py [user_id]
 
 Reads backend/.blobs/store.json (the FileStore the dev server writes), so it
-sees the real skill graph built from your analysed shots, runs Scout
+sees the real Technique Map built from your analysed shots, runs Scout
 (grounded research + structured write) and prints the experiment. Writes it back
 to the same store, so the dashboard shows it.
 """
@@ -39,7 +39,8 @@ async def main(user_id: str | None) -> None:
     print(f"user {user.email}: {len(skills)} techniques attempted")
     for s in sorted(skills, key=lambda s: s.technique_id):
         print(
-            f"  {s.technique_id:22} {s.status.value:10} attempts={s.attempts} best={s.best_score}"
+            f"  {s.technique_id:22} {s.status.value:10} "
+            f"attempts={s.attempts} corroborated={s.corroborated}"
         )
 
     experiment = await scout.issue(ctx, user.id, force=True)

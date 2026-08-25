@@ -132,8 +132,19 @@ object Api {
         Pulse(praise = praise, finding = finding, keeper = !shot.optString("kept_at").isNullOrEmpty())
     }.getOrNull()
 
+    /**
+     * Mark or unmark a Shot as one the photographer values.
+     *
+     * PUT, not POST: the route is registered PUT-only and a POST answered 405,
+     * so every tap on the camera's keeper button failed and reported success.
+     * Returns whether the server actually took it - the caller has to be able
+     * to put the button back, because a mark that only ever existed on screen
+     * is a taste signal the Tendency Profile never sees, and an unmark that
+     * never lands leaves a frame valued that the photographer let go.
+     */
     fun setKeeper(context: Context, shotId: String, keeper: Boolean): Boolean = runCatching {
-        postJson(
+        sendJson(
+            "PUT",
             baseUrl(context) + "/api/shots/$shotId/keeper",
             JSONObject().put("keeper", keeper),
             token(context),
@@ -154,9 +165,12 @@ object Api {
         return read(connection)
     }
 
-    private fun postJson(url: String, body: JSONObject, token: String): JSONObject {
+    private fun postJson(url: String, body: JSONObject, token: String): JSONObject =
+        sendJson("POST", url, body, token)
+
+    private fun sendJson(method: String, url: String, body: JSONObject, token: String): JSONObject {
         val connection = (URL(url).openConnection() as HttpURLConnection).apply {
-            requestMethod = "POST"
+            requestMethod = method
             doOutput = true
             connectTimeout = TIMEOUT_MS
             readTimeout = TIMEOUT_MS

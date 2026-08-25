@@ -69,7 +69,7 @@ def main(shot_id: str | None) -> None:
             data = json.loads(message["text"])
             if data["type"] == "tool":
                 lines.append({"role": "tool", "text": data["text"]})
-                issued = data["name"] == "issue_quest"
+                issued = data["name"] == "issue_experiment"
                 continue
             if data["type"] == "transcript":
                 if lines and lines[-1]["role"] == data["role"]:

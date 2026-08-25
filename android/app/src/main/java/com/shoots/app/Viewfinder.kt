@@ -146,9 +146,20 @@ fun Viewfinder(onUnpair: () -> Unit) {
             onKeep = {
                 val id = shotId
                 if (id.isNotEmpty()) {
-                    val next = !(pulse?.keeper ?: false)
+                    val was = pulse?.keeper ?: false
+                    val next = !was
                     pulse = pulse?.copy(keeper = next)
-                    scope.launch { withContext(Dispatchers.IO) { Api.setKeeper(context, id, next) } }
+                    scope.launch {
+                        val ok = withContext(Dispatchers.IO) { Api.setKeeper(context, id, next) }
+                        // The only taste signal in the system, so it may not be
+                        // faked. If the server did not take it, put the button
+                        // back and say so rather than leaving a mark on screen
+                        // that no profile will ever see.
+                        if (!ok) {
+                            pulse = pulse?.copy(keeper = was)
+                            error = "could not save that"
+                        }
+                    }
                 }
             },
         )

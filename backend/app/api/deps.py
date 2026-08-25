@@ -45,7 +45,7 @@ def wire(ctx: Context) -> None:
 
     async def on_media_analyzed(message: dict) -> None:
         await cartographer.update(ctx, message)
-        # The map moved; if this user has never had a experiment, that is enough to
+        # The map moved; if this user has never had an experiment, that is enough to
         # choose one. Nothing to click, on the first run or any other.
         shot = await repository.get_shot(ctx.store, message["shot_id"])
         await scout.issue_first(ctx, shot.user_id)
@@ -53,10 +53,10 @@ def wire(ctx: Context) -> None:
     async def on_media_analyzed_judge(message: dict) -> None:
         await judge.judge(ctx, message)
 
-    async def on_quest_closed(message: dict) -> None:
-        await scout.on_quest_closed(ctx, message)
+    async def on_experiment_closed(message: dict) -> None:
+        await scout.on_experiment_closed(ctx, message)
 
-    async def on_quest_issued(message: dict) -> None:
+    async def on_experiment_issued(message: dict) -> None:
         await director.direct(ctx, message)
 
     async def on_media_judged(message: dict) -> None:
@@ -68,8 +68,8 @@ def wire(ctx: Context) -> None:
     ctx.bus.subscribe(TOPICS["media.analyzed"], on_media_analyzed, stage="cartographer")
     ctx.bus.subscribe(TOPICS["media.analyzed"], on_media_analyzed_judge, stage="judge")
     ctx.bus.subscribe(TOPICS["media.judged"], on_media_judged, stage="scribe")
-    ctx.bus.subscribe(TOPICS["experiment.closed"], on_quest_closed, stage="scout")
-    ctx.bus.subscribe(TOPICS["experiment.issued"], on_quest_issued, stage="director")
+    ctx.bus.subscribe(TOPICS["experiment.closed"], on_experiment_closed, stage="scout")
+    ctx.bus.subscribe(TOPICS["experiment.issued"], on_experiment_issued, stage="director")
 
 
 context = build_context()

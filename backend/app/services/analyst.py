@@ -97,7 +97,10 @@ async def analyse(ctx: Context, message: dict) -> None:
         AGENT,
         "analyzed",
         {
-            "score": analysis.score,
+            # No score and no element scores. ``ActivityEvent.detail`` is an
+            # untyped dict served verbatim by GET /api/events, so anything put
+            # here is published; the Judge's event next door records only its
+            # checks for the same reason (decision 46).
             "techniques": [
                 {
                     "id": t.technique_id,
@@ -107,7 +110,6 @@ async def analyse(ctx: Context, message: dict) -> None:
                 }
                 for t in analysis.techniques
             ],
-            "elements": analysis.elements,
             "panel": analysis.panel,
             "dissent": analysis.dissent,
             "crop": {

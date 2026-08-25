@@ -44,7 +44,7 @@ def director_agent() -> LlmAgent:
     return LlmAgent(
         model=settings.model_flash,
         name="director",
-        description="Writes the Veo prompt for a experiment's reference clip.",
+        description="Writes the Veo prompt for an experiment's reference clip.",
         instruction=prompts.load("director"),
         output_schema=Storyboard,
         output_key="storyboard",

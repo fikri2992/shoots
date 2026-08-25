@@ -39,7 +39,7 @@ export const useShootsStore = defineStore('shoots', {
       return groups
     },
     shotById: (state) => (id) => state.shots.find((v) => v.shot.id === id) || null,
-    questById: (state) => (id) => state.experiments.find((q) => q.id === id) || null,
+    experimentById: (state) => (id) => state.experiments.find((q) => q.id === id) || null,
 
     /** Newest first by when we received it, not by when the camera says it was
         taken: an old holiday photo dropped in today belongs at the top. */
@@ -60,7 +60,7 @@ export const useShootsStore = defineStore('shoots', {
           Date.now() - new Date(v.shot.ingested_at) < 15 * 60 * 1000,
       ),
 
-    pastQuests: (state) => state.experiments.filter((q) => q.status !== 'open'),
+    pastExperiments: (state) => state.experiments.filter((q) => q.status !== 'open'),
 
     /** The newest verdict anywhere, with the experiment it belongs to. */
     lastVerdict: (state) => {
@@ -83,7 +83,7 @@ export const useShootsStore = defineStore('shoots', {
           api.get('/api/me'),
           api.get('/api/experiments/open'),
           api.get('/api/experiments?limit=20'),
-          api.get('/api/skills'),
+          api.get('/api/techniques'),
           api.get('/api/shots?limit=100'),
           api.get('/api/events?limit=60'),
           api.get('/api/profile'),
@@ -116,7 +116,7 @@ export const useShootsStore = defineStore('shoots', {
           const [experiment, experiments, skills, shots] = await Promise.all([
             api.get('/api/experiments/open'),
             api.get('/api/experiments?limit=20'),
-            api.get('/api/skills'),
+            api.get('/api/techniques'),
             api.get('/api/shots?limit=100'),
           ])
           this.experiment = experiment
@@ -170,7 +170,7 @@ export const useShootsStore = defineStore('shoots', {
       })
     },
 
-    issueQuest(force = false) {
+    issueExperiment(force = false) {
       return this.run('issue', async () => {
         const experiment = await api.post(`/api/experiments/issue?force=${force}`)
         await this.fetchAll()
@@ -178,7 +178,7 @@ export const useShootsStore = defineStore('shoots', {
       })
     },
 
-    skipQuest(id) {
+    skipExperiment(id) {
       return this.run('skip', async () => {
         await api.post(`/api/experiments/${id}/skip`)
         await this.fetchAll()
@@ -186,20 +186,20 @@ export const useShootsStore = defineStore('shoots', {
     },
 
     /** On location: the experiment's criteria on a preview, before the upload. */
-    preflight(file, questId) {
+    preflight(file, experimentId) {
       return this.run('preflight', async () => {
         const form = new FormData()
         form.append('file', file, file.name)
-        form.append('experiment_id', questId)
+        form.append('experiment_id', experimentId)
         return api.postForm('/drive/preflight', form)
       })
     },
 
-    shoot(file, questId = '') {
+    shoot(file, experimentId = '') {
       return this.run('shoot', async () => {
         const form = new FormData()
         form.append('file', file, file.name)
-        if (questId) form.append('experiment_id', questId)
+        if (experimentId) form.append('experiment_id', experimentId)
         const result = await api.postForm('/drive/shoot', form)
         await this.poll()
         return result

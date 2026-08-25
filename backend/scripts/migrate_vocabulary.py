@@ -5,13 +5,21 @@
 Stop the dev server first. Idempotent: running it twice changes nothing the
 second time, and a store that is already current is left alone.
 
-Three renames, and one of them is a real decision rather than a substitution.
+Most of it is renaming, but two entries are real decisions rather than
+substitutions, and both come out the same way: where the old shape cannot be
+read honestly, the migration keeps the evidence and drops the verdict.
+
 `rusty` does not survive as a state, and what it becomes matters: a Technique
 that decayed to `rusty` had *recurred* first, and decision 46 says time never
 un-observes what the Evidence saw. So it becomes `recurring`, and whether it
 is worth offering again is answered live by `technique_map.stale_ids` from
 `last_observed`. Reading it as anything less would let the migration itself
 demote work the photographer actually did.
+
+`TendencyGrade.moved` becomes a `Baseline` with no `Change` at all, for the
+reason given in `_experiment_record`: a two-state answer cannot say "I cannot
+tell", so carrying it across would preserve conclusions the current rules would
+not draw.
 """
 
 import asyncio
@@ -37,6 +45,12 @@ async def main(dry_run: bool) -> None:
     store = FileStore(settings.blob_root + "/store.json")
     raw = store._data
 
+    #: Every rename that touched anything, so ``--dry-run`` can be trusted.
+    #: Four of these used to run silently and report nothing, which meant a
+    #: store still holding `faults` or `quest_id` printed "0 changes" and an
+    #: operator doing the documented safe thing concluded it was current. The
+    #: models ignore unknown keys rather than failing, so the next load would
+    #: have dropped every stored Finding without an error anywhere.
     changes: list[str] = []
 
     # Techniques: five graded states become three observed ones.
@@ -47,6 +61,7 @@ async def main(dry_run: bool) -> None:
             changes.append(f"skill {key}: {old} -> {row['status']}")
         if "last_practiced" in row:
             row["last_observed"] = row.pop("last_practiced")
+            changes.append(f"skill {key}: last_practiced -> last_observed")
 
     # Experiments: the collection and the outcome word.
     quests = raw.pop("quests", None)
@@ -58,26 +73,36 @@ async def main(dry_run: bool) -> None:
         if old in EXPERIMENT_STATUS:
             row["status"] = EXPERIMENT_STATUS[old]
             changes.append(f"experiment {key}: {old} -> {row['status']}")
+        changes += _experiment_record(key, row)
 
     # The id every Shot and event carried for the thing it answered.
     for collection in ("shots", "events"):
-        for row in raw.get(collection, {}).values():
+        for key, row in raw.get(collection, {}).items():
             if "quest_id" in row:
                 row["experiment_id"] = row.pop("quest_id")
+                changes.append(f"{collection} {key}: quest_id -> experiment_id")
 
     # Findings, and the Keeper's positive-only shape.
-    for row in raw.get("analyses", {}).values():
+    for key, row in raw.get("analyses", {}).items():
         if "faults" in row:
             row["findings"] = row.pop("faults")
             for finding in row["findings"]:
                 if "fault_id" in finding:
                     finding["finding_id"] = finding.pop("fault_id")
-    for row in raw.get("shots", {}).values():
+            changes.append(f"analysis {key}: faults -> findings ({len(row['findings'])})")
+    for key, row in raw.get("shots", {}).items():
         if "keeper" in row:
             # True became a mark with no date; False was never a rejection and
             # becomes silence, which is what it always meant (decision 45).
             was = row.pop("keeper")
             row["kept_at"] = row.get("kept_at") or (row.get("ingested_at") if was else None)
+            changes.append(f"shot {key}: keeper={was} -> kept_at")
+
+    # The Journey's own graded word.
+    for key, row in raw.get("journey", {}).items():
+        if "became_solid" in row:
+            row["became_recurring"] = row.pop("became_solid")
+            changes.append(f"journey {key}: became_solid -> became_recurring")
 
     for line in changes:
         print(" ", line)
@@ -87,6 +112,46 @@ async def main(dry_run: bool) -> None:
         return
     store._flush()
     print("written")
+
+
+def _experiment_record(key: str, row: dict) -> list[str]:
+    """One Experiment becomes an Experiment Record: a type, a frozen Baseline,
+    and a Change with three states instead of a boolean.
+
+    The old ``moved`` flag is deliberately *not* carried across. It was decided
+    before a minimum sample existed, so a `false` might mean "the distribution
+    held over forty frames" or "one frame arrived and it was the usual kind" -
+    and the second is `insufficient evidence`, not `unchanged`. Re-checking is
+    pure arithmetic over counts that are still on disk, so the honest move is
+    to keep the Baseline, drop the verdict, and let the next tick answer it
+    under the rules that are actually in force.
+    """
+    changes: list[str] = []
+    if "type" not in row:
+        row["type"] = "explore"
+        changes.append(f"experiment {key}: type -> explore")
+    # A Verdict answers the Criteria the photographer declared in advance. A
+    # person passes or fails; a declared check is met or is not (decision 46).
+    for verdict in row.get("verdicts", []):
+        if "passed" in verdict:
+            verdict["criteria_met"] = verdict.pop("passed")
+            changes.append(f"experiment {key}: verdict passed -> criteria_met")
+    mark = row.pop("tendency", None)
+    if mark is None:
+        return changes
+    row["baseline"] = {
+        "source": mark.get("source", ""),
+        "citation": mark.get("citation", ""),
+        "at_issue": mark.get("at_issue", {}),
+        "calc_version": mark.get("calc_version", ""),
+        # No Shot ids were kept back then, and inventing a sample size would
+        # make every later "shots since" figure wrong. Left empty on purpose:
+        # the Change reports `unrecorded sample` and says so.
+        "provenance": {},
+        "frozen_at": row.get("issued_at"),
+    }
+    changes.append(f"experiment {key}: tendency -> baseline (change re-checked)")
+    return changes
 
 
 if __name__ == "__main__":

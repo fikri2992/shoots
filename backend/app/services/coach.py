@@ -12,7 +12,7 @@ import logging
 
 from app.agents import coach as agent
 from app.domain import taxonomy
-from app.domain.entities import Constraints, now
+from app.domain.entities import Constraints, TechniqueStatus, now
 from app.infra import repository as repo
 from app.services import scout
 from app.services.context import Context
@@ -74,7 +74,7 @@ async def remember(ctx: Context, user_id: str, transcript: list[dict]) -> Constr
 
 async def run_tool(ctx: Context, user_id: str, name: str, args: dict) -> dict:
     """Dispatch one Live function call. Returns what the model reads back."""
-    if name == "issue_quest":
+    if name == "issue_experiment":
         technique_id = str(args.get("technique_id", "") or "").strip().lower()
         reason = str(args.get("reason", "") or "").strip()[:200]
         if technique_id and technique_id not in taxonomy.BY_ID:
@@ -115,17 +115,23 @@ async def run_tool(ctx: Context, user_id: str, name: str, args: dict) -> dict:
             {"missing_gear": merged.missing_gear, "notes": merged.notes},
         )
         return {"ok": True, "missing_gear": merged.missing_gear, "notes": merged.notes}
-    if name == "skill_map":
+    if name == "technique_map":
         skills = await repo.list_skills(ctx.store, user_id)
         by_status: dict[str, list[str]] = {}
         for state in skills:
-            by_status.setdefault(state.status.value, []).append(
-                f"{taxonomy.BY_ID[state.technique_id].name} (best {state.best_score}/10)"
+            # How often the Evidence corroborated it, never a score. The Coach
+            # speaks out loud, so a number handed to it here is a number the
+            # photographer hears - and one frame demonstrating six Techniques
+            # gave the same score to all six (decision 46).
+            name_or_id = (
+                taxonomy.BY_ID[state.technique_id].name
                 if state.technique_id in taxonomy.BY_ID
                 else state.technique_id
             )
-        attempted = {s.technique_id for s in skills if s.status.value != "unexplored"}
-        unlocked = [t.name for t in taxonomy.unlocked(attempted) if not t.video_only][:12]
+            seen = f" (seen {state.attempts}, confirmed {state.corroborated})"
+            by_status.setdefault(state.status.value, []).append(name_or_id + seen)
+        observed = {s.technique_id for s in skills if s.status is not TechniqueStatus.UNOBSERVED}
+        unlocked = [t.name for t in taxonomy.unlocked(observed) if not t.video_only][:12]
         return {"ok": True, "by_status": by_status, "unlocked_next": unlocked}
     return {"ok": False, "error": f"unknown tool {name}"}
 
@@ -134,15 +140,15 @@ def summarise_tool(name: str, result: dict) -> str:
     """One line for the phone and the feed."""
     if not result.get("ok"):
         return f"{name}: {result.get('error', 'failed')}"
-    if name == "issue_quest":
-        return f"issued a experiment: {result['title']}"
+    if name == "issue_experiment":
+        return f"issued an experiment: {result['title']}"
     if name == "remember":
         bits = []
         if result.get("missing_gear"):
             bits.append("no " + ", ".join(result["missing_gear"]))
         bits += result.get("notes", [])[-2:]
         return "remembered: " + " · ".join(bits)
-    if name == "skill_map":
+    if name == "technique_map":
         count = sum(len(v) for v in result.get("by_status", {}).values())
-        return f"read the skill map ({count} techniques attempted)"
+        return f"read the technique map ({count} techniques observed)"
     return name

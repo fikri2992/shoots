@@ -1,9 +1,10 @@
 """The records Shoots keeps. Pydantic v2, stored as plain dicts in Firestore.
 
-Vocabulary is docs/domain-model.md. A *shot* is one photo or video file. The
-*Analyst* turns a shot into *evidence* for techniques. The *skill graph* is the
-per-user state of every technique. A *experiment* asks for one technique and says,
-in machine-checkable terms, what counts as done.
+Vocabulary is docs/domain-model.md. A *Shot* is one photo or video file. The
+*Analyst* turns a Shot into *Evidence* for Techniques. The *Technique Map* is
+the per-user state of every Technique. An *Experiment* asks for one Technique
+and says, in machine-checkable terms, what counts as done - and keeps the
+record of how it went, which is the *Experiment Record*.
 """
 
 import uuid
@@ -352,7 +353,7 @@ class Analysis(BaseModel):
     created_at: datetime = Field(default_factory=now)
 
 
-# --- skill graph ----------------------------------------------------------
+# --- technique map --------------------------------------------------------
 
 
 class TechniqueStatus(StrEnum):
@@ -410,6 +411,36 @@ class TechniqueState(BaseModel):
     shot_ids: list[str] = Field(default_factory=list)
 
 
+# --- provenance -----------------------------------------------------------
+
+
+class Provenance(BaseModel):
+    """Where a longitudinal claim came from, so it can be checked or replayed.
+
+    A claim about a body of work is not checkable the way a single Finding is:
+    the reader cannot open one file and see the figure. What makes it honest
+    instead is knowing exactly which Shots it was computed from, how many, by
+    which version of the arithmetic, and - where a model wrote the words -
+    under which model and which prompt.
+
+    Re-running the same ``calc_version`` over the same ``shot_ids`` reproduces
+    every measured number. The sentences are a model's and will vary; the
+    figures underneath them will not.
+    """
+
+    #: Every Shot the claim was computed from, in the order they were read.
+    shot_ids: list[str] = Field(default_factory=list)
+    #: How many that is. Stored beside the ids so a reader sees the sample size
+    #: without counting, and so a truncated id list still reports honestly.
+    sample_size: int = 0
+    #: The version of the pure arithmetic that produced the figures.
+    calc_version: str = ""
+    #: Set only where a model contributed language to the claim.
+    model: str = ""
+    prompt_version: str = ""
+    computed_at: datetime = Field(default_factory=now)
+
+
 # --- experiments ---------------------------------------------------------------
 
 
@@ -440,6 +471,25 @@ class Reference(BaseModel):
     url: str
 
 
+class ExperimentType(StrEnum):
+    """Which of the three questions this Experiment asks (decision 43).
+
+    Only ``EXPLORE`` is issued today. The other two are named here because an
+    Experiment Record has to say which question it answered, and a record
+    written now must still mean the same thing once the Scout learns to ask
+    the other two - not silently become "whatever we did back then".
+    """
+
+    #: Widen a dimension the archive barely uses.
+    EXPLORE = "explore"
+    #: Repeat a Keeper-associated pattern deliberately, to see whether it was
+    #: luck or something the photographer can call on.
+    REPRODUCE = "reproduce"
+    #: Change one variable, keep both frames, and let the photographer say
+    #: which result they value. The model does not pick the winner.
+    COMPARE = "compare"
+
+
 class ExperimentStatus(StrEnum):
     OPEN = "open"
     #: The Criteria were met. "Passed" graded the photographer; an Experiment
@@ -450,45 +500,127 @@ class ExperimentStatus(StrEnum):
 
 
 class Verdict(BaseModel):
+    """One submitted Shot measured against one Experiment's declared Criteria.
+
+    It answers the Criteria and nothing else (decision 46). It is not a mark
+    for the photograph and not a grade for the photographer, which is why the
+    field is ``criteria_met`` rather than ``passed``: a person passes or fails,
+    a declared check is met or is not.
+    """
+
     shot_id: str
-    passed: bool
+    criteria_met: bool
     exif_checks: dict[str, bool] = Field(default_factory=dict)
     vision_checks: dict[str, float] = Field(default_factory=dict)
     feedback: str
-    #: The user's previous best shot for the technique the feedback compared against.
+    #: An earlier Shot of the same Technique the feedback was written against.
+    #: Chosen by Keeper first, then corroboration, then recency - never by a
+    #: score, so it is "one of your earlier ones", not "your best".
     compared_with: str = ""
     judged_at: datetime = Field(default_factory=now)
 
 
-class TendencyGrade(BaseModel):
-    """What the Scout's own advice was aimed at, and whether it landed.
+class Baseline(BaseModel):
+    """The measurement an Experiment was aimed at, frozen before any result.
 
-    Decision 37: an agent that never checks its own recommendations is a
-    critique queue, not a coach. The dimension this experiment pushed against is
-    frozen here at issue time, and when later shots arrive the counts are
-    compared - arithmetic, no model adjudicating.
+    Frozen at issue time on purpose: a baseline computed afterwards is not a
+    baseline, it is a story told backwards. Everything here is plain counts and
+    the version of the arithmetic that produced them, so the comparison can be
+    replayed from the store years later without a model, a photograph or a
+    prompt.
 
-    What this deliberately does not claim: that moved counts mean better
-    photographs. Behaviour change is the measurable thing. Quality stays the
-    panel's opinion and is labelled as such wherever it appears.
+    A Baseline exists only when the photographer's own tendency actually chose
+    the Experiment. Advice that was picked for another reason is not graded
+    against a tendency it was never aimed at (``services/scout.py``).
     """
 
     #: The dimension id the challenge came from, or "dwell".
     source: str = ""
     #: The sentence the photographer was shown: "12 of 18 readable: centred".
+    #: Arithmetic, not prose - it is rendered verbatim rather than paraphrased.
     citation: str = ""
-    #: Bucket -> count for that dimension, frozen when the experiment was issued.
+    #: Bucket -> count for that dimension, frozen when the Experiment was issued.
     at_issue: dict[str, int] = Field(default_factory=dict)
-    #: The version of the arithmetic that froze ``at_issue`` and will grade it.
-    #: A grade is only meaningful against the calculation that produced its
-    #: baseline, so a bump here means the comparison has to be re-run rather
-    #: than trusted.
+    #: The version of the arithmetic that froze ``at_issue``. A comparison is
+    #: only meaningful against the calculation that produced its baseline, so a
+    #: bump here makes the two sides incomparable rather than merely stale.
     calc_version: str = ""
-    #: Filled in when the grading runs. None until then.
-    moved: bool | None = None
-    #: What changed, in one plain sentence.
+    #: Which Shots the figures came from. No model wrote the citation - it is an
+    #: f-string over counts - so no model or prompt is recorded here.
+    provenance: Provenance = Field(default_factory=Provenance)
+    frozen_at: datetime = Field(default_factory=now)
+
+
+class ChangeState(StrEnum):
+    """The three answers to "does comparable behaviour differ now?"
+
+    The third is the one that makes the other two worth anything. Without it a
+    photographer who simply did not go out reads as advice that failed, and
+    good advice gets retired on no evidence at all.
+    """
+
+    CHANGED = "changed"
+    UNCHANGED = "unchanged"
+    #: Not a polite "no". The system declining to compare two samples that
+    #: cannot be compared, and saying which of them was not enough.
+    INSUFFICIENT = "insufficient evidence"
+
+
+class Comparability(StrEnum):
+    """Why two samples could, or could not, be set beside each other.
+
+    Recorded separately from the answer because the reasons differ in kind:
+    one of them can go away on its own, and the others never will.
+    """
+
+    COMPARABLE = "comparable"
+    #: Not yet - the photographer has not shot enough since. Checked again.
+    TOO_FEW_SHOTS = "too few shots"
+    #: The baseline was frozen by a different ``CALC_VERSION``. Diffing across
+    #: it would report a change the photographer never made. Never re-checked.
+    DIFFERENT_ARITHMETIC = "different arithmetic"
+    #: Nothing measures that dimension any more. Never re-checked.
+    UNKNOWN_DIMENSION = "unknown dimension"
+    #: The baseline predates the record of how many Shots it was taken over, so
+    #: there is no honest way to say how much has been shot since. Only ever
+    #: true of Experiments issued before ``Baseline.provenance`` existed.
+    UNRECORDED_SAMPLE = "unrecorded sample"
+
+
+class Change(BaseModel):
+    """Whether comparable behaviour differs now from the frozen Baseline.
+
+    The coach grading its own advice (decision 37): an agent that never checks
+    its own recommendations is a critique queue. Both sides are plain counts,
+    so no model adjudicates whether the advice landed.
+
+    What a Change never claims, and what the wording is written to avoid: that
+    the Experiment *caused* the difference, or that the photographs got better.
+    Behaviour is measurable. Causation is not available from two frozen counts,
+    and quality stays the panel's opinion and is labelled as one.
+    """
+
+    state: ChangeState
+    comparability: Comparability = Comparability.COMPARABLE
+    #: What the counts say, in one plain sentence. Never a causal one.
     outcome: str = ""
-    graded_at: datetime | None = None
+    #: Buckets that were empty at issue and have something in them now.
+    new_buckets: list[str] = Field(default_factory=list)
+    #: Shots taken since the Baseline was frozen.
+    added: int = 0
+    #: Stamped by the service that recorded it. The pure arithmetic leaves it
+    #: unset, so a Change stays reproducible from the counts alone.
+    checked_at: datetime | None = None
+
+    @property
+    def settled(self) -> bool:
+        """Whether a later check could still reach a different answer.
+
+        Only a sample that is merely too small can grow into one. A baseline
+        frozen under other arithmetic never becomes comparable, so re-checking
+        it forever would be noise.
+        """
+        return self.comparability is not Comparability.TOO_FEW_SHOTS
 
 
 class ExperimentTiming(BaseModel):
@@ -501,9 +633,20 @@ class ExperimentTiming(BaseModel):
 
 
 class Experiment(BaseModel):
+    """One bounded thing to try, and the durable record of how it went.
+
+    This *is* the Experiment Record (decision 44): the reason it was set, its
+    type, the frozen Baseline, the declared Criteria, the Verdicts that came
+    back, and the Change afterwards - all on one row, all readable later. That
+    is the point of it. Advice text alone leaves nothing behind to check, and a
+    coach whose recommendations cannot be audited is just a critique queue with
+    a friendlier tone.
+    """
+
     id: str
     user_id: str
     technique_id: str
+    type: ExperimentType = ExperimentType.EXPLORE
     title: str
     brief: str
     why_now: str  # the Scout's gap reasoning, shown to the user
@@ -514,8 +657,12 @@ class Experiment(BaseModel):
     deliver_at: datetime | None = None
     delivered_at: datetime | None = None
     timing: ExperimentTiming | None = None
-    #: The tendency this experiment was aimed at, and whether the aim was any good.
-    tendency: TendencyGrade | None = None
+    #: The tendency this Experiment was aimed at, frozen before any result.
+    #: None when the photographer's own work did not choose it.
+    baseline: Baseline | None = None
+    #: Whether comparable behaviour differs now. None until it has been checked,
+    #: and re-checked while the sample is only too small (``Change.settled``).
+    change: Change | None = None
     status: ExperimentStatus = ExperimentStatus.OPEN
     verdicts: list[Verdict] = Field(default_factory=list)
     issued_at: datetime = Field(default_factory=now)
@@ -526,38 +673,11 @@ class Experiment(BaseModel):
 # --- audit trail ----------------------------------------------------------
 
 
-class Provenance(BaseModel):
-    """Where a longitudinal claim came from, so it can be checked or replayed.
-
-    A claim about a body of work is not checkable the way a single Finding is:
-    the reader cannot open one file and see the figure. What makes it honest
-    instead is knowing exactly which Shots it was computed from, how many, by
-    which version of the arithmetic, and - where a model wrote the words -
-    under which model and which prompt.
-
-    Re-running the same ``calc_version`` over the same ``shot_ids`` reproduces
-    every measured number. The sentences are a model's and will vary; the
-    figures underneath them will not.
-    """
-
-    #: Every Shot the claim was computed from, in the order they were read.
-    shot_ids: list[str] = Field(default_factory=list)
-    #: How many that is. Stored beside the ids so a reader sees the sample size
-    #: without counting, and so a truncated id list still reports honestly.
-    sample_size: int = 0
-    #: The version of the pure arithmetic that produced the figures.
-    calc_version: str = ""
-    #: Set only where a model contributed language to the claim.
-    model: str = ""
-    prompt_version: str = ""
-    computed_at: datetime = Field(default_factory=now)
-
-
 class JourneyUpdate(BaseModel):
     """The agent's current conclusion about the photographer (decision 39).
 
     The finished artifact of the whole product, and the thing the hobbyist
-    actually wanted when they installed a photography app: not a experiment ticket
+    actually wanted when they installed a photography app: not an experiment ticket
     closed, an honest answer to *what kind of photographer am I becoming, and
     am I improving?* One paragraph, written when the Tendency Profile
     meaningfully moves rather than on a schedule.
@@ -584,8 +704,10 @@ class JourneyUpdate(BaseModel):
     #: count. Stored so the *next* update can diff against it exactly, rather
     #: than re-reporting the whole body of work as new every time.
     counts: dict[str, dict[str, int]] = Field(default_factory=dict)
-    #: Techniques that reached solid since the last update.
-    became_solid: list[str] = Field(default_factory=list)
+    #: Every Technique that had reached `recurring` when this was written. Kept
+    #: whole rather than as a delta so the next update can tell what is new by
+    #: subtraction, the same way ``counts`` lets it diff the profile exactly.
+    became_recurring: list[str] = Field(default_factory=list)
     #: How many shots the profile behind this one was built from.
     shots: int = 0
     #: True when the photographer had marked enough Keepers for the update to

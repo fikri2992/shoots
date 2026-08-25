@@ -1,4 +1,4 @@
-"""Skill graph and experiments for the dashboard, plus the human gate (skip)."""
+"""Technique Map and Experiments for the dashboard, plus the human gate (skip)."""
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
@@ -28,7 +28,7 @@ class TechniqueNode(BaseModel):
     unlocked: bool
 
 
-@router.get("/skills", response_model=list[TechniqueNode])
+@router.get("/techniques", response_model=list[TechniqueNode])
 async def technique_map(
     session_user: dict = Depends(current_user), ctx: Context = Depends(get_context)
 ):
@@ -59,8 +59,8 @@ async def technique_map(
     return nodes
 
 
-@router.post("/skills/rebuild")
-async def rebuild_skills(
+@router.post("/techniques/rebuild")
+async def rebuild_technique_map(
     session_user: dict = Depends(current_user), ctx: Context = Depends(get_context)
 ):
     """Re-derive the map from stored analyses. The Cartographer is pure and
@@ -95,7 +95,7 @@ async def open_experiment(
 
 
 @router.post("/experiments/issue", response_model=Experiment | None)
-async def issue_quest(
+async def issue_experiment(
     force: bool = False,
     session_user: dict = Depends(current_user),
     ctx: Context = Depends(get_context),

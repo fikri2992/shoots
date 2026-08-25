@@ -58,9 +58,9 @@ export default {
           return (d.changes || [])
             .map((c) => `${c.technique_id.replace(/_/g, ' ')}: ${c.from} → ${c.to}`)
             .join(' · ')
-        case 'judge.passed':
-          return `passed ${d.technique_id?.replace(/_/g, ' ')}`
-        case 'judge.not_passed':
+        case 'judge.criteria_met':
+          return `criteria met for ${d.technique_id?.replace(/_/g, ' ')}`
+        case 'judge.criteria_not_met':
           return `not yet: ${d.technique_id?.replace(/_/g, ' ')}`
         case 'judge.preflight':
           return d.ready ? `pre-flight cleared it · ${d.say}` : `pre-flight said shoot again · ${d.say}`
@@ -70,6 +70,8 @@ export default {
           return `sent it to your phone · ${d.timing || ''}`
         case 'scout.nothing_to_issue':
           return 'found nothing it could ask for within your constraints'
+        case 'scout.change_checked':
+          return `checked its own advice: ${d.state} · ${d.outcome}`
         case 'director.storyboard':
           return 'storyboarded the reference clip'
         case 'director.clip_ready':
@@ -87,8 +89,11 @@ export default {
             .join(' · ')}`
         case 'scheduler.daily':
           return `daily round: ${d.synced} synced, ${d.issued} issued`
+        // The offer ran out of time. It says nothing about the Technique —
+        // whether that has gone quiet is a different span, measured only for
+        // something the evidence has actually seen (`stale_ids`).
         case 'scheduler.expired':
-          return `${d.technique_id?.replace(/_/g, ' ')} has not appeared in a while`
+          return `“${d.title || d.technique_id?.replace(/_/g, ' ')}” ran out of time`
         case 'drive.connected':
           return 'connected your Drive folder'
         case 'user.skipped':

@@ -29,7 +29,7 @@ def judge_agent() -> LlmAgent:
 
 def feedback_prompt(
     experiment: Experiment,
-    passed: bool,
+    criteria_met: bool,
     exif_checks: dict[str, rules.Check],
     vision_checks: dict[str, float],
     analysis: Analysis | None,
@@ -72,7 +72,7 @@ def feedback_prompt(
         f"Experiment: {experiment.title} (technique `{experiment.technique_id}`)\n"
         f"Brief:\n{experiment.brief}\n\n"
         f"Criteria:\n" + "\n".join(f"- {c}" for c in experiment.criteria.text) + "\n\n"
-        f"Result: {'PASSED' if passed else 'NOT PASSED'}\n"
+        f"Result: {'CRITERIA MET' if criteria_met else 'CRITERIA NOT MET'}\n"
         f"Checks:\n{checks}\n\n"
         f"Analyst evidence:\n{seen}\n"
         f"Analyst observations (Image 1):\n{observations}\n"
@@ -85,7 +85,7 @@ def feedback_prompt(
 
 async def feedback(
     experiment: Experiment,
-    passed: bool,
+    criteria_met: bool,
     exif_checks: dict[str, rules.Check],
     vision_checks: dict[str, float],
     analysis: Analysis | None,
@@ -97,7 +97,7 @@ async def feedback(
     return await run_agent(
         judge_agent(),
         prompt=feedback_prompt(
-            experiment, passed, exif_checks, vision_checks, analysis, shot, previous
+            experiment, criteria_met, exif_checks, vision_checks, analysis, shot, previous
         ),
         images=[bytes_part(data, "image/png") for data in (images or [])],
         schema=FeedbackOut,

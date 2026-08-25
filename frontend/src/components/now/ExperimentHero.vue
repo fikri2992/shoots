@@ -84,6 +84,18 @@ export default {
     attempts() {
       return [...(this.experiment.verdicts || [])].reverse()
     },
+    /**
+     * The measurement this was aimed at, shown verbatim rather than through
+     * the Scout's prose. `why_now` is a model's sentence and may paraphrase
+     * the figure away; the citation is arithmetic over their own frames, and
+     * it is the whole difference between this and generic advice.
+     */
+    citation() {
+      return this.experiment.baseline?.citation || ''
+    },
+    change() {
+      return this.experiment.change
+    },
     host() {
       return (ref) => {
         try {
@@ -96,7 +108,7 @@ export default {
     },
   },
   methods: {
-    ...mapActions(useShootsStore, ['skipQuest']),
+    ...mapActions(useShootsStore, ['skipExperiment']),
   },
 }
 </script>
@@ -122,6 +134,7 @@ export default {
 
       <p class="pt-6 t-meta">{{ experiment.status === 'open' ? 'Today' : 'Experiment' }} · {{ technique }}</p>
       <h1 class="mt-1 t-hero">{{ experiment.title }}</h1>
+      <p v-if="citation" class="mt-2 t-body text-neutral-400">Your own work: {{ citation }}</p>
       <p v-if="when" class="mt-2 t-meta text-accent">{{ when }}</p>
 
       <ul class="mt-6 space-y-2">
@@ -149,6 +162,15 @@ export default {
 
         <DisclosureRow label="Why the Scout picked this">
           <p class="t-body">{{ experiment.why_now }}</p>
+          <p v-if="citation" class="mt-2 t-meta text-neutral-500">Measured before it was set: {{ citation }}</p>
+        </DisclosureRow>
+
+        <DisclosureRow v-if="change" label="In the shots since">
+          <p class="t-body text-neutral-300">{{ change.outcome }}</p>
+          <p class="mt-2 t-meta text-neutral-600">
+            {{ change.state }} — counts either side, compared by code. It does not show that the
+            experiment caused it.
+          </p>
         </DisclosureRow>
 
         <DisclosureRow v-if="experiment.references.length" label="What it read" :count="experiment.references.length">
@@ -170,7 +192,7 @@ export default {
     >
       <div class="col gutter flex items-center gap-3 pt-3">
         <div class="flex-1"><ShootAction :experiment-id="experiment.id" label="Shoot for this" /></div>
-        <button type="button" class="btn-quiet px-4" :disabled="busy === 'skip'" @click="skipQuest(experiment.id)">
+        <button type="button" class="btn-quiet px-4" :disabled="busy === 'skip'" @click="skipExperiment(experiment.id)">
           Skip
         </button>
       </div>

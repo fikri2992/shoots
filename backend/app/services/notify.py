@@ -65,7 +65,7 @@ async def notify(
 # --- the events that matter ------------------------------------------------
 
 
-async def quest_issued(ctx: Context, experiment: Experiment) -> None:
+async def experiment_issued(ctx: Context, experiment: Experiment) -> None:
     await notify(
         ctx,
         experiment.user_id,
@@ -77,11 +77,14 @@ async def quest_issued(ctx: Context, experiment: Experiment) -> None:
 
 
 async def verdict_given(ctx: Context, experiment: Experiment, verdict: Verdict) -> None:
+    """A Verdict answers the Criteria, so the push says so. "Passed" would put a
+    grade on the photographer's lock screen for something that was only ever a
+    list of checks they declared in advance (decision 46)."""
     first_line = verdict.feedback.split("\n", 1)[0]
     await notify(
         ctx,
         experiment.user_id,
-        f"{'Passed' if verdict.passed else 'Not yet'}: {experiment.title}",
+        f"{'Criteria met' if verdict.criteria_met else 'Not yet'}: {experiment.title}",
         first_line,
         url=f"/shots/{verdict.shot_id}",
         tag=f"verdict-{verdict.shot_id}",

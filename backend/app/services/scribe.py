@@ -4,7 +4,7 @@ The photographer's workflow ends in a folder, so the agent's answer lands
 in that folder too: ``Shoots/Reviewed/<name> — <finding>.jpg`` is the frame
 with the composition read drawn on it, any finding marked on the pixels it was
 measured from, and the critique as a caption band, plus the verdict if the
-shot was a experiment attempt. It shows up in the Drive and Files apps on the phone
+shot was an experiment attempt. It shows up in the Drive and Files apps on the phone
 without opening this app, and it can be shared as-is. The file is written *as
 the user* (``drive.file`` token), the only thing that token is used for
 besides creating the folder.
@@ -84,10 +84,11 @@ def review_finding(analysis: Analysis) -> str:
     they came for is what they are getting right.
 
     The finding is next, and it is never dropped — it carries the figure it was
-    computed from, which is the one line here anybody can check. The score is
-    last because it is the least informative thing in the analysis: one number
-    for a whole photograph whose five elements correlate at r = 0.89
-    (docs/research-findings.md, §1).
+    computed from, which is the one line here anybody can check. There is no
+    third option involving a number: the score used to name the file, and one
+    number for a whole photograph whose five elements correlate at r = 0.89
+    (docs/research-findings.md, §1) is the least informative thing available.
+    A frame with nothing corroborated and nothing wrong says exactly that.
     """
     if analysis.abstained:
         return "not called"
@@ -102,7 +103,7 @@ def review_finding(analysis: Analysis) -> str:
 
 def review_name(shot: Shot, analysis: Analysis, verdict: Verdict | None) -> str:
     stem = Path(shot.filename).stem or shot.id
-    mark = "" if verdict is None else ("✔ " if verdict.passed else "✘ ")
+    mark = "" if verdict is None else ("✔ " if verdict.criteria_met else "✘ ")
     return f"{mark}{stem} — {review_finding(analysis)}.jpg"
 
 
@@ -118,7 +119,7 @@ def review_title(analysis: Analysis, experiment: Experiment | None, verdict: Ver
     wrong = findings.FINDINGS.get(analysis.findings[0].finding_id, "") if analysis.findings else ""
     title = " · ".join(part for part in (seen, wrong) if part) or "Read, nothing to report"
     if verdict and experiment:
-        met = "CRITERIA MET" if verdict.passed else "NOT YET"
+        met = "CRITERIA MET" if verdict.criteria_met else "NOT YET"
         title = f"{met} · {experiment.title}  —  {title}"
     return title
 

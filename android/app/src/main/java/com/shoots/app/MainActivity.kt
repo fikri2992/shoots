@@ -220,7 +220,9 @@ fun ShutterRow(
  */
 @Composable
 private fun PulseCard(pulse: Api.Pulse, shotId: String, onKeep: () -> Unit) {
-    var kept by remember(shotId) { mutableStateOf(pulse.keeper) }
+    // Follows the pulse rather than latching, so a mark the server refused puts
+    // the button back instead of showing "kept" for a frame that is not.
+    val kept = pulse.keeper
     Column(
         Modifier
             .fillMaxWidth(0.9f)
@@ -242,13 +244,7 @@ private fun PulseCard(pulse: Api.Pulse, shotId: String, onKeep: () -> Unit) {
             Text(pulse.finding, color = ZEBRA, fontSize = 13.sp)
         }
         Spacer(Modifier.height(10.dp))
-        TextButton(
-            onClick = {
-                kept = !kept
-                onKeep()
-            },
-            contentPadding = PaddingValues(0.dp),
-        ) {
+        TextButton(onClick = onKeep, contentPadding = PaddingValues(0.dp)) {
             Text(
                 if (kept) "kept" else "keep this one",
                 color = if (kept) Color(0xFFFFC857) else Color.White.copy(alpha = 0.8f),

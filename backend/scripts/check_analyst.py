@@ -3,7 +3,7 @@
     uv run python scripts/check_analyst.py ../data/demo/mine [limit]
 
 This is the Analyst's test (AGENTS.md: no mocked Gemini). Prints evidence,
-composition read and score per shot; writes annotated frames under
+composition read per shot; writes annotated frames under
 .blobs/check_analyst so you can look at what the model said.
 """
 
@@ -55,7 +55,8 @@ async def main(folder: str, limit: int) -> None:
         print(f"\n=== {shot.filename}  [{shot.status.value}]  {shot.error}")
         if not analysis:
             continue
-        print(f"score {analysis.score}/10  elements={analysis.elements}  panel={analysis.panel}")
+        agreed = sum(1 for t in analysis.techniques if t.agreement >= 2)
+        print(f"corroborated {agreed}/{len(analysis.techniques)}  panel={analysis.panel}")
         for line in analysis.observations:
             print(f"  · {line}")
         for t in analysis.techniques:

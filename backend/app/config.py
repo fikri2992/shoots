@@ -61,7 +61,7 @@ class Settings(BaseSettings):
     judge_min_confidence: float = 0.6
     #: Experiments issued per user per daily tick.
     quests_per_day: int = 1
-    #: A experiment nobody shoots for expires after this many days.
+    #: An experiment nobody shoots for expires after this many days.
     experiment_ttl_days: int = 3
     #: A recurring Technique unseen for this long is worth offering again. It
     #: is not demoted for it: the record says what the Evidence observed, and

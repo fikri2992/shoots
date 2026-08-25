@@ -3,6 +3,7 @@ import { mapActions, mapState } from 'pinia'
 
 import AgentLog from '@/components/AgentLog.vue'
 import DisclosureRow from '@/components/DisclosureRow.vue'
+import ExperimentRecord from '@/components/ExperimentRecord.vue'
 import JourneyUpdate from '@/components/JourneyUpdate.vue'
 import TechniqueMap from '@/components/TechniqueMap.vue'
 import TendencyProfile from '@/components/TendencyProfile.vue'
@@ -12,19 +13,23 @@ import { useShootsStore } from '@/stores/shoots'
 /** Where the user has got to, and what the agents did to get them there. */
 export default {
   name: 'JourneyPage',
-  components: { AgentLog, DisclosureRow, JourneyUpdate, TechniqueMap, TendencyProfile },
+  components: {
+    AgentLog,
+    DisclosureRow,
+    ExperimentRecord,
+    JourneyUpdate,
+    TechniqueMap,
+    TendencyProfile,
+  },
   computed: {
-    ...mapState(useShootsStore, ['pastQuests', 'me', 'push', 'busy', 'connected', 'pairCode']),
-    experiments() {
-      return this.pastQuests.map((q) => ({
-        id: q.id,
-        title: q.title,
-        status: q.status,
-        best: (q.verdicts || []).filter((v) => v.passed).length ? 'passed' : q.status,
-        shotId: (q.verdicts || [])[q.verdicts.length - 1]?.shot_id || '',
-        when: new Date(q.issued_at).toLocaleDateString(),
-      }))
-    },
+    ...mapState(useShootsStore, [
+      'pastExperiments',
+      'me',
+      'push',
+      'busy',
+      'connected',
+      'pairCode',
+    ]),
     driveUrl() {
       return this.me?.drive_folder_id ? `https://drive.google.com/drive/folders/${this.me.drive_folder_id}` : ''
     },
@@ -50,25 +55,14 @@ export default {
 
     <div class="gutter mt-12"><TechniqueMap /></div>
 
-    <section v-if="experiments.length" class="gutter mt-12">
+    <!-- Each row opens into its own record: the reason, the baseline frozen
+         before anything happened, the criteria, what came back, and whether
+         comparable behaviour differs now. -->
+    <section v-if="pastExperiments.length" class="gutter mt-12">
       <h2 class="t-title">Experiments</h2>
-      <ul class="mt-4 space-y-3">
-        <li v-for="q in experiments" :key="q.id" class="flex items-baseline gap-3">
-          <span class="w-14 shrink-0 t-meta">{{ q.when }}</span>
-          <RouterLink
-            v-if="q.shotId"
-            :to="{ name: 'frame', params: { shotId: q.shotId } }"
-            class="min-w-0 flex-1 truncate t-body"
-            :class="q.best === 'passed' ? 'text-neutral-100' : 'text-neutral-500'"
-          >
-            {{ q.title }}
-          </RouterLink>
-          <span v-else class="min-w-0 flex-1 truncate t-body" :class="q.best === 'passed' ? 'text-neutral-100' : 'text-neutral-500'">
-            {{ q.title }}
-          </span>
-          <span class="t-meta" :class="q.best === 'passed' ? 'text-good' : ''">{{ q.best }}</span>
-        </li>
-      </ul>
+      <div class="mt-4">
+        <ExperimentRecord v-for="q in pastExperiments" :key="q.id" :experiment="q" />
+      </div>
     </section>
 
     <section class="gutter mt-12">

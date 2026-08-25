@@ -40,7 +40,7 @@ export default {
     },
   },
   methods: {
-    ...mapActions(useShootsStore, ['issueQuest']),
+    ...mapActions(useShootsStore, ['issueExperiment']),
   },
 }
 </script>
@@ -53,7 +53,7 @@ export default {
       It picks from what your frames already show it, and holds it until the light suits the technique.
     </p>
 
-    <button type="button" class="btn-quiet mt-6" :disabled="busy === 'issue'" @click="issueQuest()">
+    <button type="button" class="btn-quiet mt-6" :disabled="busy === 'issue'" @click="issueExperiment()">
       {{ busy === 'issue' ? 'Scouting…' : 'Ask for one now' }}
     </button>
 

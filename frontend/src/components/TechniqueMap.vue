@@ -108,9 +108,11 @@ export default {
       </div>
     </div>
 
+    <!-- Three states, matching the three the record actually holds. A fourth
+         swatch outlived the graded states it belonged to and kept claiming
+         ability where the map only describes evidence. -->
     <p class="mt-5 t-meta">
-      <span class="mr-3"><span class="mr-1 inline-block h-1.5 w-1.5 rounded-full bg-neutral-500" />tried</span>
-      <span class="mr-3"><span class="mr-1 inline-block h-1.5 w-1.5 rounded-full bg-neutral-300" />practised</span>
+      <span class="mr-3"><span class="mr-1 inline-block h-1.5 w-1.5 rounded-full bg-neutral-700" />unobserved</span>
       <span class="mr-3"><span class="mr-1 inline-block h-1.5 w-1.5 rounded-full bg-neutral-300" />observed</span>
       <span><span class="mr-1 inline-block h-1.5 w-1.5 rounded-full bg-good" />recurring</span>
     </p>

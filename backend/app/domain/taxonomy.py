@@ -13,7 +13,7 @@ Each technique carries two kinds of evidence:
 * ``cue``   — what the Analyst is told to look for in the frame. Soft evidence
   with a confidence, counted only above ``settings.judge_min_confidence``.
 
-``requires`` lists prerequisites. The Scout issues a experiment only when every
+``requires`` lists prerequisites. The Scout issues an experiment only when every
 prerequisite is at least *attempted*, so experiments climb rather than jump.
 """
 

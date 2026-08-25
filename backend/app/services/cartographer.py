@@ -1,4 +1,4 @@
-"""Cartographer stage: ``media.analyzed`` → skill graph, then the Journey.
+"""Cartographer stage: ``media.analyzed`` → Technique Map, then the Journey.
 
 The map itself is pure. The Journey Update that follows is arithmetic too —
 ``services/journey.py`` decides whether anything moved — and calls one writer
@@ -8,7 +8,7 @@ only when it did, so an update never arrives with nothing behind it.
 import logging
 
 from app.domain import technique_map as rules
-from app.domain.entities import now
+from app.domain.entities import TechniqueStatus, now
 from app.infra import repository as repo
 from app.services import journey, scout
 from app.services.context import Context
@@ -44,7 +44,10 @@ async def update(ctx: Context, message: dict) -> None:
             "changes": [
                 {
                     "technique_id": s.technique_id,
-                    "from": before.get(s.technique_id, "unexplored"),
+                    # The feed renders this word. `unexplored` was retired with
+                    # the other four graded states (decision 46); a Technique
+                    # the record has not seen is `unobserved`.
+                    "from": before.get(s.technique_id, TechniqueStatus.UNOBSERVED).value,
                     "to": s.status.value,
                     "attempts": s.attempts,
                     "corroborated": s.corroborated,
@@ -63,7 +66,7 @@ async def _journey(ctx: Context, user_id: str) -> None:
     Did the Scout's own advice change anything (decision 37), and has the body
     of work moved enough to be worth a paragraph? Usually the second is no and
     nothing is written. A failure in either costs the prose, not the map: the
-    skill graph is already stored.
+    Technique Map is already stored.
     """
     try:
         await scout.grade_advice(ctx, user_id)

@@ -7,14 +7,14 @@ import { useShootsStore } from '@/stores/shoots'
  * The shutter, always attached to the experiment it answers. `capture="environment"`
  * opens the rear camera on a phone; on desktop it is a file picker.
  *
- * Every frame for a experiment goes through pre-flight first — the experiment's own
+ * Every frame for an experiment goes through pre-flight first — the experiment's own
  * criteria read on a 640px preview in a few seconds — so a miss is reshot
  * where the user is standing rather than found out an hour later.
  */
 export default {
   name: 'ShootAction',
   props: {
-    questId: { type: String, default: '' },
+    experimentId: { type: String, default: '' },
     label: { type: String, default: 'Shoot' },
   },
   emits: ['done'],
@@ -38,8 +38,8 @@ export default {
       const file = event.target.files?.[0]
       event.target.value = ''
       if (!file) return
-      if (this.questId && file.type.startsWith('image/')) {
-        const check = await this.preflight(file, this.questId)
+      if (this.experimentId && file.type.startsWith('image/')) {
+        const check = await this.preflight(file, this.experimentId)
         if (check && !check.ready) {
           this.pending = file
           this.check = check
@@ -51,7 +51,7 @@ export default {
     async send(file) {
       this.pending = null
       this.check = null
-      const result = await this.shoot(file, this.questId)
+      const result = await this.shoot(file, this.experimentId)
       if (result) this.$emit('done', result)
     },
     again() {

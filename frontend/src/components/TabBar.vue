@@ -2,7 +2,7 @@
 /**
  * Three tabs, no floating camera button. Shooting belongs to the experiment that
  * asked for it — a global shutter here would skip the pre-flight check, which
- * is the whole point of shooting inside a experiment.
+ * is the whole point of shooting inside an experiment.
  */
 export const TABS = [
   { name: 'now', label: 'Now', icon: 'M12 4v8l5 3M12 21a9 9 0 110-18 9 9 0 010 18z' },

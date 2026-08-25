@@ -14,10 +14,15 @@ from app.domain import scout as rules
 from app.domain import taxonomy, tendency, timing
 from app.domain import technique_map as map_rules
 from app.domain.entities import (
+    Baseline,
+    Change,
+    ChangeState,
+    Comparability,
     Experiment,
     ExperimentStatus,
     ExperimentTiming,
-    TendencyGrade,
+    ExperimentType,
+    Provenance,
     new_id,
     now,
 )
@@ -77,9 +82,15 @@ async def issue(
         return None
 
     why = rules.why_now(technique, skills, stale)
-    # The citation is the point: a challenge that cannot name the arithmetic
-    # behind it is the generic advice this product exists to rise above.
-    if challenge and challenge.prefers and technique.id in challenge.prefers:
+    # Did the photographer's own work actually choose this technique, or did the
+    # ranking land somewhere else for its own reasons? Only the first case may
+    # be recorded as aimed at a tendency, and only it may be graded against one
+    # later: grading advice against a tendency it was never aimed at would be
+    # the coach marking its own homework with someone else's answers.
+    aimed = bool(challenge and challenge.prefers and technique.id in challenge.prefers)
+    if aimed:
+        # The citation is the point: a challenge that cannot name the arithmetic
+        # behind it is the generic advice this product exists to rise above.
         why = f"{why} Your own work says so: {challenge.citation}."
     critiques = await _recent_critiques(ctx, user_id)
 
@@ -90,6 +101,10 @@ async def issue(
         id=new_id("experiment"),
         user_id=user_id,
         technique_id=technique.id,
+        # The Scout only asks the Explore question today. Reproduce and Compare
+        # are decision 43's other two and are not issued yet; recording the type
+        # now means a record written today still says which question it answered.
+        type=ExperimentType.EXPLORE,
         title=out.title.strip()[:60] or technique.name,
         brief=agent.normalise_brief(out.brief)[:2000],
         why_now=(out.why_now.strip() or why)[:500],
@@ -98,14 +113,21 @@ async def issue(
         status=ExperimentStatus.OPEN,
         due_at=now() + timedelta(days=settings.experiment_ttl_days),
     )
-    # Freeze what this advice was aimed at, so it can be graded later against
-    # arithmetic rather than against anybody's impression of how it went.
-    if challenge:
-        experiment.tendency = TendencyGrade(
+    # Freeze what this advice was aimed at, before any result exists, so it can
+    # be checked later against arithmetic rather than against anybody's
+    # impression of how it went. The provenance makes the figures replayable:
+    # the same shots under the same calc_version give the same citation.
+    if aimed:
+        experiment.baseline = Baseline(
             source=challenge.source,
             citation=challenge.citation,
             at_issue=_snapshot(profile, challenge.source),
             calc_version=profile.calc_version,
+            provenance=Provenance(
+                shot_ids=list(profile.shot_ids),
+                sample_size=profile.shots,
+                calc_version=profile.calc_version,
+            ),
         )
     when = timing.deliver_at(technique.light, now(), user.last_latitude, user.last_longitude)
     experiment.deliver_at = when.at
@@ -120,10 +142,11 @@ async def issue(
         "issued",
         {
             "technique_id": technique.id,
+            "type": experiment.type.value,
             "title": experiment.title,
             "why": why,
-            "tendency": challenge.citation if challenge else "",
-            "tendency_source": challenge.source if challenge else "",
+            "tendency": challenge.citation if aimed else "",
+            "tendency_source": challenge.source if aimed else "",
             "references": len(experiment.references),
             "hard_criteria": agent.hard_criteria_text(technique),
             "deliver_at": experiment.deliver_at.isoformat() if experiment.deliver_at else "",
@@ -160,81 +183,93 @@ def _snapshot(profile: tendency.Profile, source: str) -> dict[str, int]:
 
 
 async def grade_advice(ctx: Context, user_id: str) -> list[Experiment]:
-    """Did the Scout's own advice change anything?
+    """Did comparable behaviour change after the Scout's own advice?
 
-    Decision 37. Every experiment that named a tendency is compared against where
-    that tendency stands now — counts against counts, no model adjudicating —
-    and the answer is written on the experiment. An agent that never checks its own
-    recommendations is a critique queue, not a coach.
+    Decision 37. Every closed Experiment that was aimed at a tendency is
+    compared against where that tendency stands now — counts against counts, no
+    model adjudicating — and the answer is written onto the Experiment Record.
+    An agent that never checks its own recommendations is a critique queue, not
+    a coach.
 
-    What this does not claim: that moved counts mean better photographs. That
-    stays the panel's opinion, and is labelled as one wherever it appears.
+    Two things it refuses to say. It does not claim the Experiment *caused* the
+    difference: it reports what the counts do, and the photographer can draw
+    their own line between the two. And it does not claim the photographs got
+    better — that stays the panel's opinion and is labelled as one.
+
+    A Change that is only `insufficient evidence` because too little has been
+    shot is left open and checked again; one that can never become comparable
+    is written once and settled (``entities.Change.settled``).
     """
     profile = await profile_for(ctx, user_id)
-    graded = []
+    checked = []
     for experiment in await repo.list_experiments(ctx.store, user_id, limit=RECENT_EXPERIMENTS):
-        mark = experiment.tendency
-        if mark is None or mark.moved is not None or experiment.status is ExperimentStatus.OPEN:
+        if experiment.baseline is None or experiment.status is ExperimentStatus.OPEN:
             continue
-        if mark.calc_version and mark.calc_version != profile.calc_version:
-            # The baseline was frozen by different arithmetic. Comparing across
-            # it would report a change the photographer never made.
-            logger.info(
-                "scout: %s was frozen under %s, now %s; not graded",
-                experiment.id,
-                mark.calc_version,
-                profile.calc_version,
-            )
+        if experiment.change is not None and experiment.change.settled:
             continue
-        if mark.source == "dwell":
-            result = _grade_dwell(mark.at_issue, profile.dwell)
-        else:
-            dimension = tendency.BY_ID.get(mark.source)
-            if dimension is None:
-                continue
-            result = tendency.grade(dimension, mark.at_issue, _snapshot(profile, mark.source))
-        mark.moved = result.moved
-        mark.outcome = result.outcome
-        mark.graded_at = now()
+        result = _change_for(experiment.baseline, profile)
+        result.checked_at = now()
+        experiment.change = result
         await repo.put_experiment(ctx.store, experiment)
         await repo.record(
             ctx.store,
             user_id,
             AGENT,
-            "graded",
+            "change_checked",
             {
                 "technique_id": experiment.technique_id,
-                "tendency": mark.source,
-                "moved": mark.moved,
-                "outcome": mark.outcome,
-                "cited": mark.citation,
+                "tendency": experiment.baseline.source,
+                "state": result.state.value,
+                "comparability": result.comparability.value,
+                "outcome": result.outcome,
+                "shots_since": result.added,
+                "cited": experiment.baseline.citation,
             },
             experiment_id=experiment.id,
         )
-        graded.append(experiment)
-    return graded
+        checked.append(experiment)
+    return checked
 
 
-def _grade_dwell(at_issue: dict[str, int], now_dwell: tendency.Dwell) -> tendency.Grade:
-    """Working the scene is a ratio rather than a distribution, so it is graded
-    on whether that ratio rose."""
-    was_shots, was_scenes = at_issue.get("shots", 0), at_issue.get("scenes", 0)
-    added = now_dwell.shots - was_shots
-    if added <= 0:
-        return tendency.Grade(moved=False, outcome="nothing shot since", added=0)
-    scenes = max(1, now_dwell.scenes - was_scenes)
-    per_scene = added / scenes
-    was = was_shots / was_scenes if was_scenes else 0.0
-    if per_scene > was + 0.5:
-        return tendency.Grade(
-            moved=True,
-            outcome=f"{per_scene:.1f} frames a scene since, up from {was:.1f}",
-            added=added,
+def _change_for(baseline: Baseline, profile: tendency.Profile) -> Change:
+    """The Change for one frozen Baseline, or why there cannot be one.
+
+    Both ways of being incomparable are recorded rather than skipped. A record
+    that silently holds no Change reads as though nobody looked, which is the
+    opposite of what happened.
+    """
+    if baseline.calc_version and baseline.calc_version != profile.calc_version:
+        return Change(
+            state=ChangeState.INSUFFICIENT,
+            comparability=Comparability.DIFFERENT_ARITHMETIC,
+            outcome=(
+                f"measured by {baseline.calc_version}, and the profile now uses "
+                f"{profile.calc_version} — the two do not compare"
+            ),
         )
-    return tendency.Grade(
-        moved=False,
-        outcome=f"{per_scene:.1f} frames a scene since, was {was:.1f}",
-        added=added,
+    if baseline.source == "dwell":
+        return tendency.dwell_change(baseline.at_issue, profile.dwell)
+    dimension = tendency.BY_ID.get(baseline.source)
+    if dimension is None:
+        return Change(
+            state=ChangeState.INSUFFICIENT,
+            comparability=Comparability.UNKNOWN_DIMENSION,
+            outcome=f"nothing measures {baseline.source} any more",
+        )
+    # How many frames the photographer actually took, which the dimension's own
+    # counts cannot tell us: they hold only what the dimension could read.
+    was = baseline.provenance.sample_size
+    if was <= 0:
+        return Change(
+            state=ChangeState.INSUFFICIENT,
+            comparability=Comparability.UNRECORDED_SAMPLE,
+            outcome="this was set before the record kept what it was measured over",
+        )
+    return tendency.change(
+        dimension,
+        baseline.at_issue,
+        _snapshot(profile, baseline.source),
+        shots_since=profile.shots - was,
     )
 
 
@@ -261,7 +296,7 @@ async def deliver_if_due(ctx: Context, experiment: Experiment) -> bool:
         return False
     if experiment.deliver_at and experiment.deliver_at > now() + timing.SOON:
         return False
-    await notify.quest_issued(ctx, experiment)
+    await notify.experiment_issued(ctx, experiment)
     experiment.delivered_at = now()
     await repo.put_experiment(ctx.store, experiment)
     await repo.record(
@@ -309,12 +344,17 @@ async def skip(ctx: Context, user_id: str, experiment_id: str) -> Experiment:
 
 
 async def expire(ctx: Context, user_id: str) -> list[Experiment]:
-    """Open experiments past due become expired. Called by the daily tick."""
+    """Open experiments past due become expired. Called by the daily tick.
+
+    An expired Experiment says the offer ran out of time, and nothing at all
+    about the Technique: whether that has gone quiet is ``stale_ids``, measured
+    over a different span and only for something the Evidence has seen.
+    """
     expired: list[Experiment] = []
     current = now()
     for experiment in await repo.list_experiments(ctx.store, user_id):
-        expired = experiment.due_at and experiment.due_at < current
-        if experiment.status is ExperimentStatus.OPEN and expired:
+        overdue = experiment.due_at is not None and experiment.due_at < current
+        if experiment.status is ExperimentStatus.OPEN and overdue:
             experiment.status = ExperimentStatus.EXPIRED
             experiment.closed_at = current
             await repo.put_experiment(ctx.store, experiment)
@@ -323,14 +363,14 @@ async def expire(ctx: Context, user_id: str) -> list[Experiment]:
                 user_id,
                 "scheduler",
                 "expired",
-                {"technique_id": experiment.technique_id},
+                {"technique_id": experiment.technique_id, "title": experiment.title},
                 experiment_id=experiment.id,
             )
             expired.append(experiment)
     return expired
 
 
-async def on_quest_closed(ctx: Context, message: dict) -> None:
+async def on_experiment_closed(ctx: Context, message: dict) -> None:
     await issue(ctx, message["user_id"])
 
 

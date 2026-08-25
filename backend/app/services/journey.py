@@ -16,7 +16,15 @@ from app.agents import journey as agent
 from app.agents import prompts
 from app.config import settings
 from app.domain import tendency
-from app.domain.entities import JourneyUpdate, Provenance, TechniqueStatus, new_id
+from app.domain.entities import (
+    ChangeState,
+    Experiment,
+    ExperimentStatus,
+    JourneyUpdate,
+    Provenance,
+    TechniqueStatus,
+    new_id,
+)
 from app.infra import repository as repo
 from app.services.context import Context
 
@@ -34,6 +42,9 @@ MOVED_BY = 0.05
 
 #: How many shots back to read. A tendency is about the whole body of work.
 CORPUS = 500
+
+#: How many Experiments back to look for one whose Change was measurable.
+EXPERIMENTS_BACK = 6
 
 
 async def profile_now(ctx: Context, user_id: str) -> tendency.Profile:
@@ -53,23 +64,34 @@ async def maybe_write(ctx: Context, user_id: str) -> JourneyUpdate | None:
         return None
 
     previous = await repo.latest_journey_update(ctx.store, user_id)
-    since = _profile_at(previous)
-    movements = [
-        m
-        for m in tendency.diff(since, profile)
-        if abs(m.delta) >= MOVED_BY or m.newly_used
-    ]
+    # A profile built by different arithmetic is not a baseline for this one.
+    # Move a bucket edge and the same photographs re-bucket wholesale: every
+    # dimension clears MOVED_BY, unused buckets fill, and the paragraph reports
+    # a week of change to a photographer who did not pick up a camera. So the
+    # last update stops counting as a comparison, and this one re-baselines
+    # instead - which is why the write is not suppressed below when it cannot
+    # compare, or the profile would be stuck against a baseline it can never
+    # legitimately diff.
+    comparable = previous is not None and previous.provenance.calc_version == profile.calc_version
+    since = _profile_at(previous if comparable else None)
+    movements = (
+        [m for m in tendency.diff(since, profile) if abs(m.delta) >= MOVED_BY or m.newly_used]
+        if comparable
+        else []
+    )
     skills = await repo.list_skills(ctx.store, user_id)
-    solid = sorted(s.technique_id for s in skills if s.status is TechniqueStatus.RECURRING)
-    fresh_solid = [t for t in solid if t not in (previous.became_solid if previous else [])]
+    recurring = sorted(s.technique_id for s in skills if s.status is TechniqueStatus.RECURRING)
+    # Technique ids do not depend on the arithmetic, so this half stays a fair
+    # comparison even when the counts do not.
+    fresh = [t for t in recurring if t not in (previous.became_recurring if previous else [])]
 
-    if previous is not None and not movements and not fresh_solid:
+    if comparable and not movements and not fresh:
         return None
 
     # On a first update every bucket diffs against an empty profile, so every
     # one of them reads as newly used. That is arithmetic, not news, and
     # handing it to the writer as change would make the first paragraph a lie.
-    evidence = _evidence(profile, movements if previous else [], fresh_solid)
+    evidence = _evidence(profile, movements, fresh, await _last_change(ctx, user_id))
     body = await agent.write(evidence, previous.body if previous else "", profile.taste_is_known)
 
     update = JourneyUpdate(
@@ -79,7 +101,7 @@ async def maybe_write(ctx: Context, user_id: str) -> JourneyUpdate | None:
         evidence=evidence,
         widened=[m.dimension.id for m in movements if m.widened],
         counts={d.id: dict(profile.dimensions[d.id].counts) for d in tendency.DIMENSIONS},
-        became_solid=solid,
+        became_recurring=recurring,
         shots=profile.shots,
         taste_is_known=profile.taste_is_known,
         provenance=Provenance(
@@ -101,7 +123,7 @@ async def maybe_write(ctx: Context, user_id: str) -> JourneyUpdate | None:
         {
             "shots": profile.shots,
             "widened": update.widened,
-            "became_solid": fresh_solid,
+            "became_recurring": fresh,
             "evidence": len(evidence),
             "taste_is_known": profile.taste_is_known,
             "calc_version": profile.calc_version,
@@ -113,7 +135,13 @@ async def maybe_write(ctx: Context, user_id: str) -> JourneyUpdate | None:
 def _profile_at(previous: JourneyUpdate | None) -> tendency.Profile:
     """The profile the last update was written from, rebuilt from the counts it
     stored. An empty profile when there was no last update, so the first update
-    reports everything as new — which, for the photographer, it is."""
+    reports everything as new — which, for the photographer, it is.
+
+    ``calc_version`` is carried over rather than left to default, so the
+    rebuilt profile says which arithmetic produced it. Defaulting would make it
+    claim the current version and any comparison against it would pass
+    vacuously.
+    """
     stored = previous.counts if previous else {}
     return tendency.Profile(
         dimensions={
@@ -121,13 +149,29 @@ def _profile_at(previous: JourneyUpdate | None) -> tendency.Profile:
             for d in tendency.DIMENSIONS
         },
         shots=previous.shots if previous else 0,
+        calc_version=previous.provenance.calc_version if previous else "",
     )
+
+
+async def _last_change(ctx: Context, user_id: str) -> Experiment | None:
+    """The most recent closed Experiment whose Change could actually be
+    measured. Anything the arithmetic declined to compare is left out: the
+    paragraph is written from figures, and `insufficient evidence` is the
+    absence of one."""
+    for experiment in await repo.list_experiments(ctx.store, user_id, limit=EXPERIMENTS_BACK):
+        change = experiment.change
+        if experiment.status is ExperimentStatus.OPEN or experiment.baseline is None:
+            continue
+        if change is not None and change.state is not ChangeState.INSUFFICIENT:
+            return experiment
+    return None
 
 
 def _evidence(
     profile: tendency.Profile,
     movements: list[tendency.Movement],
-    fresh_solid: list[str],
+    fresh_recurring: list[str],
+    last_change: Experiment | None = None,
 ) -> list[str]:
     """Every fact the writer is allowed to use, in plain sentences with their
     figures attached. Nothing about quality: the panel's score is not here, on
@@ -142,8 +186,8 @@ def _evidence(
         line = f"{dim.label}: {counts} (of {p.n} readable)"
         if p.readable and p.narrow:
             line += f" — barely varies, {p.dominant_share:.0%} of them {p.dominant}"
-        if p.readable and p.unexplored:
-            line += f"; never {', '.join(p.unexplored)}"
+        if p.readable and p.never_used:
+            line += f"; never {', '.join(p.never_used)}"
         lines.append(line)
 
     dwell = profile.dwell
@@ -161,18 +205,28 @@ def _evidence(
             line += f", first time shooting {', '.join(movement.newly_used)}"
         lines.append(line)
 
-    if fresh_solid:
-        names = ", ".join(t.replace("_", " ") for t in fresh_solid)
+    if fresh_recurring:
+        names = ", ".join(t.replace("_", " ") for t in fresh_recurring)
         # Said without the machinery: the writer is told not to mention lenses
         # or confidences, and it will happily repeat any that appear here.
         lines.append(f"now does reliably, seen and confirmed three separate times: {names}")
+
+    # Two facts side by side, never joined: what they were offered, and what
+    # their counts did afterwards. The prompt forbids the word between them,
+    # because nothing here can tell a followed suggestion from a coincidence.
+    if last_change is not None and last_change.baseline is not None:
+        technique = last_change.technique_id.replace("_", " ")
+        lines.append(
+            f"was offered {technique} to try, after {last_change.baseline.citation}; "
+            f"in their shots since: {last_change.change.outcome}"
+        )
 
     if profile.taste_is_known:
         lines.append(f"{profile.keepers} shots marked as keepers by the photographer themselves.")
         for dim in tendency.DIMENSIONS:
             p = profile.dimensions[dim.id]
             for bucket in dim.buckets:
-                lift = p.keeper_lift(bucket, profile.keeper_rate)
+                lift = p.keeper_lift(bucket, profile.keeper_rate, profile.keepers)
                 if lift is not None and lift >= 1.5:
                     lines.append(
                         f"they keep {bucket} shots {lift:.1f} times as often as their average "

@@ -41,7 +41,7 @@ export default {
     return { showRead: true, picked: '', guides: PICKABLE, labels: GUIDE_LABELS, keeping: false }
   },
   computed: {
-    ...mapState(useShootsStore, ['shotById', 'questById']),
+    ...mapState(useShootsStore, ['shotById', 'experimentById']),
     view() {
       return this.shotById(this.shotId)
     },
@@ -139,7 +139,7 @@ export default {
       return path && this.analysis?.composition?.suggested_crop_cells?.length ? `/api/blobs/${path}` : ''
     },
     experiment() {
-      return this.shot?.experiment_id ? this.questById(this.shot.experiment_id) : null
+      return this.shot?.experiment_id ? this.experimentById(this.shot.experiment_id) : null
     },
     lenses() {
       return Object.keys(this.analysis?.panel || {}).join(', ') || 'three lenses'

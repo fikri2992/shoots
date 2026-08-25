@@ -1,7 +1,7 @@
 """The Journey Update's model half: one paragraph, from figures only.
 
 Everything that decides *whether* to write and *what may be said* is
-arithmetic in ``domain/tendency.py`` and ``domain/skills.py``. This agent
+arithmetic in ``domain/tendency.py`` and ``domain/technique_map.py``. This agent
 turns that evidence into the sentences the photographer reads, and it is the
 only part of the update a model touches. It sees no photograph — it has no
 reason to: the claim is about a body of work, not about any one frame.

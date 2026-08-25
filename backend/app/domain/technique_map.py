@@ -69,7 +69,7 @@ def apply_analysis(
     """Return the skills this analysis changed, already updated.
 
     ``skills`` is the user's current map keyed by technique id; techniques
-    missing from it are unexplored. Applying the same analysis twice is a
+    missing from it are unobserved. Applying the same analysis twice is a
     no-op because the shot id is remembered.
     """
     changed: list[TechniqueState] = []

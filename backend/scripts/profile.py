@@ -43,7 +43,7 @@ async def main() -> None:
             print(f"\n  {dim.label}: explored {p.exploration:.2f}{claim}")
             for bucket in dim.buckets:
                 count = p.counts.get(bucket, 0)
-                lift = p.keeper_lift(bucket, profile.keeper_rate)
+                lift = p.keeper_lift(bucket, profile.keeper_rate, profile.keepers)
                 mark = f"  keepers x{lift:.1f}" if lift is not None else ""
                 print(f"    {bucket:<14} {bar(count / p.n)} {count:>3}{mark}")
             if p.unreadable:
@@ -53,8 +53,8 @@ async def main() -> None:
         print(f"\n  narrowest: {narrowest.dimension.label}" if narrowest else "\n  nothing narrow")
         if narrowest:
             print(f"    {narrowest.dominant}, {narrowest.dominant_share:.0%} of readable shots")
-            if narrowest.unexplored:
-                print(f"    never: {', '.join(narrowest.unexplored)}")
+            if narrowest.never_used:
+                print(f"    never: {', '.join(narrowest.never_used)}")
         print("\n  blind spots:")
         for spot in profile.blind_spots:
             print(f"    - {spot}")

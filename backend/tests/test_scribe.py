@@ -50,7 +50,7 @@ async def seed(folder: str, with_verdict: bool) -> Context:
         kind=ShotKind.PHOTO,
         status=ShotStatus.ANALYZED,
         grid=GridSpec(cols=8, rows=6, width=800, height=600),
-        experiment_id="quest_1" if with_verdict else "",
+        experiment_id="experiment_1" if with_verdict else "",
     )
     frame = Image.new("RGB", (800, 600), (30, 90, 140))
     shot.blobs[ANNOTATED] = await ctx.blobs.write(
@@ -75,7 +75,7 @@ async def seed(folder: str, with_verdict: bool) -> Context:
         await repo.put_experiment(
             ctx.store,
             Experiment(
-                id="quest_1",
+                id="experiment_1",
                 user_id="u1",
                 technique_id="panning",
                 title="Follow the rider",
@@ -83,7 +83,11 @@ async def seed(folder: str, with_verdict: bool) -> Context:
                 why_now="",
                 criteria=Criteria(exif=ExifRule(), vision=["panning"], text=["streaks"]),
                 verdicts=[
-                    Verdict(shot_id="shot_1", passed=True, feedback="Clean pan. Next: slower.")
+                    Verdict(
+                        shot_id="shot_1",
+                        criteria_met=True,
+                        feedback="Clean pan. Next: slower.",
+                    )
                 ],
             ),
         )

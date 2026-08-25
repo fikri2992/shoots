@@ -98,7 +98,7 @@ def briefing(
         lines += [f"- {note}" for note in constraints.notes]
         lines.append("")
     lines.append(
-        "Technique ids you may pass to issue_quest (only these): "
+        "Technique ids you may pass to issue_experiment (only these): "
         + ", ".join(t.id for t in taxonomy.TECHNIQUES if not t.video_only)
     )
     lines.append("Begin the session as instructed.")
@@ -144,7 +144,7 @@ async def listen(transcript: list[dict], user_id: str) -> NotesOut:
 TOOLS = types.Tool(
     function_declarations=[
         types.FunctionDeclaration(
-            name="issue_quest",
+            name="issue_experiment",
             description=(
                 "Issue the photographer a new experiment for a technique right now, replacing the "
                 "open one. Use when they ask for something else to shoot. Pass a technique id "
@@ -180,10 +180,11 @@ TOOLS = types.Tool(
             ),
         ),
         types.FunctionDeclaration(
-            name="skill_map",
+            name="technique_map",
             description=(
-                "The photographer's skill graph: what they have attempted, what is solid, "
-                "what is next."
+                "The photographer's Technique Map: what the evidence has observed, what "
+                "recurs, and what is unlocked next. States are unobserved, observed and "
+                "recurring - they describe the evidence, never the photographer's ability."
             ),
             parameters=types.Schema(type=types.Type.OBJECT, properties={}),
         ),

@@ -1,12 +1,24 @@
 """Read side for the dashboard: shots, events, blobs. Signed-in user only."""
 
+from datetime import datetime
+
 from fastapi import APIRouter, Depends, HTTPException, Response
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from app.api.auth import current_user
 from app.api.deps import get_context
 from app.domain import tendency
-from app.domain.entities import ActivityEvent, Analysis, JourneyUpdate, Shot, User, now
+from app.domain.entities import (
+    ActivityEvent,
+    Analysis,
+    Composition,
+    Finding,
+    JourneyUpdate,
+    Shot,
+    TechniqueEvidence,
+    User,
+    now,
+)
 from app.infra import repository as repo
 from app.infra.storage import content_type_for, user_prefix
 from app.services import journey as journey_service
@@ -20,9 +32,41 @@ async def me(session_user: dict = Depends(current_user), ctx: Context = Depends(
     return await repo.find_user(ctx.store, session_user["id"])
 
 
+class AnalysisView(BaseModel):
+    """The Analyst's read, as a photographer may see it.
+
+    Listed field by field rather than returning ``Analysis`` whole, and that is
+    the point: ``score`` and ``elements`` are stored and read by nothing
+    (decision 46), but a nested entity publishes every field it has, so
+    embedding the model handed both of them to the browser on every shot. They
+    were invisible only because no component happened to render them - one
+    `{{ analysis.score }}` would have put the report card back with no server
+    change and no failing test.
+
+    Naming what crosses the boundary also means the next field added to
+    ``Analysis`` has to be let out deliberately instead of arriving on its own.
+    """
+
+    shot_id: str
+    model: str
+    techniques: list[TechniqueEvidence] = Field(default_factory=list)
+    composition: Composition = Field(default_factory=Composition)
+    observations: list[str] = Field(default_factory=list)
+    findings: list[Finding] = Field(default_factory=list)
+    critique: str = ""
+    panel: dict[str, float] = Field(default_factory=dict)
+    dissent: list[dict] = Field(default_factory=list)
+    abstained: str = ""
+    created_at: datetime
+
+    @classmethod
+    def of(cls, analysis: Analysis | None) -> "AnalysisView | None":
+        return None if analysis is None else cls(**analysis.model_dump())
+
+
 class ShotView(BaseModel):
     shot: Shot
-    analysis: Analysis | None = None
+    analysis: AnalysisView | None = None
 
 
 @router.get("/shots", response_model=list[ShotView])
@@ -35,7 +79,7 @@ async def list_shots(
     views = []
     for shot in shots:
         analysis = await repo.find_analysis(ctx.store, shot.id) if shot.analyzed_at else None
-        views.append(ShotView(shot=shot, analysis=analysis))
+        views.append(ShotView(shot=shot, analysis=AnalysisView.of(analysis)))
     return views
 
 
@@ -46,7 +90,8 @@ async def get_shot(
     shot = await repo.find_shot(ctx.store, shot_id)
     if shot is None or shot.user_id != session_user["id"]:
         raise HTTPException(404, "shot not found")
-    return ShotView(shot=shot, analysis=await repo.find_analysis(ctx.store, shot.id))
+    analysis = await repo.find_analysis(ctx.store, shot.id)
+    return ShotView(shot=shot, analysis=AnalysisView.of(analysis))
 
 
 class KeeperIn(BaseModel):
@@ -158,14 +203,17 @@ async def profile(
                 readable=p.readable,
                 narrow=p.narrow,
                 dominant=p.dominant,
-                never=list(p.unexplored),
+                never=list(p.never_used),
                 buckets=[
                     BucketView(
                         bucket=bucket,
                         count=p.counts.get(bucket, 0),
                         keeper_lift=(
                             round(lift, 2)
-                            if (lift := p.keeper_lift(bucket, built.keeper_rate)) is not None
+                            if (
+                                lift := p.keeper_lift(bucket, built.keeper_rate, built.keepers)
+                            )
+                            is not None
                             else None
                         ),
                     )
