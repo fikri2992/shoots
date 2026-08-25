@@ -14,6 +14,7 @@ from dataclasses import dataclass, field
 from typing import Literal
 
 from google.adk.agents import LlmAgent, ParallelAgent, SequentialAgent
+from google.genai import types
 from pydantic import BaseModel, Field
 
 from app.agents import prompts
@@ -126,6 +127,51 @@ class PanelResult:
 
 # --- agents ---------------------------------------------------------------------
 
+#: Which image each reader is left with, by position in the list ``analyse``
+#: sends: 0 is the gridded frame, 1 is the clean one, and ``None`` is no image
+#: at all. Decision 18 has always said the lenses differ in instruction *and*
+#: input, but the panel is a ParallelAgent under one user turn, so every lens
+#: saw both frames and the input half was only ever prose inside the prompts.
+#: The Storyteller in particular is asked what the picture feels like while
+#: looking at a mesh drawn over it, and the Synthesizer, which is documented as
+#: never seeing the image, saw two.
+SEES: dict[str, int | None] = {
+    panel.TECHNICIAN: 0,
+    panel.COMPOSER: 0,
+    panel.STORYTELLER: 1,
+    "synthesizer": None,
+}
+
+
+def only_image(contents: list[types.Content], keep: int | None) -> list[types.Content]:
+    """The same conversation with every image dropped except the ``keep``-th,
+    counting images in the order they were sent. ``None`` drops all of them.
+    Pure, so the routing can be tested without a model."""
+    out: list[types.Content] = []
+    seen = -1
+    for content in contents:
+        parts = []
+        for part in content.parts or []:
+            if getattr(part, "inline_data", None) is not None:
+                seen += 1
+                if keep is None or seen != keep:
+                    continue
+            parts.append(part)
+        out.append(types.Content(role=content.role, parts=parts))
+    return out
+
+
+def _sees(keep: int | None):
+    """A ``before_model_callback`` leaving this reader only its own frame.
+    ADK builds one request per sub-agent from the shared session, so this is
+    the seam where a ParallelAgent's readers stop sharing their eyes."""
+
+    def callback(callback_context, llm_request):  # noqa: ANN001 — ADK's signature
+        llm_request.contents = only_image(list(llm_request.contents or []), keep)
+        return None
+
+    return callback
+
 
 def lens_agent(name: str) -> LlmAgent:
     return LlmAgent(
@@ -135,6 +181,7 @@ def lens_agent(name: str) -> LlmAgent:
         instruction=prompts.load(name),
         output_schema=SCHEMAS[name],
         output_key=name,
+        before_model_callback=_sees(SEES[name]),
     )
 
 
@@ -146,6 +193,7 @@ def synthesizer_agent() -> LlmAgent:
         instruction=prompts.load("synthesizer"),
         output_schema=SynthesisOut,
         output_key="synthesis",
+        before_model_callback=_sees(SEES["synthesizer"]),
     )
 
 

@@ -4,7 +4,10 @@ version = "0.1.0"
 description = "Shoots — an autonomous photography coach that watches your Drive, maps your skills, and issues quests"
 requires-python = ">=3.12"
 dependencies = [
-    "google-adk>=1.0.0",
+    # Upper bound on purpose: SequentialAgent and ParallelAgent, which are the
+    # Analyst's whole skeleton, carry @deprecated in 2.7.1 and say they will be
+    # removed. An unbounded pin lets a sync delete the panel.
+    "google-adk>=2.7,<3",
     "google-genai>=1.0.0",
     "fastapi>=0.115.0",
     "uvicorn[standard]>=0.32.0",

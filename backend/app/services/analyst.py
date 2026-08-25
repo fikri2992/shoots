@@ -1,11 +1,22 @@
 """Analyst stage: ``media.ingested`` → Analysis → ``media.analyzed``.
 
-Idempotent on shot id: a shot that is already ANALYZED is skipped, and a
-redelivery while a previous attempt is mid-flight will produce the same
-document twice rather than two different ones (put is a full overwrite).
+Idempotent on shot id, and on cost. A shot that is already ANALYZED is
+skipped, which has always been free. The expensive case was the other one:
+this stage spends four to six model calls before it writes anything, so a
+failure *after* ``agent.analyse()`` returned — the overlay render, a blob
+write, the repository write — left the shot at INGESTED and the redelivery
+paid for the whole panel again. With five delivery attempts that is twenty
+lens calls and about four minutes for one shot.
+
+So the shot is moved to ANALYSING before the first model call, and a
+redelivery that finds it there returns. The claim is dated: an attempt that
+died leaves the status behind with nothing coming to clear it, so a claim
+older than ``_LEASE_SECONDS`` — the panel's own timeout plus the slack the
+rest of the stage needs — is treated as dead and taken over.
 """
 
 import logging
+from datetime import timedelta
 
 from app.agents import analyst as agent
 from app.agents import crop as crop_loop
@@ -24,15 +35,35 @@ logger = logging.getLogger(__name__)
 
 AGENT = "analyst"
 
+#: How long another worker's ANALYSING claim is believed. The panel's own
+#: timeout plus room for the crop loop, the overlay and the writes after it.
+_LEASE_SECONDS = 420.0
+
+
+def _in_flight(shot) -> bool:
+    """Is someone else still working on this, or did their attempt die?"""
+    if shot.status is not ShotStatus.ANALYSING:
+        return False
+    claimed = shot.analysing_at
+    return claimed is not None and (now() - claimed) < timedelta(seconds=_LEASE_SECONDS)
+
 
 async def analyse(ctx: Context, message: dict) -> None:
     shot = await repo.get_shot(ctx.store, message["shot_id"])
     if shot.status is ShotStatus.ANALYZED:
         logger.info("analyst: %s already analysed, skipping", shot.id)
         return
-    if shot.status is not ShotStatus.INGESTED or not shot.grid:
+    if _in_flight(shot):
+        logger.info("analyst: %s is mid-panel elsewhere, skipping", shot.id)
+        return
+    if shot.status not in (ShotStatus.INGESTED, ShotStatus.ANALYSING) or not shot.grid:
         logger.warning("analyst: %s is %s, nothing to analyse", shot.id, shot.status)
         return
+
+    # Claimed before any model call: everything below here costs money.
+    shot.status = ShotStatus.ANALYSING
+    shot.analysing_at = now()
+    await repo.put_shot(ctx.store, shot)
 
     gridded = await ctx.blobs.read(shot.blobs[GRIDDED])
     clean_key = SHEET if SHEET in shot.blobs else ORIGINAL
@@ -57,6 +88,7 @@ async def analyse(ctx: Context, message: dict) -> None:
     )
 
     shot.status = ShotStatus.ANALYZED
+    shot.analysing_at = None
     shot.analyzed_at = now()
     await repo.put_shot(ctx.store, shot)
     await repo.record(

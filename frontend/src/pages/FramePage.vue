@@ -278,7 +278,7 @@ export default {
                   </span>
                 </li>
               </ul>
-              <p class="mt-3 t-meta">The PPA merit-image elements, weighted. Scored by {{ lenses }} and averaged.</p>
+              <p class="mt-3 t-meta">The PPA merit-image elements. Each one is rated by the single lens that owns it.</p>
             </DisclosureRow>
 
             <DisclosureRow label="Techniques it agreed on" :count="analysis.techniques.length">

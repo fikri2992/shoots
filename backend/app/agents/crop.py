@@ -7,10 +7,14 @@ rose. If not, the rater may propose a better range; that gets one more
 round. Bounded, deterministic, and the decision rests on a rendered image,
 not on the Composer's description of one.
 
-The loop is Python, not an ADK ``LoopAgent``: an ADK ``LlmAgent`` with an
-``output_schema`` cannot take tools, and a custom agent cannot inject a new
-image into the conversation mid-invocation, so a crop-render tool inside a
-LoopAgent body would have no way to show the rater its result.
+The loop is Python, not an ADK ``LoopAgent``, and that is a choice rather
+than a constraint. ADK 2.7.1 does support ``output_schema`` together with
+tools (``llm_agent.py``: tools are exposed during the thought loop and
+structure is enforced only on the final output), so the old reason given
+here was wrong. What remains true is that showing a rater a freshly rendered
+image mid-invocation would need a ``before_model_callback``, and that path
+is untested; this loop is bounded at two rounds, deterministic, and works.
+``LoopAgent`` is also deprecated in 2.7.1.
 """
 
 import logging

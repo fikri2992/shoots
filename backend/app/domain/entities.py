@@ -70,6 +70,11 @@ class ShotKind(StrEnum):
 class ShotStatus(StrEnum):
     NEW = "new"
     INGESTED = "ingested"
+    #: The panel is running right now. Written before the first model call so
+    #: a redelivery mid-flight skips instead of re-paying for four to six of
+    #: them; ``analysing_at`` dates the claim so a dead attempt cannot strand
+    #: the shot here (see ``services/analyst.py``).
+    ANALYSING = "analysing"
     ANALYZED = "analyzed"
     FAILED = "failed"
 
@@ -208,6 +213,9 @@ class Shot(BaseModel):
     error: str = ""
     captured_at: datetime | None = None
     ingested_at: datetime = Field(default_factory=now)
+    #: When the panel claimed this shot. Read only while the status is
+    #: ANALYSING, to tell an attempt in flight from one that died.
+    analysing_at: datetime | None = None
     analyzed_at: datetime | None = None
 
 
