@@ -577,3 +577,63 @@ def challenge_for(profile: Profile) -> Challenge | None:
         prefers=PUSHES_AGAINST.get((narrowest.dimension.id, bucket), ()),
         source=narrowest.dimension.id,
     )
+
+
+# --- did the advice work? -------------------------------------------------------
+
+
+@dataclass(frozen=True)
+class Grade:
+    """Whether a dimension actually widened after a challenge was set.
+
+    The coach grading itself (decision 37). Two things count as movement, and
+    they are not the same: shooting something the photographer had never shot
+    is unambiguous, while a spread that merely evens out is weaker and needs to
+    clear a threshold before it counts.
+    """
+
+    moved: bool
+    outcome: str
+    new_buckets: tuple[str, ...] = ()
+    added: int = 0
+
+
+#: Exploration has to move at least this much to count as movement rather than
+#: one shot's arithmetic.
+GRADE_MOVED_BY = 0.05
+
+
+def grade(dimension: Dimension, at_issue: dict[str, int], now_counts: dict[str, int]) -> Grade:
+    """Compare a frozen dimension against where it stands now.
+
+    Both halves are plain counts, so this is reproducible from the store years
+    later and no model is involved in deciding whether the advice worked.
+    """
+    added = sum(now_counts.values()) - sum(at_issue.values())
+    fresh = tuple(b for b in dimension.buckets if now_counts.get(b) and not at_issue.get(b))
+    before = _entropy(at_issue, len(dimension.buckets))
+    after = _entropy(now_counts, len(dimension.buckets))
+
+    if fresh:
+        return Grade(
+            moved=True,
+            outcome=f"first {', '.join(fresh)} in {added} shots since",
+            new_buckets=fresh,
+            added=added,
+        )
+    if after - before >= GRADE_MOVED_BY:
+        return Grade(
+            moved=True,
+            outcome=f"spread wider over {added} shots since ({before:.2f} to {after:.2f})",
+            added=added,
+        )
+    if added == 0:
+        return Grade(moved=False, outcome="nothing shot since", added=0)
+    return Grade(moved=False, outcome=f"{added} shots since, same distribution", added=added)
+
+
+def _entropy(counts: dict[str, int], buckets: int) -> float:
+    total = sum(counts.values())
+    if total == 0 or buckets < 2:
+        return 0.0
+    return abs(-sum((c / total) * log(c / total) for c in counts.values() if c) / log(buckets))

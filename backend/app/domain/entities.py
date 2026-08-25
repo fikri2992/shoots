@@ -327,6 +327,11 @@ class Analysis(BaseModel):
     panel: dict[str, float] = Field(default_factory=dict)
     #: Sightings that lost the vote: [{lens, technique_id, confidence}]. Shown, not counted.
     dissent: list[dict] = Field(default_factory=list)
+    #: Set when the panel could not call this frame: every lens saw something
+    #: and no two saw the same thing (decision 38). The faults still stand -
+    #: they are arithmetic - but nothing here should be read as a verdict, and
+    #: the review says so rather than averaging three opinions into one.
+    abstained: str = ""
     created_at: datetime = Field(default_factory=now)
 
 
@@ -417,6 +422,32 @@ class Verdict(BaseModel):
     judged_at: datetime = Field(default_factory=now)
 
 
+class TendencyGrade(BaseModel):
+    """What the Scout's own advice was aimed at, and whether it landed.
+
+    Decision 37: an agent that never checks its own recommendations is a
+    critique queue, not a coach. The dimension this quest pushed against is
+    frozen here at issue time, and when later shots arrive the counts are
+    compared - arithmetic, no model adjudicating.
+
+    What this deliberately does not claim: that moved counts mean better
+    photographs. Behaviour change is the measurable thing. Quality stays the
+    panel's opinion and is labelled as such wherever it appears.
+    """
+
+    #: The dimension id the challenge came from, or "dwell".
+    source: str = ""
+    #: The sentence the photographer was shown: "12 of 18 readable: centred".
+    citation: str = ""
+    #: Bucket -> count for that dimension, frozen when the quest was issued.
+    at_issue: dict[str, int] = Field(default_factory=dict)
+    #: Filled in when the grading runs. None until then.
+    moved: bool | None = None
+    #: What changed, in one plain sentence.
+    outcome: str = ""
+    graded_at: datetime | None = None
+
+
 class QuestTiming(BaseModel):
     """Why the quest lands when it does (domain/timing.py)."""
 
@@ -440,6 +471,8 @@ class Quest(BaseModel):
     deliver_at: datetime | None = None
     delivered_at: datetime | None = None
     timing: QuestTiming | None = None
+    #: The tendency this quest was aimed at, and whether the aim was any good.
+    tendency: TendencyGrade | None = None
     status: QuestStatus = QuestStatus.OPEN
     verdicts: list[Verdict] = Field(default_factory=list)
     issued_at: datetime = Field(default_factory=now)

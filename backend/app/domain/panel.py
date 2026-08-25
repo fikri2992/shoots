@@ -115,6 +115,22 @@ class Consensus:
     quorum: int
     #: Sightings that did not make it, for the feed: (lens, technique, confidence).
     dissent: list[tuple[str, str, float]]
+    #: Why the panel could not call this frame, or empty when it could.
+    #:
+    #: Expertise includes knowing the edge of your own competence. Three lenses
+    #: that each saw something different have not produced a reading; they have
+    #: produced three opinions, and averaging them into a verdict manufactures
+    #: a confidence nobody had. The photographer is a hobbyist who cannot audit
+    #: a critic, so an honest "I could not call this one" is worth more to them
+    #: than a fluent answer that happens to be arbitrary.
+    #:
+    #: Faults are unaffected: they are arithmetic, and stay true whatever the
+    #: lenses disagreed about.
+    abstained: str = ""
+
+    @property
+    def confident(self) -> bool:
+        return not self.abstained
 
 
 def aggregate(
@@ -216,4 +232,33 @@ def aggregate(
         observations=observations[:MAX_OBSERVATIONS],
         quorum=len(reads),
         dissent=dissent,
+        abstained=_abstention(techniques, dissent, len(reads)),
     )
+
+
+#: How many rejected sightings make a disagreement rather than a quiet frame.
+CONTESTED_SIGHTINGS = 3
+
+
+def _abstention(
+    techniques: list[TechniqueEvidence],
+    dissent: list[tuple[str, str, float]],
+    quorum: int,
+) -> str:
+    """Whether this reading is worth stating, and if not, why.
+
+    Two different silences have to be told apart. A frame where the lenses
+    simply had little to say is quiet, and a quiet frame is a fine thing to
+    report. A frame where every lens saw something and no two of them saw the
+    same thing is *contested*, and that is not a reading at all — it is three
+    opinions in a room. Only the second abstains.
+    """
+    if techniques:
+        return ""
+    lenses_that_claimed = {lens for lens, _, _ in dissent}
+    if len(dissent) >= CONTESTED_SIGHTINGS and len(lenses_that_claimed) >= quorum:
+        return (
+            f"{len(lenses_that_claimed)} lenses each saw something and no two agreed "
+            f"({len(dissent)} sightings, none corroborated)"
+        )
+    return ""

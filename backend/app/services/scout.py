@@ -13,7 +13,7 @@ from app.config import settings
 from app.domain import scout as rules
 from app.domain import skills as skill_rules
 from app.domain import taxonomy, tendency, timing
-from app.domain.entities import Quest, QuestStatus, QuestTiming, new_id, now
+from app.domain.entities import Quest, QuestStatus, QuestTiming, TendencyGrade, new_id, now
 from app.infra import repository as repo
 from app.infra.bus import TOPICS
 from app.services import notify
@@ -51,7 +51,8 @@ async def issue(
         q.technique_id for q in await repo.list_quests(ctx.store, user_id, limit=RECENT_QUESTS)
     ]
     user = await repo.get_user(ctx.store, user_id)
-    challenge = await read_tendency(ctx, user_id)
+    profile = await profile_for(ctx, user_id)
+    challenge = tendency.challenge_for(profile)
     technique = (
         taxonomy.BY_ID.get(technique_id)
         if technique_id
@@ -88,6 +89,14 @@ async def issue(
         status=QuestStatus.OPEN,
         due_at=now() + timedelta(days=settings.quest_ttl_days),
     )
+    # Freeze what this advice was aimed at, so it can be graded later against
+    # arithmetic rather than against anybody's impression of how it went.
+    if challenge:
+        quest.tendency = TendencyGrade(
+            source=challenge.source,
+            citation=challenge.citation,
+            at_issue=_snapshot(profile, challenge.source),
+        )
     when = timing.deliver_at(technique.light, now(), user.last_latitude, user.last_longitude)
     quest.deliver_at = when.at
     quest.timing = QuestTiming(
@@ -117,18 +126,94 @@ async def issue(
     return quest
 
 
-async def read_tendency(ctx: Context, user_id: str) -> tendency.Challenge | None:
-    """What the photographer's own work suggests trying next, or nothing.
+async def profile_for(ctx: Context, user_id: str) -> tendency.Profile:
+    """The photographer's Tendency Profile, over everything stored.
 
-    Pure arithmetic over measurements already on disk (``domain/tendency.py``):
-    no model is called here. Nothing is a real answer — a photographer whose
-    work is spread across every dimension has no tendency worth naming, and the
-    Scout falls back to the skill graph alone.
+    Pure arithmetic on measurements already on disk (``domain/tendency.py``):
+    no model is called here.
     """
     shots = await repo.list_shots(ctx.store, user_id, limit=TENDENCY_CORPUS)
     rows = [(shot, await repo.find_analysis(ctx.store, shot.id)) for shot in shots]
     keepers = {shot.id for shot in shots if shot.keeper}
-    return tendency.challenge_for(tendency.build(rows, keepers))
+    return tendency.build(rows, keepers)
+
+
+def _snapshot(profile: tendency.Profile, source: str) -> dict[str, int]:
+    """The counts a challenge was aimed at. Dwell has no buckets, so it is
+    frozen as the two figures that make up its ratio."""
+    if source == "dwell":
+        return {"shots": profile.dwell.shots, "scenes": profile.dwell.scenes}
+    found = profile.dimensions.get(source)
+    return dict(found.counts) if found else {}
+
+
+async def grade_advice(ctx: Context, user_id: str) -> list[Quest]:
+    """Did the Scout's own advice change anything?
+
+    Decision 37. Every quest that named a tendency is compared against where
+    that tendency stands now — counts against counts, no model adjudicating —
+    and the answer is written on the quest. An agent that never checks its own
+    recommendations is a critique queue, not a coach.
+
+    What this does not claim: that moved counts mean better photographs. That
+    stays the panel's opinion, and is labelled as one wherever it appears.
+    """
+    profile = await profile_for(ctx, user_id)
+    graded = []
+    for quest in await repo.list_quests(ctx.store, user_id, limit=RECENT_QUESTS):
+        mark = quest.tendency
+        if mark is None or mark.moved is not None or quest.status is QuestStatus.OPEN:
+            continue
+        if mark.source == "dwell":
+            result = _grade_dwell(mark.at_issue, profile.dwell)
+        else:
+            dimension = tendency.BY_ID.get(mark.source)
+            if dimension is None:
+                continue
+            result = tendency.grade(dimension, mark.at_issue, _snapshot(profile, mark.source))
+        mark.moved = result.moved
+        mark.outcome = result.outcome
+        mark.graded_at = now()
+        await repo.put_quest(ctx.store, quest)
+        await repo.record(
+            ctx.store,
+            user_id,
+            AGENT,
+            "graded",
+            {
+                "technique_id": quest.technique_id,
+                "tendency": mark.source,
+                "moved": mark.moved,
+                "outcome": mark.outcome,
+                "cited": mark.citation,
+            },
+            quest_id=quest.id,
+        )
+        graded.append(quest)
+    return graded
+
+
+def _grade_dwell(at_issue: dict[str, int], now_dwell: tendency.Dwell) -> tendency.Grade:
+    """Working the scene is a ratio rather than a distribution, so it is graded
+    on whether that ratio rose."""
+    was_shots, was_scenes = at_issue.get("shots", 0), at_issue.get("scenes", 0)
+    added = now_dwell.shots - was_shots
+    if added <= 0:
+        return tendency.Grade(moved=False, outcome="nothing shot since", added=0)
+    scenes = max(1, now_dwell.scenes - was_scenes)
+    per_scene = added / scenes
+    was = was_shots / was_scenes if was_scenes else 0.0
+    if per_scene > was + 0.5:
+        return tendency.Grade(
+            moved=True,
+            outcome=f"{per_scene:.1f} frames a scene since, up from {was:.1f}",
+            added=added,
+        )
+    return tendency.Grade(
+        moved=False,
+        outcome=f"{per_scene:.1f} frames a scene since, was {was:.1f}",
+        added=added,
+    )
 
 
 async def issue_first(ctx: Context, user_id: str) -> Quest | None:

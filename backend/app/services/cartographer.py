@@ -10,7 +10,7 @@ import logging
 from app.domain import skills as rules
 from app.domain.entities import now
 from app.infra import repository as repo
-from app.services import journey
+from app.services import journey, scout
 from app.services.context import Context
 
 logger = logging.getLogger(__name__)
@@ -58,9 +58,17 @@ async def update(ctx: Context, message: dict) -> None:
 
 
 async def _journey(ctx: Context, user_id: str) -> None:
-    """Ask whether the body of work has moved enough to be worth a paragraph.
-    Usually it has not, and nothing is written. A failure here costs the
-    paragraph, not the map: the skill graph is already stored."""
+    """Two questions after every reading, both arithmetic.
+
+    Did the Scout's own advice change anything (decision 37), and has the body
+    of work moved enough to be worth a paragraph? Usually the second is no and
+    nothing is written. A failure in either costs the prose, not the map: the
+    skill graph is already stored.
+    """
+    try:
+        await scout.grade_advice(ctx, user_id)
+    except Exception:  # noqa: BLE001 — the map stands without the grade
+        logger.exception("grading the Scout's advice failed for %s", user_id)
     try:
         await journey.maybe_write(ctx, user_id)
     except Exception:  # noqa: BLE001 — the map stands without the prose

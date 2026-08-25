@@ -183,3 +183,63 @@ def test_without_the_sets_nothing_changes():
     assert [(t.technique_id, t.agreement, t.confidence) for t in plain.techniques] == [
         (t.technique_id, t.agreement, t.confidence) for t in empty.techniques
     ]
+
+
+# --- knowing the edge of your own competence ------------------------------------
+
+
+def test_three_lenses_that_each_saw_something_different_is_not_a_reading():
+    """The panel abstains. Averaging three opinions into a verdict would
+    manufacture a confidence nobody in the room had, and the photographer is a
+    hobbyist who cannot audit a critic."""
+    reads = [
+        read("technician", ("shallow_dof", 0.6)),
+        read("composer", ("leading_lines", 0.55)),
+        read("storyteller", ("single_accent", 0.5)),
+    ]
+    result = panel.aggregate(reads)
+    assert result.techniques == []
+    assert result.confident is False
+    assert "no two agreed" in result.abstained
+
+
+def test_a_quiet_frame_is_not_a_contested_one():
+    """Nothing was claimed, so there is nothing to disagree about. A quiet
+    reading is honest; abstaining from it would be theatre."""
+    result = panel.aggregate([read("technician"), read("composer"), read("storyteller")])
+    assert result.techniques == []
+    assert result.confident is True and result.abstained == ""
+
+
+def test_one_corroborated_technique_ends_the_abstention():
+    reads = [
+        read("technician", ("panning", 0.8)),
+        read("composer", ("panning", 0.7), ("leading_lines", 0.5)),
+        read("storyteller", ("single_accent", 0.5)),
+    ]
+    result = panel.aggregate(reads)
+    assert [t.technique_id for t in result.techniques] == ["panning"]
+    assert result.confident is True
+
+
+def test_a_measurement_can_rescue_a_contested_frame():
+    """Arithmetic is the one voter that cannot share the panel's blind spots,
+    so a frame it settles is not contested however the lenses scattered."""
+    reads = [
+        read("technician", ("shallow_dof", 0.6)),
+        read("composer", ("pan", 0.55)),
+        read("storyteller", ("single_accent", 0.5)),
+    ]
+    result = panel.aggregate(reads, settled_for=frozenset({"pan"}))
+    assert result.confident is True
+    assert "pan" in {t.technique_id for t in result.techniques}
+
+
+def test_one_lens_alone_cannot_make_a_frame_contested():
+    """One reader with three rejected guesses is one opinion, not a
+    disagreement. Two lenses have to have looked."""
+    reads = [
+        read("technician", ("shallow_dof", 0.5), ("golden_hour", 0.5), ("monochrome", 0.5)),
+        read("composer"),
+    ]
+    assert panel.aggregate(reads).confident is True

@@ -454,6 +454,7 @@ def validate(shot: Shot, result: PanelResult) -> Analysis:
             {"lens": lens, "technique_id": tid, "confidence": round(conf, 2)}
             for lens, tid, conf in consensus.dissent
         ],
+        abstained=consensus.abstained,
     )
 
 
