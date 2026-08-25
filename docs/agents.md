@@ -1,7 +1,7 @@
 # Agents
 
 The implemented agent architecture on Google ADK, written from the code as it is.
-The code still uses the legacy `Quest`, `Fault`, `SkillState`, and score schemas.
+The code still uses the legacy `Quest`, `Fault`, `TechniqueState`, and score schemas.
 [Product decisions](product-decisions.md) define the target Experiment, Finding,
 Technique Map, and Change language. [Feature list](feature-list.md) tracks the
 migration. This file remains the source for the submission architecture diagram,
@@ -156,7 +156,7 @@ All `LlmAgent`s run `gemini-3.7-flash` on the Vertex global endpoint.
   missing or malformed one in `errors` so the stage can decide on quorum instead of
   failing.
 - Durable state is the store: `User` (constraints, location, Drive cursor), `Shot`,
-  `Analysis`, `SkillState`, `Quest` (verdicts inside), `ActivityEvent`. Firestore in
+  `Analysis`, `TechniqueState`, `Quest` (verdicts inside), `ActivityEvent`. Firestore in
   the cloud, one `store.json` locally. Every stage is idempotent on shot id or
   quest id: a redelivery finds the status already advanced and returns.
 - Secrets never enter the store or a prompt: the Drive refresh token is in Secret

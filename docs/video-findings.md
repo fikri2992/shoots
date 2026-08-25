@@ -45,7 +45,7 @@ Rows 1–5 total **eight to nine and a half hours**. That should be the whole of
 
 [`domain/motion.py`](../backend/app/domain/motion.py) computes `Read.contradicts` — the techniques the measured translation *rules out* — at four separate branches. `motion.describe()` formats it into a sentence ("measured translation rules out: …"), and [`analyst.py:246`](../backend/app/agents/analyst.py) hands that to the Technician and the Composer as `{camera_move}`.
 
-Then it stops. Grepping the tree, the only occurrence of the string `motion` in [`domain/panel.py`](../backend/app/domain/panel.py) is `"slow_motion"` inside `OWNER_OVERRIDES`. **The vote has no knowledge of the measurement.** A lens can vote `static_tripod` on the clip measured at 2.42 frame widths of travel, and that Evidence stands, promotes a SkillState, and reaches the photographer.
+Then it stops. Grepping the tree, the only occurrence of the string `motion` in [`domain/panel.py`](../backend/app/domain/panel.py) is `"slow_motion"` inside `OWNER_OVERRIDES`. **The vote has no knowledge of the measurement.** A lens can vote `static_tripod` on the clip measured at 2.42 frame widths of travel, and that Evidence stands, promotes a TechniqueState, and reaches the photographer.
 
 "Arithmetic, not opinion" is currently true of the prompts and false of the panel.
 
@@ -141,7 +141,7 @@ Photos stay the priority. Build rows 1–5 and stop.
 
 The other eight come out of what the panel may vote into Evidence. Two of them, `slow_motion` and `timelapse`, are settleable from `ffprobe` alone and could come back cheaply — [`panel.py:45`](../backend/app/domain/panel.py) already routes both to the Technician via `OWNER_OVERRIDES`, which suggests someone saw this already.
 
-If a lens still wants to say "this looks like a push-in", let it say so as an impression in the Synthesizer's paragraph — **never as Evidence, and never as a Technique that promotes a SkillState.** The Skill graph has already been burned once by promotions built on evidence a second lens never corroborated ([research-findings.md](research-findings.md) §5).
+If a lens still wants to say "this looks like a push-in", let it say so as an impression in the Synthesizer's paragraph — **never as Evidence, and never as a Technique that promotes a TechniqueState.** The Skill graph has already been burned once by promotions built on evidence a second lens never corroborated ([research-findings.md](research-findings.md) §5).
 
 ## 7. Open questions
 

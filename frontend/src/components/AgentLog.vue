@@ -88,7 +88,7 @@ export default {
         case 'scheduler.daily':
           return `daily round: ${d.synced} synced, ${d.issued} issued`
         case 'scheduler.expired':
-          return `${d.technique_id?.replace(/_/g, ' ')} is going rusty`
+          return `${d.technique_id?.replace(/_/g, ' ')} has not appeared in a while`
         case 'drive.connected':
           return 'connected your Drive folder'
         case 'user.skipped':

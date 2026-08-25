@@ -13,7 +13,7 @@ from app.domain.entities import (
     Quest,
     QuestStatus,
     Shot,
-    SkillState,
+    TechniqueState,
     User,
     new_id,
     now,
@@ -112,13 +112,13 @@ def skill_id_for(user_id: str, technique_id: str) -> str:
     return f"{user_id}__{technique_id}"
 
 
-async def put_skill(store: Store, skill: SkillState) -> None:
+async def put_skill(store: Store, skill: TechniqueState) -> None:
     await store.put(SKILLS, skill_id_for(skill.user_id, skill.technique_id), _dump(skill))
 
 
-async def list_skills(store: Store, user_id: str) -> list[SkillState]:
+async def list_skills(store: Store, user_id: str) -> list[TechniqueState]:
     rows = await store.query(SKILLS, where={"user_id": user_id})
-    return [SkillState.model_validate(d) for d in rows]
+    return [TechniqueState.model_validate(d) for d in rows]
 
 
 # --- quests ---------------------------------------------------------------

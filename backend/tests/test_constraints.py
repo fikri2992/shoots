@@ -1,7 +1,7 @@
 """What the Coach remembers, and that the Scout respects it."""
 
 from app.domain import scout as rules
-from app.domain.entities import Constraints, SkillState, SkillStatus
+from app.domain.entities import Constraints, TechniqueState, TechniqueStatus
 from app.services.coach import merge
 
 
@@ -24,7 +24,9 @@ def test_merge_caps_notes_newest_last():
 
 def test_scout_skips_techniques_needing_missing_gear():
     skills = {
-        tid: SkillState(user_id="u", technique_id=tid, status=SkillStatus.PRACTICED, attempts=3)
+        tid: TechniqueState(
+            user_id="u", technique_id=tid, status=TechniqueStatus.OBSERVED, attempts=3
+        )
         for tid in ("golden_hour", "deep_dof", "freeze_action", "backlight", "rule_of_thirds")
     }
     everything = [t.id for t in rules.rank(skills, [])]

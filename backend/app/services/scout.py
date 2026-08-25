@@ -11,8 +11,8 @@ from datetime import timedelta
 from app.agents import scout as agent
 from app.config import settings
 from app.domain import scout as rules
-from app.domain import skills as skill_rules
 from app.domain import taxonomy, tendency, timing
+from app.domain import technique_map as map_rules
 from app.domain.entities import Quest, QuestStatus, QuestTiming, TendencyGrade, new_id, now
 from app.infra import repository as repo
 from app.infra.bus import TOPICS
@@ -43,9 +43,9 @@ async def issue(
         await skip(ctx, user_id, open_quest.id)
 
     skills = {s.technique_id: s for s in await repo.list_skills(ctx.store, user_id)}
-    decayed = skill_rules.decay(skills, now(), settings.skill_decay_days)
-    for state in decayed:
-        await repo.put_skill(ctx.store, state)
+    # Not a demotion: what recurred keeps having recurred. This only asks which
+    # Techniques have been quiet long enough to be worth offering again.
+    stale = map_rules.stale_ids(skills, now(), settings.revisit_after_days)
 
     recent = [
         q.technique_id for q in await repo.list_quests(ctx.store, user_id, limit=RECENT_QUESTS)
@@ -61,13 +61,14 @@ async def issue(
             recent,
             missing_gear=user.constraints.missing_gear,
             prefer=challenge.prefers if challenge else (),
+            stale=stale,
         )
     )
     if technique is None:
         await repo.record(ctx.store, user_id, AGENT, "nothing_to_issue", {"recent": recent})
         return None
 
-    why = rules.why_now(technique, skills)
+    why = rules.why_now(technique, skills, stale)
     # The citation is the point: a challenge that cannot name the arithmetic
     # behind it is the generic advice this product exists to rise above.
     if challenge and challenge.prefers and technique.id in challenge.prefers:

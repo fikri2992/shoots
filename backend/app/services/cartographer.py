@@ -7,7 +7,7 @@ only when it did, so an update never arrives with nothing behind it.
 
 import logging
 
-from app.domain import skills as rules
+from app.domain import technique_map as rules
 from app.domain.entities import now
 from app.infra import repository as repo
 from app.services import journey, scout

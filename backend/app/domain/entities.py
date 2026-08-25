@@ -348,16 +348,29 @@ class Analysis(BaseModel):
 # --- skill graph ----------------------------------------------------------
 
 
-class SkillStatus(StrEnum):
-    UNEXPLORED = "unexplored"
-    ATTEMPTED = "attempted"  # seen, but by one lens or without conviction
-    PRACTICED = "practiced"  # seen again, and corroborated at least once
-    SOLID = "solid"  # corroborated by two lenses, three times over
-    RUSTY = "rusty"  # was solid, not practiced for skill_decay_days
+class TechniqueStatus(StrEnum):
+    """What the record has observed about one Technique (decision 46).
+
+    Three states, and all three are statements about *the evidence*, never
+    about the photographer's ability. `solid`, `practiced` and `rusty` are
+    gone: they graded a person, and levelling language turns a neutral record
+    into a curriculum that claims more than corroboration can support.
+
+    There is no decay. A Technique that recurred did recur, and a month of
+    rain does not make that untrue - so the record keeps saying so. Wanting a
+    refresher is a *selection* concern and lives in the Scout's ranking, which
+    reads ``last_observed``, rather than a state that quietly expires.
+    """
+
+    UNOBSERVED = "unobserved"
+    #: The evidence has seen it at least once.
+    OBSERVED = "observed"
+    #: Corroborated three separate times: two lenses agreeing, each time.
+    RECURRING = "recurring"
 
 
-class SkillState(BaseModel):
-    """What the map knows about one technique for one photographer.
+class TechniqueState(BaseModel):
+    """What the Technique Map holds about one Technique for one photographer.
 
     ``corroborated`` is what moves the status, not ``best_score``. The score
     belongs to the whole frame: one photograph demonstrating six techniques
@@ -368,7 +381,7 @@ class SkillState(BaseModel):
 
     user_id: str
     technique_id: str
-    status: SkillStatus = SkillStatus.UNEXPLORED
+    status: TechniqueStatus = TechniqueStatus.UNOBSERVED
     attempts: int = 0
     #: Attempts where more than one lens saw it and both were sure.
     corroborated: int = 0
@@ -379,7 +392,7 @@ class SkillState(BaseModel):
     #: briefing; deliberately not part of the promotion rule.
     best_score: int = 0
     last_score: int = 0
-    last_practiced: datetime | None = None
+    last_observed: datetime | None = None
     #: Shot ids, newest last, capped by the Cartographer.
     shot_ids: list[str] = Field(default_factory=list)
 

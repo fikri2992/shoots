@@ -8,7 +8,7 @@ import os
 
 import pytest
 
-from app.domain.entities import Criteria, Quest, QuestStatus, Shot, ShotKind, SkillState, User
+from app.domain.entities import Criteria, Quest, QuestStatus, Shot, ShotKind, TechniqueState, User
 from app.infra import repository as repo
 from app.infra.bus import InProcessBus
 from app.infra.secrets import LocalTokenStore
@@ -59,7 +59,7 @@ async def test_repository_round_trips_every_entity(store):
     await repo.put_shot(store, shot)
     assert [s.id for s in await repo.list_shots(store, "u1")] == [shot.id]
 
-    skill = SkillState(user_id="u1", technique_id="panning", attempts=2)
+    skill = TechniqueState(user_id="u1", technique_id="panning", attempts=2)
     await repo.put_skill(store, skill)
     assert (await repo.list_skills(store, "u1"))[0].attempts == 2
 

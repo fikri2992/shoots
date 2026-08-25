@@ -14,7 +14,7 @@ import logging
 
 from app.agents import journey as agent
 from app.domain import tendency
-from app.domain.entities import JourneyUpdate, SkillStatus, new_id
+from app.domain.entities import JourneyUpdate, TechniqueStatus, new_id
 from app.infra import repository as repo
 from app.services.context import Context
 
@@ -58,7 +58,7 @@ async def maybe_write(ctx: Context, user_id: str) -> JourneyUpdate | None:
         if abs(m.delta) >= MOVED_BY or m.newly_used
     ]
     skills = await repo.list_skills(ctx.store, user_id)
-    solid = sorted(s.technique_id for s in skills if s.status is SkillStatus.SOLID)
+    solid = sorted(s.technique_id for s in skills if s.status is TechniqueStatus.RECURRING)
     fresh_solid = [t for t in solid if t not in (previous.became_solid if previous else [])]
 
     if previous is not None and not movements and not fresh_solid:

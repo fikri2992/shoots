@@ -12,8 +12,6 @@ from pydantic import BaseModel
 
 from app.api.deps import get_context
 from app.config import settings
-from app.domain import skills as skill_rules
-from app.domain.entities import now
 from app.infra import repository as repo
 from app.services import ingest, scout, watch
 from app.services.context import Context
@@ -27,7 +25,6 @@ class DailyReport(BaseModel):
     users: int
     synced: int
     expired: int
-    decayed: int
     issued: int
     delivered: int = 0
     errors: list[str]
@@ -42,19 +39,21 @@ def _authorised(token: str | None) -> None:
 async def daily(
     x_tasks_token: str | None = Header(default=None), ctx: Context = Depends(get_context)
 ):
-    """The tick: sync every folder, expire stale quests, decay skills, issue
-    a quest to anyone without one. Per user, errors are recorded, not fatal."""
+    """The tick: sync every folder, expire what has run out, offer something to
+    anyone with nothing open. Per user, errors are recorded, not fatal.
+
+    Nothing decays here any more. The Technique Map records what the Evidence
+    observed and does not un-observe it with time (decision 46); whether age
+    makes something worth revisiting is a selection question the Scout answers
+    at the moment it chooses.
+    """
     _authorised(x_tasks_token)
-    report = DailyReport(users=0, synced=0, expired=0, decayed=0, issued=0, errors=[])
+    report = DailyReport(users=0, synced=0, expired=0, issued=0, errors=[])
     for user in await repo.list_users(ctx.store):
         report.users += 1
         try:
             report.synced += len(await ingest.sync(ctx, user))
             report.expired += len(await scout.expire(ctx, user.id))
-            skills = {s.technique_id: s for s in await repo.list_skills(ctx.store, user.id)}
-            for state in skill_rules.decay(skills, now(), settings.skill_decay_days):
-                await repo.put_skill(ctx.store, state)
-                report.decayed += 1
             if await scout.issue(ctx, user.id):
                 report.issued += 1
             await watch.ensure(ctx, user)

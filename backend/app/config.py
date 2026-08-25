@@ -63,8 +63,10 @@ class Settings(BaseSettings):
     quests_per_day: int = 1
     #: A quest nobody shoots for expires after this many days.
     quest_ttl_days: int = 3
-    #: Skills decay toward "rusty" after this many days without practice.
-    skill_decay_days: int = 21
+    #: A recurring Technique unseen for this long is worth offering again. It
+    #: is not demoted for it: the record says what the Evidence observed, and
+    #: age is a reason to suggest, never to un-observe (decision 46).
+    revisit_after_days: int = 21
 
     # --- Model call resilience --------------------------------------------
     max_model_retries: int = 4

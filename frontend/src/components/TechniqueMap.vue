@@ -5,19 +5,17 @@ import { useShootsStore } from '@/stores/shoots'
 
 const FAMILIES = ['composition', 'light', 'exposure', 'lens', 'color', 'video']
 const TONE = {
-  unexplored: 'bg-edge',
-  attempted: 'bg-neutral-500',
-  practiced: 'bg-neutral-300',
-  solid: 'bg-good',
-  rusty: 'bg-accent',
+  unobserved: 'bg-edge',
+  observed: 'bg-neutral-300',
+  recurring: 'bg-good',
 }
 
 /**
- * The skill graph as six bars. A bar reads at a glance; the chips behind it
+ * The Technique Map as six bars. A bar reads at a glance; the chips behind it
  * are for the one family the user actually wants to inspect.
  */
 export default {
-  name: 'SkillBars',
+  name: 'TechniqueMap',
   data() {
     return { open: '', selected: null }
   },
@@ -29,19 +27,19 @@ export default {
         return {
           key: f,
           nodes,
-          done: nodes.filter((n) => n.status !== 'unexplored').length,
+          done: nodes.filter((n) => n.status !== 'unobserved').length,
           total: nodes.length,
         }
       })
     },
     total() {
       return {
-        done: this.skills.filter((n) => n.status !== 'unexplored').length,
+        done: this.skills.filter((n) => n.status !== 'unobserved').length,
         total: this.skills.length,
       }
     },
     tone() {
-      return (status) => TONE[status] || TONE.unexplored
+      return (status) => TONE[status] || TONE.unobserved
     },
     byId() {
       return Object.fromEntries(this.skills.map((n) => [n.technique_id, n]))
@@ -89,7 +87,7 @@ export default {
             class="flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[12px] transition"
             :class="[
               selected?.technique_id === n.technique_id ? 'border-neutral-400 text-neutral-100' : 'border-edge text-neutral-400',
-              n.unlocked || n.status !== 'unexplored' ? '' : 'opacity-40',
+              n.unlocked || n.status !== 'unobserved' ? '' : 'opacity-40',
             ]"
             @click="pick(n)"
           >
@@ -103,7 +101,7 @@ export default {
           <p class="mt-1 t-meta">
             {{ selected.attempts }} attempt{{ selected.attempts === 1 ? '' : 's' }}
             <template v-if="selected.best_score"> · best {{ selected.best_score }}/10</template>
-            <template v-if="selected.last_practiced"> · last {{ new Date(selected.last_practiced).toLocaleDateString() }}</template>
+            <template v-if="selected.last_observed"> · last {{ new Date(selected.last_observed).toLocaleDateString() }}</template>
           </p>
           <p v-if="selected.requires.length" class="mt-1 t-meta">Needs {{ selected.requires.map(name).join(', ') }} first.</p>
         </div>
@@ -113,8 +111,8 @@ export default {
     <p class="mt-5 t-meta">
       <span class="mr-3"><span class="mr-1 inline-block h-1.5 w-1.5 rounded-full bg-neutral-500" />tried</span>
       <span class="mr-3"><span class="mr-1 inline-block h-1.5 w-1.5 rounded-full bg-neutral-300" />practised</span>
-      <span class="mr-3"><span class="mr-1 inline-block h-1.5 w-1.5 rounded-full bg-good" />solid</span>
-      <span><span class="mr-1 inline-block h-1.5 w-1.5 rounded-full bg-accent" />going rusty</span>
+      <span class="mr-3"><span class="mr-1 inline-block h-1.5 w-1.5 rounded-full bg-neutral-300" />observed</span>
+      <span><span class="mr-1 inline-block h-1.5 w-1.5 rounded-full bg-good" />recurring</span>
     </p>
   </section>
 </template>

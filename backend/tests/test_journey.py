@@ -16,8 +16,8 @@ from app.domain.entities import (
     GridSpec,
     Shot,
     ShotKind,
-    SkillState,
-    SkillStatus,
+    TechniqueState,
+    TechniqueStatus,
     Tone,
     User,
     now,
@@ -137,8 +137,8 @@ async def test_a_technique_becoming_repeatable_earns_an_update_on_its_own():
     await journey.maybe_write(c, "u1")
     await repo.put_skill(
         c.store,
-        SkillState(
-            user_id="u1", technique_id="backlight", status=SkillStatus.SOLID, attempts=3
+        TechniqueState(
+            user_id="u1", technique_id="backlight", status=TechniqueStatus.RECURRING, attempts=3
         ),
     )
     update = await journey.maybe_write(c, "u1")
@@ -217,7 +217,12 @@ async def test_the_evidence_never_names_the_machinery():
     await journey.maybe_write(c, "u1")
     await repo.put_skill(
         c.store,
-        SkillState(user_id="u1", technique_id="low_angle", status=SkillStatus.SOLID, attempts=3),
+        TechniqueState(
+            user_id="u1",
+            technique_id="low_angle",
+            status=TechniqueStatus.RECURRING,
+            attempts=3,
+        ),
     )
     update = await journey.maybe_write(c, "u1")
     assert update is not None

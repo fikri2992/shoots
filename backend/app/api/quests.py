@@ -6,7 +6,7 @@ from pydantic import BaseModel
 from app.api.auth import current_user
 from app.api.deps import get_context
 from app.domain import taxonomy
-from app.domain.entities import Quest, SkillState, SkillStatus
+from app.domain.entities import Quest, TechniqueState, TechniqueStatus
 from app.infra import repository as repo
 from app.services import scout
 from app.services.context import Context
@@ -20,10 +20,10 @@ class SkillNode(BaseModel):
     family: str
     level: int
     requires: list[str]
-    status: SkillStatus
+    status: TechniqueStatus
     attempts: int
     best_score: int
-    last_practiced: str | None
+    last_observed: str | None
     unlocked: bool
 
 
@@ -33,10 +33,10 @@ async def skill_graph(
 ):
     """Every technique, with the user's state filled in. The dashboard's map."""
     states = {s.technique_id: s for s in await repo.list_skills(ctx.store, session_user["id"])}
-    attempted = {tid for tid, s in states.items() if s.status is not SkillStatus.UNEXPLORED}
+    attempted = {tid for tid, s in states.items() if s.status is not TechniqueStatus.UNOBSERVED}
     nodes = []
     for t in taxonomy.TECHNIQUES:
-        s = states.get(t.id) or SkillState(user_id=session_user["id"], technique_id=t.id)
+        s = states.get(t.id) or TechniqueState(user_id=session_user["id"], technique_id=t.id)
         nodes.append(
             SkillNode(
                 technique_id=t.id,
@@ -47,7 +47,7 @@ async def skill_graph(
                 status=s.status,
                 attempts=s.attempts,
                 best_score=s.best_score,
-                last_practiced=s.last_practiced.isoformat() if s.last_practiced else None,
+                last_observed=s.last_observed.isoformat() if s.last_observed else None,
                 unlocked=all(r in attempted for r in t.requires),
             )
         )

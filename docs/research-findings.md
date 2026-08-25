@@ -6,7 +6,7 @@ Every claim carries a status, because the first pass through this research was n
 
 | Status | Meaning |
 |---|---|
-| **measured** | Arithmetic on this repo's corpus (18 Shots, 18 Analyses, 37 SkillStates). Reproducible; the method is stated inline. |
+| **measured** | Arithmetic on this repo's corpus (18 Shots, 18 Analyses, 37 TechniqueStates). Reproducible; the method is stated inline. |
 | **checked** | The primary source or the raw dataset was read, and the figure below is what it says. |
 | **lead** | Read once, not verified against the primary. A direction to check, not a fact to build on. |
 
@@ -117,7 +117,7 @@ Source: [Nine Judges, Two Effective Votes](https://arxiv.org/html/2605.29800), w
 | Techniques that reached `solid` | **16 of 37**, from 18 Shots |
 | Attempts taken to reach `solid` | median 5, min 3, max 8 |
 | Of those 16, `best_score` = 9 | **12** |
-| All 37 SkillStates with `best_score` 8 or 9 | **32** |
+| All 37 TechniqueStates with `best_score` 8 or 9 | **32** |
 
 The promotion rule was not obviously wrong — nothing reached `solid` on fewer than three attempts. The input was, and worse than "the score is inflated".
 
@@ -135,7 +135,7 @@ What *is* about one Technique is how the panel saw it. Over the 105 stored evide
 
 Half the map was built on single-lens sightings — §4's finding, arriving in the Skill graph. The panel admits a lone lens at confidence ≥ 0.75, and one lens with a habit is one opinion however often it repeats.
 
-**Shipped** (decision 33, `domain/skills.py`). Promotion now counts **corroborated** attempts — `agreement >= 2` **and** `confidence >= 0.75`, both conditions. `practiced` is two attempts with one corroborated; `solid` is three with three. The score stays on the SkillState for the Judge's comparison and the Coach's briefing, and promotes nothing. Rebuilt over the same 18 Shots:
+**Shipped** (decision 33, `domain/technique_map.py`). Promotion now counts **corroborated** attempts — `agreement >= 2` **and** `confidence >= 0.75`, both conditions. `practiced` is two attempts with one corroborated; `solid` is three with three. The score stays on the TechniqueState for the Judge's comparison and the Coach's briefing, and promotes nothing. Rebuilt over the same 18 Shots:
 
 | | before | after |
 |---|---|---|
@@ -145,7 +145,7 @@ The ten that fall are the ones no second lens ever saw. The map now claims a Tec
 
 **checked.** Bayesian Knowledge Tracing cannot be fitted here at all. Slater and Baker simulated BKT parameter recovery across sample sizes and found estimates converge to their seed parameters at **25 or more students per model**; at 5 and 10 students they do not converge, and the authors decline to report those conditions in the rest of the paper. BKT is fitted per skill *across a population*. Shoots has one photographer. There is no population to fit against, at any number of Shots. The same objection sinks Elo and IRT.
 
-**lead.** Half-life regression was the other candidate and it points the opposite way from how it was first reported here. The form is `h = 2^(k−f)` over a handful of features. Duolingo's own follow-up work removed the per-item lexeme features and the thinner model beat the full one; an independent replication puts the full model near chance. A rich per-Technique learned half-life is therefore the documented failure mode, not the fix, and the fixed `skill_decay_days` interval is defensible as it stands. This paragraph was not verified against the primary — check it before acting on it.
+**lead.** Half-life regression was the other candidate and it points the opposite way from how it was first reported here. The form is `h = 2^(k−f)` over a handful of features. Duolingo's own follow-up work removed the per-item lexeme features and the thinner model beat the full one; an independent replication puts the full model near chance. A rich per-Technique learned half-life is therefore the documented failure mode, not the fix, and the fixed `revisit_after_days` interval is defensible as it stands. This paragraph was not verified against the primary — check it before acting on it.
 
 **Next, if there is time.** The corroboration fix gives the map a successes-over-attempts pair for the first time, which is exactly what a **Beta-Binomial posterior with shrinkage** needs: shrink `corroborated / attempts` toward the photographer's own overall rate and report an interval rather than a status word. About fifteen lines of arithmetic in `domain/`, reproducible from stored data the way decision 14 requires, and it would refuse to call three sightings mastery because the interval is still wide. Keep the four status words on screen; compute them from the interval's lower bound. Not required — the corroboration count already fixes the false promotions; this only makes the confidence honest at small n.
 
@@ -209,7 +209,7 @@ Recorded because each was stated as settled during the work, and two of them are
 | NIQE inverts and would downgrade the best frames | **Wrong reason, right conclusion.** The negative correlation was against PSNR on a low-light benchmark. |
 | Ranking beats scoring "on photographs specifically" | **Fabricated precision.** The split is homogeneous versus heterogeneous content. The result itself holds, at +29 to +42 points. |
 | The rule of thirds has no aesthetic effect | **Overstated.** Amirshahi et al. found thirds-conforming photographs *were* rated more aesthetic — 0.59 against 0.54, p < 0.01 — but at Cohen's d = 0.36. Weak, not absent. Keep the guide; soften what `off_guide_subject` claims. |
-| 16 Techniques reach `solid` on a median of 2 observations | **My own error.** 2 is the median across all 37 SkillStates. The 16 that reached `solid` took a median of 5 attempts, minimum 3. The threshold is not the bug; the score feeding it is. |
+| 16 Techniques reach `solid` on a median of 2 observations | **My own error.** 2 is the median across all 37 TechniqueStates. The 16 that reached `solid` took a median of 5 attempts, minimum 3. The threshold is not the bug; the score feeding it is. |
 | Weighting hues by chroma flips the top hue on 11 of 12 frames | **My own error.** Re-run over all 16 photographs: 3 of 16. |
 
 Two of the eight are mine and were reported as measurements. Both were arithmetic run over the wrong subset, and neither would have survived being re-run. That is the argument for stating the method inline beside every figure above.

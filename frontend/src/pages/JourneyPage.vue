@@ -4,7 +4,7 @@ import { mapActions, mapState } from 'pinia'
 import AgentLog from '@/components/AgentLog.vue'
 import DisclosureRow from '@/components/DisclosureRow.vue'
 import JourneyUpdate from '@/components/JourneyUpdate.vue'
-import SkillBars from '@/components/SkillBars.vue'
+import TechniqueMap from '@/components/TechniqueMap.vue'
 import TendencyProfile from '@/components/TendencyProfile.vue'
 import { useAuthStore } from '@/stores/auth'
 import { useShootsStore } from '@/stores/shoots'
@@ -12,7 +12,7 @@ import { useShootsStore } from '@/stores/shoots'
 /** Where the user has got to, and what the agents did to get them there. */
 export default {
   name: 'JourneyPage',
-  components: { AgentLog, DisclosureRow, JourneyUpdate, SkillBars, TendencyProfile },
+  components: { AgentLog, DisclosureRow, JourneyUpdate, TechniqueMap, TendencyProfile },
   computed: {
     ...mapState(useShootsStore, ['pastQuests', 'me', 'push', 'busy', 'connected', 'pairCode']),
     quests() {
@@ -48,7 +48,7 @@ export default {
 
     <div class="gutter mt-12"><TendencyProfile /></div>
 
-    <div class="gutter mt-12"><SkillBars /></div>
+    <div class="gutter mt-12"><TechniqueMap /></div>
 
     <section v-if="quests.length" class="gutter mt-12">
       <h2 class="t-title">Quests</h2>

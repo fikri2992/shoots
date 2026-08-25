@@ -20,7 +20,7 @@ from app.agents import prompts
 from app.agents.retry import with_retry
 from app.agents.runtime import run_agent
 from app.config import settings
-from app.domain.entities import Constraints, Criteria, ExifRule, Reference, SkillState
+from app.domain.entities import Constraints, Criteria, ExifRule, Reference, TechniqueState
 from app.domain.taxonomy import Technique
 
 logger = logging.getLogger(__name__)
@@ -141,7 +141,7 @@ def write_prompt(
     why: str,
     critiques: list[str],
     notes: Research,
-    skills: dict[str, SkillState],
+    skills: dict[str, TechniqueState],
     constraints: Constraints | None = None,
 ) -> str:
     recent = "\n".join(f"- {c}" for c in critiques[:5]) or "- none yet"
@@ -171,7 +171,7 @@ async def write(
     why: str,
     critiques: list[str],
     notes: Research,
-    skills: dict[str, SkillState],
+    skills: dict[str, TechniqueState],
     constraints: Constraints | None = None,
 ) -> QuestOut:
     return await run_agent(

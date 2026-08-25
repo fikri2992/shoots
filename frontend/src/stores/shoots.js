@@ -32,7 +32,7 @@ export const useShootsStore = defineStore('shoots', {
   getters: {
     connected: (state) => Boolean(state.me?.drive_folder_id),
     analysedShots: (state) => state.shots.filter((v) => v.analysis),
-    attempted: (state) => state.skills.filter((s) => s.status !== 'unexplored'),
+    observed: (state) => state.skills.filter((s) => s.status !== 'unobserved'),
     skillsByFamily: (state) => {
       const groups = {}
       for (const node of state.skills) (groups[node.family] ||= []).push(node)
