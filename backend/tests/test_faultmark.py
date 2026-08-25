@@ -84,9 +84,18 @@ def analysis(*, faults_: list[Fault], techniques: list[str], score: int = 7) -> 
     )
 
 
-def test_the_fault_names_the_file_ahead_of_the_technique():
+def test_an_uncorroborated_sighting_does_not_get_to_name_the_file():
+    """One lens saw panning and no other did. That is not something to greet
+    the photographer with, so the fault - which arithmetic settled - names the
+    file instead."""
     found = scribe.review_finding(analysis(faults_=[blown_fault()], techniques=["panning"]))
     assert found == "highlights blown to white"
+
+
+def test_a_corroborated_sighting_names_the_file_ahead_of_the_fault():
+    a = analysis(faults_=[blown_fault()], techniques=["panning"])
+    a.techniques[0].agreement = 2
+    assert scribe.review_finding(a) == "panning"
 
 
 def test_a_clean_frame_is_named_for_what_it_does():
@@ -99,9 +108,12 @@ def test_the_score_is_the_last_resort_and_never_the_headline():
     assert scribe.review_finding(analysis(faults_=[], techniques=[])) == "7 of 10"
 
 
-def test_the_caption_leads_with_what_is_wrong_then_what_is_there():
+def test_the_caption_leads_with_what_is_there_then_what_is_wrong():
+    """This order was the other way round while the product was a critic. It is
+    for a hobbyist now, who stops opening an app that greets them with a defect
+    every time — so praise leads and the fault follows, and neither is dropped."""
     a = analysis(faults_=[blown_fault()], techniques=["panning"])
-    assert scribe.review_title(a, None, None) == "Highlights blown to white · Panning"
+    assert scribe.review_title(a, None, None) == "Panning · Highlights blown to white"
 
 
 def test_the_body_carries_every_fault_with_its_figure_and_no_element_scores():

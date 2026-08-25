@@ -63,16 +63,36 @@ def _seen(analysis: Analysis) -> list[str]:
     ]
 
 
+def _corroborated(analysis: Analysis) -> list[str]:
+    """What more than one reader actually saw. A single lens with a habit is
+    one opinion however often it repeats (decision 33), and praise that turns
+    out to be one model's enthusiasm is worse than no praise."""
+    return [
+        taxonomy.BY_ID[t.technique_id].name
+        for t in analysis.techniques
+        if t.agreement >= 2 and t.technique_id in taxonomy.BY_ID
+    ]
+
+
 def review_finding(analysis: Analysis) -> str:
     """What the folder listing says about this frame.
 
-    The first fault if there is one: a defect is what a photographer scrolls
-    back to find, and it is the one line here that arithmetic settled. Failing
-    that, what the panel agreed the frame does. The score comes last because
-    it is the least informative thing in the analysis — one number for the
-    whole photograph, and its five elements correlate at r = 0.89
+    What the frame *did* comes first, and only what a second reader
+    corroborated. The photographer this is for is a hobbyist who will stop
+    opening an app that greets them with a defect every time, and the thing
+    they came for is what they are getting right.
+
+    The fault is next, and it is never dropped — it carries the figure it was
+    computed from, which is the one line here anybody can check. The score is
+    last because it is the least informative thing in the analysis: one number
+    for a whole photograph whose five elements correlate at r = 0.89
     (docs/research-findings.md, §1).
     """
+    if analysis.abstained:
+        return "not called"
+    strong = _corroborated(analysis)
+    if strong:
+        return ", ".join(strong[:2]).lower()
     if analysis.faults:
         return faults.FAULTS.get(analysis.faults[0].fault_id, "worth another look").lower()
     seen = _seen(analysis)
@@ -86,17 +106,31 @@ def review_name(shot: Shot, analysis: Analysis, verdict: Verdict | None) -> str:
 
 
 def review_title(analysis: Analysis, quest: Quest | None, verdict: Verdict | None) -> str:
-    """The bold line on the caption band: what is wrong, then what is there."""
+    """The bold line on the caption band: what the frame does, then what to fix.
+
+    That order is the product's, not a stylistic preference: praise first and
+    with proof, the fault after and with its figure.
+    """
+    if analysis.abstained:
+        return f"Not called — {analysis.abstained}"
     seen = ", ".join(_seen(analysis))
     wrong = faults.FAULTS.get(analysis.faults[0].fault_id, "") if analysis.faults else ""
-    title = " · ".join(part for part in (wrong, seen) if part) or f"{analysis.score} of 10"
+    title = " · ".join(part for part in (seen, wrong) if part) or f"{analysis.score} of 10"
     if verdict and quest:
         title = f"{'PASSED' if verdict.passed else 'NOT YET'} · {quest.title}  —  {title}"
     return title
 
 
 def review_body(analysis: Analysis, verdict: Verdict | None, grid: Grid) -> list[str]:
-    body = [analysis.critique.strip()] if analysis.critique.strip() else []
+    body: list[str] = []
+    # An abstention is stated before anything else, because everything after it
+    # has to be read differently: three readers each saw something and no two
+    # saw the same thing, so nothing below is a verdict (decision 38). The
+    # faults are the exception and stay exactly as true - they are arithmetic.
+    if analysis.abstained:
+        body.append(f"The panel could not call this one: {analysis.abstained}.")
+    if analysis.critique.strip():
+        body.append(analysis.critique.strip())
     # Faults before advice: each carries the figure it was computed from, which
     # is the only thing here the reader can check against their own histogram.
     # The rubric's element scores are deliberately absent — they correlate at
