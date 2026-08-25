@@ -143,7 +143,7 @@ async def test_a_technique_becoming_repeatable_earns_an_update_on_its_own():
     update = await journey.maybe_write(c, "u1")
     assert update is not None
     assert "backlight" in update.became_solid
-    assert any("became repeatable" in line for line in update.evidence)
+    assert any("now does reliably" in line for line in update.evidence)
 
 
 async def test_without_keepers_the_writer_is_told_not_to_speak_about_taste():
@@ -195,3 +195,31 @@ async def test_the_paragraph_failing_does_not_lose_the_figures(monkeypatch):
     await seed(c, 12)
     update = await journey.maybe_write(c, "u1")
     assert update is not None and update.body == "" and update.evidence
+
+
+async def test_the_first_update_does_not_call_the_whole_corpus_new():
+    """Everything diffs against an empty profile the first time. Handing that
+    to the writer as change would make the opening paragraph a lie."""
+    c = ctx()
+    await seed(c, 12)
+    update = await journey.maybe_write(c, "u1")
+    assert update is not None
+    assert not any("first time shooting" in line for line in update.evidence)
+    assert not any("since the last update" in line for line in update.evidence)
+
+
+async def test_the_evidence_never_names_the_machinery():
+    """The writer repeats whatever words it is given. A photographer should
+    never read the word 'lens' about their own photograph."""
+    c = ctx()
+    await seed(c, 12)
+    await journey.maybe_write(c, "u1")
+    await repo.put_skill(
+        c.store,
+        SkillState(user_id="u1", technique_id="low_angle", status=SkillStatus.SOLID, attempts=3),
+    )
+    update = await journey.maybe_write(c, "u1")
+    assert update is not None
+    joined = " ".join(update.evidence).lower()
+    for machinery in ("lens", "confidence", "corroborat", "panel", "agreement"):
+        assert machinery not in joined

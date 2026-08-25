@@ -64,7 +64,10 @@ async def maybe_write(ctx: Context, user_id: str) -> JourneyUpdate | None:
     if previous is not None and not movements and not fresh_solid:
         return None
 
-    evidence = _evidence(profile, movements, fresh_solid)
+    # On a first update every bucket diffs against an empty profile, so every
+    # one of them reads as newly used. That is arithmetic, not news, and
+    # handing it to the writer as change would make the first paragraph a lie.
+    evidence = _evidence(profile, movements if previous else [], fresh_solid)
     body = await agent.write(evidence, previous.body if previous else "", profile.taste_is_known)
 
     update = JourneyUpdate(
@@ -148,7 +151,9 @@ def _evidence(
 
     if fresh_solid:
         names = ", ".join(t.replace("_", " ") for t in fresh_solid)
-        lines.append(f"became repeatable (two lenses agreeing, three times): {names}")
+        # Said without the machinery: the writer is told not to mention lenses
+        # or confidences, and it will happily repeat any that appear here.
+        lines.append(f"now does reliably, seen and confirmed three separate times: {names}")
 
     if profile.taste_is_known:
         lines.append(f"{profile.keepers} shots marked as keepers by the photographer themselves.")
