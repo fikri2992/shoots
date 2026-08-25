@@ -1,0 +1,113 @@
+"""Authenticated, idempotent Shot ingress independent of Google Drive."""
+
+from pathlib import Path
+
+from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
+from pydantic import BaseModel
+
+from app.api.auth import current_user
+from app.api.deps import get_context
+from app.config import settings
+from app.domain.entities import ExperimentStatus, Shot, ShotKind, ShotSource, ShotStatus
+from app.infra import repository as repo
+from app.infra.bus import TOPICS
+from app.infra.storage import ORIGINAL, blob_path, extension_for
+from app.services.context import Context
+
+router = APIRouter(prefix="/api/ingress", tags=["ingress"])
+
+
+class IngressResponse(BaseModel):
+    shot_id: str
+    source_id: str
+    experiment_id: str
+    created: bool
+
+
+@router.post("/shots", response_model=IngressResponse)
+async def receive_shot(
+    file: UploadFile = File(...),
+    source_id: str = Form(..., min_length=1, max_length=300),
+    experiment_id: str = Form(default=""),
+    session_user: dict[str, str] = Depends(current_user),
+    ctx: Context = Depends(get_context),
+) -> IngressResponse:
+    """Accept one original from the Android Phone Source.
+
+    ``source_id`` comes from Android MediaStore and device identity. It is the
+    idempotency key, so WorkManager may retry the upload after any ambiguous
+    network failure without creating another Shot.
+    """
+    mime = (file.content_type or "application/octet-stream").split(";", 1)[0].lower()
+    if not mime.startswith(("image/", "video/")):
+        raise HTTPException(415, "image and video files only")
+    user_id = session_user["id"]
+    shot_id = repo.source_shot_id_for(user_id, ShotSource.ANDROID.value, source_id)
+    existing = await repo.find_shot(ctx.store, shot_id)
+    if existing is not None:
+        # The first accepted write owns the Experiment association. A retry
+        # after that Experiment closed must still succeed, never reinterpret
+        # the same media as a different result. Resume from durable state in
+        # case the previous request committed the Shot but lost its publish.
+        await _resume(ctx, existing)
+        return IngressResponse(
+            shot_id=existing.id,
+            source_id=existing.source_id or source_id,
+            experiment_id=existing.experiment_id,
+            created=False,
+        )
+
+    data = await file.read()
+    if len(data) > settings.max_upload_bytes:
+        raise HTTPException(413, "file too large")
+    if not data:
+        raise HTTPException(400, "empty file")
+
+    if experiment_id:
+        experiment = await repo.find_experiment(ctx.store, experiment_id)
+        if (
+            experiment is None
+            or experiment.user_id != user_id
+            or experiment.status is not ExperimentStatus.OPEN
+        ):
+            raise HTTPException(409, "Experiment is not open for this photographer")
+
+    name = Path(file.filename or "shot").name
+    original = blob_path(user_id, shot_id, ORIGINAL, extension_for(mime))
+    await ctx.blobs.write(original, data, mime)
+    shot = Shot(
+        id=shot_id,
+        user_id=user_id,
+        kind=ShotKind.VIDEO if mime.startswith("video/") else ShotKind.PHOTO,
+        source=ShotSource.ANDROID,
+        source_id=source_id,
+        filename=name,
+        mime_type=mime,
+        blobs={ORIGINAL: original},
+        experiment_id=experiment_id,
+    )
+    await repo.put_shot(ctx.store, shot)
+    await repo.record(
+        ctx.store,
+        user_id,
+        "ingest",
+        "queued",
+        {"filename": name, "via": "android", "source": ShotSource.ANDROID.value},
+        shot_id=shot.id,
+        experiment_id=experiment_id,
+    )
+    await ctx.bus.publish(TOPICS["media.new"], {"shot_id": shot.id})
+    return IngressResponse(
+        shot_id=shot.id,
+        source_id=source_id,
+        experiment_id=experiment_id,
+        created=True,
+    )
+
+
+async def _resume(ctx: Context, shot: Shot) -> None:
+    """Continue an accepted Shot after an ambiguous ingress outcome."""
+    if shot.status in {ShotStatus.NEW, ShotStatus.INGESTING}:
+        await ctx.bus.publish(TOPICS["media.new"], {"shot_id": shot.id})
+    elif shot.status in {ShotStatus.INGESTED, ShotStatus.ANALYSING}:
+        await ctx.bus.publish(TOPICS["media.ingested"], {"shot_id": shot.id})

@@ -1,29 +1,34 @@
 package com.shoots.app
 
 import android.Manifest
-import android.content.pm.PackageManager
+import android.content.Intent
+import android.os.Build
 import android.os.Bundle
+import android.provider.MediaStore
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
+import androidx.activity.enableEdgeToEdge
+import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -31,84 +36,336 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardCapitalization
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.core.content.ContextCompat
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import java.time.Instant
+import java.time.ZoneId
+import java.time.format.DateTimeFormatter
 
 class MainActivity : ComponentActivity() {
-
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        enableEdgeToEdge()
         setContent {
-            val context = LocalContext.current
-            var paired by remember { mutableStateOf(Api.isPaired(context)) }
-            var granted by remember {
-                mutableStateOf(
-                    ContextCompat.checkSelfPermission(this, Manifest.permission.CAMERA) ==
-                        PackageManager.PERMISSION_GRANTED
-                )
-            }
-            val ask = rememberLauncherForActivityResult(
-                ActivityResultContracts.RequestPermission()
-            ) { granted = it }
-            LaunchedEffect(Unit) { if (!granted) ask.launch(Manifest.permission.CAMERA) }
-
-            when {
-                !granted -> Message("Shoots needs the camera.")
-                !paired -> PairScreen { paired = true }
-                else -> Viewfinder(onUnpair = {
-                    Api.forget(context)
-                    paired = false
-                })
+            ShootsTheme {
+                val context = LocalContext.current
+                var paired by remember { mutableStateOf(Api.isPaired(context)) }
+                if (!paired) {
+                    PairScreen { paired = true }
+                } else {
+                    PhoneSourceScreen(
+                        onUnpair = {
+                            Api.forget(context)
+                            PhoneSource.disable(context)
+                            paired = false
+                        }
+                    )
+                }
             }
         }
     }
 }
 
 @Composable
-private fun Message(text: String) {
-    Box(Modifier.fillMaxSize().background(Color.Black), contentAlignment = Alignment.Center) {
-        Text(text, color = Color.White)
+private fun PhoneSourceScreen(onUnpair: () -> Unit) {
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    var status by remember { mutableStateOf(PhoneSource.status(context)) }
+    var experiment by remember { mutableStateOf<Api.Experiment?>(null) }
+    var selectedExperiment by remember { mutableStateOf(PhoneSource.selectedExperiment(context)) }
+    val permission = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestMultiplePermissions()
+    ) {
+        status = PhoneSource.status(context)
+        if (status.access == PhoneSource.Access.FULL && !status.enabled) {
+            PhoneSource.enable(context)
+            status = PhoneSource.status(context)
+        }
+    }
+    val picker = rememberLauncherForActivityResult(
+        ActivityResultContracts.PickMultipleVisualMedia(50)
+    ) { uris ->
+        scope.launch {
+            if (uris.isEmpty()) return@launch
+            var uploaded = 0
+            var skipped = 0
+            var failed = 0
+            var error = ""
+            PhoneSource.recordStarted(context, 0)
+            var uploadExperiment = selectedExperiment
+            withContext(Dispatchers.IO) {
+                if (uploadExperiment.isNotBlank()) {
+                    val open = Api.fetchOpenExperiment(context).getOrElse { exception ->
+                        failed = 1
+                        error = exception.message ?: exception.javaClass.simpleName
+                        return@withContext
+                    }
+                    if (open?.id != uploadExperiment) {
+                        PhoneSource.clearExperiment(context)
+                        uploadExperiment = ""
+                    }
+                }
+                if (failed > 0) return@withContext
+                for (uri in uris) {
+                    try {
+                        val item = PhoneSource.describe(context, uri) ?: continue
+                        val bytes = context.contentResolver.openInputStream(uri)
+                            ?.use { it.readBytes() }
+                            ?: error("Selected Shot is no longer readable")
+                        val source = "selected:${uri.authority}:${item.id}:${item.dateAdded}:${item.size}"
+                        val result = Api.importShot(
+                            context,
+                            bytes,
+                            item.name,
+                            item.mime,
+                            source,
+                            uploadExperiment,
+                        )
+                            .getOrThrow()
+                        if (result.created) uploaded += 1 else skipped += 1
+                    } catch (exception: Exception) {
+                        failed += 1
+                        error = exception.message ?: exception.javaClass.simpleName
+                    }
+                }
+            }
+            if (selectedExperiment.isNotBlank() && uploadExperiment.isBlank() && failed == 0) {
+                selectedExperiment = ""
+            }
+            PhoneSource.recordRun(context, uris.size, uploaded, skipped, failed, error)
+            status = PhoneSource.status(context)
+        }
+    }
+
+    LaunchedEffect(status.enabled, status.access) {
+        if (status.enabled && status.access == PhoneSource.Access.FULL) {
+            PhoneSource.scanNow(context)
+        }
+        while (true) {
+            val open = withContext(Dispatchers.IO) { Api.fetchOpenExperiment(context) }
+            if (open.isSuccess) {
+                experiment = open.getOrNull()
+                if (selectedExperiment.isNotBlank() && experiment?.id != selectedExperiment) {
+                    PhoneSource.clearExperiment(context)
+                    selectedExperiment = ""
+                }
+            }
+            delay(10_000)
+            status = PhoneSource.status(context)
+        }
+    }
+
+    Column(
+        Modifier
+            .fillMaxSize()
+            .background(Ink)
+            .statusBarsPadding()
+            .navigationBarsPadding()
+            .verticalScroll(rememberScrollState())
+            .padding(horizontal = 24.dp, vertical = 28.dp),
+        verticalArrangement = Arrangement.Top,
+    ) {
+        Text("SHOOTS PHONE SOURCE", color = Amber, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+        Spacer(Modifier.height(18.dp))
+        Text(
+            "Your Camera roll, remembered.",
+            color = WarmWhite,
+            fontSize = 31.sp,
+            lineHeight = 36.sp,
+            fontWeight = FontWeight.Bold,
+        )
+        Spacer(Modifier.height(12.dp))
+        Text(
+            when (status.access) {
+                PhoneSource.Access.FULL -> if (status.enabled) {
+                    "Automatic import is on. Keep using your normal camera. New Camera Shots enter Shoots in the background."
+                } else {
+                    "Allow future Camera Shots once. Existing media stays untouched."
+                }
+                PhoneSource.Access.SELECTED ->
+                    "Android granted selected-media access. Choose Shots explicitly; automatic future import is off."
+                PhoneSource.Access.NONE ->
+                    "Shoots needs media access to notice new Camera Shots. It ignores screenshots, downloads, and messaging folders."
+            },
+            color = MutedWhite,
+            fontSize = 16.sp,
+            lineHeight = 23.sp,
+        )
+        Spacer(Modifier.height(28.dp))
+
+        if (experiment != null) {
+            Text(
+                experiment?.type?.uppercase().orEmpty() + " EXPERIMENT",
+                color = Amber,
+                fontSize = 11.sp,
+                fontWeight = FontWeight.Bold,
+            )
+            Spacer(Modifier.height(5.dp))
+            Text(
+                experiment?.title.orEmpty(),
+                color = WarmWhite,
+                fontSize = 18.sp,
+                lineHeight = 24.sp,
+                fontWeight = FontWeight.SemiBold,
+            )
+            if (!experiment?.whyNow.isNullOrBlank()) {
+                Spacer(Modifier.height(5.dp))
+                Text(experiment?.whyNow.orEmpty(), color = MutedWhite, fontSize = 13.sp, lineHeight = 18.sp)
+            }
+            TextButton(
+                onClick = {
+                    val id = experiment?.id.orEmpty()
+                    if (selectedExperiment == id) {
+                        PhoneSource.clearExperiment(context)
+                        selectedExperiment = ""
+                    } else {
+                        PhoneSource.selectExperiment(context, id)
+                        selectedExperiment = id
+                    }
+                },
+            ) {
+                Text(
+                    if (selectedExperiment == experiment?.id) {
+                        "New Camera Shots will join this · Stop"
+                    } else {
+                        "Use new Camera Shots for this"
+                    },
+                    color = if (selectedExperiment == experiment?.id) Amber else WarmWhite,
+                    fontWeight = FontWeight.Bold,
+                )
+            }
+            Spacer(Modifier.height(12.dp))
+        }
+
+        if (status.access != PhoneSource.Access.FULL) {
+            Button(
+                onClick = { permission.launch(mediaPermissions()) },
+                modifier = Modifier.fillMaxWidth().height(54.dp),
+                colors = ButtonDefaults.buttonColors(containerColor = Amber, contentColor = Ink),
+                shape = RoundedCornerShape(14.dp),
+            ) { Text("Allow Camera Shots", fontWeight = FontWeight.Bold) }
+            Spacer(Modifier.height(10.dp))
+            TextButton(
+                onClick = {
+                    picker.launch(
+                        PickVisualMediaRequest(
+                            ActivityResultContracts.PickVisualMedia.ImageOnly
+                        )
+                    )
+                },
+                modifier = Modifier.fillMaxWidth(),
+            ) { Text("Choose Shots instead", color = WarmWhite) }
+        } else if (!status.enabled) {
+            Button(
+                onClick = {
+                    PhoneSource.enable(context)
+                    status = PhoneSource.status(context)
+                },
+                modifier = Modifier.fillMaxWidth().height(54.dp),
+                colors = ButtonDefaults.buttonColors(containerColor = Amber, contentColor = Ink),
+                shape = RoundedCornerShape(14.dp),
+            ) { Text("Start with future Shots", fontWeight = FontWeight.Bold) }
+        } else {
+            Button(
+                onClick = {
+                    runCatching {
+                        context.startActivity(Intent(MediaStore.INTENT_ACTION_STILL_IMAGE_CAMERA))
+                    }
+                },
+                modifier = Modifier.fillMaxWidth().height(54.dp),
+                colors = ButtonDefaults.buttonColors(containerColor = Amber, contentColor = Ink),
+                shape = RoundedCornerShape(14.dp),
+            ) { Text("Open normal camera", fontWeight = FontWeight.Bold) }
+            Spacer(Modifier.height(18.dp))
+            Text(
+                when (status.runState) {
+                    PhoneSource.RunState.SCANNING -> "Checking Camera…"
+                    PhoneSource.RunState.RETRYING ->
+                        "Retrying in background · attempt ${status.attempt + 1}"
+                    PhoneSource.RunState.IDLE -> if (status.lastActivity.isBlank()) {
+                        "No new Camera Shots imported yet."
+                    } else {
+                        "Last import  ${status.discovered} found · ${status.uploaded} uploaded · ${status.skipped} known · ${status.failed} failed"
+                    }
+                },
+                color = WarmWhite,
+                fontSize = 14.sp,
+                lineHeight = 20.sp,
+            )
+            if (status.lastScan.isNotBlank()) {
+                Spacer(Modifier.height(5.dp))
+                Text("Last checked ${displayTime(status.lastScan)}", color = MutedWhite, fontSize = 12.sp)
+            }
+            if (status.error.isNotBlank()) {
+                Spacer(Modifier.height(8.dp))
+                Text(status.error, color = FindingRed, fontSize = 13.sp, lineHeight = 18.sp)
+            }
+            Spacer(Modifier.height(12.dp))
+            TextButton(
+                onClick = { PhoneSource.scanNow(context) },
+                modifier = Modifier.fillMaxWidth(),
+            ) { Text("Check Camera now", color = MutedWhite) }
+        }
+        Spacer(Modifier.height(22.dp))
+        TextButton(onClick = onUnpair, modifier = Modifier.fillMaxWidth()) {
+            Text("Disconnect this phone", color = MutedWhite, fontSize = 13.sp)
+        }
     }
 }
 
-/**
- * The camera has no way to sign in on its own, and giving it one would mean
- * shipping a client secret to a device. So it is handed an identity instead:
- * the signed-in web page shows a code, the photographer types it here once,
- * and the phone keeps its own token from then on.
- */
+private fun mediaPermissions(): Array<String> = when {
+    Build.VERSION.SDK_INT >= 34 -> arrayOf(
+        Manifest.permission.READ_MEDIA_IMAGES,
+        Manifest.permission.READ_MEDIA_VISUAL_USER_SELECTED,
+    )
+    Build.VERSION.SDK_INT >= 33 -> arrayOf(Manifest.permission.READ_MEDIA_IMAGES)
+    else -> arrayOf(Manifest.permission.READ_EXTERNAL_STORAGE)
+}
+
 @Composable
 private fun PairScreen(onPaired: () -> Unit) {
     val context = LocalContext.current
-    val scope = androidx.compose.runtime.rememberCoroutineScope()
+    val scope = rememberCoroutineScope()
     var base by remember { mutableStateOf("http://192.168.1.10:8000") }
     var code by remember { mutableStateOf("") }
     var error by remember { mutableStateOf("") }
     var busy by remember { mutableStateOf(false) }
 
     Column(
-        Modifier.fillMaxSize().background(Color.Black).padding(28.dp),
+        Modifier
+            .fillMaxSize()
+            .background(Ink)
+            .statusBarsPadding()
+            .navigationBarsPadding()
+            .verticalScroll(rememberScrollState())
+            .padding(horizontal = 24.dp, vertical = 32.dp),
         verticalArrangement = Arrangement.Center,
     ) {
-        Text("Pair this camera", color = Color.White, fontSize = 26.sp, fontWeight = FontWeight.Bold)
-        Spacer(Modifier.height(8.dp))
+        Text("SHOOTS PHONE SOURCE", color = Amber, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+        Spacer(Modifier.height(18.dp))
         Text(
-            "Open Shoots on the web, sign in, and ask for a pairing code.",
-            color = Color.White.copy(alpha = 0.7f),
-            fontSize = 15.sp,
+            "Connect your Camera roll.",
+            color = WarmWhite,
+            fontSize = 32.sp,
+            lineHeight = 37.sp,
+            fontWeight = FontWeight.Bold,
+        )
+        Spacer(Modifier.height(12.dp))
+        Text(
+            "Open Shoots on the web, create a pairing code, then enter it here once.",
+            color = MutedWhite,
+            fontSize = 16.sp,
+            lineHeight = 23.sp,
         )
         Spacer(Modifier.height(28.dp))
         OutlinedTextField(
@@ -118,148 +375,57 @@ private fun PairScreen(onPaired: () -> Unit) {
             singleLine = true,
             modifier = Modifier.fillMaxWidth(),
             colors = fieldColours(),
+            shape = RoundedCornerShape(14.dp),
         )
-        Spacer(Modifier.height(14.dp))
+        Spacer(Modifier.height(12.dp))
         OutlinedTextField(
             value = code,
-            onValueChange = { code = it.uppercase().take(6) },
-            label = { Text("Code") },
+            onValueChange = { code = it.uppercase().filter(Char::isLetterOrDigit).take(6) },
+            label = { Text("6-character code") },
             singleLine = true,
             keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Characters),
             modifier = Modifier.fillMaxWidth(),
             colors = fieldColours(),
+            shape = RoundedCornerShape(14.dp),
         )
         if (error.isNotEmpty()) {
-            Spacer(Modifier.height(12.dp))
-            Text(error, color = ZEBRA, fontSize = 14.sp)
+            Spacer(Modifier.height(10.dp))
+            Text(error, color = FindingRed, fontSize = 14.sp)
         }
-        Spacer(Modifier.height(24.dp))
+        Spacer(Modifier.height(20.dp))
         Button(
             onClick = {
                 busy = true
-                error = ""
                 scope.launch {
                     val result = withContext(Dispatchers.IO) { Api.pair(context, base, code) }
                     busy = false
                     result.fold(
                         onSuccess = { onPaired() },
-                        onFailure = { error = it.message ?: "could not pair" },
+                        onFailure = { error = it.message ?: "Could not connect." },
                     )
                 }
             },
             enabled = !busy && code.length == 6 && base.isNotBlank(),
-            modifier = Modifier.fillMaxWidth().height(52.dp),
-            shape = RoundedCornerShape(12.dp),
-        ) {
-            Text(if (busy) "Pairing…" else "Pair")
-        }
+            modifier = Modifier.fillMaxWidth().height(54.dp),
+            colors = ButtonDefaults.buttonColors(containerColor = Amber, contentColor = Ink),
+            shape = RoundedCornerShape(14.dp),
+        ) { Text(if (busy) "Connecting…" else "Connect phone", fontWeight = FontWeight.Bold) }
     }
 }
 
 @Composable
-private fun fieldColours() = androidx.compose.material3.OutlinedTextFieldDefaults.colors(
-    focusedTextColor = Color.White,
-    unfocusedTextColor = Color.White,
-    focusedBorderColor = Color.White.copy(alpha = 0.6f),
-    unfocusedBorderColor = Color.White.copy(alpha = 0.3f),
-    focusedLabelColor = Color.White.copy(alpha = 0.7f),
-    unfocusedLabelColor = Color.White.copy(alpha = 0.5f),
-    cursorColor = Color.White,
+private fun fieldColours() = OutlinedTextFieldDefaults.colors(
+    focusedTextColor = WarmWhite,
+    unfocusedTextColor = WarmWhite,
+    focusedBorderColor = Amber,
+    unfocusedBorderColor = Hairline,
+    focusedLabelColor = Amber,
+    unfocusedLabelColor = MutedWhite,
+    cursorColor = Amber,
 )
 
-/** The shutter, the experiment it answers, and what came back. */
-@Composable
-fun ShutterRow(
-    experiment: Api.Experiment?,
-    pulse: Api.Pulse?,
-    sending: Boolean,
-    shotId: String,
-    onShoot: () -> Unit,
-    onKeep: () -> Unit,
-) {
-    Column(
-        Modifier.fillMaxSize().padding(bottom = 36.dp),
-        verticalArrangement = Arrangement.Bottom,
-        horizontalAlignment = Alignment.CenterHorizontally,
-    ) {
-        if (pulse != null) {
-            PulseCard(pulse, shotId, onKeep)
-            Spacer(Modifier.height(16.dp))
-        }
-        Box(
-            Modifier
-                .size(74.dp)
-                .background(
-                    if (sending) Color.White.copy(alpha = 0.35f) else Color.White,
-                    CircleShape,
-                ),
-            contentAlignment = Alignment.Center,
-        ) {
-            TextButton(onClick = onShoot, enabled = !sending, contentPadding = PaddingValues(0.dp)) {
-                Text(
-                    if (sending) "…" else "",
-                    color = Color.Black,
-                    fontSize = 22.sp,
-                )
-            }
-        }
-        Spacer(Modifier.height(10.dp))
-        Text(
-            experiment?.title ?: "no open challenge",
-            color = Color.White.copy(alpha = 0.75f),
-            fontSize = 13.sp,
-            textAlign = TextAlign.Center,
-        )
-    }
-}
-
-/**
- * What the panel found, in the hand that took the picture. Praise first and
- * only what a second lens actually corroborated, then the finding with its
- * figure — the same order the review uses, for the same reason.
- */
-@Composable
-private fun PulseCard(pulse: Api.Pulse, shotId: String, onKeep: () -> Unit) {
-    // Follows the pulse rather than latching, so a mark the server refused puts
-    // the button back instead of showing "kept" for a frame that is not.
-    val kept = pulse.keeper
-    Column(
-        Modifier
-            .fillMaxWidth(0.9f)
-            .background(Color.Black.copy(alpha = 0.72f), RoundedCornerShape(14.dp))
-            .padding(16.dp),
-    ) {
-        if (pulse.praise.isNotEmpty()) {
-            Text(
-                "two lenses agreed: ${pulse.praise}",
-                color = Color.White,
-                fontSize = 15.sp,
-                fontWeight = FontWeight.Bold,
-            )
-        } else {
-            Text("read, nothing corroborated", color = Color.White, fontSize = 15.sp)
-        }
-        if (pulse.finding.isNotEmpty()) {
-            Spacer(Modifier.height(6.dp))
-            Text(pulse.finding, color = ZEBRA, fontSize = 13.sp)
-        }
-        Spacer(Modifier.height(10.dp))
-        TextButton(onClick = onKeep, contentPadding = PaddingValues(0.dp)) {
-            Text(
-                if (kept) "kept" else "keep this one",
-                color = if (kept) Color(0xFFFFC857) else Color.White.copy(alpha = 0.8f),
-                fontSize = 14.sp,
-            )
-        }
-    }
-}
-
-/** Poll until the panel has finished. It takes about half a minute. */
-suspend fun awaitPulse(context: android.content.Context, shotId: String): Api.Pulse? {
-    repeat(40) {
-        delay(3_000)
-        val pulse = withContext(Dispatchers.IO) { Api.pulse(context, shotId) }
-        if (pulse != null) return pulse
-    }
-    return null
-}
+private fun displayTime(value: String): String = runCatching {
+    DateTimeFormatter.ofPattern("d MMM, HH:mm")
+        .withZone(ZoneId.systemDefault())
+        .format(Instant.parse(value))
+}.getOrDefault(value)

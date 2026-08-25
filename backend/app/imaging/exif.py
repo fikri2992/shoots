@@ -6,6 +6,7 @@ becomes ``None``; the Judge treats ``None`` as "cannot check", never as a pass.
 """
 
 import io
+import math
 from datetime import UTC, datetime
 from fractions import Fraction
 from typing import Any
@@ -87,12 +88,12 @@ def read_exif(data: bytes) -> Exif:
         flash_fired=_flash(detail.get(ExifTags.Base.Flash)),
         captured_at=_when(detail.get(ExifTags.Base.DateTimeOriginal))
         or _when(root.get(ExifTags.Base.DateTime)),
-        latitude=_coordinate(gps, 2, 1, "S"),
-        longitude=_coordinate(gps, 4, 3, "W"),
+        latitude=_coordinate(gps, 2, 1, "S", 90),
+        longitude=_coordinate(gps, 4, 3, "W", 180),
     )
 
 
-def _coordinate(gps, value_key: int, ref_key: int, negative: str) -> float | None:
+def _coordinate(gps, value_key: int, ref_key: int, negative: str, maximum: float) -> float | None:
     """Degrees/minutes/seconds plus a hemisphere letter to signed decimal degrees."""
     value = gps.get(value_key) if gps else None
     if not value or len(value) != 3:
@@ -101,10 +102,21 @@ def _coordinate(gps, value_key: int, ref_key: int, negative: str) -> float | Non
         degrees, minutes, seconds = (float(v) for v in value)
     except (TypeError, ValueError, ZeroDivisionError):
         return None
+    if not all(math.isfinite(part) for part in (degrees, minutes, seconds)):
+        return None
+    if not (0 <= degrees <= maximum and 0 <= minutes < 60 and 0 <= seconds < 60):
+        return None
+    if degrees == maximum and (minutes or seconds):
+        return None
+
     out = degrees + minutes / 60 + seconds / 3600
     ref = gps.get(ref_key)
     if isinstance(ref, bytes):
         ref = ref.decode(errors="ignore")
-    if str(ref or "").upper().startswith(negative):
+    hemisphere = str(ref or "").strip().upper()[:1]
+    positive = "N" if negative == "S" else "E"
+    if hemisphere not in {positive, negative}:
+        return None
+    if hemisphere == negative:
         out = -out
-    return round(out, 6) if out else None
+    return round(out, 6)

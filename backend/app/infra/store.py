@@ -1,4 +1,4 @@
-"""Document storage behind a four-method interface.
+"""Document storage behind one small interface, including atomic conditions.
 
 Two real implementations, not a mock and a real one:
 
@@ -6,17 +6,20 @@ Two real implementations, not a mock and a real one:
   the test suite and local development.
 * ``FirestoreStore`` — production.
 
-Both are exercised by the same contract tests (``tests/test_store_contract.py``), so
+Both are exercised by the same contract tests (``tests/test_store_and_bus.py``), so
 a behavioural difference between them is a test failure rather than a surprise in
 production. This is what AGENTS.md means by no mocked repositories: nothing here
 pretends to store something and then asserts it was asked to.
 """
 
+import asyncio
 import json
+from collections.abc import Callable
 from pathlib import Path
 from typing import Any, Protocol, runtime_checkable
 
 Document = dict[str, Any]
+Transform = Callable[[Document], Document | None]
 
 
 @runtime_checkable
@@ -35,6 +38,28 @@ class Store(Protocol):
     ) -> list[Document]: ...
 
     async def delete(self, collection: str, doc_id: str) -> None: ...
+
+    async def create(self, collection: str, doc_id: str, data: Document) -> bool: ...
+
+    async def create_claimed(
+        self,
+        claim_collection: str,
+        claim_id: str,
+        claim: Document,
+        collection: str,
+        doc_id: str,
+        data: Document,
+    ) -> bool: ...
+
+    async def delete_if(self, collection: str, doc_id: str, where: Document) -> bool: ...
+
+    async def patch_if(
+        self, collection: str, doc_id: str, changes: Document, where: Document
+    ) -> bool: ...
+
+    async def mutate(
+        self, collection: str, doc_id: str, transform: Transform
+    ) -> tuple[Document | None, bool]: ...
 
 
 def _matches(document: Document, where: Document) -> bool:
@@ -56,9 +81,11 @@ class InMemoryStore:
 
     def __init__(self) -> None:
         self._data: dict[str, dict[str, Document]] = {}
+        self._lock = asyncio.Lock()
 
     async def put(self, collection: str, doc_id: str, data: Document) -> None:
-        self._data.setdefault(collection, {})[doc_id] = _clone(data)
+        async with self._lock:
+            self._data.setdefault(collection, {})[doc_id] = _clone(data)
 
     async def get(self, collection: str, doc_id: str) -> Document | None:
         found = self._data.get(collection, {}).get(doc_id)
@@ -82,7 +109,75 @@ class InMemoryStore:
         return results[:limit] if limit is not None else results
 
     async def delete(self, collection: str, doc_id: str) -> None:
-        self._data.get(collection, {}).pop(doc_id, None)
+        async with self._lock:
+            self._data.get(collection, {}).pop(doc_id, None)
+
+    async def create(self, collection: str, doc_id: str, data: Document) -> bool:
+        """Insert only when absent. The boolean is the storage-level claim."""
+        async with self._lock:
+            documents = self._data.setdefault(collection, {})
+            if doc_id in documents:
+                return False
+            documents[doc_id] = _clone(data)
+            return True
+
+    async def create_claimed(
+        self,
+        claim_collection: str,
+        claim_id: str,
+        claim: Document,
+        collection: str,
+        doc_id: str,
+        data: Document,
+    ) -> bool:
+        """Create a uniqueness claim and its document as one operation."""
+        async with self._lock:
+            claims = self._data.setdefault(claim_collection, {})
+            documents = self._data.setdefault(collection, {})
+            if claim_id in claims or doc_id in documents:
+                return False
+            claims[claim_id] = _clone(claim)
+            documents[doc_id] = _clone(data)
+            return True
+
+    async def delete_if(self, collection: str, doc_id: str, where: Document) -> bool:
+        """Delete only if the stored document still has the expected fields."""
+        async with self._lock:
+            documents = self._data.get(collection, {})
+            found = documents.get(doc_id)
+            if found is None or not _matches(found, where):
+                return False
+            del documents[doc_id]
+            return True
+
+    async def patch_if(
+        self, collection: str, doc_id: str, changes: Document, where: Document
+    ) -> bool:
+        """Patch only if the stored document still has the expected fields."""
+        async with self._lock:
+            found = self._data.get(collection, {}).get(doc_id)
+            if found is None or not _matches(found, where):
+                return False
+            found.update(_clone(changes))
+            return True
+
+    async def mutate(
+        self, collection: str, doc_id: str, transform: Transform
+    ) -> tuple[Document | None, bool]:
+        """Atomically replace one document from its current value.
+
+        A transform returning ``None`` declines the write and returns the
+        current document with ``changed=False``.
+        """
+        async with self._lock:
+            found = self._data.get(collection, {}).get(doc_id)
+            if found is None:
+                return None, False
+            proposal = transform(_clone(found))
+            if proposal is None:
+                return _clone(found), False
+            self._data[collection][doc_id] = _clone(proposal)
+            return _clone(proposal), True
 
 
 def _clone(document: Document) -> Document:
@@ -122,6 +217,50 @@ class FileStore(InMemoryStore):
     async def delete(self, collection: str, doc_id: str) -> None:
         await super().delete(collection, doc_id)
         self._flush()
+
+    async def create(self, collection: str, doc_id: str, data: Document) -> bool:
+        created = await super().create(collection, doc_id, data)
+        if created:
+            self._flush()
+        return created
+
+    async def create_claimed(
+        self,
+        claim_collection: str,
+        claim_id: str,
+        claim: Document,
+        collection: str,
+        doc_id: str,
+        data: Document,
+    ) -> bool:
+        created = await super().create_claimed(
+            claim_collection, claim_id, claim, collection, doc_id, data
+        )
+        if created:
+            self._flush()
+        return created
+
+    async def delete_if(self, collection: str, doc_id: str, where: Document) -> bool:
+        deleted = await super().delete_if(collection, doc_id, where)
+        if deleted:
+            self._flush()
+        return deleted
+
+    async def patch_if(
+        self, collection: str, doc_id: str, changes: Document, where: Document
+    ) -> bool:
+        changed = await super().patch_if(collection, doc_id, changes, where)
+        if changed:
+            self._flush()
+        return changed
+
+    async def mutate(
+        self, collection: str, doc_id: str, transform: Transform
+    ) -> tuple[Document | None, bool]:
+        document, changed = await super().mutate(collection, doc_id, transform)
+        if changed:
+            self._flush()
+        return document, changed
 
 
 class FirestoreStore:
@@ -171,3 +310,99 @@ class FirestoreStore:
 
     async def delete(self, collection: str, doc_id: str) -> None:
         await self._client.collection(collection).document(doc_id).delete()
+
+    async def create(self, collection: str, doc_id: str, data: Document) -> bool:
+        from google.api_core.exceptions import AlreadyExists
+
+        try:
+            await self._client.collection(collection).document(doc_id).create(data)
+        except AlreadyExists:
+            return False
+        return True
+
+    async def create_claimed(
+        self,
+        claim_collection: str,
+        claim_id: str,
+        claim: Document,
+        collection: str,
+        doc_id: str,
+        data: Document,
+    ) -> bool:
+        from google.cloud import firestore
+
+        claim_reference = self._client.collection(claim_collection).document(claim_id)
+        document_reference = self._client.collection(collection).document(doc_id)
+        transaction = self._client.transaction()
+
+        @firestore.async_transactional
+        async def create_both(transaction: Any) -> bool:
+            claim_snapshot = await claim_reference.get(transaction=transaction)
+            document_snapshot = await document_reference.get(transaction=transaction)
+            if claim_snapshot.exists or document_snapshot.exists:
+                return False
+            transaction.create(claim_reference, claim)
+            transaction.create(document_reference, data)
+            return True
+
+        return await create_both(transaction)
+
+    async def delete_if(self, collection: str, doc_id: str, where: Document) -> bool:
+        from google.cloud import firestore
+
+        reference = self._client.collection(collection).document(doc_id)
+        transaction = self._client.transaction()
+
+        @firestore.async_transactional
+        async def conditional_delete(transaction: Any) -> bool:
+            snapshot = await reference.get(transaction=transaction)
+            data = snapshot.to_dict() if snapshot.exists else None
+            if data is None or not _matches(data, where):
+                return False
+            transaction.delete(reference)
+            return True
+
+        return await conditional_delete(transaction)
+
+    async def patch_if(
+        self, collection: str, doc_id: str, changes: Document, where: Document
+    ) -> bool:
+        from google.cloud import firestore
+
+        reference = self._client.collection(collection).document(doc_id)
+        transaction = self._client.transaction()
+
+        @firestore.async_transactional
+        async def conditional_patch(transaction: Any) -> bool:
+            snapshot = await reference.get(transaction=transaction)
+            data = snapshot.to_dict() if snapshot.exists else None
+            if data is None or not _matches(data, where):
+                return False
+            transaction.update(reference, changes)
+            return True
+
+        return await conditional_patch(transaction)
+
+    async def mutate(
+        self, collection: str, doc_id: str, transform: Transform
+    ) -> tuple[Document | None, bool]:
+        from google.cloud import firestore
+
+        reference = self._client.collection(collection).document(doc_id)
+        transaction = self._client.transaction()
+
+        @firestore.async_transactional
+        async def transactional_mutation(
+            transaction: Any,
+        ) -> tuple[Document | None, bool]:
+            snapshot = await reference.get(transaction=transaction)
+            if not snapshot.exists:
+                return None, False
+            current = snapshot.to_dict()
+            proposal = transform(_clone(current))
+            if proposal is None:
+                return current, False
+            transaction.set(reference, proposal)
+            return proposal, True
+
+        return await transactional_mutation(transaction)

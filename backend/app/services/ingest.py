@@ -5,21 +5,31 @@ Two entry points:
 * ``sync`` lists the user's folder and creates a NEW shot per unseen file,
   publishing ``media.new`` for each. Safe to call any number of times: the
   shot id is derived from the Drive file id, so a known file is skipped.
-* ``ingest`` is the ``media.new`` handler. It downloads the file, reads EXIF
-  or ffprobe, draws the grid, tiles video frames, writes blobs and publishes
-  ``media.ingested``. A redelivered message for a shot that is past NEW is a
-  no-op (decision 7: idempotent on shot id).
+* ``ingest`` is the ``media.new`` handler. It atomically claims the Shot,
+  downloads the file, reads EXIF or ffprobe, draws the grid, tiles video
+  frames, writes blobs and publishes ``media.ingested``. Concurrent delivery
+  has one owner; a stale claim can be taken over.
 """
 
 import logging
-from datetime import UTC
+from datetime import UTC, timedelta
+from json import JSONDecodeError
 
-from PIL import Image
+from PIL import Image, UnidentifiedImageError
 
 from app.config import settings
 from app.domain import motion as motion_rules
 from app.domain import tone as tone_rules
-from app.domain.entities import GridSpec, Shot, ShotKind, ShotStatus, User, VideoMeta, now
+from app.domain.entities import (
+    GridSpec,
+    Shot,
+    ShotKind,
+    ShotSource,
+    ShotStatus,
+    User,
+    VideoMeta,
+    now,
+)
 from app.domain.grid import Grid
 from app.imaging import canvas, motion, video
 from app.imaging.contact_sheet import tile_sheet
@@ -35,8 +45,13 @@ from app.services.context import Context
 logger = logging.getLogger(__name__)
 
 AGENT = "ingest"
+_LEASE_SECONDS = 600.0
 THUMB_EDGE = 512
 SHEET_TILE_WIDTH = 480
+
+
+class PermanentMediaError(ValueError):
+    """The downloaded bytes are proven unreadable or unsupported."""
 
 
 # --- sync -------------------------------------------------------------------
@@ -68,6 +83,8 @@ def new_shot(shot_id: str, user_id: str, file: DriveFile, experiment_id: str = "
         id=shot_id,
         user_id=user_id,
         kind=kind,
+        source=ShotSource.DRIVE,
+        source_id=file.id,
         drive_file_id=file.id,
         filename=file.name,
         mime_type=file.mime_type,
@@ -79,51 +96,86 @@ def new_shot(shot_id: str, user_id: str, file: DriveFile, experiment_id: str = "
 
 
 async def ingest(ctx: Context, message: dict) -> None:
-    shot = await repo.get_shot(ctx.store, message["shot_id"])
-    if shot.status is not ShotStatus.NEW:
+    claimed_at = now()
+    shot, claimed = await repo.claim_shot_for_ingest(
+        ctx.store,
+        message["shot_id"],
+        claimed_at,
+        claimed_at - timedelta(seconds=_LEASE_SECONDS),
+    )
+    if not claimed and shot.status is ShotStatus.INGESTED:
+        # The status commit may have succeeded while the downstream publish
+        # was lost. Replaying is safe: every later stage is idempotent.
+        await ctx.bus.publish(TOPICS["media.ingested"], {"shot_id": shot.id})
+        return
+    if not claimed:
         logger.info("ingest: %s already %s, skipping", shot.id, shot.status)
         return
 
     try:
-        data = await ctx.drive.download(shot.drive_file_id)
+        if ORIGINAL in shot.blobs:
+            data = await ctx.blobs.read(shot.blobs[ORIGINAL])
+        elif shot.drive_file_id:
+            data = await ctx.drive.download(shot.drive_file_id)
+        else:
+            raise FileNotFoundError(f"no original bytes for {shot.id}")
         if shot.kind is ShotKind.VIDEO:
             shot = await _ingest_video(ctx, shot, data)
         else:
             shot = await _ingest_photo(ctx, shot, data)
-    except Exception as error:
-        shot.status = ShotStatus.FAILED
-        shot.error = f"{type(error).__name__}: {error}"[:500]
-        await repo.put_shot(ctx.store, shot)
-        await repo.record(
-            ctx.store, shot.user_id, AGENT, "failed", {"error": shot.error}, shot_id=shot.id
-        )
-        raise
 
-    shot.status = ShotStatus.INGESTED
-    await repo.put_shot(ctx.store, shot)
-    await _remember_location(ctx, shot)
-    await repo.record(
-        ctx.store,
-        shot.user_id,
-        AGENT,
-        "ingested",
-        {
+        detail = {
             "kind": shot.kind.value,
             "grid": f"{shot.grid.cols}x{shot.grid.rows}" if shot.grid else "",
             "exif": shot.exif.model_dump(mode="json", exclude_none=True),
             "video": shot.video.model_dump(mode="json", exclude_none=True) if shot.video else None,
             "tone": tone_rules.describe(shot.tone, shot.exif),
             "motion": motion_rules.describe(shot.motion),
-        },
-        shot_id=shot.id,
-    )
+        }
+        await _remember_location(ctx, shot)
+        await repo.record(
+            ctx.store,
+            shot.user_id,
+            AGENT,
+            "ingested",
+            detail,
+            shot_id=shot.id,
+        )
+        shot.status = ShotStatus.INGESTED
+        shot.ingesting_at = None
+        shot.error = ""
+        await repo.put_shot(ctx.store, shot)
+    except PermanentMediaError as error:
+        shot.status = ShotStatus.FAILED
+        shot.ingesting_at = None
+        shot.error = f"{type(error).__name__}: {error}"[:500]
+        await repo.put_shot(ctx.store, shot)
+        await repo.record(
+            ctx.store, shot.user_id, AGENT, "failed", {"error": shot.error}, shot_id=shot.id
+        )
+        return
+    except Exception as error:
+        # Delivery, storage, and missing-dependency failures are retryable. The
+        # idempotency key remains NEW so a redelivery can finish the same Shot.
+        shot.status = ShotStatus.NEW
+        shot.ingesting_at = None
+        shot.error = f"{type(error).__name__}: {error}"[:500]
+        await repo.put_shot(ctx.store, shot)
+        await repo.record(
+            ctx.store, shot.user_id, AGENT, "retrying", {"error": shot.error}, shot_id=shot.id
+        )
+        raise
+
     await ctx.bus.publish(TOPICS["media.ingested"], {"shot_id": shot.id})
 
 
 async def _ingest_photo(ctx: Context, shot: Shot, data: bytes) -> Shot:
     shot.exif = read_exif(data)
     shot.captured_at = shot.exif.captured_at
-    image = canvas.load_bytes(data)
+    try:
+        image = canvas.load_bytes(data)
+    except (UnidentifiedImageError, OSError, ValueError) as error:
+        raise PermanentMediaError("image bytes cannot be decoded") from error
     # Beside the EXIF, because the camera records that it chose a white balance
     # and never which one: colour is only evidence once it is measured.
     shot.tone = measure_tone(image)
@@ -138,11 +190,30 @@ async def _ingest_photo(ctx: Context, shot: Shot, data: bytes) -> Shot:
 
 
 async def _ingest_video(ctx: Context, shot: Shot, data: bytes) -> Shot:
-    info = await video.probe(data)
-    cuts = await video.scene_times(data)
-    times = sample_times(info.duration, cuts, settings.video_min_frames, settings.video_max_frames)
-    frames = [canvas.from_bytes(await video.frame_at(data, t)) for t in times]
-    loudness = await video.measure_loudness(data)
+    try:
+        info = await video.probe(data)
+        cuts = await video.scene_times(data)
+        times = sample_times(
+            info.duration, cuts, settings.video_min_frames, settings.video_max_frames
+        )
+        frames = [canvas.from_bytes(await video.frame_at(data, t)) for t in times]
+        loudness = await video.measure_loudness(data)
+        tone = measure_tone(frames[0])
+        measured_motion = await motion.measure(data)
+    except FileNotFoundError:
+        # ffmpeg/ffprobe missing is an environment failure, not bad media.
+        raise
+    except (
+        video.FfmpegError,
+        JSONDecodeError,
+        KeyError,
+        IndexError,
+        UnidentifiedImageError,
+        OSError,
+        TypeError,
+        ValueError,
+    ) as error:
+        raise PermanentMediaError("video bytes cannot be decoded") from error
 
     shot.video = VideoMeta(
         duration_s=info.duration,
@@ -155,11 +226,11 @@ async def _ingest_video(ctx: Context, shot: Shot, data: bytes) -> Shot:
     # Tone off a real frame, never off the contact sheet: the sheet's padding
     # and caption band are black and white in fixed proportions, so measuring
     # it would report the sheet's palette rather than the photographer's.
-    shot.tone = measure_tone(frames[0])
+    shot.tone = tone
     # And how the camera moved, which the sheet genuinely cannot show: its
     # tiles are scene cuts seconds apart, and a pan, a tracking shot and a cut
     # all look the same across that gap (domain/motion.py).
-    shot.motion = await motion.measure(data)
+    shot.motion = measured_motion
 
     extension = extension_for(shot.mime_type)
     shot.blobs[ORIGINAL] = await ctx.blobs.write(
@@ -225,7 +296,7 @@ def _mmss(seconds: float) -> str:
 
 
 async def _remember_location(ctx: Context, shot: Shot) -> None:
-    """The newest frame with GPS tells the Scout where the user shoots, so a
+    """The newest Shot with GPS tells Scout where the photographer shoots, so an
     experiment can be timed to the light there (domain/timing.py)."""
     if shot.exif.latitude is None or shot.exif.longitude is None:
         return

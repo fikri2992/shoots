@@ -1,6 +1,6 @@
 # Product decisions
 
-Locked through the nine-stage product interrogation on 2026-08-25. This file records why the product has its current shape. [Product](product.md) states the result. [Feature list](feature-list.md) tracks what still has to exist.
+Locked through the nine-stage product interrogation on 2026-08-25 and corrected from real-phone use on 2026-08-26. This file records why the product has its current shape. [Product](product.md) states the result. [Feature list](feature-list.md) tracks what still has to exist.
 
 ## 1. Audience first
 
@@ -49,14 +49,14 @@ The mechanism is distributed evidence. A Tendency exists across many Shots and m
 
 ## 3. The work accomplished
 
-Shoots turns an accumulating Shot archive into a checked record of photographic behaviour. It detects a Tendency, offers one personal Experiment, and records what changed after the photographer tries it.
+Shoots turns an accumulating Shot archive into a checked record of photographic behaviour. It detects a Tendency, offers one optional personal Experiment, records only the Shots the photographer explicitly includes, and reports what changed afterward.
 
 A human doing the same work would have to inspect every Shot, maintain comparable measurements, find repeated patterns, select an appropriate exercise, preserve a baseline, inspect the result, and recompute the record. Shoots does that work in the background.
 
 The work leaves three finished artifacts:
 
 1. The Technique Map records what the Evidence has observed and what has recurred.
-2. The Experiment Record preserves the reason, baseline, Criteria, result, Verdict, and post-Experiment Change.
+2. The Experiment Record preserves the question, reason, Baseline, explicit Shot set, type-specific evidence, and post-Experiment Change. Only Reproduce carries Criteria and Verdicts.
 3. The Journey Update states what repeats, what became repeatable, and what changed, with a source for every claim.
 
 Advice alone is not work accomplished. A paragraph from a model without these artifacts is decoration.
@@ -93,32 +93,34 @@ Rules:
 | Technique Map | The longitudinal record of observed and recurring Techniques | skill graph, curriculum |
 | Tendency | A neutral repeated pattern across Shots | habit, flaw, default |
 | Keeper | A Shot the photographer positively marks as valued | like, model pick, rejected/unrejected binary |
-| Experiment | One bounded thing to try, with a reason, Criteria, and a later result | Quest, challenge, assignment |
-| Experiment Record | The baseline, Criteria, results, Verdicts, and Change left by one Experiment | advice transcript |
+| Experiment | One optional bounded question to try, with type-specific evidence | Quest, challenge, assignment, compulsory camera mode |
+| Variation | One optional route inside Explore or Compare | criterion, correct answer |
+| Experiment Record | The question, Baseline, explicit Shot set, type-specific evidence, and Change left by one Experiment | advice transcript |
 | Inspiration | Optional sourced reference material supporting an Experiment | the Experiment itself, generated filler |
-| Criteria | The checks declared before an Experiment result | rubric score |
-| Verdict | The Judge's result against an Experiment's Criteria | quality judgment, progress verdict |
+| Criteria | The checks declared before a Reproduce result | Explore instruction, rubric score |
+| Verdict | The Judge's result against Reproduce Criteria | Explore result, quality judgment, progress verdict |
 | Change | A measured difference between comparable earlier and later behaviour | Progress without a user-grounded goal |
 | Journey Update | The evidence-backed longitudinal conclusion shown when the record meaningfully changes | report card |
 | Intent | The photographer's optional statement of what they are trying to make | inferred purpose presented as fact |
-| Companion | The quiet camera-side partner that adapts the active Experiment to the current Scene | generic camera, narrator |
-| Scene Probe | A temporary low-resolution capture used to inspect the current Scene | Shot, Keeper, training history |
+| Companion | The quiet camera-side partner that sees and hears the current Scene when summoned | generic camera, narrator, Experiment enforcer |
+| Live Scene Session | An explicit temporary audio-and-camera conversation before the shutter | always-on recording, post-Shot review |
+| Scene Probe | A temporary low-resolution fallback used to inspect the current Scene without audio | Shot, Keeper, training history |
 
 "Eye" belongs in the promise, such as "Learn to see like yourself." It is not a metric. "Style" is an emerging interpretation supported by repeated Tendency and Keeper signals, never a label the model declares.
 
 An Experiment may do one of three jobs:
 
-1. Explore an underused approach.
-2. Reproduce a Keeper-associated pattern deliberately.
-3. Compare one changed variable and ask which result the photographer values.
+1. Explore asks what happens across two to four optional Variations. It has no pass, fail, or Verdict.
+2. Reproduce tests a Keeper-associated pattern deliberately. It may use fixed Criteria and a Verdict.
+3. Compare preserves two alternatives of one changed variable and asks which result the photographer values.
 
-Experiments are not only repeatability tests. They may expand the photographer's range, challenge a Tendency, or test a suggested approach.
+One Experiment may remain open as an offer, but the camera starts free. Only explicitly selected Shots join it. Pausing or leaving is not failure.
 
 ## 6. Agent depth
 
 The audience cannot audit an AI critic, so the critic must audit itself.
 
-Expertise belongs in versioned, replayable Technique playbooks and domain code. Prompts interpret visual ambiguity and write language. They do not hide thresholds, promotion rules, excuses, or pass conditions.
+Expertise belongs in versioned, replayable Technique playbooks and domain code. Prompts interpret visual ambiguity and write language. They do not hide thresholds, promotion rules, excuses, or Reproduce conditions. Explore has no pass condition for a prompt to hide.
 
 The agent system must:
 
@@ -126,10 +128,10 @@ The agent system must:
 - escalate only when a cheap reading leaves a consequential ambiguity;
 - plan an Experiment from the longitudinal record;
 - remember Shot Evidence, Experiment history, constraints, Intent, and explicit preferences;
-- grade whether its own suggestion changed comparable behaviour;
+- check whether comparable behaviour changed after an explicit Experiment attempt;
 - retire or change an approach only after repeated comparable results, not one miss.
 
-Depth already present includes structured agent outputs, deterministic Criteria, corroboration, measurement vetoes, abstention, persistent state, and post-Experiment profile comparison. Gaps include versioned claim provenance, a structured learner memory, bounded escalation, all three Experiment types, and labelled real-agent evaluation. See [agents](agents.md) and [market comparison](market-agent-comparison.md).
+Depth already present includes structured agent outputs, deterministic Reproduce mechanics in the legacy Explore path, corroboration, measurement vetoes, abstention, persistent state, and post-Experiment profile comparison. The legacy path proves the machinery but applies it to the wrong question. Gaps include corrected Explore semantics, Reproduce and Compare, structured learner memory, bounded escalation, Live Scene tools, and labelled real-agent evaluation. See [agents](agents.md) and [market comparison](market-agent-comparison.md).
 
 The key causal limit stays explicit: Shoots may say behaviour changed after an Experiment. It may not claim the Experiment caused the Change.
 
@@ -164,7 +166,7 @@ Shoots is not:
 - a location tracker or travel guide;
 - a system that captures a real Shot without an explicit shutter or voice command.
 
-The current Director and generated reference clip do not support the new product. Inspiration may exist as optional reference material, but it is not the work Shoots sells.
+Director and generated reference clips are outside the core loop: no automatic topic, subscription, or UI. The optional legacy call remains only as a manual capability. Inspiration may exist as sourced reference material, but it is not the work Shoots sells.
 
 Competitors already claim personal style, progress, critique, and personalised challenges. Shoots cannot differentiate by repeating those promises. It differentiates by separating measurement, model opinion, and photographer signal, then showing the Evidence behind every Change claim. See [market comparison](market-agent-comparison.md).
 
@@ -174,16 +176,26 @@ The Android camera is the Companion, not the product's centre and not a generic 
 
 Boundaries:
 
-- The active Experiment comes first. The Companion adapts it to the current Scene instead of inventing unrelated suggestions.
+- The camera starts free. An offered Experiment is available, not compulsory.
+- Explicit Intent comes first. An Experiment may support it, offer a Variation, or stay out of the way.
+- Only Shots explicitly selected for an Experiment enter its Record.
 - Current light, weather, temperature, environment, and location facts appear only when photographically relevant or requested.
 - A place fact may spark one useful question or adaptation. Trivia by itself is not coaching.
-- Silence is the default. The Companion answers when summoned and may interject rarely when one move has clear value.
+- Silence is the default. A Live Scene Session begins only when summoned and may be interrupted at any time.
 - It asks a good question when Intent would resolve ambiguity.
 - It may remember explicit location notes and preferences. It does not build hidden movement history.
-- It may ask the photographer to move, inspect the next preview, and compare it with a Scene Probe. It cannot claim to choose or inspect an angle the phone has not seen.
-- A Scene Probe never enters the Technique Map or Journey. It is discarded unless the photographer explicitly saves it as a Shot.
+- It may ask the photographer to move, inspect later Scene frames, and compare what is visible. It cannot claim to choose or inspect an angle the phone has not seen.
+- Live Scene frames and a Scene Probe never enter the Technique Map or Journey. The photographer must use the shutter to create a Shot.
 - The internal cell grid never reaches the photographer. The Companion shows a human guide, arrow, crop region, or plain direction.
 - Intent may mute a conflicting local warning, such as zebras for a declared silhouette.
+
+The current Scene capability is a transitional mismatch: an explicit Android Ask sends one temporary preview and compulsory-looking Experiment Criteria to preflight, waits roughly six to eight seconds, then returns one move or a refusal. It has no Android audio, live frames, interruption, or Scene memory. The target replaces it with a server-relayed Gemini Live session and keeps the one-frame Scene Probe only as a no-audio fallback.
+
+Android and web are two clients of one Shoots identity. The release app uses one stable service origin and direct Shot ingress. Pairing codes, a server-address field, and Drive-mediated camera upload are transitional implementation, not product behavior.
+
+Foreground and background have separate acceptance clocks. A ready Live Scene Session targets first audio at or below 1.5 seconds median and 3 seconds at p90 over at least twenty real-device turns. Deep Analysis stays corroborated and may take longer, but it cannot lock the camera.
+
+The selected visual system is Companion-led Ink + amber. Ink holds the Scene and archive; warm white carries readable content; amber is reserved for an offered or selected Experiment, a Companion suggestion, or a selected action. It never grades quality. Red is reserved for a Finding that needs attention, and generic green success is removed from product surfaces.
 
 ## 10. Success test
 
@@ -196,13 +208,13 @@ The chief failure mode is building a chatty camera demo. Judges would see a gene
 The 48-hour pass test is one continuous run:
 
 1. Start with a real Shot history.
-2. Capture one Shot.
-3. Show the cloud pipeline update the record without prompting.
-4. Open the Evidence behind a Tendency.
-5. Show why one Experiment was selected.
-6. Submit an Experiment result.
-7. Produce a deterministic Verdict.
-8. Show the resulting Change and Journey Update.
+2. Open the Android camera under the same Shoots identity and summon one Live Scene response.
+3. Enter an optional Experiment and capture one explicitly associated Shot.
+4. Keep shooting available while the cloud pipeline reads in the background.
+5. Open the Evidence behind a Tendency.
+6. Show why the Experiment was offered and what its type records.
+7. Show a type-appropriate result. Reproduce uses a Verdict; Explore shows Variations and Evidence; Compare shows alternatives and optional preference.
+8. Show the resulting Change and Journey Update without claiming causation.
 9. Show the Google Cloud execution and architecture.
 
 After watching, a stranger must be able to say: "It remembered the photographer's work, found a recurring pattern, chose what to test, and verified what changed." If they only say "it gives photography advice," the demo failed.
@@ -211,7 +223,6 @@ The fallback keeps Android as a thin capture Companion and cuts new context feat
 
 ## Open decisions
 
-- Whether all three Experiment types must ship for the hackathon or only Explore plus one honest post-Experiment comparison.
-- Which single Companion addition earns its place after the core demo passes: summonable Scene guidance or Scene Probe comparison.
 - The minimum sample and comparability rules for a user-grounded improvement claim.
-- Whether Intent belongs to one Shot, one Scene, one Experiment, or any combination of them.
+- Which Live Scene transcript details remain in ActivityEvent after raw audio and frames are discarded.
+- Whether the hackathon ships corrected Explore plus Reproduce, or corrected Explore plus Compare.

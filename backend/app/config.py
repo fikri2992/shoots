@@ -63,6 +63,8 @@ class Settings(BaseSettings):
     quests_per_day: int = 1
     #: An experiment nobody shoots for expires after this many days.
     experiment_ttl_days: int = 3
+    #: Maximum accepted original from any ingress adapter.
+    max_upload_bytes: int = 200 * 1024 * 1024
     #: A recurring Technique unseen for this long is worth offering again. It
     #: is not demoted for it: the record says what the Evidence observed, and
     #: age is a reason to suggest, never to un-observe (decision 46).

@@ -1,6 +1,8 @@
 """Ingest end to end on real files with real stores: a directory as the Drive
 folder, the in-memory store, blobs on disk, the in-process bus."""
 
+import asyncio
+
 import pytest
 from PIL import Image
 
@@ -19,7 +21,7 @@ from tests.fixtures import HAS_FFMPEG, jpeg_with_exif, two_shot_video
 USER = User(id="u_test", email="t@example.com", drive_folder_id="local")
 
 
-def make_context(tmp_path) -> Context:
+def make_context(tmp_path, wire: bool = True) -> Context:
     folder = tmp_path / "drive"
     folder.mkdir()
     ctx = Context(
@@ -33,7 +35,8 @@ def make_context(tmp_path) -> Context:
     async def on_new(message):
         await ingest.ingest(ctx, message)
 
-    ctx.bus.subscribe(TOPICS["media.new"], on_new)
+    if wire:
+        ctx.bus.subscribe(TOPICS["media.new"], on_new)
     return ctx
 
 
@@ -81,6 +84,23 @@ async def test_sync_is_idempotent_and_redelivery_is_a_noop(tmp_path):
     assert before == after
 
 
+async def test_concurrent_redelivery_has_one_ingest_owner(tmp_path):
+    ctx = make_context(tmp_path, wire=False)
+    (tmp_path / "drive" / "same.jpg").write_bytes(jpeg_with_exif())
+    await repo.put_user(ctx.store, USER)
+    created = await ingest.sync(ctx, USER)
+
+    await asyncio.gather(
+        ingest.ingest(ctx, {"shot_id": created[0].id}),
+        ingest.ingest(ctx, {"shot_id": created[0].id}),
+    )
+
+    shot = await repo.get_shot(ctx.store, created[0].id)
+    events = await repo.list_events(ctx.store, USER.id)
+    assert shot.status is ShotStatus.INGESTED
+    assert [event.stage for event in events].count("ingested") == 1
+
+
 async def test_renamed_file_is_the_same_shot(tmp_path):
     ctx = make_context(tmp_path)
     path = tmp_path / "drive" / "a.jpg"
@@ -96,10 +116,33 @@ async def test_corrupt_file_fails_visibly(tmp_path):
     (tmp_path / "drive" / "bad.jpg").write_bytes(b"definitely not a jpeg")
     await repo.put_user(ctx.store, USER)
     created = await ingest.sync(ctx, USER)
-    with pytest.raises(OSError):  # Pillow: UnidentifiedImageError
-        await ingest.ingest(ctx, {"shot_id": created[0].id})
+    await ingest.ingest(ctx, {"shot_id": created[0].id})
     shot = await repo.get_shot(ctx.store, created[0].id)
     assert shot.status is ShotStatus.FAILED and shot.error
+
+
+async def test_transient_download_failure_retries_the_same_shot(tmp_path):
+    ctx = make_context(tmp_path, wire=False)
+    path = tmp_path / "drive" / "retry.jpg"
+    data = jpeg_with_exif()
+    path.write_bytes(data)
+    await repo.put_user(ctx.store, USER)
+    created = await ingest.sync(ctx, USER)
+    hidden = tmp_path / "retry.jpg.hidden"
+    path.rename(hidden)
+
+    with pytest.raises(FileNotFoundError):
+        await ingest.ingest(ctx, {"shot_id": created[0].id})
+    retrying = await repo.get_shot(ctx.store, created[0].id)
+    assert retrying.status is ShotStatus.NEW
+    assert "FileNotFoundError" in retrying.error
+
+    hidden.rename(path)
+    await ingest.ingest(ctx, {"shot_id": created[0].id})
+    finished = await repo.get_shot(ctx.store, created[0].id)
+    assert finished.status is ShotStatus.INGESTED
+    assert finished.id == created[0].id
+    assert finished.error == ""
 
 
 @pytest.mark.skipif(not HAS_FFMPEG, reason="ffmpeg not installed")

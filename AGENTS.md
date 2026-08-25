@@ -1,10 +1,10 @@
 # AGENTS.md — Codebase rules
 
-Read `docs/domain-model.md` first. Its vocabulary (Shot, Scene, Scene Probe, Evidence, Finding, Technique, Technique Map, Tendency, Keeper, Experiment, Experiment Record, Inspiration, Criteria, Verdict, Change, Journey Update, Intent, Companion; the agents Ingest, Analyst, Cartographer, Scout, Judge, Scribe, Coach) is the ubiquitous language. Use these exact names in new code, APIs, prompts, and UI copy. Do not use "photo" for Shot, "skill" for Technique, "habit" for Tendency, "Quest" or "challenge" for Experiment, "Fault" for Finding, "passed" for a Verdict that only answers Criteria, or "Progress" for unqualified Change. The `skills` storage key and `TechniqueState` are the last migration targets, tracked in `docs/feature-list.md`, and are not precedent for new names.
+Read `docs/domain-model.md` first. Its vocabulary (Photographer, Shot, Scene, Scene Probe, Live Scene Session, Evidence, Finding, Technique, Technique Map, Tendency, Keeper, Experiment, Variation, Experiment Record, Inspiration, Criteria, Verdict, Change, Journey Update, Intent, Companion; the agents Ingest, Analyst, Cartographer, Scout, Judge, Scribe, Coach) is the ubiquitous language. Use these exact names in new code, APIs, prompts, and UI copy. Do not use "photo" for Shot, "skill" for Technique, "habit" for Tendency, "Quest" or "challenge" for Experiment, "Fault" for Finding, "passed" for a Verdict that only answers Criteria, or "Progress" for unqualified Change. The `skills` storage key and `TechniqueState` are the last migration targets, tracked in `docs/feature-list.md`, and are not precedent for new names.
 
 ## What this is
 
-Shoots is an autonomous photography Companion for hobbyists. It learns from every Shot, offers one personal Experiment, and tracks what changes. The photographer shoots through Android or adds files to Google Drive; the system ingests, analyses, updates the Technique Map and Tendency Profile, selects an Experiment, checks Criteria, records a Verdict, and writes a Journey Update. Hackathon entry for the Taskmaster track of the All Things Agentic Hackathon (deadline 2026-08-31 17:00 PDT). See `docs/product.md` and `docs/build-plan.md`.
+Shoots is an autonomous photography Companion for hobbyists. It learns from every Shot, offers one optional personal Experiment, and tracks what changes. Android and web are clients of one Photographer record. Android sends Shots directly; Google Drive is an optional import and export adapter. The system ingests, analyses, updates the Technique Map and Tendency Profile, records type-specific Experiment Evidence, computes Change, and writes a Journey Update. Explore uses Variations and no Verdict. Reproduce alone uses Criteria and a Verdict. Compare preserves alternatives and an optional photographer preference. Hackathon entry for the Taskmaster track of the All Things Agentic Hackathon (deadline 2026-08-31 17:00 PDT). See `docs/product.md` and `docs/build-plan.md`.
 
 ## Repo layout
 
@@ -70,5 +70,7 @@ Banned: tests that mock the collaborators of the thing under test to assert the 
 1. Cell refs, not pixels, at every model boundary.
 2. Technique ids from the taxonomy, nowhere else.
 3. EXIF is hard evidence; vision is soft evidence with a confidence. The Judge checks hard first.
-4. Only the Judge records a Verdict against an Experiment's Criteria. Only the photographer skips an Experiment.
-5. If a behaviour is not in `docs/domain-model.md`, it does not exist. Update the doc first.
+4. Only the Judge records a Verdict against explicit Reproduce Criteria. Explore and Compare never receive a Verdict.
+5. The system camera owns capture. Phone Source observes only approved Camera media. Only an explicit Experiment id associates a Shot; capture time never implies participation.
+6. The photographer controls the shutter. Gemini Live has no shutter tool, and Scene frames or Scene Probes never become Shots.
+7. If a behaviour is not in `docs/domain-model.md`, it does not exist. Update the doc first.

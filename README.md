@@ -4,19 +4,19 @@ Learn to see like yourself.
 
 Shoots learns from every Shot, offers one personal Experiment, and tracks what changes.
 
-It is built for the self-directed hobbyist who has enough Shots for patterns to exist but no mentor who remembers the whole archive. Shoots measures each Shot, updates a Tendency Profile and Technique Map, chooses one Experiment, freezes the Criteria, and later records what changed. Quality is an opinion. Behaviour is measurable.
+It is built for the self-directed hobbyist who has enough Shots for patterns to exist but no mentor who remembers the whole archive. Shoots measures each Shot, updates a Tendency Profile and Technique Map, and offers one optional Experiment when a cited Direction exists. Explore records Variations without pass or fail. Reproduce uses fixed Criteria and a Verdict. Compare preserves alternatives and an optional photographer preference. Every type may later record comparable Change. Quality is an opinion. Behaviour is measurable.
 
 A model may interpret a Shot. Only the photographer supplies Intent, Keeper preference, and the signal that a Change was an improvement. Unmarked Shots remain unknown rather than disliked.
 
 Entry for the All Things Agentic Hackathon, Taskmaster track.
 
-**The web** is three screens: **Now** for the active Experiment, **Frames** for every Shot it has read, and **Journey** for the evidence-backed longitudinal record. Reviewed Shots are written back into Drive.
+**The web** is three screens: **Now** for the offered or selected Experiment, **Shots** for the archive, and **Journey** for the evidence-backed longitudinal record. Drive is an optional import and export adapter.
 
-**The camera** (`android/`, Kotlin + CameraX) is the quiet Companion. The current build measures clipping and pitch locally, shows a guide and the active legacy Experiment, captures a Shot, uploads it into the same pipeline, and returns a praise-first pulse. The [feature list](docs/feature-list.md) tracks the remaining Experiment and Companion migration honestly.
+**The Phone Source** (`android/`, Kotlin + Compose + WorkManager) keeps Android's normal camera in control. After one honest media permission, it watches only the Camera album, uploads unseen original Shots directly and idempotently, optionally associates them with the selected Experiment, survives UI exit, and shows import/retry state. Selected-media access stays manual. Pairing is the four-day authentication cut; native Google sign-in is later.
 
 - Docs: [product](docs/product.md) · [decisions](docs/product-decisions.md) · [feature list](docs/feature-list.md) · [domain model](docs/domain-model.md) · [agents](docs/agents.md) · [build plan](docs/build-plan.md) · [codebase rules](AGENTS.md)
-- Stack: Vue 3 (Options API) + Vite + Tailwind PWA · Kotlin + CameraX + Compose (native camera, `android/`) · FastAPI + Google ADK · Firestore + GCS + Pub/Sub + Cloud Scheduler + Secret Manager + Cloud Run
-- Models: `gemini-3.7-flash` (Analyst panel, Scout, Judge feedback, Journey writer, legacy Director, Listener) · `veo-3.1-fast` (legacy optional reference clip) · `gemini-live-2.5-flash-native-audio` (Coach)
+- Stack: Vue 3 (Options API) + Vite + Tailwind PWA · Kotlin + Compose + WorkManager (`android/`) · FastAPI + Google ADK · Firestore + GCS + Pub/Sub + Cloud Scheduler + Secret Manager + Cloud Run
+- Models: `gemini-3.7-flash` (Analyst panel, Scout, Judge feedback, Journey writer, Listener) · `gemini-live-2.5-flash-native-audio` (Coach). The retained Director/Veo prototype is optional legacy code, outside the product loop.
 
 ## Prerequisites
 
@@ -55,7 +55,7 @@ Backend on http://localhost:8000, frontend on http://localhost:5173 (Vite proxie
 cd backend && uv run pytest
 ```
 
-The suite uses real files, real ffmpeg and real stores, never a mocked model. The agents themselves are checked against the live models with `backend/scripts/check_*.py` (`check_ingest`, `check_analyst`, `check_scout`, `check_director`, `check_coach`, `check_live_ws`); each prints what the model did and leaves its output in `backend/.blobs` for the dashboard.
+The suite uses real files, real ffmpeg, real stores, and integration contracts for retry and concurrency. Agent quality is not inferred from mocked Gemini calls; the live-model gates are `backend/scripts/check_*.py` (`check_ingest`, `check_analyst`, `check_scout`, `check_director`, `check_coach`, `check_live_ws`).
 
 ## Deploy
 

@@ -1,5 +1,19 @@
+# Build diary
 
+Historical implementation notes below preserve what was tried, including features
+later removed. They are not current behavior. As of 2026-08-25, decisions 52–63 in
+[the domain model](domain-model.md) supersede score storage, Keeper-rate arithmetic,
+curriculum selection, capped longitudinal corpora, and automatic Director/Veo work.
+Current status is in [the feature list](feature-list.md).
 
+## Day 12 notes (2026-08-26), Taskmaster thin slice
+
+- Cut the custom camera and Gemini Live from P0. Android is now a permission-aware Phone Source: it watches approved Camera media with WorkManager, uploads unseen originals by stable source id, survives restart, and leaves the system camera in control of the shutter. Pairing remains the four-day authentication cut.
+- Direct ingress is independent of Drive and idempotent on `(user, source, source_id)`. A selected Experiment id is validated at ingress; an untagged Shot remains a free Shot and cannot become a submission merely because it was made while an Experiment was open.
+- The real connected Xiaomi completed the unattended path on a synthetic screen-capture fixture placed in Camera media: Phone Source found and uploaded it, Ingest measured it, the real Analyst found `single_accent` and `low_key`, Cartographer updated both Technique records, Scribe wrote the reviewed Shot to Drive, and `pipeline.run_completed` recorded the terminal receipt. The fixture was removed from the phone after acceptance.
+- Physical testing found and fixed a real Evidence-boundary defect: malformed GPS decoded as `NaN`, reached solar arithmetic, and stopped the pipeline. EXIF parsing and domain records now reject non-finite and out-of-range coordinates while preserving valid 0° latitude/longitude.
+- The web now leads with a per-Shot autonomous run receipt. Its claims are scoped to events at or after that Shot's queue time, so a historical Scout event cannot masquerade as work produced by the newest run. Explore, Reproduce, Compare, free Shots, Drive writes, and recorded write skips have distinct labels.
+- Current local gates: backend ruff plus the full 537-check suite pass; frontend 31 checks and production build pass; Android debug APK builds, installs, and runs on the Xiaomi. No Cloud deployment was attempted.
 
 
 ## Day 2 notes (2026-08-22)
@@ -36,7 +50,7 @@
 
 
 
-- `/api/skills/rebuild` re-derived 11 techniques from the 4 stored analyses; then `/api/experiments/issue` produced `golden_hour` ("Catch the golden hour glow", 6 steps, why-now referencing the user's own shots, 3 grounded references). ~25 s for research + write.
+- `/api/techniques/rebuild` re-derived 11 Techniques from four stored Analyses; the historical Scout run then issued a grounded Experiment. Current Scout requires a cited Experiment Direction and otherwise stays silent.
 
 - Grounding chunk titles are bare domains (adobe.com, slrlounge.com) and URLs are `vertexaisearch.cloud.google.com/grounding-api-redirect/...` redirects. Acceptable; the dashboard shows the domain as the label.
 
@@ -62,7 +76,7 @@
 ## Day 7 notes (2026-08-23), features first, deploy after
 
 - Veo 3.1 fast on Vertex us-central1: 4-6 s 9:16 720p clip in 32-60 s, bytes returned inline (no GCS hop). Lyria 3 clip preview is served from the `global` endpoint only and needs `response_modalities=["AUDIO","TEXT"]` (the us-central1 publisher entry 404s on every method); 30 s mp3 in 16 s. Gemini Live native audio: us-central1 only, first audio in ~6 s.
-- Director stage: `experiment.issued` -> storyboard (ADK, schema) -> Veo -> Lyria -> ffmpeg mux -> `experiment.reference_clip`. Real run on the monochrome experiment: 80 s, and the frame is exactly the brief (hard B&W, silhouette stepping through diagonal shadow). Experiment card plays it inline, muted, tap for sound.
+- Historical Director trial: storyboard → Veo produced a reference clip in about 80 s. This automatic stage, topic, subscription, and UI were removed from the core loop; the retained manual legacy call conditionally attaches only while the Experiment remains open.
 - Coach: WebSocket relay to Gemini Live, briefed with the gridded frame and the Analyst's read. Typed-question check through the real app wiring (`check_live_ws.py`): opening line names the strongest thing in the frame, answer references cells ("hitting the child's face in D2 and E2"), event recorded with the transcript. Mic path is the same socket plus PCM frames; checked on the phone after deploy.
 - Pub/Sub push: handlers register by stage name, `/pubsub/<stage>` verifies the OIDC token (service-account email + audience) and delivers to that one handler. Drive push: `files.watch` per folder on Connect and from the daily tick, `/tasks/renew-channels` twice a day, `/drive/notify` checks token and channel id. Both can only be exercised with a public HTTPS URL; that is day 7b.
 - FileStore caveat: two processes on one `store.json` lose writes to each other (a check script ran while the dev server was up and the server's next flush dropped the clip path). Stop the server before running a `check_*` script that writes, or accept a manual fix. Firestore has no such problem.
@@ -71,7 +85,7 @@
 ## Day 7c notes (2026-08-23), the step back
 
 - Re-centred on "redefining interaction": the agent lives in the user's Drive and notifications, the app is the audit trail. Four moves, all shipped and checked on the real stack:
-  - **Scribe**: after the Judge, the review is written back into `Shoots/Reviewed/` as the user: overlay baked in, caption band with critique, moves and verdict, file named `✔/✘ <name> — <score> of 10.jpg`. Verified in Drive (two files).
+  - **Scribe**: after Judge, the review is written into `Shoots/Reviewed/`: overlay, critique, Moves, Findings, and Verdict. The filename describes what was found and carries no score.
   - **Timing**: techniques carry a light window (`taxonomy.LIGHT`), the user's location is the GPS of their newest frame (`Exif.latitude/longitude`, `User.last_*`), `domain/sun.py` + `domain/timing.py` pick `deliver_at` and a reason; the push waits for the five-minute tick (`/tasks/tick`). Location picked up from a Xiaomi phone frame on the first sync.
   - **Coach memory**: the Listener extracts `missing_gear` and notes from the transcript; Scout ranking and brief respect them; Coach is briefed with them. Real-model check: "only have my phone" → no tripod/telephoto/macro/flash.
   - **Today**: the home tab is the experiment with why-now and why-then; verdicts link to "Ask the Coach why".
@@ -82,7 +96,7 @@
 ## Day 7d notes (2026-08-23), expert grounding
 
 - Researched before changing anything: PPA's 12 Elements (judging standard, 100-point bands), Feldman's critique order, published setting guidance per technique, PoLL/LLM-judge panel literature (diverse panels beat one judge; same-model panels share errors), ADK workflow agents. Written up in `docs/technique-evidence.md`.
-- Analyst is now a panel: ADK `SequentialAgent[ParallelAgent[technician, composer, storyteller] → synthesizer]`, ~20 s wall clock (lenses run concurrently), four model calls per frame. Evidence by vote (`domain/panel.py`), elements averaged per owning lens, overall computed by `domain/rubric.py`. Real run on a phone frame: backlight seen by all three, wide angle by the Technician alone at 0.90 (owner rule), all five elements scored, overall 5 "average" for a snapshot, which is honest.
+- Analyst is a panel: ADK `SequentialAgent[ParallelAgent[technician, composer, storyteller] → synthesizer]`, about 20 s wall clock. Evidence moves by vote. Lens rubrics structure transient reads; overall and element scores are not stored.
 - Two Gemini structured-output gotchas: a `dict[str, int]` field is never filled (no additionalProperties in the response schema), and optional fields get skipped; element scores are required ints per lens.
 - Bounds corrected from sources: freeze 1/500, panning 1/125–1/8, long exposure 0.5 s.
 - Frontend shows the five element bars and ●●○ agreement per technique; the feed says "(2 of 3)"; the Scribe's caption carries the element line.
@@ -103,8 +117,8 @@ Walked every screen in Chrome at phone and desktop width as a first-time user. F
 
 Rebuilt around one decision per screen:
 
-- **Now** — connect / seed / reading / experiment / idle, one at a time. `QuestHero` is media-first, criteria as sentences, `How to shoot it` / `Why the Scout picked this` / `What it read` behind disclosures, Shoot + Skip pinned above the tab bar.
-- **Frames** — one grid, newest ingest first, score and state on the tile, `Add frames` for anything outside an experiment.
+- **Now** — connect / seed / reading / Experiment / idle, one at a time. `ExperimentHero` leads with Criteria and the cited Baseline; Shoot + Skip stay reachable.
+- **Shots** — one grid, newest ingest first, Keeper and processing state only, with `Add Shots` for archive imports.
 - **Frame** — sticky media with `read` / `grid` toggles, verdict and moves in the open, observations deduped across lenses and cell refs stripped from prose, evidence and camera behind disclosures, Drive link in the footer.
 - **Journey** — six skill bars that open into chips, past experiments, and the agent log condensed (identical consecutive lines fold into `×N`).
 - **Coach** — a sheet over the frame, text-first, mic opt-in, opened with the question the user clicked.
@@ -161,9 +175,9 @@ Everything in the day 9 "next, in order" list, plus the two agent-depth verbs. N
 
 Leaning, then what became theirs, then one direction offered. Every clause anchored to a count. No score, no "improved".
 
-**The camera reached the pipeline.** Device pairing, because a phone cannot run OAuth without shipping a client secret: the web shows a six-character code (no I, O, 0 or 1 — it gets read aloud), the camera claims it once for a token stored as a hash. The shutter posts into the same `/drive/shoot` the PWA uses, carrying `pitch_deg` — the one fact no photograph holds — which closes the height blind spot. The verdict comes back to the phone about thirty seconds later: corroborated praise first, fault with its figure, Keeper tap. Smoke-tested end to end against the real store: pairing single-use enforced, no-token refused, profile computed, dwell challenge fired.
+**The camera reached the pipeline.** Device pairing gives the phone a scoped token. The shutter posts into `/drive/shoot` with `pitch_deg`. The pulse requires corroborated Evidence at confidence 0.75, shows its proof, then one Finding with its reason. Keeper remains one optional stored mark.
 
-**The two verbs.** *Refuse* (decision 38): the panel abstains when every lens saw something and no two saw the same thing, telling a contested frame apart from a merely quiet one, and a measurement rescues a scattered panel because arithmetic cannot share their blind spots. *Self-grade* (decision 37): every experiment freezes the tendency it was aimed at, and later shots are compared against it — counts against counts, reproducible from the store years later with no model. A photographer who did not go out is told apart from one who ignored the challenge, because counting that as failure would retire good advice on no evidence.
+**The two verbs.** *Refuse*: unresolved visual Criteria or missing required EXIF produces no Verdict. *Self-check*: every Experiment freezes the exact Baseline Shot set; later comparable Shots are checked by code without claiming causation.
 
 **Voice.** The review used to open with the defect, which was right for a critic and wrong for a hobbyist. Praise leads now, and has to clear the same bar as everything else: only a corroborated sighting names the file.
 
@@ -196,3 +210,25 @@ Documentation changed:
 - `domain-model.md` decisions 41 through 48 supersede the old product language while naming the current code migration honestly.
 
 Recommended next proof, not implementation authorization: deploy one stable continuous run from Shot history through personal Experiment, Verdict, Change, and Journey Update before adding new Companion intelligence.
+
+## Day 12 notes (2026-08-26), the real-phone correction
+
+No feature code in this pass. The Android build was installed on a physical Xiaomi device, camera permission granted, the viewfinder opened, pairing survived a force-stop, and the active Experiment, clipping, pitch, grid, Ask, and temporary Scene Probe were exercised. That use changed the product plan.
+
+**Setup was not a product flow.** The camera asked for a server address and a six-character code created in the signed-in web app. Local testing also needed `adb reverse`. Native Android can authenticate as the same Photographer as web, so pairing is the wrong target abstraction. The release app should carry one stable service origin, use native Google sign-in, receive a revocable Shoots device session, and send camera Shots directly to Shoots storage. Drive remains an optional import and export adapter.
+
+**Ask was slow and narrower than the promise.** Four real Scene Probes took 5.8 to 8.2 seconds. A synthetic request using low thinking took 4.1 seconds versus 5.8 seconds at the default, which helps but does not make a conversation. The current Gemini Live relay works only for a fixed reviewed Shot in the web client. Android has no microphone, audio playback, WebSocket client, or live frame stream. The target is a server-relayed Live Scene Session with interruptible audio, low-rate Scene frames, optional Intent and Experiment context, and cell-ref guide tools. A one-frame Scene Probe stays as the no-audio fallback.
+
+**The current Explore is a gate.** All six stored Experiments are Explore, but the implementation gives them Reproduce mechanics. Eight of ten recorded Verdicts say Criteria were not met. More importantly, every untagged Shot captured after issuance becomes an attempt, and a miss leaves the same Experiment open. The result is exactly what the audience said they would quit: the app insists on its composition instead of helping the photographer try possibilities.
+
+Decisions 69 through 74 correct the model:
+
+- Explore asks one question and offers two to four Variations. It has no Criteria, Verdict, pass, fail, ready, or shoot-again state.
+- Reproduce alone uses fixed Criteria and a Verdict about deliberate repeatability.
+- Compare preserves alternatives and asks for an optional photographer preference.
+- One open Experiment is an offer, not an active camera mode. Only explicit Shot association enters its Record.
+- Android and web share one identity. Camera ingress no longer depends on Drive.
+- Gemini Live becomes the summoned Scene Companion. The model has no shutter tool.
+- Foreground Live and capture use a fast clock. Deep corroborated Analysis stays in the background and never locks the viewfinder.
+
+Next implementation order: corrected Explore and explicit participation, unified identity and direct ingress, Android Live Scene relay and latency check, non-blocking capture, Intent, then the physical-phone Android-to-Journey proof. Deployment follows the exact verified build rather than preceding it.

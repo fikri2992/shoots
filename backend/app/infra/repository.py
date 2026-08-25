@@ -4,7 +4,9 @@ One function per read or write the services need, pydantic in and out. The
 collection names and document ids are decided here and nowhere else.
 """
 
+import hashlib
 from datetime import datetime
+from typing import Any
 
 from app.domain.entities import (
     ActivityEvent,
@@ -13,6 +15,7 @@ from app.domain.entities import (
     ExperimentStatus,
     JourneyUpdate,
     Shot,
+    ShotStatus,
     TechniqueState,
     User,
     new_id,
@@ -70,6 +73,17 @@ def shot_id_for(user_id: str, drive_file_id: str) -> str:
     return f"shot_{user_id[-8:]}_{drive_file_id}"
 
 
+def source_shot_id_for(user_id: str, source: str, source_id: str) -> str:
+    """A filesystem-safe id for non-Drive source references.
+
+    Android MediaStore references may contain volume names and separators that
+    are valid in Firestore but not in LocalBlobStore paths. The digest keeps the
+    original reference private while preserving idempotency.
+    """
+    digest = hashlib.sha256(f"{source}:{source_id}".encode()).hexdigest()[:24]
+    return f"shot_{user_id[-8:]}_{source}_{digest}"
+
+
 async def put_shot(store: Store, shot: Shot) -> None:
     await store.put(SHOTS, shot.id, _dump(shot))
 
@@ -91,6 +105,28 @@ async def list_shots(store: Store, user_id: str, limit: int | None = None) -> li
         SHOTS, where={"user_id": user_id}, order_by="ingested_at", descending=True, limit=limit
     )
     return [Shot.model_validate(d) for d in rows]
+
+
+async def claim_shot_for_ingest(
+    store: Store, shot_id: str, claimed_at: datetime, stale_before: datetime
+) -> tuple[Shot, bool]:
+    """Atomically own one NEW or abandoned INGESTING Shot."""
+
+    def claim(document: dict[str, Any]) -> dict[str, Any] | None:
+        shot = Shot.model_validate(document)
+        stale = shot.status is ShotStatus.INGESTING and (
+            shot.ingesting_at is None or shot.ingesting_at < stale_before
+        )
+        if shot.status is not ShotStatus.NEW and not stale:
+            return None
+        shot.status = ShotStatus.INGESTING
+        shot.ingesting_at = claimed_at
+        return _dump(shot)
+
+    data, changed = await store.mutate(SHOTS, shot_id, claim)
+    if data is None:
+        raise UnknownEntity(f"shot {shot_id}")
+    return Shot.model_validate(data), changed
 
 
 # --- analyses -------------------------------------------------------------
@@ -133,6 +169,11 @@ async def get_experiment(store: Store, experiment_id: str) -> Experiment:
     if data is None:
         raise UnknownEntity(f"experiment {experiment_id}")
     return Experiment.model_validate(data)
+
+
+async def find_experiment(store: Store, experiment_id: str) -> Experiment | None:
+    data = await store.get(EXPERIMENTS, experiment_id)
+    return Experiment.model_validate(data) if data else None
 
 
 async def open_experiment(store: Store, user_id: str) -> Experiment | None:

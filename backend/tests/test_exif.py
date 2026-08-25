@@ -2,7 +2,8 @@
 
 from datetime import UTC, datetime
 
-from app.imaging.exif import read_exif
+from app.domain.entities import Exif, User
+from app.imaging.exif import _coordinate, read_exif
 from tests.fixtures import jpeg_with_exif
 
 
@@ -55,3 +56,16 @@ def test_reads_gps_as_signed_degrees():
     assert exif.latitude is not None and abs(exif.latitude + 6.8436) < 1e-4
     assert exif.longitude is not None and abs(exif.longitude - 107.6123) < 1e-4
     assert read_exif(jpeg_with_exif()).latitude is None
+
+
+def test_rejects_non_finite_and_out_of_range_gps():
+    assert _coordinate({1: "N", 2: (float("nan"), 0, 0)}, 2, 1, "S", 90) is None
+    assert _coordinate({1: "N", 2: (91, 0, 0)}, 2, 1, "S", 90) is None
+    assert Exif(latitude=float("nan"), longitude=181).latitude is None
+    assert User(id="u", email="u@example.test", last_longitude=float("inf")).last_longitude is None
+
+
+def test_zero_degree_gps_is_valid():
+    gps = {1: "N", 2: (0, 0, 0), 3: "E", 4: (0, 0, 0)}
+    assert _coordinate(gps, 2, 1, "S", 90) == 0
+    assert _coordinate(gps, 4, 3, "W", 180) == 0

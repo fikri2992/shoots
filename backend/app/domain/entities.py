@@ -7,11 +7,13 @@ and says, in machine-checkable terms, what counts as done - and keeps the
 record of how it went, which is the *Experiment Record*.
 """
 
+import math
 import uuid
 from datetime import UTC, datetime
 from enum import StrEnum
+from typing import Any
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 
 def now() -> datetime:
@@ -20,6 +22,19 @@ def now() -> datetime:
 
 def new_id(prefix: str) -> str:
     return f"{prefix}_{uuid.uuid4().hex[:12]}"
+
+
+def _finite_coordinate(value: Any, maximum: float) -> float | None:
+    """Reject malformed GPS at the record boundary instead of storing NaN."""
+    if value is None:
+        return None
+    try:
+        coordinate = float(value)
+    except (TypeError, ValueError):
+        return None
+    if not math.isfinite(coordinate) or not -maximum <= coordinate <= maximum:
+        return None
+    return coordinate
 
 
 # --- users ----------------------------------------------------------------
@@ -59,6 +74,16 @@ class User(BaseModel):
     location_at: datetime | None = None
     created_at: datetime = Field(default_factory=now)
 
+    @field_validator("last_latitude", mode="before")
+    @classmethod
+    def validate_last_latitude(cls, value: Any) -> float | None:
+        return _finite_coordinate(value, 90)
+
+    @field_validator("last_longitude", mode="before")
+    @classmethod
+    def validate_last_longitude(cls, value: Any) -> float | None:
+        return _finite_coordinate(value, 180)
+
 
 # --- shots ----------------------------------------------------------------
 
@@ -68,8 +93,18 @@ class ShotKind(StrEnum):
     VIDEO = "video"
 
 
+class ShotSource(StrEnum):
+    """Where the stable source reference and original bytes came from."""
+
+    DRIVE = "drive"
+    ANDROID = "android"
+
+
 class ShotStatus(StrEnum):
     NEW = "new"
+    #: Ingest owns this Shot until ``ingesting_at`` expires. This prevents two
+    #: at-least-once deliveries from measuring and writing the same file at once.
+    INGESTING = "ingesting"
     INGESTED = "ingested"
     #: The panel is running right now. Written before the first model call so
     #: a redelivery mid-flight skips instead of re-paying for four to six of
@@ -96,6 +131,16 @@ class Exif(BaseModel):
     #: From the GPS block when the camera wrote one. Feeds experiment timing.
     latitude: float | None = None
     longitude: float | None = None
+
+    @field_validator("latitude", mode="before")
+    @classmethod
+    def validate_latitude(cls, value: Any) -> float | None:
+        return _finite_coordinate(value, 90)
+
+    @field_validator("longitude", mode="before")
+    @classmethod
+    def validate_longitude(cls, value: Any) -> float | None:
+        return _finite_coordinate(value, 180)
 
 
 class VideoMeta(BaseModel):
@@ -192,7 +237,14 @@ class Shot(BaseModel):
     id: str
     user_id: str
     kind: ShotKind
-    drive_file_id: str
+    #: The adapter that supplied this Shot. Existing stored records default to
+    #: Drive so the source migration does not rewrite the archive.
+    source: ShotSource = ShotSource.DRIVE
+    #: Stable inside that adapter. Redelivery of the same reference is a no-op.
+    source_id: str = ""
+    #: Drive import compatibility and reviewed-output linkage. Empty for direct
+    #: Android ingress.
+    drive_file_id: str = ""
     filename: str
     mime_type: str
     status: ShotStatus = ShotStatus.NEW
@@ -234,6 +286,8 @@ class Shot(BaseModel):
     error: str = ""
     captured_at: datetime | None = None
     ingested_at: datetime = Field(default_factory=now)
+    #: When Ingest atomically claimed this Shot. A stale claim may be retried.
+    ingesting_at: datetime | None = None
     #: When the panel claimed this shot. Read only while the status is
     #: ANALYSING, to tell an attempt in flight from one that died.
     analysing_at: datetime | None = None

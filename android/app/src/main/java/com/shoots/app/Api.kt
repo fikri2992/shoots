@@ -5,20 +5,22 @@ import org.json.JSONObject
 import java.io.DataOutputStream
 import java.net.HttpURLConnection
 import java.net.URL
+import java.util.UUID
 
 /**
- * Everything the camera says to the backend. Plain HttpURLConnection: the whole
- * surface is four calls, and a phone that has to be paired before it can do
+ * Everything the Phone Source says to the backend. Plain HttpURLConnection: the
+ * surface is deliberately small, and a phone that has to be paired before it can do
  * anything does not need a networking framework to do it.
  *
  * The device token is the only credential here. It was handed over by a browser
- * that had already signed in (`api/pairing.py`) — the camera never runs an OAuth
+ * that had already signed in (`api/pairing.py`) — the phone never runs an OAuth
  * flow, because that would mean shipping a client secret to a device.
  */
 object Api {
     private const val PREFS = "shoots"
     private const val KEY_BASE = "base_url"
     private const val KEY_TOKEN = "token"
+    private const val KEY_DEVICE_ID = "device_id"
     private const val TIMEOUT_MS = 20_000
 
     fun baseUrl(context: Context): String =
@@ -28,6 +30,15 @@ object Api {
         context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).getString(KEY_TOKEN, "") ?: ""
 
     fun isPaired(context: Context): Boolean = token(context).isNotEmpty()
+
+    fun deviceId(context: Context): String {
+        val prefs = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+        val existing = prefs.getString(KEY_DEVICE_ID, "").orEmpty()
+        if (existing.isNotEmpty()) return existing
+        return UUID.randomUUID().toString().also {
+            prefs.edit().putString(KEY_DEVICE_ID, it).apply()
+        }
+    }
 
     fun forget(context: Context) {
         context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit().clear().apply()
@@ -45,112 +56,42 @@ object Api {
             .apply()
     }
 
-    /** The open challenge, pinned in the viewfinder. Null when there is none. */
-    fun openQuest(context: Context): Experiment? = runCatching {
+    /** Distinguishes "no open Experiment" from a network failure. */
+    fun fetchOpenExperiment(context: Context): Result<Experiment?> = runCatching {
         val json = get(context, "/api/experiments/open") ?: return@runCatching null
         if (!json.has("id")) return@runCatching null
         Experiment(
             id = json.getString("id"),
             title = json.optString("title"),
             whyNow = json.optString("why_now"),
+            type = json.optString("type"),
         )
-    }.getOrNull()
-
-    /**
-     * Send the frame the shutter just took into the same ingest path the Drive
-     * watcher feeds, with the pitch the phone was held at. The pipeline is
-     * unchanged; the camera is a second door into it.
-     */
-    fun shoot(
-        context: Context,
-        jpeg: ByteArray,
-        name: String,
-        questId: String,
-        pitchDeg: Float?,
-    ): Result<String> = runCatching {
-        val boundary = "----shoots${System.nanoTime()}"
-        val url = URL(baseUrl(context) + "/drive/shoot")
-        val connection = (url.openConnection() as HttpURLConnection).apply {
-            requestMethod = "POST"
-            doOutput = true
-            connectTimeout = TIMEOUT_MS
-            readTimeout = 120_000
-            setRequestProperty("Authorization", "Bearer ${token(context)}")
-            setRequestProperty("Content-Type", "multipart/form-data; boundary=$boundary")
-        }
-        DataOutputStream(connection.outputStream).use { out ->
-            fun field(key: String, value: String) {
-                out.writeBytes("--$boundary\r\n")
-                out.writeBytes("Content-Disposition: form-data; name=\"$key\"\r\n\r\n")
-                out.write(value.toByteArray())
-                out.writeBytes("\r\n")
-            }
-            if (questId.isNotEmpty()) field("experiment_id", questId)
-            if (pitchDeg != null) field("pitch_deg", pitchDeg.toString())
-            out.writeBytes("--$boundary\r\n")
-            out.writeBytes(
-                "Content-Disposition: form-data; name=\"file\"; filename=\"$name\"\r\n"
-            )
-            out.writeBytes("Content-Type: image/jpeg\r\n\r\n")
-            out.write(jpeg)
-            out.writeBytes("\r\n--$boundary--\r\n")
-        }
-        val json = read(connection)
-        json.getString("shot_id")
     }
 
-    /**
-     * Has the panel finished with this shot, and what did it find? Null while
-     * it is still being read — the phone polls, because the moment of
-     * levelling up should land in the hand that took the picture.
-     */
-    fun pulse(context: Context, shotId: String): Pulse? = runCatching {
-        val json = get(context, "/api/shots/$shotId") ?: return@runCatching null
-        val shot = json.getJSONObject("shot")
-        if (shot.optString("status") != "analyzed") return@runCatching null
-        val analysis = json.optJSONObject("analysis") ?: return@runCatching null
-
-        val techniques = analysis.optJSONArray("techniques")
-        var praise = ""
-        if (techniques != null) {
-            for (i in 0 until techniques.length()) {
-                val t = techniques.getJSONObject(i)
-                // Praise first, and only what a second lens actually saw
-                // (decision 33): one lens with a habit is one opinion.
-                if (t.optInt("agreement") >= 2) {
-                    praise = t.optString("technique_id").replace('_', ' ')
-                    break
-                }
-            }
-        }
-        val findings = analysis.optJSONArray("findings")
-        val finding = if (findings != null && findings.length() > 0) {
-            findings.getJSONObject(0).optString("what")
-        } else {
-            ""
-        }
-        Pulse(praise = praise, finding = finding, keeper = !shot.optString("kept_at").isNullOrEmpty())
-    }.getOrNull()
-
-    /**
-     * Mark or unmark a Shot as one the photographer values.
-     *
-     * PUT, not POST: the route is registered PUT-only and a POST answered 405,
-     * so every tap on the camera's keeper button failed and reported success.
-     * Returns whether the server actually took it - the caller has to be able
-     * to put the button back, because a mark that only ever existed on screen
-     * is a taste signal the Tendency Profile never sees, and an unmark that
-     * never lands leaves a frame valued that the photographer let go.
-     */
-    fun setKeeper(context: Context, shotId: String, keeper: Boolean): Boolean = runCatching {
-        sendJson(
-            "PUT",
-            baseUrl(context) + "/api/shots/$shotId/keeper",
-            JSONObject().put("keeper", keeper),
-            token(context),
+    /** Upload one original found in Android's Camera media. */
+    fun importShot(
+        context: Context,
+        bytes: ByteArray,
+        name: String,
+        mimeType: String,
+        sourceId: String,
+        experimentId: String = "",
+    ): Result<ImportResult> = runCatching {
+        val fields = linkedMapOf("source_id" to "${deviceId(context)}:$sourceId")
+        if (experimentId.isNotBlank()) fields["experiment_id"] = experimentId
+        val json = postImage(
+            context,
+            "/api/ingress/shots",
+            bytes,
+            name,
+            fields,
+            mimeType,
         )
-        true
-    }.getOrDefault(false)
+        ImportResult(
+            shotId = json.getString("shot_id"),
+            created = json.optBoolean("created"),
+        )
+    }
 
     // --- plumbing ---------------------------------------------------------
 
@@ -167,6 +108,51 @@ object Api {
 
     private fun postJson(url: String, body: JSONObject, token: String): JSONObject =
         sendJson("POST", url, body, token)
+
+    private fun postImage(
+        context: Context,
+        path: String,
+        jpeg: ByteArray,
+        name: String,
+        fields: Map<String, String>,
+        mimeType: String = "image/jpeg",
+    ): JSONObject {
+        val boundary = "----shoots${System.nanoTime()}"
+        val safeName = name.replace(Regex("[\\r\\n\"]"), "_").take(180).ifBlank { "shot.jpg" }
+        val safeMime = mimeType
+            .takeIf { it.startsWith("image/") && !it.contains(Regex("[\\r\\n]")) }
+            ?: "image/jpeg"
+        val connection = (
+            URL(baseUrl(context) + path).openConnection() as HttpURLConnection
+        ).apply {
+            requestMethod = "POST"
+            doOutput = true
+            connectTimeout = TIMEOUT_MS
+            readTimeout = 120_000
+            setRequestProperty("Authorization", "Bearer ${token(context)}")
+            setRequestProperty("Content-Type", "multipart/form-data; boundary=$boundary")
+        }
+        return try {
+            DataOutputStream(connection.outputStream).use { out ->
+                fields.forEach { (key, value) ->
+                    out.writeBytes("--$boundary\r\n")
+                    out.writeBytes("Content-Disposition: form-data; name=\"$key\"\r\n\r\n")
+                    out.write(value.toByteArray(Charsets.UTF_8))
+                    out.writeBytes("\r\n")
+                }
+                out.writeBytes("--$boundary\r\n")
+                out.writeBytes(
+                    "Content-Disposition: form-data; name=\"file\"; filename=\"$safeName\"\r\n"
+                )
+                out.writeBytes("Content-Type: $safeMime\r\n\r\n")
+                out.write(jpeg)
+                out.writeBytes("\r\n--$boundary--\r\n")
+            }
+            read(connection)
+        } finally {
+            connection.disconnect()
+        }
+    }
 
     private fun sendJson(method: String, url: String, body: JSONObject, token: String): JSONObject {
         val connection = (URL(url).openConnection() as HttpURLConnection).apply {
@@ -194,7 +180,7 @@ object Api {
 
     private fun deviceName(): String = "${android.os.Build.MANUFACTURER} ${android.os.Build.MODEL}"
 
-    data class Experiment(val id: String, val title: String, val whyNow: String)
+    data class Experiment(val id: String, val title: String, val whyNow: String, val type: String)
 
-    data class Pulse(val praise: String, val finding: String, val keeper: Boolean)
+    data class ImportResult(val shotId: String, val created: Boolean)
 }
