@@ -15,26 +15,38 @@ the architecture diagram the submission requires.
    `output_schema` and an `output_key`; what it returns is validated twice — by
    ADK against the schema and by `domain/` against the world (taxonomy ids, cell
    refs inside the grid, points inside their own cells, bounds inside the envelope).
-3. **Arithmetic before opinion.** What can be computed is computed first
-   (`exposure.py`, `sun.py`, `light.py`, `weather.py`) and handed to the model as
-   facts; the model is asked only what needs a reader.
+3. **Arithmetic before opinion, and arithmetic outranks it.** What can be computed is
+   computed first (`exposure.py`, `sun.py`, `tone.py`, `motion.py`, `tendency.py`) and
+   handed to the model as facts; the model is asked only what needs a reader. Where a
+   measurement settles a question it does not merely inform the vote, it *wins* it:
+   `panel.aggregate` takes `settled_against` as a veto and `settled_for` as a
+   corroborating vote at confidence 1.0 (decision 34).
 4. **Decide in code, write in the model.** Pass/fail, scores, rankings, slots and
    diffs are deterministic; a model turns a decision into words or chooses between
    options code has already bounded.
 5. **Fresh session per call.** No conversational memory between stages. Memory is
-   the store (Firestore / `store.json`): skill states, constraints, analyses. A retry
-   never inherits half-written state.
+   the store (Firestore / `store.json`): skill states, constraints, analyses, tendency
+   counts, Journey Updates. A retry never inherits half-written state.
+6. **An agent may refuse, and is graded.** `panel.aggregate` returns an abstention when
+   every lens saw something and no two saw the same thing, rather than averaging three
+   opinions into a verdict nobody held (decision 38). And every quest freezes the
+   tendency it was aimed at, so `scout.grade_advice` can compare counts against counts
+   afterwards and record whether the advice changed any behaviour (decision 37). Both
+   are arithmetic; no model adjudicates either.
 
 ## Topology
 
 ```mermaid
 flowchart LR
+  CAM[(Shoots camera<br/>Kotlin, paired by code)] -->|POST /drive/shoot + pitch| NEW
   D[(Drive folder)] -->|watch / sync| NEW[media.new]
   NEW --> ING[Ingest<br/>code]
   ING --> INGD[media.ingested]
   INGD --> AN[Analyst<br/>ADK panel + crop loop + scrub]
   AN --> ANZ[media.analyzed]
   ANZ --> CART[Cartographer<br/>code]
+  CART --> GRADE[Scout.grade_advice<br/>code: did the last challenge move anything?]
+  CART --> JU[Journey Update<br/>code decides, one agent writes]
   ANZ --> JUD[Judge<br/>code + feedback agent]
   JUD --> JUDG[media.judged]
   JUDG --> SCR[Scribe<br/>code → Drive]
@@ -45,6 +57,7 @@ flowchart LR
   SC --> QI[quest.issued]
   QI --> DIR[Director<br/>storyboard agent → Veo]
   SC --> PUSH[(Web Push)]
+  JUD -->|verdict pulse, polled| CAM
   PH[(Phone)] -->|WebSocket| COACH[Coach relay<br/>Gemini Live + tools]
   COACH --> SC
   PH -->|preview| PRE[Pre-flight agent]
@@ -63,6 +76,7 @@ dead-letter independently.
 |---|---|---|
 | `LlmAgent(output_schema, output_key)` | every model call that returns data | the schema is the contract; `output_key` puts the answer in session state where `run_workflow` reads it back typed |
 | `ParallelAgent` | the Analyst's three lenses | three readers that differ in instruction *and* input, concurrently; 20 s wall clock instead of 60 |
+| `before_model_callback` | per-lens image routing | the panel is one user turn, so without this every lens sees every image; this is the seam where readers stop sharing their eyes (decision 18) |
 | `SequentialAgent` | panel → synthesizer; (planned) designer → writer | deterministic order with shared session state; the synthesizer reads `{technician}`, `{composer}`, `{storyteller}` from state via instruction templates |
 | `InMemoryRunner` per call | all of the above | one runner and one session per attempt; nothing outlives the stage |
 | session `state` seeding | catalogue text, facts, prior readings | `{key}` templates in instructions are filled from state, so prompts are files (`prompts/*.md`) and data is injected, never formatted into them |
@@ -95,13 +109,17 @@ Not ADK, on purpose:
 | `director` (storyboard) | `LlmAgent` | technique + quest | `Storyboard` (`storyboard`): Veo prompt | Director stage | then Veo 3.1 fast, 6 s vertical with its own audio |
 | `preflight` | `LlmAgent` | quest's SEEN criteria + 640 px preview | `PreflightOut` (`preflight`): per-check ok + fix | `/drive/preflight`, synchronous, ~8 s | never guesses camera settings |
 | `listener` | `LlmAgent` | Coach transcript | `NotesOut` (`notes`): missing gear, notes | after a Coach session | the post-session fallback for `remember` |
+| `journey` | `LlmAgent` | only measured evidence: counts, exploration, what widened, what became repeatable, keeper lifts | `JourneyOut` (`journey`): one paragraph | Cartographer stage, only when the profile moved | sees no photograph; may not say anything it cannot point at |
 | Coach | Gemini Live, tools `issue_quest`, `remember`, `skill_map` | gridded frame + Analyst read + constraints as the first turn; text and 16 kHz PCM | audio, transcript, tool calls | `/api/live/{shot_id}` | a quest issued by voice is an ordinary quest |
 
 All `LlmAgent`s run `gemini-3.7-flash` on the Vertex global endpoint.
 
 ### Code between the agents, per stage
 
-- **Analyst**: `run_workflow(analyst_agent())` with a 180 s timeout → `panel.aggregate`
+- **Analyst**: the shot is claimed as `ANALYSING` *before* the first model call, dated so a
+  dead attempt cannot strand it — the stage spends four to six calls before it writes
+  anything, so without the claim a redelivery re-pays for the whole panel.
+  `run_workflow(analyst_agent())` with a 180 s timeout → `panel.aggregate`
   (quorum 2; a lens's own family counts alone at ≥ 0.75; confidence is the mean of
   those who agreed) → `validate` (taxonomy ids, cells in grid, subject point inside
   its cells, `MoveKind` routing: a crop asked for as a move goes to
@@ -112,7 +130,13 @@ All `LlmAgent`s run `gemini-3.7-flash` on the Vertex global endpoint.
   confidence floor; a technique with bounds cannot pass on vision alone when EXIF is
   present and fails. Only then the feedback agent. Always publishes `media.judged`
   so the Scribe runs once with the outcome.
-- **Scout**: skill decay → `rules.choose` (gap, recency, missing gear) →
+- **Cartographer**: `skills.apply_analysis` (pure) → `scout.grade_advice` (did the last
+  challenge move anything?) → `journey.maybe_write` (has the body of work moved enough to
+  be worth a paragraph?). The second and third usually answer no and write nothing;
+  neither can fail the map, which is already stored.
+- **Scout**: skill decay → `tendency.build` over the whole corpus → `rules.choose` (gap,
+  recency, missing gear, *preferring* what pushes against the narrowest dimension — the
+  profile reorders the curriculum and never widens it) →
   `rules.why_now` → research (grounded) → writer → `criteria_for` from the taxonomy
   → `timing.deliver_at` (light window, sun, last location) → push on the tick.
 - **Director**: storyboard agent → Veo → `quest.reference_clip`. Veo failing

@@ -1,10 +1,16 @@
 # Shoots
 
-An autonomous photography coach. You shoot. It watches your Google Drive folder, reads every photo and video, maps what techniques you have actually used, finds the gap, researches the next technique, issues a daily quest with machine-checkable criteria and a generated reference clip, and judges what you shoot for it.
+Photography apps judge single shots. Shoots remembers all of yours and shows how your eye is changing.
+
+You shoot. It reads every photo — from your Google Drive folder or from its own camera — measures about forty things about each one, and keeps the record no photographer can keep about themselves: what you tend to shoot, what has become reliable, what you never try, and whether any of that has moved since last month. From that it writes you a challenge, cites the counts that earned it, judges what you bring back, and afterwards checks whether its own advice changed anything.
+
+It is built for the hobbyist rather than the professional, so it describes before it corrects, and it says plainly what it cannot see. Quality is an opinion; behaviour is measurable — every number it shows can be re-derived from the file it came from.
 
 Entry for the All Things Agentic Hackathon, Taskmaster track.
 
-The app is three screens on a phone: **Now** (the one thing to do, and nothing else), **Frames** (everything it has read), **Journey** (what you can do and what the agents did). Reviews are written back into Drive, so the app is optional for reading one.
+**The web** is three screens: **Now** (the one thing to do), **Frames** (everything it has read), **Journey** (the agent's current conclusion about you, the Tendency Profile behind it, and what the agents did). Reviews are written back into Drive, so the app is optional for reading one.
+
+**The camera** (`android/`, Kotlin + CameraX) is the fast half: zebras over blown highlights and a level readout computed on the device at frame rate with no model involved, the open challenge pinned in the viewfinder, and the panel's verdict back in your hand about half a minute after the shutter. Pair it once with a code from the web.
 
 - Docs: [product](docs/product.md) · [domain model](docs/domain-model.md) · [agents](docs/agents.md) · [build plan](docs/build-plan.md) · [codebase rules](AGENTS.md)
 - Stack: Vue 3 (Options API) + Vite + Tailwind PWA · Kotlin + CameraX + Compose (native camera, `android/`) · FastAPI + Google ADK · Firestore + GCS + Pub/Sub + Cloud Scheduler + Secret Manager + Cloud Run
