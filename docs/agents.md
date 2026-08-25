@@ -1,12 +1,11 @@
 # Agents
 
 The implemented agent architecture on Google ADK, written from the code as it is.
-The code still uses the legacy `Experiment`, `Fault`, `TechniqueState`, and score schemas.
-[Product decisions](product-decisions.md) define the target Experiment, Finding,
-Technique Map, and Change language. [Feature list](feature-list.md) tracks the
-migration. This file remains the source for the submission architecture diagram,
-so the diagram must label legacy identifiers before export rather than presenting
-them as finished product language.
+The product vocabulary is locked and the renames are complete: Experiment, Finding,
+Technique Map, Change. What remains legacy in the code is the `skills` storage key,
+`TechniqueState`, and the stored score, which nothing reads. [Domain model](domain-model.md)
+is normative; [feature list](feature-list.md) tracks what is left. This file remains
+the source for the submission architecture diagram.
 
 ## Principles
 
@@ -37,7 +36,8 @@ them as finished product language.
    every lens saw something and no two saw the same thing, rather than averaging three
    opinions into a Verdict nobody held (decision 38). Every legacy Experiment freezes the
    Tendency it was aimed at, the current implementation of the Experiment baseline.
-   `scout.grade_advice` compares counts afterward and records whether behaviour changed
+   `scout.grade_advice` compares counts afterward and records whether comparable
+   behaviour changed, or that it could not be compared at all
    after the advice. It does not claim causation. No model adjudicates either result.
 
 ## Topology
@@ -51,7 +51,7 @@ flowchart LR
   INGD --> AN[Analyst<br/>ADK panel + crop loop + scrub]
   AN --> ANZ[media.analyzed]
   ANZ --> CART[Cartographer<br/>code]
-  CART --> GRADE[Scout.grade_advice<br/>code: did the last challenge move anything?]
+  CART --> GRADE[Scout.grade_advice<br/>code: changed, unchanged, or not enough to say?]
   CART --> JU[Journey Update<br/>code decides, one agent writes]
   ANZ --> JUD[Judge<br/>code + feedback agent]
   JUD --> JUDG[media.judged]
@@ -86,13 +86,15 @@ dead-letter independently.
 | `SequentialAgent` | panel → synthesizer; (planned) designer → writer | deterministic order with shared session state; the synthesizer reads `{technician}`, `{composer}`, `{storyteller}` from state via instruction templates |
 | `InMemoryRunner` per call | all of the above | one runner and one session per attempt; nothing outlives the stage |
 | session `state` seeding | catalogue text, facts, prior readings | `{key}` templates in instructions are filled from state, so prompts are files (`prompts/*.md`) and data is injected, never formatted into them |
-| Python between agents | crop loop, quorum, envelope validation | an `LlmAgent` with `output_schema` cannot take tools, and no agent can inject a rendered image mid-invocation; the loop is a stage's Python, not a `LoopAgent` |
+| Python between agents | crop loop, quorum, envelope validation | no agent can inject a freshly rendered image mid-invocation without an untested `before_model_callback` path, and `LoopAgent` is deprecated in 2.7.1; a bounded two-round Python loop is testable with a number (decision 19) |
 
 Not ADK, on purpose:
 
-- **Scout research** uses the GenAI SDK with `google_search` grounding. Same
-  constraint: a schema'd `LlmAgent` cannot carry tools, so research is one grounded
-  call whose text and citations are handed to the schema'd writer as state.
+- **Scout research** uses the GenAI SDK with `google_search` grounding. Not because
+  ADK forbids the pairing — 2.7.1 supports `output_schema` with tools — but because
+  grounding metadata carries the real source URLs, and `pick_references` needs them:
+  research is one grounded call whose text and citations are handed to the schema'd
+  writer as state, so no reference can be a URL a model invented.
 - **The Coach** is a Gemini Live session (`gemini-live-2.5-flash-native-audio`,
   us-central1) relayed over one WebSocket per frame; the phone never holds a
   credential. Tools are `FunctionDeclaration`s answered by `services/coach.run_tool`
@@ -110,13 +112,13 @@ Not ADK, on purpose:
 | `synthesizer` | `LlmAgent` | the three readings from state | `SynthesisOut` (`synthesis`): critique, elements | Analyst, after the panel | never sees the image |
 | `scrub` | lens, video only | two exact frames pulled by ffmpeg at the Composer's timestamps | `ScrubOut` (`scrub`) | Analyst stage, after the panel | fourth vote on camera-move techniques; rates no elements |
 | `crop_rater` | `LlmAgent` | original + rendered crop | `CropVerdict` (`crop`) | Analyst stage crop loop | ≤ 2 rounds; kept only if composition rose |
-| `judge` (feedback) | `LlmAgent` | verdict facts from code, frame, previous best with its observations | `FeedbackOut` (`feedback`) | Judge stage, after pass/fail is decided in code | writes words; decides nothing |
-| `scout` (writer) | `LlmAgent` | technique, why-now, recent critiques, research text, skills, constraints | `ExperimentOut` (`experiment`): title, brief, criteria text, references | Scout stage, after `rules.choose` and research | criteria bounds come from the taxonomy, not the model |
+| `judge` (feedback) | `LlmAgent` | verdict facts from code, frame, one of their own earlier frames with its observations | `FeedbackOut` (`feedback`) | Judge stage, after pass/fail is decided in code | writes words; decides nothing |
+| `scout` (writer) | `LlmAgent` | technique, why-now, recent critiques, research text, Technique Map, constraints | `ExperimentOut` (`experiment`): title, brief, criteria text, references | Scout stage, after `rules.choose` and research | criteria bounds come from the taxonomy, not the model |
 | `director` (storyboard) | `LlmAgent` | technique + experiment | `Storyboard` (`storyboard`): Veo prompt | Director stage | then Veo 3.1 fast, 6 s vertical with its own audio |
 | `preflight` | `LlmAgent` | experiment's SEEN criteria + 640 px preview | `PreflightOut` (`preflight`): per-check ok + fix | `/drive/preflight`, synchronous, ~8 s | never guesses camera settings |
 | `listener` | `LlmAgent` | Coach transcript | `NotesOut` (`notes`): missing gear, notes | after a Coach session | the post-session fallback for `remember` |
 | `journey` | `LlmAgent` | only measured evidence: counts, exploration, what widened, what became repeatable, keeper lifts | `JourneyOut` (`journey`): one paragraph | Cartographer stage, only when the profile moved | sees no photograph; may not say anything it cannot point at |
-| Coach | Gemini Live, tools `issue_quest`, `remember`, `skill_map` | gridded frame + Analyst read + constraints as the first turn; text and 16 kHz PCM | audio, transcript, tool calls | `/api/live/{shot_id}` | a experiment issued by voice is an ordinary experiment |
+| Coach | Gemini Live, tools `issue_experiment`, `remember`, `technique_map` | gridded frame + Analyst read + constraints as the first turn; text and 16 kHz PCM | audio, transcript, tool calls | `/api/live/{shot_id}` | an experiment issued by voice is an ordinary experiment |
 
 All `LlmAgent`s run `gemini-3.7-flash` on the Vertex global endpoint.
 
@@ -136,11 +138,14 @@ All `LlmAgent`s run `gemini-3.7-flash` on the Vertex global endpoint.
   confidence floor; a technique with bounds cannot pass on vision alone when EXIF is
   present and fails. Only then the feedback agent. Always publishes `media.judged`
   so the Scribe runs once with the outcome.
-- **Cartographer**: `skills.apply_analysis` (pure) → `scout.grade_advice` (did the last
-  challenge move anything?) → `journey.maybe_write` (has the body of work moved enough to
-  be worth a paragraph?). The second and third usually answer no and write nothing;
-  neither can fail the map, which is already stored.
-- **Scout**: skill decay → `tendency.build` over the whole corpus → `rules.choose` (gap,
+- **Cartographer**: `technique_map.apply_analysis` (pure) → `scout.grade_advice` (does
+  comparable behaviour differ since the last Baseline, and is it comparable at all?) →
+  `journey.maybe_write` (has the body of work moved enough to be worth a paragraph?).
+  The second and third usually answer no and write nothing; neither can fail the map,
+  which is already stored.
+- **Scout**: `stale_ids` (which Techniques have been quiet long enough to offer again —
+  a selection question, not a decay; nothing un-observes what the Evidence saw) →
+  `tendency.build` over the whole corpus → `rules.choose` (gap,
   recency, missing gear, *preferring* what pushes against the narrowest dimension — the
   profile reorders the curriculum and never widens it) →
   `rules.why_now` → research (grounded) → writer → `criteria_for` from the taxonomy
@@ -174,7 +179,7 @@ All `LlmAgent`s run `gemini-3.7-flash` on the Vertex global endpoint.
 
 ## What is deliberately not an agent
 
-Ingest (EXIF, ffprobe, grid, contact sheet), Cartographer (skill transitions),
+Ingest (EXIF, ffprobe, grid, contact sheet), Cartographer (Technique Map transitions),
 the Judge's verdict, the Scribe, timing, the crop render, the overlay, the rubric's
 weighted mean, and — from `lighting.md` / `conditions.md` — the sun, the cast, the
 ratio, the edge, `derive`, `fit`, `prep`, the delta thresholds, `light.check`. Each
@@ -223,7 +228,7 @@ sequenceDiagram
   Judge->>Judge: EXIF bounds, vision floor, light checks
   Judge->>Judge: feedback agent (words only)
   Judge->>Scribe: media.judged
-  Scribe->>Drive: Reviewed/✔ name — 7 of 10.jpg
+  Scribe->>Drive: Reviewed/✔ name — backlight.jpg
   Judge->>Scout: experiment.closed (if passed)
   Scout->>Scout: choose, research, designer, writer, timing
   Scout->>Phone: push at the light

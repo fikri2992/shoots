@@ -91,7 +91,7 @@
 
 - Crop loop: the phone frame's suggested crop (A3-G9) was rendered and rated 5 -> 7 ("removes the bamboo pole"), kept; the overlay and Drive review now draw a tested crop.
 - Exposure arithmetic: EV, handheld limit, freeze thresholds and the 500 rule are facts in the Technician's and Judge's prompts. Caught my own error: 1/40 s at 23 mm is *slower* than the 1/46 s limit, which the test now asserts.
-- Judge vs previous best: feedback prompt gets the earlier best frame as Image 2 plus its observations; `compared_with` on the verdict.
+- Judge vs an earlier frame: feedback prompt gets one of the photographer's own earlier frames of the technique as Image 2 plus its observations, chosen by Keeper then corroboration then recency, never by score; `compared_with` on the verdict.
 - Pre-flight: ~8-11 s on a 640 px preview. Front-lit child+dog against the backlight experiment -> "shoot again: move so the sun is behind them"; the backlit frame passes light direction, fails rim light with a fix.
 - Scrub lens: `pan` on the camper-van clip went from composer-only 0.55 to x3 at 0.87 with the scrub confirming on exact frames; `static_tripod` x4 on the locked-off clip. Contact-sheet lenses take 20-30 s each on video; the scrub adds ~16 s.
 - Coach tools over Gemini Live function calling: "only my phone, no tripod, something else to shoot here" -> `remember` then `issue_quest` -> "Fill the entire frame" issued by voice, no tripod needed. Turn takes ~46 s because the Scout runs inside the tool call.
@@ -104,7 +104,7 @@ Walked every screen in Chrome at phone and desktop width as a first-time user. F
 Rebuilt around one decision per screen:
 
 - **Now** — connect / seed / reading / experiment / idle, one at a time. `QuestHero` is media-first, criteria as sentences, `How to shoot it` / `Why the Scout picked this` / `What it read` behind disclosures, Shoot + Skip pinned above the tab bar.
-- **Frames** — one grid, newest ingest first, score and state on the tile, `Add frames` for anything outside a experiment.
+- **Frames** — one grid, newest ingest first, score and state on the tile, `Add frames` for anything outside an experiment.
 - **Frame** — sticky media with `read` / `grid` toggles, verdict and moves in the open, observations deduped across lenses and cell refs stripped from prose, evidence and camera behind disclosures, Drive link in the footer.
 - **Journey** — six skill bars that open into chips, past experiments, and the agent log condensed (identical consecutive lines fold into `×N`).
 - **Coach** — a sheet over the frame, text-first, mic opt-in, opened with the question the user clicked.
@@ -180,7 +180,7 @@ The result:
 - Product question: "What patterns keep appearing across my Shots, and can I deliberately reproduce the ones present in my Keepers?"
 - Work: detect a Tendency, offer one personal Experiment, then leave an Experiment Record and Journey Update showing what changed.
 - Honesty: measurements, model opinion, and photographer signals stay separate. Keeper is positive-only. Unmarked means unknown.
-- Vocabulary: Experiment replaces Experiment, Finding replaces Fault, Technique Map replaces skill graph, and Change replaces unsupported Progress. Eye remains pitch language, not a metric.
+- Vocabulary: Experiment replaces Quest, Finding replaces Fault, Technique Map replaces skill graph, and Change replaces unsupported Progress. Eye remains pitch language, not a metric.
 - Experiment types: Explore, Reproduce, and Compare.
 - Agent depth: versioned domain code owns thresholds, Criteria, corroboration, vetoes, comparability, and Change. Models interpret and write. The system must refuse, remember, plan, escalate selectively, and grade its own advice.
 - Pitch: "Learn to see like yourself." One-liner: "Shoots learns from every Shot, offers one personal Experiment, and tracks what changes."

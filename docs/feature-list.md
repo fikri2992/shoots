@@ -19,14 +19,14 @@ These features make the one-liner true and make the completed work visible.
 | P0.1 | Tendency Profile | built | Pure code recomputes dimension counts, exploration, dwell, and named blind spots from stored Shot measurements. |
 | P0.2 | Positive-only Keeper signal | built | `kept_at` and absence are distinct; unmarking returns a Shot to unknown. Concentration is marks over shots taken, so an unmarked Shot is only ever exposure. Sparse samples stay silent. |
 | P0.3 | Technique Map | built | The UI and API use `unobserved`, `observed`, and `recurring`. Corroborated Evidence moves state. Scores do not. |
-| P0.4 | Explore Experiment | partial | Scout creates one Experiment from a cited Tendency, freezes its baseline, declares Criteria, accepts results, and records a Verdict. No user-facing Experiment language remains. |
-| P0.5 | Experiment Change check | partial | Current code freezes counts and records whether they moved, but still needs explicit comparability and `insufficient evidence` states. It must not claim causation. |
+| P0.4 | Explore Experiment | built | Scout creates one Experiment from a cited Tendency, freezes its Baseline with provenance, records its type, declares Criteria, accepts results, and records a Verdict that answers Criteria only. A Baseline is frozen only where the Tendency actually chose the Technique. The record is readable on the card and on the Journey. No user-facing Quest or grading language remains. |
+| P0.5 | Experiment Change check | built | `Change` is `changed`, `unchanged`, or `insufficient evidence`, with a `Comparability` saying why. Minimum shots, minimum scenes, a `CALC_VERSION` bump, an unknown dimension and a missing sample are told apart; only a sample that can still grow is re-checked. Frames taken and frames the dimension could read are counted separately. No outcome sentence claims causation, and a test holds that. |
 | P0.6 | Journey Update | built | A meaningful profile difference creates one update from supplied figures. The first update does not compare against an empty history, and the copy avoids unsupported improvement. |
 | P0.7 | Claim provenance | built | `Provenance` on every Journey Update: Shot ids, sample size, `CALC_VERSION`, and model plus prompt digest only where a model wrote words. Grading refuses to compare baselines across a version bump. |
-| P0.8 | Score removal | built | No score on the phone, web, reviewed filename, caption, Journey, Coach prompt, Judge prompt or user-facing API. It no longer chooses the previous-best comparison either. Stored and read by nothing. |
+| P0.8 | Score removal | built | No score on the phone, web, reviewed filename, caption, Journey, Coach prompt or tools, Judge prompt, activity events, or any user-facing API — the read API names its fields rather than publishing the entity. It no longer chooses the comparison frame either. Stored and read by nothing; `tests/test_surfaces.py` drives the real endpoints to hold it. |
 | P0.9 | Vocabulary migration | built | Quest is now Experiment (Pub/Sub topics included), Fault is now Finding, and the skill graph is the Technique Map with three states. Events, schemas, UI, prompts, docs and stored data agree; `scripts/migrate_vocabulary.py` moves an old store and is idempotent. |
 | P0.10 | Android Shot to pipeline | built | A paired phone captures a Shot, uploads through the same ingest path, sends pitch, and receives a praise-first pulse. |
-| P0.11 | Evidence-first pulse | partial | The pulse leads with the strongest corroborated Technique and its proof, then one Finding. It never says Keeper unless the photographer marked it. |
+| P0.11 | Evidence-first pulse | partial | The pulse leads with the strongest corroborated Technique and its proof, then one Finding. It never says Keeper unless the photographer marked it, and the keeper button now reflects what the server took rather than latching optimistically. |
 | P0.12 | Agent desk | partial | One screen shows Shot arrival, measurements, panel reads, abstention or veto, Technique Map update, Experiment selection, Verdict, and Change check in order. |
 | P0.13 | Real-agent quality gate | partial | The existing `backend/scripts/check_*.py` runs against a small labelled set with expected claims, allowed abstentions, false-positive counts, and saved results. |
 | P0.14 | Cloud deployment | needed | The exact demo build runs on Google Cloud. Pub/Sub retries and idempotency are visible. The deployed revision and health check are recorded. |
@@ -100,7 +100,7 @@ If P0 is unstable, C3 through C10 wait. The Companion is the first fallback cut.
 
 1. ~~Fix Keeper semantics and migrate product vocabulary.~~ Done 2026-08-25.
 2. ~~Remove user-facing scores and add claim provenance.~~ Done 2026-08-25.
-3. Polish the existing Explore Experiment through Experiment Record and Journey Update.
+3. ~~Polish the existing Explore Experiment through Experiment Record and Journey Update.~~ Done 2026-08-25.
 4. Deploy and record the continuous P0 demo.
 5. Add one Companion capability, the summonable one-move Coach.
 6. Add Reproduce Experiment.

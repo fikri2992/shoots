@@ -6,7 +6,7 @@ code measures and derives, agents decide between trade-offs, code verifies.
 
 ## Why it belongs in the loop
 
-A experiment is an appointment with the sky. The sun's position is certain; what the sky
+An experiment is an appointment with the sky. The sun's position is certain; what the sky
 does with it is not: 85 % cloud cancels golden hour, haze kills backlight and makes
 the sunset redder, rain makes reflections and ruins the phone. And the person is out
 in it: 34 °C that feels like 39 °C is a 40-minute shoot, not a 2-hour one; a phone

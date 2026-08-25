@@ -55,12 +55,12 @@ the exact camera moment.
 | Planning | Pure ranking selects an unlocked Technique using prerequisites, level, family coverage, recent Experiments, decay, and missing gear. Gemini Search grounds the brief and references. Solar arithmetic picks delivery time from the Technique's light window and the user's last Shot location. | `backend/app/domain/scout.py`; `backend/app/services/scout.py:42-101` |
 | Persistent memory | TechniqueState stores per-Technique attempts, corroboration, status, scores, and recent Shot ids. User constraints, Experiments, Verdicts, and ActivityEvents persist separately. | `backend/app/domain/technique_map.py`; `backend/app/domain/entities.py` |
 | Verification | Pure code checks fixed EXIF bounds and required vision Evidence. Missing EXIF cannot pass an EXIF-dependent Experiment. Gemini writes feedback but cannot change pass or fail. Only Judge closes a passed Experiment. | `backend/app/domain/judge.py`; `backend/app/services/judge.py:31-101` |
-| External action | Scribe uploads or updates an annotated reviewed Shot in `Shoots/Reviewed/`. Scout sends a push and Director can add a reference clip. Coach can issue a Experiment, remember constraints, and read the skill graph. | `backend/app/services/scribe.py:134-194`; `backend/app/services/coach.py:73-145` |
+| External action | Scribe uploads or updates an annotated reviewed Shot in `Shoots/Reviewed/`. Scout sends a push and Director can add a reference clip. Coach can issue an Experiment, remember constraints, and read the Technique Map. | `backend/app/services/scribe.py:134-194`; `backend/app/services/coach.py:73-145` |
 | Adaptation | A pass closes the Experiment and triggers the next one. A failed attempt appends a Verdict and leaves the same Experiment open. There is no failure classification or bounded replan yet. | `backend/app/services/judge.py:70-101`; `backend/app/services/scout.py:193-194` |
 
 The strongest design decision is authority separation. Models interpret and
 write. Code owns taxonomy, measurement, progression, and Verdict. The system
-does not let the model that helps create a Experiment decide whether the Experiment
+does not let the model that helps create an Experiment decide whether the Experiment
 passed.
 
 ## Closest systems
