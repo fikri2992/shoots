@@ -4,6 +4,8 @@
 
 The ubiquitous language. If a word is not here, it is not a thing.
 
+The product language below was locked on 2026-08-25. Existing code and stored data still contain the legacy identifiers `Quest`, `Fault`, `SkillState`, `quest.*`, and a 1 to 10 score. They are migration debt tracked in [feature list](feature-list.md), not approved names for new APIs, prompts, or UI copy. The numbered history retains some legacy identifiers where it describes the implementation that existed at the time. Decisions 41 through 48 supersede that language wherever they conflict.
+
 
 
 ## The loop
@@ -16,23 +18,25 @@ Shoots is an event-driven control loop, the shape that won 2026 agentic hackatho
 
 ```
 
-Drive folder changes                       (watch)
+Drive folder or camera receives a Shot      (watch)
 
-  → Ingest    pulls the file, reads EXIF/ffprobe, draws the grid, tiles video frames
+  → Ingest    reads the file, EXIF, Tone, Motion, grid, and video frames
 
-  → Analyst   reads the gridded frame: techniques seen, composition, critique   (diagnose)
+  → Analyst   produces measured and visual Evidence, Findings, and a reading     (diagnose)
 
-  → Cartographer  updates the skill graph                                       (act: system of record)
+  → Cartographer  updates the Technique Map and Tendency Profile                 (remember)
 
-  → Judge     if the shot answers an open quest: checks criteria, closes it     (verify)
+  → Scout     selects one personal Experiment and freezes its baseline           (plan)
 
-  → Scout     daily, or right after a quest closes: finds the gap, researches,
+  → Companion adapts the active Experiment to the current Scene when useful      (assist)
 
-              writes the next quest, generates a reference clip, emails it      (act)
+  → Judge     checks the result against declared Criteria                        (verify)
 
-  every step  → ActivityEvent                                                   (audit trail)
+  → Cartographer recomputes comparable behaviour; Journey records the Change     (learn)
 
-  the user    → may skip a quest; that is the only thing they ever have to do   (human gate)
+  every step  → ActivityEvent                                                    (audit trail)
+
+  the user    → shoots; Keeper and Intent are optional                           (human signal)
 
 ```
 
@@ -54,9 +58,9 @@ Drive folder changes                       (watch)
 
 
 
-**Fault.** Something wrong with a shot, decided by arithmetic in `domain/faults.py` and never by a model. The mirror of Evidence: Evidence says what the frame achieved and carries a confidence because a lens saw it; a Fault says what the frame gets wrong and carries the figure it was computed from. There are six: camera shake, no centre of interest, a horizon that splits the frame, a subject on no line, highlights blown to white, an uncorrected colour cast. The list is closed like the technique catalogue. A Fault is excused by the technique the panel agreed on — a two-second light trail is not camera shake — which is why detection runs after the vote.
+**Finding.** One checkable issue or observation about a Shot. A measured Finding carries the figure and rule that produced it. A model Finding stays labelled as opinion. A Finding may be excused by corroborated Technique Evidence or explicit Intent. The legacy implementation calls measured Findings `Fault`.
 
-**Analysis.** Everything the Analyst said about one shot: evidence list, faults, composition read (subject cells, horizon row, suggested crop, moves), a critique paragraph, a 1-10 score.
+**Analysis.** Everything recorded about one Shot: Evidence, Findings, composition read, measured facts, model observations, and critique. The legacy schema still carries a 1 to 10 score pending removal. The score is model opinion and may not drive the Technique Map, Journey, Keeper, or any claim of Change.
 
 
 
@@ -68,11 +72,11 @@ Drive folder changes                       (watch)
 
 **Motion.** How the camera itself travelled, measured between consecutive frames in `imaging/motion.py` and read in `domain/motion.py`. Signed drift in frame widths, the mean and largest step, direction reversals and the share of steps that did not move.
 
-**Skill graph.** One SkillState per (user, technique). Status: unexplored → attempted → practiced → solid, and solid → rusty after `skill_decay_days` without practice. Carries attempts, corroborated attempts, best confidence, best score, last score, last practiced, recent shot ids. Status is moved by *corroborated* attempts — two lenses agreeing at 0.75 or better — and never by the frame's score, which belongs to the whole photograph and not to any one technique in it (decision 33).
+**Technique Map.** One longitudinal record per photographer and Technique. Its user-facing states are `unobserved`, `observed`, and `recurring`. Corroborated Evidence moves the state. Time alone does not turn a Technique into a flaw, and model scores move nothing. The legacy implementation stores this as `SkillState` with `unexplored`, `attempted`, `practiced`, `solid`, and `rusty` states.
 
 
 
-**Quest.** A request to shoot one technique, issued by the Scout. Has a title, a brief (how to do it, grounded in real references found by search), *why now* (the gap reasoning), criteria, up to three references with URLs, and a Veo reference clip. Status: open → passed | failed | skipped | expired.
+**Experiment.** One bounded thing to try, selected by Scout from the photographer's record. It has a type, reason, frozen baseline, Criteria, optional reference, results, Verdicts, and a post-Experiment Change. Its type is `explore`, `reproduce`, or `compare`. Status is `open`, `completed`, `skipped`, or `expired`. A failed result does not close an Experiment unless its design says one attempt is sufficient. The legacy implementation calls this `Quest` and currently supports only the Explore shape.
 
 
 
@@ -80,11 +84,31 @@ Drive folder changes                       (watch)
 
 
 
-**Verdict.** The Judge's result for one submitted shot against one quest: per-check pass/fail, per-tag confidence, feedback text. A quest can hold several verdicts; the first passing one closes it.
+**Verdict.** The Judge's result for one submitted Shot against one Experiment's declared Criteria. It records each check, relevant confidence, abstention, and feedback. It says whether the Criteria were met, never whether the Shot is good or the photographer improved.
 
 
 
 **ActivityEvent.** One durable record per agent step. The live feed (SSE) is a view of these; Firestore is the truth.
+
+**Scene.** One photographic situation at one place and time containing one or more Shots. Scene membership must come from capture continuity or explicit grouping, not visual similarity alone.
+
+**Tendency.** A neutral repeated pattern across Shots. It describes a distribution or low-variance dimension and carries its Shot set, count, blind spots, and calculation version. It does not imply a problem or Intent.
+
+**Keeper.** A Shot the photographer positively marks as valued. Unmarked means unknown, not rejected. A Keeper is the only direct taste signal in v1 and never changes Criteria or Technique Map state.
+
+**Change.** A measured difference between comparable earlier and later behaviour. Change may be `changed`, `unchanged`, or `insufficient evidence`. It is not automatically improvement and does not prove an Experiment caused it.
+
+**Experiment Record.** The durable record of one Experiment's reason, type, frozen baseline, Criteria, results, Verdicts, and Change. It is the checkable artifact left by the Scout and Judge loop.
+
+**Journey Update.** The evidence-backed longitudinal conclusion written when the photographer's record meaningfully changes. Each clause cites measured Evidence, corroboration, or an explicit photographer signal.
+
+**Intent.** The photographer's optional statement of what they are trying to make in a Shot, Scene, or Experiment. Inferred purpose is model opinion. Explicit Intent may excuse a conflicting Finding or local camera warning.
+
+**Companion.** The quiet camera-side agent. It adapts the active Experiment to the Scene, answers when summoned, and may offer a rare high-value interjection. It is not the photographer and does not control the shutter.
+
+**Scene Probe.** A temporary low-resolution capture used to inspect or compare the current Scene. It is discarded unless the photographer explicitly saves it as a Shot. It never enters the Technique Map, Tendency Profile, or Journey by itself.
+
+**Inspiration.** Optional sourced reference material attached to an Experiment. It may help the photographer explore, but it is not an Experiment, an artifact of completed work, or a reason to generate media by default.
 
 
 
@@ -96,27 +120,27 @@ Drive folder changes                       (watch)
 
 |---|---|---|---|---|
 
-| Ingest | `media.new` | Drive file | Shot, blobs, Tone, Motion | none (ffmpeg, Pillow, numpy) |
+| Ingest | `media.new` | Drive file or camera upload | Shot, blobs, Tone, Motion | none (ffmpeg, Pillow, numpy) |
 
-| Analyst | `media.ingested` | gridded frame, clean frame, EXIF | Analysis: voted evidence, rubric elements, computed score, observations, critique | gemini-3.7-flash × 4: a ParallelAgent of three lenses (Technician, Composer, Storyteller) then a Synthesizer, in a SequentialAgent |
+| Analyst | `media.ingested` | gridded frame, clean frame, EXIF | Analysis with voted Evidence, Findings, observations, and critique | gemini-3.7-flash × 4: three parallel lenses then a Synthesizer |
 
-| Cartographer | `media.analyzed` | Analysis, SkillStates | SkillStates | none (pure) |
+| Cartographer | `media.analyzed` | Analysis, Technique Map, Tendency Profile | Technique Map, Tendency Profile, Change, Journey trigger | none (pure) |
 
-| Judge | `media.analyzed` | Analysis, Quest | Verdict, Quest status, `media.judged` always, `quest.closed` on pass | gemini-3.7-flash (feedback only; pass/fail is pure) |
+| Judge | Experiment result analysed | Analysis, Experiment | Verdict and Experiment result state | gemini-3.7-flash for feedback only; checks are pure |
 
-| Scout | daily tick, `quest.closed` | skill graph, taxonomy, user location | Quest with `deliver_at`, push when due, `quest.issued` | gemini-3.7-flash + Search grounding |
+| Scout | first profile, scheduled tick, completed Experiment | Technique Map, Tendency Profile, Keeper signals, constraints | one Experiment with reason, baseline, Criteria, and delivery time | gemini-3.7-flash + Search grounding where a reference is useful |
 
-| Director | `quest.issued` | Quest, technique | reference clip blob on the Quest | gemini-3.7-flash (storyboard), veo-3.1-fast |
+| Director | legacy `quest.issued` | legacy Quest and Technique | optional generated reference clip | gemini-3.7-flash, veo-3.1-fast; outside the core product |
 
-| Scribe | `media.judged` | annotated frame, Analysis, Verdict | the reviewed copy in the user's Drive (`Shoots/Reviewed/`) | none (Pillow) |
+| Scribe | `media.judged` | annotated frame, Analysis, Verdict | reviewed copy in the user's Drive | none (Pillow) |
 
-| Coach | a tap on the shot page (WebSocket) | gridded frame, Analysis, Quest, the user's constraints | ActivityEvent with the transcript; the Listener turns what the user said into `User.constraints` | gemini-live-2.5-flash-native-audio; gemini-3.7-flash (Listener) |
+| Coach | Companion summon | current Scene preview, active Experiment, measurements, explicit memory | one move, one question, or silence; ActivityEvent transcript | gemini-live-2.5-flash-native-audio; gemini-3.7-flash Listener |
 
-| Scheduler | Cloud Scheduler | Users | renews Drive channels, expires quests, triggers Scout | none |
+| Scheduler | Cloud Scheduler | photographers and open Experiments | renews Drive channels, expires Experiments, triggers Scout | none |
 
 
 
-Cartographer and Judge pass/fail are pure code. That is deliberate: the skill graph and quest outcomes must be reproducible from stored data, and a model must not be able to pass its own quest.
+Cartographer and Judge state changes are pure code. The Technique Map, Criteria checks, and Change records must be reproducible from stored data. A model cannot pass its own Experiment or call its suggestion an improvement.
 
 
 
@@ -203,3 +227,19 @@ Cartographer and Judge pass/fail are pure code. That is deliberate: the skill gr
 39. **Four words, kept apart: Tendency, Progress, Journey Update, Verdict.** A **Tendency** is a repeated, evidence-backed pattern across Shots — neutral, never automatically good or bad. **Progress** is change over time in one of the three things the system can honestly measure: exploration (variance widening across decision-space dimensions), reliability (a Technique corroborated again under decision 33), and change itself (the recent distribution against the earlier one). A **Journey Update** is the finished artifact of the whole product: the agent's current conclusion about the photographer, in one paragraph — what they consistently notice, which Techniques have become repeatable, how the recent work differs from the earlier work, and one optional direction to explore — every clause anchored to a count or a corroboration, produced when the profile meaningfully moves, not on a schedule. A **Verdict** stays what it has always been: pass or fail against one Quest's criteria, and nothing else inherits the word. What no vocabulary may claim: artistic improvement. The system can say "you changed" with arithmetic; it can say "you improved against your own taste" only where Keeper marks (decision 40) supply the taste; and it can never say "you improved" on the model's score alone, because decision 33 already established the score measures nothing per-technique and one number cannot carry a person.
 
 40. **The Keeper: one optional tap, and the only source of taste.** The photographer may mark any Shot a Keeper — from the phone gallery or the web grid, one tap, never asked for, never required. It is the single personal-preference signal in the system, and it is what separates "you do this often" (frequency, which the profile measures) from "this is what you value" (taste, which nothing else can supply — the panel's score is the model's taste and is never presented as the photographer's). With Keepers, the Tendency Profile gains its most personal sentences: keeper rate correlated against each dimension, and the divergence between what is done often and what is kept — "you take low angles 7% of the time and keep them at three times your average rate." Without Keepers everything still works and the Journey Update simply says less; sparse marking is expected and the correlations state their n. A Keeper is not a score, feeds no promotion (decision 33's corroboration bar is untouched), and is never second-guessed: a kept photograph of the photographer's dog is taste, not noise.
+
+41. **The audience is the self-directed post-beginner hobbyist.** They have enough Shots for patterns to exist, already understand basic advice, lack a recurring mentor, and cannot tell development from luck. They want Keepers, proof of Change, an emerging identity, and an enjoyable practice. The product must not become school. This supersedes any professional workflow framing.
+
+42. **The product answers a longitudinal question.** The canonical question is: "What patterns keep appearing across my Shots, and can I deliberately reproduce the ones present in my Keepers?" "Why are my Shots boring?" may introduce the problem, but Shoots cannot prove boringness. It can prove recurring behaviour and Change across comparable Shots.
+
+43. **Experiment replaces Quest.** One active Experiment at a time preserves focus, but no daily cadence is mandatory. An Experiment is `explore`, `reproduce`, or `compare`. Explore widens an underused dimension. Reproduce tests whether a Keeper-associated pattern can be made deliberately. Compare changes one variable and asks for an optional photographer preference. Criteria and baseline are fixed before results arrive. The current `Quest` schema is the migration source, not the final domain.
+
+44. **The work leaves an Experiment Record and a Journey Update.** Advice text is insufficient. The Experiment Record preserves its Tendency or Keeper reason, frozen baseline, Criteria, results, Verdicts, and Change. The Journey Update states what repeats, what became repeatable, and what changed, with source Evidence for every clause.
+
+45. **Keeper is positive-only.** `kept` means valued. `unknown` means the photographer supplied no taste signal. Unknown Shots cannot become negative examples or the denominator of a preference claim. A future explicit rejection signal would be a separate domain concept and does not exist. This supersedes decision 40 wherever its rate calculation treats every unmarked Shot as not valued.
+
+46. **Technique Map and Change replace ability language.** The user-facing states are `unobserved`, `observed`, and `recurring`. `solid`, `rusty`, level-up language, and the 1 to 10 score leave product surfaces. `Change` replaces `Progress` unless an explicit photographer goal and preference signal define what progress means. A Verdict answers Criteria only.
+
+47. **The camera is a quiet Companion.** It adapts the active Experiment to the current Scene. Local measurements stay fast and deterministic. Weather, temperature, current light, and place facts appear only when they affect the Experiment or the photographer asks. The Companion speaks on summon and otherwise stays silent except for a rare high-value opportunity. The photographer controls the shutter. A Scene Probe is temporary and excluded from every longitudinal record unless explicitly saved as a Shot. Explicit Intent may mute a conflicting warning. Hidden location history and the internal cell grid never reach the user.
+
+48. **Agent depth follows from the honesty problem.** A hobbyist cannot audit an AI critic, so the critic audits itself. Versioned domain code and Technique playbooks own thresholds, Criteria, corroboration, vetoes, state changes, comparability, and retirement rules. Prompts own visual interpretation and language. The system may refuse, escalate a consequential ambiguity, plan, remember explicit signals, and grade whether comparable behaviour changed after its advice. It never claims causation or artistic improvement from that Change.

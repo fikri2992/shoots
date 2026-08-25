@@ -6,7 +6,7 @@ from pydantic import BaseModel
 from app.api.auth import current_user
 from app.api.deps import get_context
 from app.domain import tendency
-from app.domain.entities import ActivityEvent, Analysis, JourneyUpdate, Shot, User
+from app.domain.entities import ActivityEvent, Analysis, JourneyUpdate, Shot, User, now
 from app.infra import repository as repo
 from app.infra.storage import content_type_for, user_prefix
 from app.services import journey as journey_service
@@ -50,6 +50,8 @@ async def get_shot(
 
 
 class KeeperIn(BaseModel):
+    """``true`` marks the Shot valued; ``false`` returns it to unknown."""
+
     keeper: bool
 
 
@@ -62,16 +64,21 @@ async def set_keeper(
 ):
     """One optional tap: the photographer marks a shot worth keeping.
 
-    The only taste signal in the system (decision 40). It separates "you do
-    this often", which the Tendency Profile measures on its own, from "this is
-    what you value", which nothing else here can supply. It is not a score, it
-    promotes nothing, and it is never second-guessed.
+    The only taste signal in the system. It separates "you do this often",
+    which the Tendency Profile measures on its own, from "this is what you
+    value", which nothing else here can supply. It is not a score, it promotes
+    nothing, and it is never second-guessed.
+
+    Positive only (decision 45): unmarking clears the mark and returns the Shot
+    to *unknown*. It does not record a rejection, because the photographer did
+    not give one - and a hobbyist who marks four frames out of two hundred has
+    not disliked the other hundred and ninety-six.
     """
     shot = await repo.find_shot(ctx.store, shot_id)
     if shot is None or shot.user_id != session_user["id"]:
         raise HTTPException(404, "shot not found")
-    if shot.keeper != body.keeper:
-        shot.keeper = body.keeper
+    if bool(shot.kept_at) != body.keeper:
+        shot.kept_at = now() if body.keeper else None
         await repo.put_shot(ctx.store, shot)
         await repo.record(
             ctx.store,

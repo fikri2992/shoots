@@ -168,3 +168,31 @@ Leaning, then what became theirs, then one direction offered. Every clause ancho
 **Voice.** The review used to open with the defect, which was right for a critic and wrong for a hobbyist. Praise leads now, and has to clear the same bar as everything else: only a corroborated sighting names the file.
 
 Left undone, deliberately: the agent's-desk polish, the before/after Journey hero, escalation, the learner model, Scene-as-unit, intent, graduation, the study step, and the summonable in-viewfinder coach.
+
+## Day 11 notes (2026-08-25), the product interrogation locked
+
+No feature code. The product went through nine adversarial questions: audience, mechanism, work accomplished, honesty, vocabulary, agent depth, pitch, refusals, and win risk.
+
+The result:
+
+- Audience: the self-directed post-beginner hobbyist, not a professional and not a beginner following a course.
+- Problem: "I cannot see how my eye is developing." The Evidence is distributed across many Shots, so one-Shot critique and generic advice cannot answer it.
+- Product question: "What patterns keep appearing across my Shots, and can I deliberately reproduce the ones present in my Keepers?"
+- Work: detect a Tendency, offer one personal Experiment, then leave an Experiment Record and Journey Update showing what changed.
+- Honesty: measurements, model opinion, and photographer signals stay separate. Keeper is positive-only. Unmarked means unknown.
+- Vocabulary: Experiment replaces Quest, Finding replaces Fault, Technique Map replaces skill graph, and Change replaces unsupported Progress. Eye remains pitch language, not a metric.
+- Experiment types: Explore, Reproduce, and Compare.
+- Agent depth: versioned domain code owns thresholds, Criteria, corroboration, vetoes, comparability, and Change. Models interpret and write. The system must refuse, remember, plan, escalate selectively, and grade its own advice.
+- Pitch: "Learn to see like yourself." One-liner: "Shoots learns from every Shot, offers one personal Experiment, and tracks what changes."
+- Camera: a quiet Companion for the active Experiment. Context must be photographically relevant. The user controls the shutter. Scene Probes are temporary and never enter the Journey unless saved.
+- Refusals: no score, skill tree, constant narration, social feed, editor, generated-Inspiration dependency, hidden location history, or generic camera replacement.
+- Win risk: idea risk medium, execution risk high. The chief failure would be centring a chatty camera demo and hiding the longitudinal Taskmaster loop.
+
+Documentation changed:
+
+- `product.md` is the current brief.
+- `product-decisions.md` preserves the reasoning and open decisions.
+- `feature-list.md` separates P0 proof, the longitudinal coach, the Companion, later identity work, and forbidden features.
+- `domain-model.md` decisions 41 through 48 supersede the old product language while naming the current code migration honestly.
+
+Recommended next proof, not implementation authorization: deploy one stable continuous run from Shot history through personal Experiment, Verdict, Change, and Journey Update before adding new Companion intelligence.

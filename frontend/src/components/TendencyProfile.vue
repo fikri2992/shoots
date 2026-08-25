@@ -65,7 +65,7 @@ export default {
             </span>
             <span class="w-8 shrink-0 text-right t-meta">{{ b.count || '—' }}</span>
             <span v-if="b.keeper_lift" class="w-16 shrink-0 text-right t-meta" :class="b.keeper_lift >= 1.5 ? 'text-accent' : 'text-neutral-600'">
-              keep ×{{ b.keeper_lift }}
+              kept ×{{ b.keeper_lift }}
             </span>
           </li>
         </ul>
@@ -77,7 +77,7 @@ export default {
     </ul>
 
     <p v-if="!profile.taste_is_known" class="mt-6 t-meta text-neutral-500">
-      Mark a few frames as keepers and this can also show what you tend to keep, not only what you tend to shoot.
+      Mark a few frames you like and this can also show where your keepers gather, not only where your shooting does. Leaving a frame unmarked says nothing about it.
     </p>
 
     <div v-if="unread.length" class="mt-6">

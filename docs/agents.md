@@ -1,8 +1,12 @@
 # Agents
 
-The agent architecture, on Google ADK. Written 2026-08-23 from the code as it is,
-plus the three agents `lighting.md` and `conditions.md` add. This is the source for
-the architecture diagram the submission requires.
+The implemented agent architecture on Google ADK, written from the code as it is.
+The code still uses the legacy `Quest`, `Fault`, `SkillState`, and score schemas.
+[Product decisions](product-decisions.md) define the target Experiment, Finding,
+Technique Map, and Change language. [Feature list](feature-list.md) tracks the
+migration. This file remains the source for the submission architecture diagram,
+so the diagram must label legacy identifiers before export rather than presenting
+them as finished product language.
 
 ## Principles
 
@@ -21,18 +25,20 @@ the architecture diagram the submission requires.
    measurement settles a question it does not merely inform the vote, it *wins* it:
    `panel.aggregate` takes `settled_against` as a veto and `settled_for` as a
    corroborating vote at confidence 1.0 (decision 34).
-4. **Decide in code, write in the model.** Pass/fail, scores, rankings, slots and
-   diffs are deterministic; a model turns a decision into words or chooses between
-   options code has already bounded.
+4. **Decide in code, write in the model.** Criteria checks, rankings, slots, and
+   profile differences are deterministic. A model turns a decision into words or
+   chooses between options code has already bounded. The deterministic legacy score
+   remains implementation debt and is not a product claim.
 5. **Fresh session per call.** No conversational memory between stages. Memory is
-   the store (Firestore / `store.json`): skill states, constraints, analyses, tendency
-   counts, Journey Updates. A retry never inherits half-written state.
+   the store (Firestore / `store.json`): Technique Evidence, constraints, analyses,
+   Tendency counts, Experiment history, and Journey Updates. A retry never inherits
+   half-written state.
 6. **An agent may refuse, and is graded.** `panel.aggregate` returns an abstention when
    every lens saw something and no two saw the same thing, rather than averaging three
-   opinions into a verdict nobody held (decision 38). And every quest freezes the
-   tendency it was aimed at, so `scout.grade_advice` can compare counts against counts
-   afterwards and record whether the advice changed any behaviour (decision 37). Both
-   are arithmetic; no model adjudicates either.
+   opinions into a Verdict nobody held (decision 38). Every legacy Quest freezes the
+   Tendency it was aimed at, the current implementation of the Experiment baseline.
+   `scout.grade_advice` compares counts afterward and records whether behaviour changed
+   after the advice. It does not claim causation. No model adjudicates either result.
 
 ## Topology
 
@@ -175,7 +181,10 @@ ratio, the edge, `derive`, `fit`, `prep`, the delta thresholds, `light.check`. E
 of these was a candidate for a model call and is a function because a function is
 testable with a number and a model is not.
 
-## The three agents being added
+## Legacy lighting proposal, not current backlog
+
+The following proposal predates the locked product and is not in the current
+[feature list](feature-list.md). Do not build it before the P0 longitudinal loop.
 
 | agent | kind | bounded by | returns | stage |
 |---|---|---|---|---|

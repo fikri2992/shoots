@@ -129,7 +129,7 @@ object Api {
         } else {
             ""
         }
-        Pulse(praise = praise, fault = fault, keeper = shot.optBoolean("keeper", false))
+        Pulse(praise = praise, fault = fault, keeper = !shot.optString("kept_at").isNullOrEmpty())
     }.getOrNull()
 
     fun setKeeper(context: Context, shotId: String, keeper: Boolean): Boolean = runCatching {

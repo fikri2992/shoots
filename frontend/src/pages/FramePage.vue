@@ -174,7 +174,7 @@ export default {
     async keep() {
       this.keeping = true
       try {
-        await this.setKeeper(this.shotId, !this.shot.keeper)
+        await this.setKeeper(this.shotId, !this.shot.kept_at)
       } finally {
         this.keeping = false
       }
@@ -209,12 +209,12 @@ export default {
           <button
             type="button"
             class="absolute bottom-3 left-3 rounded-full bg-black/70 px-3 py-1 t-num text-[11px]"
-            :class="shot.keeper ? 'text-accent' : 'text-neutral-500'"
+            :class="shot.kept_at ? 'text-accent' : 'text-neutral-500'"
             :disabled="keeping"
-            :title="shot.keeper ? 'One you would keep' : 'Would you keep this one?'"
+            :title="shot.kept_at ? 'One you would keep' : 'Would you keep this one?'"
             @click="keep"
           >
-            {{ shot.keeper ? 'kept' : 'keep' }}
+            {{ shot.kept_at ? 'kept' : 'keep' }}
           </button>
         </div>
 

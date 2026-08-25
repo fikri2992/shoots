@@ -1,20 +1,22 @@
 # Shoots
 
-Photography apps judge single shots. Shoots remembers all of yours and shows how your eye is changing.
+Learn to see like yourself.
 
-You shoot. It reads every photo — from your Google Drive folder or from its own camera — measures about forty things about each one, and keeps the record no photographer can keep about themselves: what you tend to shoot, what has become reliable, what you never try, and whether any of that has moved since last month. From that it writes you a challenge, cites the counts that earned it, judges what you bring back, and afterwards checks whether its own advice changed anything.
+Shoots learns from every Shot, offers one personal Experiment, and tracks what changes.
 
-It is built for the hobbyist rather than the professional, so it describes before it corrects, and it says plainly what it cannot see. Quality is an opinion; behaviour is measurable — every number it shows can be re-derived from the file it came from.
+It is built for the self-directed hobbyist who has enough Shots for patterns to exist but no mentor who remembers the whole archive. Shoots measures each Shot, updates a Tendency Profile and Technique Map, chooses one Experiment, freezes the Criteria, and later records what changed. Quality is an opinion. Behaviour is measurable.
+
+A model may interpret a Shot. Only the photographer supplies Intent, Keeper preference, and the signal that a Change was an improvement. Unmarked Shots remain unknown rather than disliked.
 
 Entry for the All Things Agentic Hackathon, Taskmaster track.
 
-**The web** is three screens: **Now** (the one thing to do), **Frames** (everything it has read), **Journey** (the agent's current conclusion about you, the Tendency Profile behind it, and what the agents did). Reviews are written back into Drive, so the app is optional for reading one.
+**The web** is three screens: **Now** for the active Experiment, **Frames** for every Shot it has read, and **Journey** for the evidence-backed longitudinal record. Reviewed Shots are written back into Drive.
 
-**The camera** (`android/`, Kotlin + CameraX) is the fast half: zebras over blown highlights and a level readout computed on the device at frame rate with no model involved, the open challenge pinned in the viewfinder, and the panel's verdict back in your hand about half a minute after the shutter. Pair it once with a code from the web.
+**The camera** (`android/`, Kotlin + CameraX) is the quiet Companion. The current build measures clipping and pitch locally, shows a guide and the active legacy Quest, captures a Shot, uploads it into the same pipeline, and returns a praise-first pulse. The [feature list](docs/feature-list.md) tracks the remaining Experiment and Companion migration honestly.
 
-- Docs: [product](docs/product.md) · [domain model](docs/domain-model.md) · [agents](docs/agents.md) · [build plan](docs/build-plan.md) · [codebase rules](AGENTS.md)
+- Docs: [product](docs/product.md) · [decisions](docs/product-decisions.md) · [feature list](docs/feature-list.md) · [domain model](docs/domain-model.md) · [agents](docs/agents.md) · [build plan](docs/build-plan.md) · [codebase rules](AGENTS.md)
 - Stack: Vue 3 (Options API) + Vite + Tailwind PWA · Kotlin + CameraX + Compose (native camera, `android/`) · FastAPI + Google ADK · Firestore + GCS + Pub/Sub + Cloud Scheduler + Secret Manager + Cloud Run
-- Models: `gemini-3.7-flash` (Analyst panel of three lenses + synthesizer on ADK workflow agents, Scout, Judge, Director storyboard, Listener) · `veo-3.1-fast` (Director: the reference clip under every quest) · `gemini-live-2.5-flash-native-audio` (Coach: voice review of a shot from the phone)
+- Models: `gemini-3.7-flash` (Analyst panel, Scout, Judge feedback, Journey writer, legacy Director, Listener) · `veo-3.1-fast` (legacy optional reference clip) · `gemini-live-2.5-flash-native-audio` (Coach)
 
 ## Prerequisites
 

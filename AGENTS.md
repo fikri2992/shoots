@@ -1,17 +1,17 @@
 # AGENTS.md — Codebase rules
 
-Read `docs/domain-model.md` first. Its vocabulary (shot, evidence, technique, skill graph, quest, criteria, verdict; the agents Ingest, Analyst, Cartographer, Scout, Judge, Director, Coach) is the ubiquitous language. Use these exact names in code, files, APIs and UI copy. No synonyms: not "photo" for shot, not "challenge" for quest, not "skill" for technique.
+Read `docs/domain-model.md` first. Its vocabulary (Shot, Scene, Scene Probe, Evidence, Finding, Technique, Technique Map, Tendency, Keeper, Experiment, Experiment Record, Inspiration, Criteria, Verdict, Change, Journey Update, Intent, Companion; the agents Ingest, Analyst, Cartographer, Scout, Judge, Scribe, Coach) is the ubiquitous language. Use these exact names in new code, APIs, prompts, and UI copy. Do not use "photo" for Shot, "skill" for Technique, "habit" for Tendency, "Quest" or "challenge" for Experiment, "Fault" for Finding, or "Progress" for unqualified Change. Existing `Quest`, `Fault`, and `SkillState` identifiers are migration targets tracked in `docs/feature-list.md`, not precedent for new names.
 
 ## What this is
 
-Shoots is an autonomous photography coach. The user shoots and drops files in a Google Drive folder. Everything else runs without them: ingest, analyse, update the skill graph, find the gap, issue the next quest, judge the submission. Hackathon entry for the Taskmaster track of the All Things Agentic Hackathon (deadline 2026-08-31 17:00 PDT). See `docs/build-plan.md`.
+Shoots is an autonomous photography Companion for hobbyists. It learns from every Shot, offers one personal Experiment, and tracks what changes. The photographer shoots through Android or adds files to Google Drive; the system ingests, analyses, updates the Technique Map and Tendency Profile, selects an Experiment, checks Criteria, records a Verdict, and writes a Journey Update. Hackathon entry for the Taskmaster track of the All Things Agentic Hackathon (deadline 2026-08-31 17:00 PDT). See `docs/product.md` and `docs/build-plan.md`.
 
 ## Repo layout
 
 ```
 backend/
   app/
-    domain/    # PURE logic, zero I/O: grid math, taxonomy, entities, criteria checks, skill transitions
+    domain/    # PURE logic, zero I/O: grid math, taxonomy, entities, Criteria checks, Technique Map transitions
     imaging/   # Pillow + ffmpeg: exif, grid overlay, contact sheets, overlays (file I/O only)
     agents/    # ADK agents + prompts/ (prompts as .md files next to the agent)
     services/  # one module per pipeline stage; orchestrates domain + imaging + infra
@@ -70,5 +70,5 @@ Banned: tests that mock the collaborators of the thing under test to assert the 
 1. Cell refs, not pixels, at every model boundary.
 2. Technique ids from the taxonomy, nowhere else.
 3. EXIF is hard evidence; vision is soft evidence with a confidence. The Judge checks hard first.
-4. Only the Judge closes a quest as passed. Only the user skips one.
+4. Only the Judge records a Verdict against an Experiment's Criteria. Only the photographer skips an Experiment.
 5. If a behaviour is not in `docs/domain-model.md`, it does not exist. Update the doc first.

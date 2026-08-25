@@ -2,6 +2,11 @@
 
 Research note, 2026-08-25.
 
+This is a market and implementation snapshot, not the current product vocabulary.
+The later [product decisions](product-decisions.md) replace Quest with Experiment,
+skill graph with Technique Map, and progress claims with Change. Competitor facts
+remain useful; use [feature list](feature-list.md) for current implementation status.
+
 ## Verdict
 
 Shoots is not the first AI photography coach, the first live camera coach, the
@@ -36,9 +41,9 @@ the exact camera moment.
 - Most vendors do not publish their internal routing, prompts, models, scoring
   contracts, or state machines. Those fields remain **not disclosed**. Product
   copy is not evidence of a multi-agent architecture.
-- Shoots was read from the current local working tree. It is active, uncommitted
-  work. This note compares implemented code, not the proposed Habit Profile,
-  Scene, Keeper, or Intent features in `docs/product.md`.
+- Shoots was read from the local working tree on 2026-08-25. This note compares
+  the legacy implementation vocabulary at that snapshot. It does not establish
+  that later Tendency, Keeper, Scene, Intent, or Companion decisions are built.
 
 ## What Shoots actually implements
 

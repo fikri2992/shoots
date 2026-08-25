@@ -362,3 +362,45 @@ def test_a_preference_cannot_unlock_a_technique_the_photographer_is_not_ready_fo
     open_now = {t.id for t in rules.rank(skills, [])}
     locked = next(t for t in taxonomy.TECHNIQUES if t.id not in open_now)
     assert rules.choose(skills, [], prefer=(locked.id,)).id != locked.id
+
+
+# --- the Keeper is positive only ------------------------------------------------
+
+
+def test_an_unmarked_shot_is_unknown_and_never_a_negative_example():
+    """A hobbyist marks a handful of frames out of hundreds and has said
+    nothing at all about the rest (decision 45). The denominators here are
+    exposure - how many shots landed in a bucket - and never opinion."""
+    rows = [shot(f"c{i}", subject=(0.5, 0.5)) for i in range(12)]
+    rows += [shot(f"e{i}", subject=(0.1, 0.5)) for i in range(4)]
+    marked = tendency.build(rows, {"e0", "e1", "e2", "c0", "c1"})
+
+    placement = marked.dimensions["placement"]
+    # Exposure is the denominator: 12 centred shots, 2 of them marked.
+    assert placement.counts["centred"] == 12 and placement.keepers["centred"] == 2
+    # And nothing anywhere counts unmarked frames as disliked.
+    assert sum(placement.keepers.values()) == marked.keepers == 5
+
+
+def test_concentration_is_marks_over_shots_not_marks_over_rejections():
+    """Same marks, more unmarked shots in the same bucket: the ratio falls
+    because exposure rose, which is the honest reading. If unmarked frames were
+    being counted as rejections the number would move differently."""
+    base = [shot(f"c{i}", subject=(0.5, 0.5)) for i in range(10)]
+    edge = [shot(f"e{i}", subject=(0.1, 0.5)) for i in range(4)]
+    keepers = {"e0", "e1", "e2", "c0", "c1"}
+
+    tight = tendency.build(base + edge, keepers)
+    diluted = tendency.build(
+        base + edge + [shot(f"x{i}", subject=(0.1, 0.5)) for i in range(6)], keepers
+    )
+    before = tight.dimensions["placement"].keeper_lift("near the edge", tight.keeper_rate)
+    after = diluted.dimensions["placement"].keeper_lift("near the edge", diluted.keeper_rate)
+    assert before is not None and after is not None and after < before
+
+
+def test_taste_stays_unknown_until_enough_has_been_marked():
+    """Silence is the usual state, and a fine one. Two marks is not a taste."""
+    rows = [shot(f"s{i}", subject=(0.5, 0.5)) for i in range(12)]
+    assert tendency.build(rows, {"s0", "s1"}).taste_is_known is False
+    assert tendency.build(rows, set()).taste_is_known is False

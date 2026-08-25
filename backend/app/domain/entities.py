@@ -207,12 +207,22 @@ class Shot(BaseModel):
     blobs: dict[str, str] = Field(default_factory=dict)
     #: Set when the user shot this for a specific quest.
     quest_id: str = ""
-    #: The photographer marked this one worth keeping. One optional tap, never
-    #: asked for, and the only source of taste in the system (decision 40): it
-    #: separates "you do this often", which the Tendency Profile measures, from
-    #: "this is what you value", which nothing else here can supply. It is not
-    #: a score, it promotes nothing, and it is never second-guessed.
-    keeper: bool = False
+    #: When the photographer marked this Shot as one they value, or None.
+    #:
+    #: Positive only, and the distinction is the whole point (decision 45).
+    #: ``kept_at`` set means *valued*. ``None`` means *unknown* - the
+    #: photographer said nothing about this frame - and never *rejected*. A
+    #: hobbyist marks a handful of frames and ignores the rest, so treating
+    #: silence as dislike would invent a negative verdict they never gave and
+    #: quietly make the model's taste into theirs.
+    #:
+    #: Unmarking returns a Shot to unknown rather than recording a rejection.
+    #: An explicit "not for me" signal would be a separate concept and does not
+    #: exist. This is the only source of taste in the system: it separates "you
+    #: do this often", which the Tendency Profile measures on its own, from
+    #: "this is what you value", which nothing else can supply. It is not a
+    #: score, it promotes nothing, and it is never second-guessed.
+    kept_at: datetime | None = None
     #: The camera's pitch when the shutter fired, degrees from level: negative
     #: is aimed down, positive up. Only shots taken through the Shoots camera
     #: carry it, which is why height is a declared blind spot of the profile.

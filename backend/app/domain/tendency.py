@@ -14,11 +14,19 @@ What it may claim, in order of how hard the claim is:
 * **exploration** — normalised entropy over a dimension's buckets: 0 when every
   shot landed in one, 1 when they are spread evenly. A number about the spread
   of a distribution, not about anybody's talent.
-* **keeper lift** — how much likelier a photographer is to keep a shot from one
-  bucket than from their work as a whole. This is the only place taste enters
-  the system (decision 40), it comes from the photographer's own marks and
-  never from the panel's score, and it stays silent until there are enough of
-  them to mean anything.
+* **keeper concentration** — where a photographer's Keeper marks sit relative to
+  where their shooting sits. This is the only place taste enters the system, it
+  comes from the photographer's own marks and never from the panel's score, and
+  it stays silent until there are enough of them to mean anything.
+
+  The Keeper signal is **positive only** (decision 45), and the arithmetic has
+  to respect that or the claim is a lie. A mark means *valued*; no mark means
+  *unknown*, never *rejected* — a hobbyist marks a handful of frames out of
+  hundreds and has said nothing at all about the rest. So the denominators here
+  are exposure, not opinion: how many shots landed in a bucket, and how many
+  landed anywhere. The ratio says "your marks concentrate here more than your
+  shooting does". It never says "you disliked the others", because nobody
+  asked them.
 
 Pure. No I/O, no model call, and every function here can be replayed over the
 stored corpus.
@@ -296,9 +304,15 @@ class DimensionProfile:
         return self.readable and self.exploration < NARROW_BELOW
 
     def keeper_lift(self, bucket: str, overall_rate: float) -> float | None:
-        """How much likelier a shot from this bucket is to be kept than one from
-        the photographer's work as a whole. ``None`` when there is not enough
-        marking behind it to be worth a sentence."""
+        """How much more of this bucket the photographer marked than their
+        marking rate overall. Above 1 means their Keepers concentrate here.
+
+        Both terms are marks over *shots taken*, never marks over some notion
+        of shots rejected: an unmarked frame carries no verdict (decision 45),
+        so it is only ever exposure in a denominator. ``None`` when too little
+        has been marked for the ratio to be worth a sentence, which is the
+        usual state and a fine one.
+        """
         shots = self.counts.get(bucket, 0)
         if shots < MIN_BUCKET_FOR_LIFT or overall_rate <= 0:
             return None
@@ -396,8 +410,13 @@ def build(
     rows: list[tuple[Shot, Analysis | None]],
     keeper_ids: set[str] | frozenset[str] = frozenset(),
 ) -> Profile:
-    """The profile over a photographer's whole corpus. ``rows`` is every shot
-    with its analysis where one exists; ``keeper_ids`` is what they marked."""
+    """The profile over a photographer's whole corpus.
+
+    ``rows`` is every shot with its analysis where one exists. ``keeper_ids``
+    is what they marked as valued — and only that. A shot absent from the set
+    is one they said nothing about, and is counted as exposure and never as a
+    negative example (decision 45).
+    """
     profile = Profile(
         dimensions={d.id: DimensionProfile(dimension=d) for d in DIMENSIONS},
         shots=len(rows),

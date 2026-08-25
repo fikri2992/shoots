@@ -25,7 +25,7 @@ async def main() -> None:
     for user in await repo.list_users(store):
         shots = await repo.list_shots(store, user.id, limit=10_000)
         rows = [(shot, await repo.find_analysis(store, shot.id)) for shot in shots]
-        keepers = {shot.id for shot in shots if shot.keeper}
+        keepers = {shot.id for shot in shots if shot.kept_at}
         profile = tendency.build(rows, keepers)
 
         print(f"\n{user.id}: {profile.shots} shots, {profile.keepers} keepers")

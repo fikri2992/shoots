@@ -37,7 +37,7 @@ CORPUS = 500
 async def profile_now(ctx: Context, user_id: str) -> tendency.Profile:
     shots = await repo.list_shots(ctx.store, user_id, limit=CORPUS)
     rows = [(shot, await repo.find_analysis(ctx.store, shot.id)) for shot in shots]
-    keepers = {shot.id for shot in shots if shot.keeper}
+    keepers = {shot.id for shot in shots if shot.kept_at}
     return tendency.build(rows, keepers)
 
 

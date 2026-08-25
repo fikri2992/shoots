@@ -20,6 +20,7 @@ from app.domain.entities import (
     SkillStatus,
     Tone,
     User,
+    now,
 )
 from app.infra import repository as repo
 from app.infra.bus import InProcessBus
@@ -70,7 +71,7 @@ async def seed(
             exif=Exif(captured_at=base + timedelta(minutes=i * minutes_apart)),
             tone=Tone(luma_mean=120, warm_share=30, cool_share=5),
             grid=GridSpec(cols=8, rows=6, width=size[0], height=size[1]),
-            keeper=(i - start) < keepers,
+            kept_at=(now() if (i - start) < keepers else None),
         )
         await repo.put_shot(c.store, shot)
         comp = Composition(subject_cells=["C1", "C2", "C3"])
