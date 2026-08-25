@@ -75,9 +75,7 @@ def render_overlay(image: Image.Image, spec: GridSpec, composition: Composition)
     return out
 
 
-def _draw_guide(
-    draw: ImageDraw.ImageDraw, size: tuple[int, int], guide: str, stroke: int
-) -> None:
+def _draw_guide(draw: ImageDraw.ImageDraw, size: tuple[int, int], guide: str, stroke: int) -> None:
     """The photographer's guide: thin, dim, unlabelled, always behind."""
     width, height = size
     fill = GUIDE + (GUIDE_ALPHA,)

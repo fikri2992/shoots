@@ -101,6 +101,80 @@ class VideoMeta(BaseModel):
     lufs: float | None = None
 
 
+class Tone(BaseModel):
+    """What the pixels say about colour and tone (``imaging/tone.py``).
+
+    Exif for everything the camera did not write down. Every real file in the
+    corpus reports ``WhiteBalance: 0`` — auto — and ``LightSource: 255`` —
+    other, so the camera records that it decided and not what it decided.
+    Colour therefore has to be measured off the frame or it is not evidence at
+    all, which is what left the colour and light families making claims with
+    nothing behind them while composition had a grid, a guide and four faults.
+
+    Raw measurements only, like ``Exif``. ``domain/tone.py`` does the arithmetic
+    on top, the same way ``domain/exposure.py`` sits on ``Exif``.
+    """
+
+    #: Correlated colour temperature by McCamy's approximation, from the frame's
+    #: mean chromaticity. Daylight is ~5500 K; tungsten ~3200 K; open shade ~8000 K.
+    cct_k: int | None = None
+    #: Mean red minus mean blue, 0-255 scale. Positive is a warm cast.
+    cast: float = 0.0
+    #: Mean HSV saturation, as a percentage of full.
+    saturation: float = 0.0
+    #: The 95th percentile of saturation: how loud the loudest colour gets. A
+    #: single accent is a low mean with a high p95 over a small share.
+    saturation_p95: float = 0.0
+    #: Share of the frame that is strongly saturated.
+    accent_share: float = 0.0
+    #: Shares of the frame reading warm and cool by hue, ignoring near-greys.
+    warm_share: float = 0.0
+    cool_share: float = 0.0
+    #: Luminance, 0-255. The percentiles rather than the extremes, so one
+    #: specular highlight cannot describe the frame.
+    luma_mean: float = 0.0
+    luma_p5: float = 0.0
+    luma_p95: float = 0.0
+    #: Percentage of the frame at the ends of the scale, where detail is gone.
+    clipped_high: float = 0.0
+    clipped_low: float = 0.0
+    #: The dominant hue families, most common first, and the angle between the
+    #: top two in degrees. Near 180 is complementary; under 45 is analogous.
+    hues: list[str] = Field(default_factory=list)
+    hue_opposition: int | None = None
+
+
+class Motion(BaseModel):
+    """How the camera itself moved, measured between frames (``imaging/motion.py``).
+
+    Camera-move techniques were being read off a contact sheet of scene-cut
+    stills, which cannot separate a pan from a tracking shot from a push in:
+    twelve video techniques were firing at 0.11 per shot against composition's
+    1.94. The frames hold the answer, but only consecutive ones do, so this is
+    measured on a dense low-resolution strip rather than on the sheet.
+
+    Displacements are signed and in frame widths, so they mean the same thing
+    at any resolution: ``drift_x`` of 2.4 is a pan across two and a half frames.
+    """
+
+    #: Samples compared, and the rate they were taken at.
+    frames: int = 0
+    fps: float = 0.0
+    #: Cumulative displacement over the clip, in frame widths and heights.
+    #: Positive ``drift_x`` means the framing travelled right.
+    drift_x: float = 0.0
+    drift_y: float = 0.0
+    #: Mean and largest single-step displacement, in frame widths. A whip pan
+    #: is not a fast pan: it is one step large enough to smear.
+    step: float = 0.0
+    step_max: float = 0.0
+    #: How often the horizontal direction reversed. A pan holds its direction;
+    #: handheld wobble does not.
+    reversals: int = 0
+    #: Share of steps where the framing did not move at all.
+    still_share: float = 0.0
+
+
 class GridSpec(BaseModel):
     cols: int
     rows: int
@@ -118,6 +192,11 @@ class Shot(BaseModel):
     status: ShotStatus = ShotStatus.NEW
     exif: Exif = Field(default_factory=Exif)
     video: VideoMeta | None = None
+    #: Measured off the frame at ingest, beside the EXIF the camera wrote.
+    tone: Tone = Field(default_factory=Tone)
+    #: Video only: how the camera moved. None on a photo and on a clip too
+    #: short to compare two frames.
+    motion: Motion | None = None
     grid: GridSpec | None = None
     #: Blob paths by kind: original, gridded, contact_sheet, thumb.
     blobs: dict[str, str] = Field(default_factory=dict)
@@ -238,17 +317,33 @@ class Analysis(BaseModel):
 
 class SkillStatus(StrEnum):
     UNEXPLORED = "unexplored"
-    ATTEMPTED = "attempted"  # seen once, low confidence or low score
-    PRACTICED = "practiced"  # several shots, improving
-    SOLID = "solid"  # consistently high score
+    ATTEMPTED = "attempted"  # seen, but by one lens or without conviction
+    PRACTICED = "practiced"  # seen again, and corroborated at least once
+    SOLID = "solid"  # corroborated by two lenses, three times over
     RUSTY = "rusty"  # was solid, not practiced for skill_decay_days
 
 
 class SkillState(BaseModel):
+    """What the map knows about one technique for one photographer.
+
+    ``corroborated`` is what moves the status, not ``best_score``. The score
+    belongs to the whole frame: one photograph demonstrating six techniques
+    hands the same number to all six, so promoting on it credits every
+    technique in the frame for whatever the best one earned. Agreement and
+    confidence are the only signals that are *about this technique*.
+    """
+
     user_id: str
     technique_id: str
     status: SkillStatus = SkillStatus.UNEXPLORED
     attempts: int = 0
+    #: Attempts where more than one lens saw it and both were sure.
+    corroborated: int = 0
+    #: Highest voted confidence this technique has ever reached.
+    best_confidence: float = 0.0
+    #: The frame's overall score when this technique was last seen, and the
+    #: best such frame. Recorded for the Judge's comparison and the Coach's
+    #: briefing; deliberately not part of the promotion rule.
     best_score: int = 0
     last_score: int = 0
     last_practiced: datetime | None = None

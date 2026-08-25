@@ -17,7 +17,7 @@ def render(composition: Composition) -> Image.Image:
 
 
 def test_a_camera_change_puts_no_mark_on_the_frame():
-    """"Kneel to her eye level" is not a direction on a flat image."""
+    """ "Kneel to her eye level" is not a direction on a flat image."""
     bare = render(Composition(guide="none"))
     with_camera = render(
         Composition(

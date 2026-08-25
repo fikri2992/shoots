@@ -90,6 +90,69 @@ def silent_clip(seconds: float) -> bytes:
         return out.read_bytes()
 
 
+def _detailed_png(width: int, height: int) -> bytes:
+    """A still with structure at every scale. Phase correlation needs texture:
+    a flat grey frame has no features to line up and registering it would
+    measure the compression noise."""
+    image = Image.new("RGB", (width, height), (20, 20, 30))
+    draw = ImageDraw.Draw(image)
+    for i in range(0, width, 17):
+        draw.line((i, 0, i + height // 3, height), fill=(90 + i % 120, 60, 200 - i % 150), width=3)
+    for i in range(0, height, 23):
+        draw.line((0, i, width, i + 9), fill=(230 - i % 100, 200 - i % 80, 40), width=2)
+    for i in range(0, width, 61):
+        draw.ellipse((i, height // 3, i + 28, height // 3 + 28), fill=(250, 240, 180))
+    buffer = io.BytesIO()
+    image.save(buffer, format="PNG")
+    return buffer.getvalue()
+
+
+def _still_to_clip(png: bytes, seconds: float, video_filter: str, fps: int = 24) -> bytes:
+    if not HAS_FFMPEG:
+        raise RuntimeError("ffmpeg not installed")
+    with tempfile.TemporaryDirectory() as tmp:
+        source = Path(tmp) / "frame.png"
+        source.write_bytes(png)
+        out = Path(tmp) / "clip.mp4"
+        subprocess.run(
+            [
+                "ffmpeg", "-v", "error", "-y",
+                "-loop", "1", "-framerate", str(fps), "-t", f"{seconds:g}",
+                "-i", str(source),
+                "-vf", video_filter,
+                "-pix_fmt", "yuv420p", "-r", str(fps),
+                str(out),
+            ],
+            check=True,
+        )  # fmt: skip
+        return out.read_bytes()
+
+
+#: The window the synthesised camera looks through.
+CLIP_WIDTH, CLIP_HEIGHT = 320, 240
+
+
+def locked_clip(seconds: float = 3.0) -> bytes:
+    """A detailed still, held. The framing never moves by a single pixel, so
+    anything the measurement reports is its own noise floor."""
+    png = _detailed_png(CLIP_WIDTH, CLIP_HEIGHT)
+    return _still_to_clip(png, seconds, "null")
+
+
+def panning_clip(seconds: float = 3.0, pixels_per_second: int = 100) -> bytes:
+    """A pan of exactly known rate: a window slides right across a wide still.
+
+    Ground truth for ``imaging/motion.py`` — the framing travels
+    ``pixels_per_second x seconds`` pixels of a ``CLIP_WIDTH`` window, so the
+    drift the measurement reports can be checked against arithmetic instead of
+    against an opinion about what a pan looks like.
+    """
+    travel = int(pixels_per_second * seconds)
+    png = _detailed_png(CLIP_WIDTH + travel, CLIP_HEIGHT)
+    crop = f"crop={CLIP_WIDTH}:{CLIP_HEIGHT}:x='min(t*{pixels_per_second}\\,{travel})':y=0"
+    return _still_to_clip(png, seconds, crop)
+
+
 def two_shot_video(seconds: int = 2, fps: int = 30) -> bytes:
     """Red then blue solid frames with a hard cut: one scene change."""
     if not HAS_FFMPEG:

@@ -21,13 +21,16 @@ runs after the vote and not before it.
 """
 
 from app.domain import exposure
-from app.domain.entities import Exif, Fault
+from app.domain import tone as tone_rules
+from app.domain.entities import Exif, Fault, Tone
 from app.domain.grid import Grid
 
 CAMERA_SHAKE = "camera_shake"
 OFF_GUIDE_SUBJECT = "off_guide_subject"
 SPLIT_HORIZON = "split_horizon"
 NO_CENTRE_OF_INTEREST = "no_centre_of_interest"
+BLOWN_HIGHLIGHTS = "blown_highlights"
+COLOUR_CAST = "colour_cast"
 
 #: Every fault, with the short name a chip shows. The list is closed, like the
 #: technique catalogue: a fault that is not here cannot be reported.
@@ -36,6 +39,8 @@ FAULTS: dict[str, str] = {
     OFF_GUIDE_SUBJECT: "Subject off every line",
     SPLIT_HORIZON: "Horizon splits the frame",
     NO_CENTRE_OF_INTEREST: "No single centre of interest",
+    BLOWN_HIGHLIGHTS: "Highlights blown to white",
+    COLOUR_CAST: "Uncorrected colour cast",
 }
 
 #: Techniques whose whole point is a shutter below the handheld limit. On these
@@ -50,6 +55,37 @@ BRACED: frozenset[str] = frozenset({"static_tripod"})
 WIDE_SUBJECT_OK: frozenset[str] = frozenset(
     {"fill_the_frame", "patterns", "break_the_pattern", "macro", "bokeh_balls"}
 )
+
+#: Techniques that put white in the frame on purpose. High key is mostly paper
+#: white by definition, backlight and rim light burn the source out to keep the
+#: edge, and a light trail or a painted light *is* the clipped part.
+BRIGHT_ON_PURPOSE: frozenset[str] = frozenset(
+    {"high_key", "backlight", "rim_light", "light_trails", "light_painting", "silhouette"}
+)
+
+#: Techniques that make the frame warm or cool on purpose, so its temperature
+#: is the photograph and not an uncorrected white balance. Monochrome excuses
+#: both directions: a frame with no colour cannot have the wrong colour.
+WARM_ON_PURPOSE: frozenset[str] = frozenset(
+    {"golden_hour", "warm_cool", "light_painting", "fill_flash", "monochrome", "low_key"}
+)
+COOL_ON_PURPOSE: frozenset[str] = frozenset(
+    {"blue_hour", "warm_cool", "monochrome", "high_key", "astro"}
+)
+
+#: Share of the frame at pure white before the highlights are a fault rather
+#: than a specular glint. Across the 19-frame corpus the median is 0.4% and the
+#: 90th percentile 1.1%; at 2.0% this accuses the one frame that earns it.
+BLOWN_SHARE = 2.0
+#: How far from daylight a frame has to sit before its temperature is a cast.
+#: The corpus runs 4322 K to 8639 K around a median of 5594 K, so these edges
+#: leave the ordinary warm interior alone and accuse only the far ends.
+#: Replayed over those 19 frames this reports nothing, which is the right
+#: answer: the single frame past the cool edge sits at 8639 K and the panel
+#: called it ``warm_cool``, so the excuse takes it. A fault that fires on a
+#: corpus this small would be a fault with its edge in the wrong place.
+WARM_CAST_K = 4000
+COOL_CAST_K = 7500
 
 #: The placement lines a photographer aims at, as fractions of the frame. Phi is
 #: 1 : 0.618 : 1; the thirds are 1 : 1 : 1; the centre is the third choice a
@@ -145,6 +181,43 @@ def _no_centre(subject_cells: list[str], grid: Grid, seen: set[str]) -> Fault | 
     )
 
 
+def _blown(tone: Tone, seen: set[str]) -> Fault | None:
+    """Highlights past recovery. Measured off the pixels, so it holds on a
+    phone export that threw its EXIF away."""
+    if tone.clipped_high < BLOWN_SHARE or seen & BRIGHT_ON_PURPOSE:
+        return None
+    return Fault(
+        fault_id=BLOWN_HIGHLIGHTS,
+        what="The brightest areas are pure white with nothing in them; that detail "
+        "cannot be brought back.",
+        why=f"{tone.clipped_high:.1f}% of the frame is above 250 of 255, "
+        f"against {BLOWN_SHARE:.0f}% where a highlight stops being a glint",
+    )
+
+
+def _cast(tone: Tone, seen: set[str]) -> Fault | None:
+    """A white balance nobody asked for. The camera cannot tell us: every file
+    in the corpus reports auto, so the temperature is measured off the frame
+    and only the far ends of the scale are called."""
+    if tone.cct_k is None:
+        return None
+    warm = tone.cct_k <= WARM_CAST_K
+    cool = tone.cct_k >= COOL_CAST_K
+    if warm and not seen & WARM_ON_PURPOSE:
+        which, edge = "orange", WARM_CAST_K
+    elif cool and not seen & COOL_ON_PURPOSE:
+        which, edge = "blue", COOL_CAST_K
+    else:
+        return None
+    return Fault(
+        fault_id=COLOUR_CAST,
+        what=f"The whole frame is pulled {which}; whites are not white, and no technique "
+        "here makes that the point.",
+        why=f"{tone.cct_k} K measured against {tone_rules.DAYLIGHT_K} K daylight, "
+        f"past the {edge} K edge",
+    )
+
+
 def detect(
     exif: Exif,
     grid: Grid,
@@ -153,12 +226,17 @@ def detect(
     subject_x: float | None = None,
     subject_y: float | None = None,
     horizon_row: int | None = None,
+    tone: Tone | None = None,
 ) -> list[Fault]:
     """Every fault the numbers support, in the order a photographer would fix
-    them: the exposure first, because a shaken frame cannot be composed out of."""
+    them: what cannot be recovered at all first, then the exposure — a shaken
+    frame cannot be composed out of — then the framing."""
     seen = set(technique_ids)
+    measured = tone if tone is not None else Tone()
     found = [
+        _blown(measured, seen),
         _shake(exif, seen),
+        _cast(measured, seen),
         _no_centre(subject_cells, grid, seen),
         _split_horizon(horizon_row, grid),
         _off_guide(subject_x, subject_y),

@@ -15,6 +15,21 @@ averaged over the lenses that rate them. Panels of diverse graders beat a
 single grader only when their errors are not shared, which is why the
 lenses see different things; a panel below quorum is not a reading at all
 and the stage retries.
+
+**Arithmetic outranks the panel.** ``aggregate`` takes two sets of technique
+ids that measurement has already settled, and they are not advisory: a
+technique in ``settled_against`` loses its evidence however many lenses saw
+it and however sure they were, and one in ``settled_for`` needs only a single
+lens to have noticed it, because the corroboration came from outside the
+model. The sets arrive as plain ids — this module does not need to know which
+measurement settled them, only that one did (``domain/motion.py`` supplies
+them today for camera movement; ``domain/tone.py`` and ``domain/exposure.py``
+could supply more).
+
+Until this existed the measurement reached the lens *prompts* and stopped
+there, so a lens could vote ``static_tripod`` on a clip measured at 2.42
+frame widths of travel and the evidence stood. "Arithmetic, not opinion" was
+true of the prompts and false of the panel.
 """
 
 from dataclasses import dataclass, field
@@ -31,6 +46,19 @@ SCRUB = "scrub"
 LENSES: tuple[str, ...] = (TECHNICIAN, COMPOSER, STORYTELLER, SCRUB)
 #: The lenses that always run; the scrub joins for video.
 PANEL: tuple[str, ...] = (TECHNICIAN, COMPOSER, STORYTELLER)
+
+#: Not a lens: the name arithmetic votes under, recorded in ``Evidence.lenses``
+#: so the corroboration is visible on the frame page and in the feed. It is
+#: listed apart from ``LENSES`` because it rates no elements and writes no
+#: observations — it only settles what it can settle.
+MEASURED = "measured"
+#: The confidence a measured technique carries. One, and not a blend with the
+#: lens's own number: ``domain/motion.py`` says of its settled set that it can
+#: "prove or disprove" them, and a proof does not get less certain because a
+#: model was only half sure. This is also what carries the sighting past the
+#: skill graph's corroboration bar (decision 33), which is correct — arithmetic
+#: is the one voter in the system that cannot share the panel's blind spots.
+MEASURED_CONFIDENCE = 1.0
 
 #: Which lens's word counts alone (with high confidence) for a family.
 OWNER_BY_FAMILY: dict[Family, str] = {
@@ -95,7 +123,18 @@ def aggregate(
     min_agreement: int = 2,
     owner_confidence: float = 0.75,
     quorum: int = 2,
+    settled_for: frozenset[str] = frozenset(),
+    settled_against: frozenset[str] = frozenset(),
 ) -> Consensus:
+    """The panel's verdict, with measurement given the last word.
+
+    ``settled_for`` and ``settled_against`` are technique ids that arithmetic
+    has already decided (``domain/motion.py`` read()). Against is a veto and
+    outranks every lens; for is a corroborating vote, so one lens noticing is
+    enough. A technique arithmetic settles *for* that no lens mentioned at all
+    stays out: evidence is still a claim a lens made, and a measurement with
+    no reading behind it is a gap in the panel rather than a sighting.
+    """
     if len(reads) < quorum:
         raise ValueError(f"panel quorum not met: {len(reads)} of {quorum} lenses answered")
 
@@ -112,11 +151,18 @@ def aggregate(
     techniques: list[TechniqueEvidence] = []
     dissent: list[tuple[str, str, float]] = []
     for tid, lens_votes in votes.items():
+        # The veto. A measurement that rules a technique out ends the matter,
+        # whoever saw it and however sure they were; the sighting still travels
+        # as dissent so the feed shows what the lens said and why it lost.
+        if tid in settled_against:
+            dissent.extend((lens, tid, s.confidence) for lens, s in lens_votes.items())
+            continue
         owner = owner_of(tid)
         owner_sighting = lens_votes.get(owner)
-        agreed = len(lens_votes) >= min_agreement
+        measured = tid in settled_for
+        agreed = len(lens_votes) + measured >= min_agreement
         trusted_owner = owner_sighting is not None and owner_sighting.confidence >= owner_confidence
-        if not (agreed or trusted_owner):
+        if not (agreed or trusted_owner or measured):
             dissent.extend((lens, tid, s.confidence) for lens, s in lens_votes.items())
             continue
         lenses = [lens for lens in order if lens in lens_votes]
@@ -129,6 +175,11 @@ def aggregate(
                 if cell not in cells:
                     cells.append(cell)
         note_source = owner_sighting or lens_votes[lenses[0]]
+        # Cells and the note come from the lenses that looked; the measurement
+        # joins the vote afterwards, having none of either.
+        if measured:
+            lenses = [*lenses, MEASURED]
+            confidence = MEASURED_CONFIDENCE
         techniques.append(
             TechniqueEvidence(
                 technique_id=tid,

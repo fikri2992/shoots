@@ -8,13 +8,23 @@ from app.domain.entities import Analysis, SkillState, SkillStatus, TechniqueEvid
 T0 = datetime(2026, 8, 22, tzinfo=UTC)
 
 
-def analysis(shot: str, score: int, *evidence: tuple[str, float]) -> Analysis:
+def analysis(shot: str, score: int, *evidence: tuple) -> Analysis:
+    """``(technique_id, confidence)`` or ``(technique_id, confidence, agreement)``.
+
+    Agreement defaults to two lenses, the ordinary case for evidence that
+    passed the panel; the tests that turn on it say so explicitly.
+    """
     return Analysis(
         shot_id=shot,
         user_id="u",
         model="m",
         score=score,
-        techniques=[TechniqueEvidence(technique_id=t, confidence=c) for t, c in evidence],
+        techniques=[
+            TechniqueEvidence(
+                technique_id=e[0], confidence=e[1], agreement=e[2] if len(e) > 2 else 2
+            )
+            for e in evidence
+        ],
     )
 
 
@@ -44,11 +54,63 @@ def test_same_shot_twice_is_a_noop():
     assert graph["panning"].attempts == 1
 
 
-def test_a_bad_last_shot_keeps_solid_from_forming():
+def test_one_uncorroborated_sighting_keeps_solid_from_forming():
+    """Three sightings, but the middle one was a single lens. Solid asks for
+    three corroborated, so it stays practiced until a third one arrives."""
     graph: dict[str, SkillState] = {}
-    for i, score in enumerate([8, 8, 3]):
-        skills.apply_analysis(graph, analysis(f"s{i}", score, ("panning", 0.9)), T0)
-    assert graph["panning"].status is SkillStatus.ATTEMPTED  # last 3 < practiced threshold
+    for i, agreement in enumerate([2, 1, 2]):
+        skills.apply_analysis(graph, analysis(f"s{i}", 8, ("panning", 0.9, agreement)), T0)
+    state = graph["panning"]
+    assert state.attempts == 3 and state.corroborated == 2
+    assert state.status is SkillStatus.PRACTICED
+    skills.apply_analysis(graph, analysis("s3", 8, ("panning", 0.9)), T0)
+    assert graph["panning"].status is SkillStatus.SOLID
+
+
+def test_one_lens_repeating_itself_never_reaches_solid():
+    """The panel lets a single lens through at 0.75 and above, so a lens with a
+    habit can carry a technique on its own indefinitely. Repetition is not
+    corroboration, and the map must not read it as mastery."""
+    graph: dict[str, SkillState] = {}
+    for i in range(8):
+        skills.apply_analysis(graph, analysis(f"s{i}", 9, ("panning", 0.95, 1)), T0)
+    state = graph["panning"]
+    assert state.attempts == 8 and state.corroborated == 0
+    assert state.best_score == 9  # the frames were good; that is not the question
+    assert state.status is SkillStatus.ATTEMPTED
+
+
+def test_the_frame_score_is_recorded_but_promotes_nothing():
+    """One photograph demonstrating three techniques hands the same score to
+    all three. Status follows each technique's own evidence, so a corroborated
+    one climbs and a single-lens one does not, off the identical frame."""
+    graph: dict[str, SkillState] = {}
+    for i in range(3):
+        skills.apply_analysis(
+            graph,
+            analysis(
+                f"s{i}",
+                9,
+                ("panning", 0.9, 2),
+                ("golden_hour", 0.9, 1),
+                ("leading_lines", 0.9, 2),
+            ),
+            T0 + timedelta(days=i),
+        )
+    assert {t: s.best_score for t, s in graph.items()} == {
+        "panning": 9,
+        "golden_hour": 9,
+        "leading_lines": 9,
+    }
+    assert graph["panning"].status is SkillStatus.SOLID
+    assert graph["leading_lines"].status is SkillStatus.SOLID
+    assert graph["golden_hour"].status is SkillStatus.ATTEMPTED
+
+
+def test_confident_but_alone_is_not_corroborated():
+    assert not skills.corroborated(TechniqueEvidence(technique_id="x", confidence=1.0, agreement=1))
+    assert not skills.corroborated(TechniqueEvidence(technique_id="x", confidence=0.7, agreement=3))
+    assert skills.corroborated(TechniqueEvidence(technique_id="x", confidence=0.75, agreement=2))
 
 
 def test_decay_and_recovery():

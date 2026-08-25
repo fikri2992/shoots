@@ -13,7 +13,9 @@ import urllib.parse
 import urllib.request
 from pathlib import Path
 
-UA = os.environ.get("COMMONS_UA", "Shoots-hackathon-demo/0.1 (+https://github.com/fikri2992/shoots)")
+UA = os.environ.get(
+    "COMMONS_UA", "Shoots-hackathon-demo/0.1 (+https://github.com/fikri2992/shoots)"
+)
 API = "https://commons.wikimedia.org/w/api.php"
 OUT = Path(__file__).resolve().parents[2] / "data" / "demo" / "commons"
 PER_QUERY = 3

@@ -2,6 +2,7 @@
 import { mapActions, mapState } from 'pinia'
 
 import DisclosureRow from '@/components/DisclosureRow.vue'
+import MeasuredStrip from '@/components/MeasuredStrip.vue'
 import ShotCanvas from '@/components/ShotCanvas.vue'
 import { plain, spanBox } from '@/domain/cells'
 import { GUIDE_LABELS, verdict as guideVerdict } from '@/domain/guides'
@@ -35,7 +36,7 @@ function dedupe(lines, limit, grid) {
  */
 export default {
   name: 'FramePage',
-  components: { DisclosureRow, ShotCanvas },
+  components: { DisclosureRow, ShotCanvas, MeasuredStrip },
   props: { shotId: { type: String, required: true } },
   data() {
     return { showRead: true, picked: '', guides: PICKABLE, labels: GUIDE_LABELS }
@@ -217,6 +218,9 @@ export default {
 
         <template v-if="analysis">
           <p class="mt-1 t-meta">{{ tags.join(' · ') }}</p>
+
+          <MeasuredStrip class="mt-4" :tone="shot.tone" :motion="shot.motion" />
+
           <p class="mt-4 t-body">{{ critique }}</p>
 
           <ul v-if="faults.length" class="mt-6 space-y-3">

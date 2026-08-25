@@ -3,7 +3,7 @@
 import pytest
 
 from app.domain import faults
-from app.domain.entities import Exif
+from app.domain.entities import Exif, Tone
 from app.domain.grid import Grid
 
 GRID = Grid(cols=7, rows=9, width=700, height=900)
@@ -153,6 +153,62 @@ def test_faults_come_back_in_the_order_a_photographer_would_fix_them():
     ]
 
 
+# --- blown highlights -----------------------------------------------------
+
+
+def test_highlights_past_recovery_are_named_with_the_share():
+    (fault,) = detect(tone=Tone(cct_k=5500, clipped_high=8.3))
+    assert fault.fault_id == faults.BLOWN_HIGHLIGHTS
+    assert "8.3%" in fault.why and "250 of 255" in fault.why
+
+
+def test_a_specular_glint_is_not_a_blown_frame():
+    assert detect(tone=Tone(cct_k=5500, clipped_high=0.9)) == []
+
+
+@pytest.mark.parametrize("technique", sorted(faults.BRIGHT_ON_PURPOSE))
+def test_white_that_is_the_point_is_not_a_fault(technique: str):
+    assert detect(tone=Tone(cct_k=5500, clipped_high=40.0), technique_ids=[technique]) == []
+
+
+# --- colour cast ----------------------------------------------------------
+
+
+def test_a_blue_frame_with_nothing_to_explain_it_is_a_cast():
+    (fault,) = detect(tone=Tone(cct_k=8639))
+    assert fault.fault_id == faults.COLOUR_CAST
+    assert "8639 K" in fault.why and "5500 K" in fault.why
+    assert "blue" in fault.what
+
+
+def test_a_warm_frame_with_nothing_to_explain_it_is_a_cast():
+    (fault,) = detect(tone=Tone(cct_k=3200))
+    assert fault.fault_id == faults.COLOUR_CAST
+    assert "orange" in fault.what
+
+
+def test_daylight_is_not_a_cast():
+    assert detect(tone=Tone(cct_k=5594)) == []
+    assert detect(tone=Tone(cct_k=4322)) == []
+    assert detect(tone=Tone(cct_k=7000)) == []
+
+
+@pytest.mark.parametrize("technique", sorted(faults.COOL_ON_PURPOSE))
+def test_a_cool_frame_the_panel_explains_is_not_a_cast(technique: str):
+    assert detect(tone=Tone(cct_k=8639), technique_ids=[technique]) == []
+
+
+@pytest.mark.parametrize("technique", sorted(faults.WARM_ON_PURPOSE))
+def test_a_warm_frame_the_panel_explains_is_not_a_cast(technique: str):
+    assert detect(tone=Tone(cct_k=3200), technique_ids=[technique]) == []
+
+
+def test_an_unmeasured_frame_is_never_accused_of_colour():
+    """No tone at all must read as silence, not as a neutral default."""
+    assert detect() == []
+    assert detect(tone=Tone()) == []
+
+
 def test_a_clean_frame_has_nothing_said_about_it():
     assert detect(exif=exif(1 / 250), subject_cells=["D3"], subject_x=1 / 3, subject_y=2 / 3) == []
 
@@ -174,8 +230,9 @@ def test_every_fault_carries_a_number_and_a_catalogue_name():
         subject_x=0.86,
         subject_y=0.86,
         horizon_row=5,
+        tone=Tone(cct_k=8639, clipped_high=8.3),
     )
-    assert len(found) == 4
+    assert len(found) == len(faults.FAULTS)
     for fault in found:
         assert fault.fault_id in faults.FAULTS
         assert faults.FAULTS[fault.fault_id] and fault.what.endswith(".")

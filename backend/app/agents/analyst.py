@@ -19,7 +19,7 @@ from pydantic import BaseModel, Field
 from app.agents import prompts
 from app.agents.runtime import WorkflowResult, bytes_part, run_workflow
 from app.config import settings
-from app.domain import exposure, faults, guides, panel, rubric, taxonomy
+from app.domain import exposure, faults, guides, motion, panel, rubric, taxonomy, tone
 from app.domain.entities import (
     Analysis,
     Composition,
@@ -227,11 +227,34 @@ def prompt_for(shot: Shot) -> str:
     )
 
 
+def _bullets(lines: list[str], empty: str) -> str:
+    return "\n".join(f"- {line}" for line in lines) if lines else f"- {empty}"
+
+
 def state_for(shot: Shot) -> dict[str, str]:
-    """Session state the instructions template from: facts for the
-    Technician only, anchors for every lens."""
+    """Session state the instructions template from.
+
+    Measurements are routed to the lens that owns the family they speak to
+    (``panel.OWNER_BY_FAMILY``) and to no other: the Technician gets the
+    exposure and where the scale ran out, the Composer the temperature and the
+    key, the Storyteller the palette. Handing all three the same numbers would
+    buy anchored claims at the cost of the thing the panel exists for — three
+    readings whose errors are not shared — so the facts are disjoint, exactly
+    as the images already are.
+    """
+    camera = facts_text(shot.exif, shot.video)
+    moves = motion.describe(shot.motion)
+    # The Synthesizer is the one reader that gets all of it: it writes the only
+    # paragraph the photographer is guaranteed to read, and a paragraph that
+    # cannot cite the arithmetic is a paragraph any model could have written
+    # from the picture alone.
+    measured = [*exposure.describe(shot.exif), *tone.describe(shot.tone, shot.exif), *moves]
     return {
-        "facts": facts_text(shot.exif, shot.video),
+        "facts": camera + "\n" + _bullets(tone.technical(shot.tone), "tone not measured"),
+        "light": _bullets(tone.light(shot.tone, shot.exif), "light not measured"),
+        "palette": _bullets(tone.palette(shot.tone), "colour not measured"),
+        "camera_move": _bullets(moves, "not a video, or the camera move was not measurable"),
+        "measured": _bullets(measured, "nothing could be measured on this file"),
         "anchors": rubric.anchors_text(),
     }
 
@@ -304,12 +327,18 @@ def validate(shot: Shot, result: PanelResult) -> Analysis:
     """The vote, then only what the grid and the catalogue can vouch for."""
     grid = _grid(shot)
     reads = [lens_read(shot, lens, raw) for lens, raw in result.reads.items()]
+    # The measured camera move is not advice here, it is a vote. What the drift
+    # rules out loses its evidence whatever a lens claimed; what the drift
+    # settles needs only one lens to have noticed (domain/panel.py).
+    travelled = motion.read(shot.motion)
     consensus = panel.aggregate(
         reads,
         min_confidence=settings.panel_min_confidence,
         min_agreement=settings.panel_min_agreement,
         owner_confidence=settings.panel_owner_confidence,
         quorum=settings.panel_quorum,
+        settled_for=travelled.supports,
+        settled_against=travelled.contradicts,
     )
     for lens, tid, confidence in consensus.dissent:
         logger.info(
@@ -348,6 +377,7 @@ def validate(shot: Shot, result: PanelResult) -> Analysis:
         subject_x=point[0],
         subject_y=point[1],
         horizon_row=horizon,
+        tone=shot.tone,
     )
     for fault in found:
         logger.info("faults: %s on %s (%s)", fault.fault_id, shot.id, fault.why)

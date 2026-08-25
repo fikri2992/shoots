@@ -11,6 +11,9 @@ dependencies = [
     "pydantic>=2.9.0",
     "pydantic-settings>=2.6.0",
     "pillow>=11.0.0",
+    # Phase correlation for camera-move measurement (imaging/motion.py) and the
+    # single-pass colour/tone statistics (imaging/tone.py).
+    "numpy>=2.0.0",
     "google-cloud-firestore>=2.19.0",
     "google-cloud-storage>=2.18.0",
     "google-cloud-pubsub>=2.25.0",

@@ -94,7 +94,7 @@ async def test_review_lands_in_the_folder_with_caption_and_verdict():
         ctx = await seed(folder, with_verdict=True)
         publisher = scribe.LocalReviewPublisher(folder)
         file_id = await scribe.write_review(ctx, {"shot_id": "shot_1"}, publisher)
-        assert file_id == "Reviewed/✔ bike — 7 of 10.jpg"
+        assert file_id == "Reviewed/✔ bike — panning.jpg"
         path = Path(folder) / file_id
         assert path.exists()
         with Image.open(path) as image:
@@ -124,9 +124,9 @@ async def test_review_without_quest_has_no_mark():
         file_id = await scribe.write_review(
             ctx, {"shot_id": "shot_1"}, scribe.LocalReviewPublisher(folder)
         )
-        assert file_id == "Reviewed/bike — 7 of 10.jpg"
+        assert file_id == "Reviewed/bike — panning.jpg"
         text = (Path(folder) / file_id).with_suffix(".txt").read_text(encoding="utf-8")
-        assert text.startswith("7/10 · Panning")
+        assert text.startswith("Panning")
 
 
 async def test_unanalysed_shot_is_skipped():

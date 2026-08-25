@@ -17,12 +17,15 @@ from datetime import UTC
 from PIL import Image
 
 from app.config import settings
+from app.domain import motion as motion_rules
+from app.domain import tone as tone_rules
 from app.domain.entities import GridSpec, Shot, ShotKind, ShotStatus, User, VideoMeta, now
 from app.domain.grid import Grid
-from app.imaging import canvas, video
+from app.imaging import canvas, motion, video
 from app.imaging.contact_sheet import tile_sheet
 from app.imaging.exif import read_exif
 from app.imaging.grid_overlay import apply_grid
+from app.imaging.tone import measure as measure_tone
 from app.infra import repository as repo
 from app.infra.bus import TOPICS
 from app.infra.drive import DriveFile
@@ -109,6 +112,8 @@ async def ingest(ctx: Context, message: dict) -> None:
             "grid": f"{shot.grid.cols}x{shot.grid.rows}" if shot.grid else "",
             "exif": shot.exif.model_dump(mode="json", exclude_none=True),
             "video": shot.video.model_dump(mode="json", exclude_none=True) if shot.video else None,
+            "tone": tone_rules.describe(shot.tone, shot.exif),
+            "motion": motion_rules.describe(shot.motion),
         },
         shot_id=shot.id,
     )
@@ -119,6 +124,9 @@ async def _ingest_photo(ctx: Context, shot: Shot, data: bytes) -> Shot:
     shot.exif = read_exif(data)
     shot.captured_at = shot.exif.captured_at
     image = canvas.load_bytes(data)
+    # Beside the EXIF, because the camera records that it chose a white balance
+    # and never which one: colour is only evidence once it is measured.
+    shot.tone = measure_tone(image)
 
     extension = extension_for(shot.mime_type)
     shot.blobs[ORIGINAL] = await ctx.blobs.write(
@@ -144,6 +152,14 @@ async def _ingest_video(ctx: Context, shot: Shot, data: bytes) -> Shot:
         codec=info.codec,
         lufs=loudness.lufs if loudness else None,
     )
+    # Tone off a real frame, never off the contact sheet: the sheet's padding
+    # and caption band are black and white in fixed proportions, so measuring
+    # it would report the sheet's palette rather than the photographer's.
+    shot.tone = measure_tone(frames[0])
+    # And how the camera moved, which the sheet genuinely cannot show: its
+    # tiles are scene cuts seconds apart, and a pan, a tracking shot and a cut
+    # all look the same across that gap (domain/motion.py).
+    shot.motion = await motion.measure(data)
 
     extension = extension_for(shot.mime_type)
     shot.blobs[ORIGINAL] = await ctx.blobs.write(

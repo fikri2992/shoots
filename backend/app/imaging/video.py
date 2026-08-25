@@ -10,9 +10,11 @@ the numbers mean happens in the domain layers that already exist.
 """
 
 import asyncio
+import contextlib
 import json
 import re
 import tempfile
+from collections.abc import Iterator
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -44,7 +46,25 @@ class Loudness:
     true_peak_db: float
 
 
-async def _run(*args: str, payload: bytes | None = None) -> tuple[bytes, bytes]:
+@contextlib.contextmanager
+def source(data: bytes, suffix: str = ".mp4") -> Iterator[str]:
+    """A clip on disk, for the length of the block, then gone.
+
+    ffmpeg has to be given a path rather than a pipe: an MP4 keeps its moov
+    atom at the end of the file, and stdin cannot be seeked back to read it,
+    so piping a clip in fails to decode a single frame.
+    """
+    with tempfile.NamedTemporaryFile(suffix=suffix, delete=False) as handle:
+        handle.write(data)
+        path = handle.name
+    try:
+        yield path
+    finally:
+        Path(path).unlink(missing_ok=True)
+
+
+async def run(*args: str, payload: bytes | None = None) -> tuple[bytes, bytes]:
+    """Spawn a tool and hand back its streams. ``args[0]`` is the executable."""
     process = await asyncio.create_subprocess_exec(
         *args,
         stdin=asyncio.subprocess.PIPE if payload is not None else None,
@@ -58,11 +78,8 @@ async def _run(*args: str, payload: bytes | None = None) -> tuple[bytes, bytes]:
 
 
 async def probe(data: bytes) -> VideoInfo:
-    with tempfile.NamedTemporaryFile(suffix=".mp4", delete=False) as handle:
-        handle.write(data)
-        path = handle.name
-    try:
-        out, _ = await _run(
+    with source(data) as path:
+        out, _ = await run(
             "ffprobe",
             "-v",
             "error",
@@ -85,8 +102,6 @@ async def probe(data: bytes) -> VideoInfo:
             fps=_fps(stream.get("r_frame_rate")),
             codec=stream.get("codec_name", ""),
         )
-    finally:
-        Path(path).unlink(missing_ok=True)
 
 
 def _fps(rate: str | None) -> float | None:
@@ -102,11 +117,8 @@ def _fps(rate: str | None) -> float | None:
 
 async def scene_times(data: bytes, threshold: float = SCENE_THRESHOLD) -> list[float]:
     """Timestamps where shots begin: 0.0 plus every detected cut, capped."""
-    with tempfile.NamedTemporaryFile(suffix=".mp4", delete=False) as handle:
-        handle.write(data)
-        path = handle.name
-    try:
-        _, err = await _run(
+    with source(data) as path:
+        _, err = await run(
             "ffmpeg",
             "-i",
             path,
@@ -119,17 +131,12 @@ async def scene_times(data: bytes, threshold: float = SCENE_THRESHOLD) -> list[f
         cuts = [float(m) for m in re.findall(r"pts_time:([\d.]+)", err.decode(errors="replace"))]
         times = [0.0, *cuts]
         return times[:MAX_FRAMES]
-    finally:
-        Path(path).unlink(missing_ok=True)
 
 
 async def frame_at(data: bytes, at: float) -> bytes:
     """One PNG frame at ``at`` seconds — what the image pipeline will judge."""
-    with tempfile.NamedTemporaryFile(suffix=".mp4", delete=False) as handle:
-        handle.write(data)
-        path = handle.name
-    try:
-        out, _ = await _run(
+    with source(data) as path:
+        out, _ = await run(
             "ffmpeg",
             "-ss",
             f"{at:.3f}",
@@ -146,18 +153,13 @@ async def frame_at(data: bytes, at: float) -> bytes:
         if not out:
             raise FfmpegError(f"no frame at {at:.3f}s")
         return out
-    finally:
-        Path(path).unlink(missing_ok=True)
 
 
 async def measure_loudness(data: bytes) -> Loudness | None:
     """Integrated LUFS + true peak, or None for a silent/audio-less file."""
-    with tempfile.NamedTemporaryFile(suffix=".mp4", delete=False) as handle:
-        handle.write(data)
-        path = handle.name
-    try:
+    with source(data) as path:
         try:
-            _, err = await _run("ffmpeg", "-i", path, "-af", "ebur128=peak=true", "-f", "null", "-")
+            _, err = await run("ffmpeg", "-i", path, "-af", "ebur128=peak=true", "-f", "null", "-")
         except FfmpegError:
             return None  # no audio stream
         text = err.decode(errors="replace")
@@ -172,5 +174,3 @@ async def measure_loudness(data: bytes) -> Loudness | None:
             lufs=float(integrated[-1]),
             true_peak_db=float("-inf") if peak_value == "-inf" else float(peak_value),
         )
-    finally:
-        Path(path).unlink(missing_ok=True)

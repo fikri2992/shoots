@@ -1,12 +1,18 @@
 """Scribe stage: ``media.judged`` → the review written back into the user's Drive.
 
 The photographer's workflow ends in a folder, so the agent's answer lands
-in that folder too: ``Shoots/Reviewed/<name> — <score> of 10.jpg`` is the
-frame with the composition read drawn on it and the critique as a caption
-band, plus the verdict if the shot was a quest attempt. It shows up in the
-Drive and Files apps on the phone without opening this app, and it can be
-shared as-is. The file is written *as the user* (``drive.file`` token), the
-only thing that token is used for besides creating the folder.
+in that folder too: ``Shoots/Reviewed/<name> — <finding>.jpg`` is the frame
+with the composition read drawn on it, any fault marked on the pixels it was
+measured from, and the critique as a caption band, plus the verdict if the
+shot was a quest attempt. It shows up in the Drive and Files apps on the phone
+without opening this app, and it can be shared as-is. The file is written *as
+the user* (``drive.file`` token), the only thing that token is used for
+besides creating the folder.
+
+The file is named after what was *found*, not what it scored. A folder of
+``bike — highlights blown to white.jpg`` is a list a photographer can scroll
+and act on; a folder of ``bike — 7 of 10.jpg`` is a report card, and the score
+is the least trustworthy line in the analysis (docs/research-findings.md).
 
 Runs after the Judge on the same shot, so the first write already carries
 the verdict. A redelivery updates name and caption instead of uploading twice.
@@ -17,11 +23,12 @@ from pathlib import Path
 from typing import Protocol
 
 from app.config import settings
-from app.domain import taxonomy
+from app.domain import faults, taxonomy
 from app.domain.entities import Analysis, MoveKind, Quest, Shot, ShotStatus, Verdict
 from app.domain.grid import Grid
 from app.imaging import canvas
 from app.imaging.caption import add_caption
+from app.imaging.faultmark import mark as mark_faults
 from app.infra import repository as repo
 from app.infra.drive import UserDrive, user_credentials
 from app.infra.storage import ANNOTATED
@@ -48,19 +55,41 @@ class ReviewPublisher(Protocol):
 # --- pure: what the file is called and says ----------------------------------
 
 
-def review_name(shot: Shot, analysis: Analysis, verdict: Verdict | None) -> str:
-    stem = Path(shot.filename).stem or shot.id
-    mark = "" if verdict is None else ("✔ " if verdict.passed else "✘ ")
-    return f"{mark}{stem} — {analysis.score} of 10.jpg"
-
-
-def review_title(analysis: Analysis, quest: Quest | None, verdict: Verdict | None) -> str:
-    seen = ", ".join(
+def _seen(analysis: Analysis) -> list[str]:
+    return [
         taxonomy.BY_ID[t.technique_id].name
         for t in analysis.techniques
         if t.technique_id in taxonomy.BY_ID
-    )
-    title = f"{analysis.score}/10" + (f" · {seen}" if seen else "")
+    ]
+
+
+def review_finding(analysis: Analysis) -> str:
+    """What the folder listing says about this frame.
+
+    The first fault if there is one: a defect is what a photographer scrolls
+    back to find, and it is the one line here that arithmetic settled. Failing
+    that, what the panel agreed the frame does. The score comes last because
+    it is the least informative thing in the analysis — one number for the
+    whole photograph, and its five elements correlate at r = 0.89
+    (docs/research-findings.md, §1).
+    """
+    if analysis.faults:
+        return faults.FAULTS.get(analysis.faults[0].fault_id, "worth another look").lower()
+    seen = _seen(analysis)
+    return ", ".join(seen[:2]).lower() if seen else f"{analysis.score} of 10"
+
+
+def review_name(shot: Shot, analysis: Analysis, verdict: Verdict | None) -> str:
+    stem = Path(shot.filename).stem or shot.id
+    mark = "" if verdict is None else ("✔ " if verdict.passed else "✘ ")
+    return f"{mark}{stem} — {review_finding(analysis)}.jpg"
+
+
+def review_title(analysis: Analysis, quest: Quest | None, verdict: Verdict | None) -> str:
+    """The bold line on the caption band: what is wrong, then what is there."""
+    seen = ", ".join(_seen(analysis))
+    wrong = faults.FAULTS.get(analysis.faults[0].fault_id, "") if analysis.faults else ""
+    title = " · ".join(part for part in (wrong, seen) if part) or f"{analysis.score} of 10"
     if verdict and quest:
         title = f"{'PASSED' if verdict.passed else 'NOT YET'} · {quest.title}  —  {title}"
     return title
@@ -68,12 +97,12 @@ def review_title(analysis: Analysis, quest: Quest | None, verdict: Verdict | Non
 
 def review_body(analysis: Analysis, verdict: Verdict | None, grid: Grid) -> list[str]:
     body = [analysis.critique.strip()] if analysis.critique.strip() else []
-    if analysis.elements:
-        body.append(
-            "Elements: "
-            + " · ".join(f"{k} {v}/10" for k, v in analysis.elements.items())
-            + " (PPA merit-image rubric)"
-        )
+    # Faults before advice: each carries the figure it was computed from, which
+    # is the only thing here the reader can check against their own histogram.
+    # The rubric's element scores are deliberately absent — they correlate at
+    # r = 0.89, so printing five of them prints one number five times.
+    for fault in analysis.faults:
+        body.append(f"{faults.FAULTS.get(fault.fault_id, 'Fault')}: {fault.what} ({fault.why}).")
     for index, move in enumerate(analysis.composition.moves, 1):
         where = ""
         if move.kind is MoveKind.MOVE and move.from_cells and move.to_cells:
@@ -140,6 +169,9 @@ async def write_review(
             user.drive_review_folder_id = folder_id
             await repo.put_user(ctx.store, user)
         frame = canvas.load_bytes(await ctx.blobs.read(shot.blobs[ANNOTATED]))
+        # Zebras over the clipped area, so "8.3% above 250" is visible and not
+        # merely asserted. Draws nothing when no fault has a region to point at.
+        frame = mark_faults(frame, analysis.faults)
         captioned = add_caption(
             frame,
             review_title(analysis, quest, verdict),

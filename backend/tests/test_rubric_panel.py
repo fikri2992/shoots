@@ -102,3 +102,84 @@ def test_scrub_lens_votes_for_video_moves():
     by_id = {t.technique_id: t for t in result.techniques}
     assert by_id["pan"].agreement == 2 and by_id["pan"].lenses == ["composer", "scrub"]
     assert result.quorum == 4 and "scrub" not in result.elements
+
+
+# --- arithmetic outranks the panel -------------------------------------------
+
+
+def test_a_measurement_that_rules_a_technique_out_drops_it_however_sure_the_lenses_were():
+    """The bug this exists to close: the drift said the framing travelled, the
+    lenses said tripod, and the evidence stood because the vote never read the
+    measurement."""
+    reads = [
+        read("technician", ("static_tripod", 1.0)),
+        read("composer", ("static_tripod", 1.0)),
+        read("storyteller", ("static_tripod", 1.0)),
+    ]
+    result = panel.aggregate(reads, settled_against=frozenset({"static_tripod"}))
+    assert result.techniques == []
+    # It still travels as dissent: the feed shows what was claimed and lost.
+    assert sorted(result.dissent) == [
+        ("composer", "static_tripod", 1.0),
+        ("storyteller", "static_tripod", 1.0),
+        ("technician", "static_tripod", 1.0),
+    ]
+
+
+def test_the_veto_beats_a_trusted_owner():
+    """An owner alone at >= 0.75 normally carries a technique on its own. The
+    veto takes it anyway, and leaves everything it did not rule out alone."""
+    reads = [read("composer", ("static_tripod", 0.95)), read("technician", ("panning", 0.9))]
+    result = panel.aggregate(reads, settled_against=frozenset({"static_tripod"}))
+    assert [t.technique_id for t in result.techniques] == ["panning"]
+    assert result.dissent == [("composer", "static_tripod", 0.95)]
+
+
+def test_one_lens_is_enough_when_the_measurement_agrees():
+    """A pan measured at 2.42 frame widths does not need a second opinion."""
+    reads = [
+        read("composer", ("pan", 0.5)),
+        read("technician", ("shallow_dof", 0.3)),
+        read("storyteller",),
+    ]
+    result = panel.aggregate(reads, settled_for=frozenset({"pan"}))
+    found = {t.technique_id: t for t in result.techniques}
+    assert "pan" in found
+    assert found["pan"].lenses == ["composer", panel.MEASURED]
+    assert found["pan"].agreement == 2
+    # Measured, not estimated: a proof does not get less certain because the
+    # lens was only half sure. This is also what carries it past the skill
+    # graph's corroboration bar.
+    assert found["pan"].confidence == 1.0
+
+
+def test_a_measurement_alone_invents_no_evidence():
+    """Nothing saw it. A measurement with no reading behind it is a gap in the
+    panel, not a sighting, so the vote stays quiet."""
+    reads = [read("technician", ("shallow_dof", 0.9)), read("composer", ("leading_lines", 0.8))]
+    result = panel.aggregate(reads, settled_for=frozenset({"pan"}))
+    assert "pan" not in {t.technique_id for t in result.techniques}
+
+
+def test_the_measurement_carries_no_cells_of_its_own():
+    reads = [
+        LensRead(lens="composer", sightings=[Sighting("pan", 0.6, cells=("C3", "D3"))]),
+        LensRead(lens="technician", sightings=[]),
+    ]
+    result = panel.aggregate(reads, settled_for=frozenset({"pan"}))
+    pan = next(t for t in result.techniques if t.technique_id == "pan")
+    assert pan.cells == ["C3", "D3"]
+
+
+def test_without_the_sets_nothing_changes():
+    """Photos pass no measured sets at all; the vote must behave exactly as before."""
+    reads = [
+        read("technician", ("panning", 0.9), ("shallow_dof", 0.8)),
+        read("composer", ("panning", 0.7), ("leading_lines", 0.5)),
+        read("storyteller", ("monochrome", 0.3)),
+    ]
+    plain = panel.aggregate(reads)
+    empty = panel.aggregate(reads, settled_for=frozenset(), settled_against=frozenset())
+    assert [(t.technique_id, t.agreement, t.confidence) for t in plain.techniques] == [
+        (t.technique_id, t.agreement, t.confidence) for t in empty.techniques
+    ]
