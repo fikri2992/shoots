@@ -34,7 +34,7 @@ function clock(iso) {
  * Everything that explains rather than instructs sits behind a disclosure.
  */
 export default {
-  name: 'QuestHero',
+  name: 'ExperimentHero',
   components: { DisclosureRow, ShootAction, VerdictNote },
   props: { experiment: { type: Object, required: true } },
   data() {

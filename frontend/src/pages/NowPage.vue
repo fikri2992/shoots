@@ -3,7 +3,7 @@ import { mapActions, mapState } from 'pinia'
 
 import ConnectStep from '@/components/now/ConnectStep.vue'
 import IdleStep from '@/components/now/IdleStep.vue'
-import QuestHero from '@/components/now/QuestHero.vue'
+import ExperimentHero from '@/components/now/ExperimentHero.vue'
 import ReadingStep from '@/components/now/ReadingStep.vue'
 import SeedStep from '@/components/now/SeedStep.vue'
 import { useShootsStore } from '@/stores/shoots'
@@ -14,7 +14,7 @@ import { useShootsStore } from '@/stores/shoots'
  */
 export default {
   name: 'NowPage',
-  components: { ConnectStep, IdleStep, QuestHero, ReadingStep, SeedStep },
+  components: { ConnectStep, IdleStep, ExperimentHero, ReadingStep, SeedStep },
   computed: {
     ...mapState(useShootsStore, ['experiment', 'shots', 'connected', 'loading', 'error', 'push', 'busy', 'working', 'seeding']),
     step() {
@@ -44,7 +44,7 @@ export default {
     <ConnectStep v-if="step === 'connect'" />
     <SeedStep v-else-if="step === 'seed'" />
     <ReadingStep v-else-if="step === 'reading'" :shots="working" />
-    <QuestHero v-else-if="step === 'experiment'" :experiment="experiment" />
+    <ExperimentHero v-else-if="step === 'experiment'" :experiment="experiment" />
     <IdleStep v-else-if="step === 'idle'" />
     <p v-else class="col gutter pt-12 t-meta">Loading…</p>
 

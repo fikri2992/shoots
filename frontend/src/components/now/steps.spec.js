@@ -7,7 +7,7 @@ import { mount } from '@vue/test-utils'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import ConnectStep from './ConnectStep.vue'
-import QuestHero from './QuestHero.vue'
+import ExperimentHero from './ExperimentHero.vue'
 import ReadingStep from './ReadingStep.vue'
 import SeedStep from './SeedStep.vue'
 import { useShootsStore } from '@/stores/shoots'
@@ -89,19 +89,19 @@ describe('ReadingStep', () => {
   })
 })
 
-describe('QuestHero', () => {
+describe('ExperimentHero', () => {
   it('leads with the criteria and keeps the steps behind a disclosure', () => {
-    const wrapper = mount(QuestHero, { props: { experiment: experiment() }, global: { stubs } })
+    const wrapper = mount(ExperimentHero, { props: { experiment: experiment() }, global: { stubs } })
     expect(wrapper.text()).toContain('The subject fills the frame.')
     expect(wrapper.text()).not.toContain('Step closer.')
     expect(wrapper.text()).toContain('How to shoot it')
   })
 
   it('only promises a clip while the Director could still be rendering one', () => {
-    const fresh = mount(QuestHero, { props: { experiment: experiment() }, global: { stubs } })
+    const fresh = mount(ExperimentHero, { props: { experiment: experiment() }, global: { stubs } })
     expect(fresh.text()).toContain('rendering a reference clip')
 
-    const old = mount(QuestHero, {
+    const old = mount(ExperimentHero, {
       props: { experiment: experiment({ issued_at: new Date(Date.now() - 3600_000).toISOString() }) },
       global: { stubs },
     })
@@ -113,7 +113,7 @@ describe('QuestHero', () => {
       { shot_id: 's1', passed: false, feedback: 'Old one. Next: old action.', compared_with: '' },
       { shot_id: 's2', passed: false, feedback: 'It stayed wide. Next: step closer.', compared_with: '' },
     ]
-    const wrapper = mount(QuestHero, { props: { experiment: experiment({ verdicts }) }, global: { stubs } })
+    const wrapper = mount(ExperimentHero, { props: { experiment: experiment({ verdicts }) }, global: { stubs } })
     expect(wrapper.text()).toContain('step closer.')
     expect(wrapper.text()).toContain('2 attempts so far')
     expect(wrapper.text()).not.toContain('It stayed wide.') // behind "What it looked at"
