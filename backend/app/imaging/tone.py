@@ -110,7 +110,7 @@ _DUV_K = (
 #: How far off the Planckian locus a frame may sit and still have a colour
 #: temperature worth reporting. Correlated colour temperature is only defined
 #: near the locus: a frame of pure red is not 2655 K light, it is a red object,
-#: and reporting the number would have the cast fault accusing a vivid sunset of
+#: and reporting the number would have the cast finding accusing a vivid sunset of
 #: an uncorrected tungsten white balance.
 #:
 #: Measured over the 19-frame corpus, real photographs span -0.0416 to +0.0167

@@ -123,13 +123,13 @@ object Api {
                 }
             }
         }
-        val faults = analysis.optJSONArray("faults")
-        val fault = if (faults != null && faults.length() > 0) {
-            faults.getJSONObject(0).optString("what")
+        val findings = analysis.optJSONArray("findings")
+        val finding = if (findings != null && findings.length() > 0) {
+            findings.getJSONObject(0).optString("what")
         } else {
             ""
         }
-        Pulse(praise = praise, fault = fault, keeper = !shot.optString("kept_at").isNullOrEmpty())
+        Pulse(praise = praise, finding = finding, keeper = !shot.optString("kept_at").isNullOrEmpty())
     }.getOrNull()
 
     fun setKeeper(context: Context, shotId: String, keeper: Boolean): Boolean = runCatching {
@@ -182,5 +182,5 @@ object Api {
 
     data class Quest(val id: String, val title: String, val whyNow: String)
 
-    data class Pulse(val praise: String, val fault: String, val keeper: Boolean)
+    data class Pulse(val praise: String, val finding: String, val keeper: Boolean)
 }

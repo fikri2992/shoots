@@ -90,10 +90,10 @@ def test_the_temperature_is_read_off_the_light_not_off_the_frame_average():
 
 
 def test_a_cast_cannot_be_claimed_without_a_temperature():
-    """The fault reads ``cct_k``; None has to mean silence, not a default."""
-    from app.domain import faults
+    """The finding reads ``cct_k``; None has to mean silence, not a default."""
+    from app.domain import findings
 
-    assert faults._cast(Tone(cct_k=None, saturation=90.0), set()) is None
+    assert findings._cast(Tone(cct_k=None, saturation=90.0), set()) is None
 
 
 def test_saturation_separates_a_grey_frame_from_a_vivid_one():

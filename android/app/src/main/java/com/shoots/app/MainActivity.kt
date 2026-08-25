@@ -215,7 +215,7 @@ fun ShutterRow(
 
 /**
  * What the panel found, in the hand that took the picture. Praise first and
- * only what a second lens actually corroborated, then the fault with its
+ * only what a second lens actually corroborated, then the finding with its
  * figure — the same order the review uses, for the same reason.
  */
 @Composable
@@ -237,9 +237,9 @@ private fun PulseCard(pulse: Api.Pulse, shotId: String, onKeep: () -> Unit) {
         } else {
             Text("read, nothing corroborated", color = Color.White, fontSize = 15.sp)
         }
-        if (pulse.fault.isNotEmpty()) {
+        if (pulse.finding.isNotEmpty()) {
             Spacer(Modifier.height(6.dp))
-            Text(pulse.fault, color = ZEBRA, fontSize = 13.sp)
+            Text(pulse.finding, color = ZEBRA, fontSize = 13.sp)
         }
         Spacer(Modifier.height(10.dp))
         TextButton(

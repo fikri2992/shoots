@@ -64,8 +64,8 @@ def feedback_prompt(
     observations = "\n".join(f"- {o}" for o in analysis.observations[:8]) if analysis else "- none"
     # Arithmetic, not opinion: the model may state these figures as fact.
     found = (
-        "\n".join(f"- {f.what} ({f.why})" for f in analysis.faults)
-        if analysis and analysis.faults
+        "\n".join(f"- {f.what} ({f.why})" for f in analysis.findings)
+        if analysis and analysis.findings
         else "- the arithmetic found nothing wrong"
     )
     return (
@@ -77,7 +77,7 @@ def feedback_prompt(
         f"Analyst evidence:\n{seen}\n"
         f"Analyst observations (Image 1):\n{observations}\n"
         f"Analyst critique (score {score}/10): {critique}\n"
-        f"Faults, computed from the numbers (checkable; state them plainly):\n{found}\n\n"
+        f"Findings, computed from the numbers (checkable; state them plainly):\n{found}\n\n"
         f"Camera facts:\n{facts}\n\n"
         f"{previous_text}"
     )

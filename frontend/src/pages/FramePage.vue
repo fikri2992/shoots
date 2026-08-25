@@ -95,8 +95,8 @@ export default {
      * these was computed from EXIF or from the grid, so each carries its own
      * number and is shown before the suggestions a model wrote.
      */
-    faults() {
-      return this.analysis?.faults || []
+    findings() {
+      return this.analysis?.findings || []
     },
     /** The critique, with any cell references said the way a person would. */
     critique() {
@@ -246,8 +246,8 @@ export default {
 
           <p class="mt-4 t-body">{{ critique }}</p>
 
-          <ul v-if="faults.length" class="mt-6 space-y-3">
-            <li v-for="f in faults" :key="f.fault_id" class="flex gap-3">
+          <ul v-if="findings.length" class="mt-6 space-y-3">
+            <li v-for="f in findings" :key="f.finding_id" class="flex gap-3">
               <span
                 class="mt-0.5 shrink-0 whitespace-nowrap rounded bg-accent/15 px-1.5 py-0.5 t-num text-[10px] text-accent"
               >

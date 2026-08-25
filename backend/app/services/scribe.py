@@ -2,7 +2,7 @@
 
 The photographer's workflow ends in a folder, so the agent's answer lands
 in that folder too: ``Shoots/Reviewed/<name> — <finding>.jpg`` is the frame
-with the composition read drawn on it, any fault marked on the pixels it was
+with the composition read drawn on it, any finding marked on the pixels it was
 measured from, and the critique as a caption band, plus the verdict if the
 shot was a quest attempt. It shows up in the Drive and Files apps on the phone
 without opening this app, and it can be shared as-is. The file is written *as
@@ -23,12 +23,12 @@ from pathlib import Path
 from typing import Protocol
 
 from app.config import settings
-from app.domain import faults, taxonomy
+from app.domain import findings, taxonomy
 from app.domain.entities import Analysis, MoveKind, Quest, Shot, ShotStatus, Verdict
 from app.domain.grid import Grid
 from app.imaging import canvas
 from app.imaging.caption import add_caption
-from app.imaging.faultmark import mark as mark_faults
+from app.imaging.findingmark import mark as mark_faults
 from app.infra import repository as repo
 from app.infra.drive import UserDrive, user_credentials
 from app.infra.storage import ANNOTATED
@@ -82,7 +82,7 @@ def review_finding(analysis: Analysis) -> str:
     opening an app that greets them with a defect every time, and the thing
     they came for is what they are getting right.
 
-    The fault is next, and it is never dropped — it carries the figure it was
+    The finding is next, and it is never dropped — it carries the figure it was
     computed from, which is the one line here anybody can check. The score is
     last because it is the least informative thing in the analysis: one number
     for a whole photograph whose five elements correlate at r = 0.89
@@ -93,8 +93,8 @@ def review_finding(analysis: Analysis) -> str:
     strong = _corroborated(analysis)
     if strong:
         return ", ".join(strong[:2]).lower()
-    if analysis.faults:
-        return faults.FAULTS.get(analysis.faults[0].fault_id, "worth another look").lower()
+    if analysis.findings:
+        return findings.FINDINGS.get(analysis.findings[0].finding_id, "worth another look").lower()
     seen = _seen(analysis)
     return ", ".join(seen[:2]).lower() if seen else f"{analysis.score} of 10"
 
@@ -109,12 +109,12 @@ def review_title(analysis: Analysis, quest: Quest | None, verdict: Verdict | Non
     """The bold line on the caption band: what the frame does, then what to fix.
 
     That order is the product's, not a stylistic preference: praise first and
-    with proof, the fault after and with its figure.
+    with proof, the finding after and with its figure.
     """
     if analysis.abstained:
         return f"Not called — {analysis.abstained}"
     seen = ", ".join(_seen(analysis))
-    wrong = faults.FAULTS.get(analysis.faults[0].fault_id, "") if analysis.faults else ""
+    wrong = findings.FINDINGS.get(analysis.findings[0].finding_id, "") if analysis.findings else ""
     title = " · ".join(part for part in (seen, wrong) if part) or f"{analysis.score} of 10"
     if verdict and quest:
         title = f"{'PASSED' if verdict.passed else 'NOT YET'} · {quest.title}  —  {title}"
@@ -126,17 +126,18 @@ def review_body(analysis: Analysis, verdict: Verdict | None, grid: Grid) -> list
     # An abstention is stated before anything else, because everything after it
     # has to be read differently: three readers each saw something and no two
     # saw the same thing, so nothing below is a verdict (decision 38). The
-    # faults are the exception and stay exactly as true - they are arithmetic.
+    # findings are the exception and stay exactly as true - they are arithmetic.
     if analysis.abstained:
         body.append(f"The panel could not call this one: {analysis.abstained}.")
     if analysis.critique.strip():
         body.append(analysis.critique.strip())
-    # Faults before advice: each carries the figure it was computed from, which
+    # Findings before advice: each carries the figure it was computed from, which
     # is the only thing here the reader can check against their own histogram.
     # The rubric's element scores are deliberately absent — they correlate at
     # r = 0.89, so printing five of them prints one number five times.
-    for fault in analysis.faults:
-        body.append(f"{faults.FAULTS.get(fault.fault_id, 'Fault')}: {fault.what} ({fault.why}).")
+    for finding in analysis.findings:
+        label = findings.FINDINGS.get(finding.finding_id, "Finding")
+        body.append(f"{label}: {finding.what} ({finding.why}).")
     for index, move in enumerate(analysis.composition.moves, 1):
         where = ""
         if move.kind is MoveKind.MOVE and move.from_cells and move.to_cells:
@@ -204,8 +205,8 @@ async def write_review(
             await repo.put_user(ctx.store, user)
         frame = canvas.load_bytes(await ctx.blobs.read(shot.blobs[ANNOTATED]))
         # Zebras over the clipped area, so "8.3% above 250" is visible and not
-        # merely asserted. Draws nothing when no fault has a region to point at.
-        frame = mark_faults(frame, analysis.faults)
+        # merely asserted. Draws nothing when no finding has a region to point at.
+        frame = mark_faults(frame, analysis.findings)
         captioned = add_caption(
             frame,
             review_title(analysis, quest, verdict),

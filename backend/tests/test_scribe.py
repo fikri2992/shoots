@@ -144,14 +144,14 @@ async def test_unanalysed_shot_is_skipped():
         )
 
 
-# --- praise first, with proof; then the fault, with its figure ------------------
+# --- praise first, with proof; then the finding, with its figure ------------------
 
 
 GRID = Grid(cols=8, rows=6, width=800, height=600)
 
 
-def analysis_with(techniques=(), fault=False, abstained=""):
-    from app.domain.entities import Analysis, Fault, TechniqueEvidence
+def analysis_with(techniques=(), finding=False, abstained=""):
+    from app.domain.entities import Analysis, Finding, TechniqueEvidence
 
     return Analysis(
         shot_id="s1",
@@ -161,9 +161,15 @@ def analysis_with(techniques=(), fault=False, abstained=""):
             TechniqueEvidence(technique_id=tid, confidence=0.9, agreement=agreement)
             for tid, agreement in techniques
         ],
-        faults=(
-            [Fault(fault_id="blown_highlights", what="the sky is gone", why="3.1% of the frame")]
-            if fault
+        findings=(
+            [
+                Finding(
+                    finding_id="blown_highlights",
+                    what="the sky is gone",
+                    why="3.1% of the frame",
+                )
+            ]
+            if finding
             else []
         ),
         abstained=abstained,
@@ -174,7 +180,7 @@ def analysis_with(techniques=(), fault=False, abstained=""):
 def test_the_review_leads_with_what_the_frame_did_not_what_is_wrong_with_it():
     """A hobbyist stops opening an app that greets them with a defect. Both are
     shown; the order is the product's."""
-    found = analysis_with(techniques=[("panning", 2)], fault=True)
+    found = analysis_with(techniques=[("panning", 2)], finding=True)
     assert scribe.review_finding(found) == "panning"
     title = scribe.review_title(found, None, None)
     assert title.index("Panning") < title.index("Highlights")
@@ -183,12 +189,12 @@ def test_the_review_leads_with_what_the_frame_did_not_what_is_wrong_with_it():
 def test_praise_needs_a_second_reader():
     """One lens with a habit is one opinion. Praise that turns out to be one
     model's enthusiasm is worse than no praise."""
-    found = analysis_with(techniques=[("panning", 1)], fault=True)
+    found = analysis_with(techniques=[("panning", 1)], finding=True)
     assert scribe.review_finding(found) == "highlights blown to white"
 
 
 def test_the_fault_is_never_dropped_only_moved():
-    found = analysis_with(techniques=[("panning", 2)], fault=True)
+    found = analysis_with(techniques=[("panning", 2)], finding=True)
     body = " ".join(scribe.review_body(found, None, GRID))
     assert "the sky is gone" in body and "3.1% of the frame" in body
 
@@ -202,8 +208,8 @@ def test_an_abstention_is_said_before_anything_else_is_read():
 
 
 def test_an_abstention_does_not_silence_the_arithmetic():
-    """The faults were never opinions, so a contested panel leaves them true."""
-    found = analysis_with(abstained="no two agreed", fault=True)
+    """The findings were never opinions, so a contested panel leaves them true."""
+    found = analysis_with(abstained="no two agreed", finding=True)
     body = " ".join(scribe.review_body(found, None, GRID))
     assert "3.1% of the frame" in body
 

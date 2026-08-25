@@ -1,8 +1,8 @@
-"""Faults are arithmetic, so every test here pins a number, not a mood."""
+"""Findings are arithmetic, so every test here pins a number, not a mood."""
 
 import pytest
 
-from app.domain import faults
+from app.domain import findings
 from app.domain.entities import Exif, Tone
 from app.domain.grid import Grid
 
@@ -14,12 +14,12 @@ def exif(shutter: float, focal: int = 85) -> Exif:
 
 
 def ids(found: list) -> set[str]:
-    return {fault.fault_id for fault in found}
+    return {finding.finding_id for finding in found}
 
 
 def detect(**kwargs) -> list:
     base = dict(exif=Exif(), grid=GRID, technique_ids=[], subject_cells=[])
-    return faults.detect(**{**base, **kwargs})
+    return findings.detect(**{**base, **kwargs})
 
 
 # --- camera shake ---------------------------------------------------------
@@ -27,17 +27,17 @@ def detect(**kwargs) -> list:
 
 def test_shake_is_named_when_the_shutter_is_under_the_handheld_limit():
     # The limit is 1/(2 x 85) = 1/170 s; 1/25 s is well under it.
-    (fault,) = detect(exif=exif(1 / 25))
-    assert fault.fault_id == faults.CAMERA_SHAKE
-    assert "1/25 s at 85 mm" in fault.why and "1/170 s" in fault.why
-    assert "not missed focus" in fault.what
+    (finding,) = detect(exif=exif(1 / 25))
+    assert finding.finding_id == findings.CAMERA_SHAKE
+    assert "1/25 s at 85 mm" in finding.why and "1/170 s" in finding.why
+    assert "not missed focus" in finding.what
 
 
 def test_a_shutter_inside_the_limit_is_not_a_fault():
     assert detect(exif=exif(1 / 250)) == []
 
 
-@pytest.mark.parametrize("technique", sorted(faults.DELIBERATE_BLUR))
+@pytest.mark.parametrize("technique", sorted(findings.DELIBERATE_BLUR))
 def test_a_slow_shutter_the_technique_asked_for_is_not_shake(technique):
     assert detect(exif=exif(2.0), technique_ids=[technique]) == []
 
@@ -60,39 +60,39 @@ def test_a_subject_on_any_line_is_not_a_fault(position):
 
 def test_a_subject_near_no_line_at_all_is_a_fault_with_its_distance():
     # 0.86 is 0.19 from the nearest line, a third at 0.667. Nothing put it there.
-    (fault,) = detect(subject_x=0.5, subject_y=0.86)
-    assert fault.fault_id == faults.OFF_GUIDE_SUBJECT
-    assert "0.86 down" in fault.why and "a third at 0.67" in fault.why
+    (finding,) = detect(subject_x=0.5, subject_y=0.86)
+    assert finding.finding_id == findings.OFF_GUIDE_SUBJECT
+    assert "0.86 down" in finding.why and "a third at 0.67" in finding.why
 
 
 def test_the_worse_axis_is_the_one_reported():
-    (fault,) = detect(subject_x=0.44, subject_y=0.9)
-    assert "0.90 down" in fault.why
+    (finding,) = detect(subject_x=0.44, subject_y=0.9)
+    assert "0.90 down" in finding.why
 
 
 @pytest.mark.parametrize("position", [0.41, 0.44, 0.45, 0.55, 0.58, 0.71])
 def test_a_subject_a_little_off_a_line_is_not_accused(position):
     """Replayed against 12 real frames, a 0.024 tolerance accused 8 of them.
-    A fault that fires on two thirds of all frames teaches nobody anything and
-    costs the trust that every other fault depends on."""
+    A finding that fires on two thirds of all frames teaches nobody anything and
+    costs the trust that every other finding depends on."""
     assert detect(subject_x=position, subject_y=0.5) == []
 
 
 def test_the_tolerance_is_half_the_widest_gap_between_lines():
-    """So the fault means "nearer the empty middle of a gap than either line",
+    """So the finding means "nearer the empty middle of a gap than either line",
     which is a claim a photographer can check, and not a matter of taste."""
-    lines = sorted(at for at, _ in faults.PLACEMENT_LINES)
+    lines = sorted(at for at, _ in findings.PLACEMENT_LINES)
     widest = max(b - a for a, b in zip(lines, lines[1:], strict=False))
-    assert pytest.approx(widest / 2, abs=0.002) == faults.ON_LINE_TOLERANCE
+    assert pytest.approx(widest / 2, abs=0.002) == findings.ON_LINE_TOLERANCE
 
 
 # --- horizon --------------------------------------------------------------
 
 
 def test_a_horizon_on_the_middle_row_splits_the_frame():
-    (fault,) = detect(horizon_row=5)  # rows 1-9; row 5 spans 0.44 to 0.56
-    assert fault.fault_id == faults.SPLIT_HORIZON
-    assert "row 5 of 9" in fault.why
+    (finding,) = detect(horizon_row=5)  # rows 1-9; row 5 spans 0.44 to 0.56
+    assert finding.finding_id == findings.SPLIT_HORIZON
+    assert "row 5 of 9" in finding.why
 
 
 @pytest.mark.parametrize("row", [1, 3, 4, 6, 7, 9])
@@ -106,9 +106,9 @@ def test_a_horizon_row_outside_the_grid_says_nothing():
 
 def test_an_even_grid_splits_on_either_row_touching_the_middle():
     even = Grid(cols=8, rows=8, width=800, height=800)
-    assert ids(faults.detect(Exif(), even, [], [], horizon_row=4)) == {faults.SPLIT_HORIZON}
-    assert ids(faults.detect(Exif(), even, [], [], horizon_row=5)) == {faults.SPLIT_HORIZON}
-    assert faults.detect(Exif(), even, [], [], horizon_row=3) == []
+    assert ids(findings.detect(Exif(), even, [], [], horizon_row=4)) == {findings.SPLIT_HORIZON}
+    assert ids(findings.detect(Exif(), even, [], [], horizon_row=5)) == {findings.SPLIT_HORIZON}
+    assert findings.detect(Exif(), even, [], [], horizon_row=3) == []
 
 
 # --- centre of interest ---------------------------------------------------
@@ -116,17 +116,17 @@ def test_an_even_grid_splits_on_either_row_touching_the_middle():
 
 def test_a_subject_over_a_third_of_the_grid_is_not_a_subject():
     cells = GRID.all_refs()[:25]  # 25 of 63
-    (fault,) = detect(subject_cells=cells, subject_x=0.5, subject_y=0.5)
-    assert fault.fault_id == faults.NO_CENTRE_OF_INTEREST
-    assert "25 of 63" in fault.why and "40%" in fault.why
-    assert fault.cells == cells
+    (finding,) = detect(subject_cells=cells, subject_x=0.5, subject_y=0.5)
+    assert finding.finding_id == findings.NO_CENTRE_OF_INTEREST
+    assert "25 of 63" in finding.why and "40%" in finding.why
+    assert finding.cells == cells
 
 
 def test_a_third_of_the_grid_exactly_is_still_a_subject():
     assert detect(subject_cells=GRID.all_refs()[:21], subject_x=0.5, subject_y=0.5) == []
 
 
-@pytest.mark.parametrize("technique", sorted(faults.WIDE_SUBJECT_OK))
+@pytest.mark.parametrize("technique", sorted(findings.WIDE_SUBJECT_OK))
 def test_a_technique_that_fills_the_frame_excuses_its_own_subject(technique):
     found = detect(
         subject_cells=GRID.all_refs()[:40], technique_ids=[technique], subject_x=0.5, subject_y=0.5
@@ -137,7 +137,7 @@ def test_a_technique_that_fills_the_frame_excuses_its_own_subject(technique):
 # --- the whole set --------------------------------------------------------
 
 
-def test_faults_come_back_in_the_order_a_photographer_would_fix_them():
+def test_findings_come_back_in_the_order_a_photographer_would_fix_them():
     found = detect(
         exif=exif(1 / 25),
         subject_cells=GRID.all_refs()[:30],
@@ -145,11 +145,11 @@ def test_faults_come_back_in_the_order_a_photographer_would_fix_them():
         subject_y=0.86,
         horizon_row=5,
     )
-    assert [f.fault_id for f in found] == [
-        faults.CAMERA_SHAKE,
-        faults.NO_CENTRE_OF_INTEREST,
-        faults.SPLIT_HORIZON,
-        faults.OFF_GUIDE_SUBJECT,
+    assert [f.finding_id for f in found] == [
+        findings.CAMERA_SHAKE,
+        findings.NO_CENTRE_OF_INTEREST,
+        findings.SPLIT_HORIZON,
+        findings.OFF_GUIDE_SUBJECT,
     ]
 
 
@@ -157,16 +157,16 @@ def test_faults_come_back_in_the_order_a_photographer_would_fix_them():
 
 
 def test_highlights_past_recovery_are_named_with_the_share():
-    (fault,) = detect(tone=Tone(cct_k=5500, clipped_high=8.3))
-    assert fault.fault_id == faults.BLOWN_HIGHLIGHTS
-    assert "8.3%" in fault.why and "250 of 255" in fault.why
+    (finding,) = detect(tone=Tone(cct_k=5500, clipped_high=8.3))
+    assert finding.finding_id == findings.BLOWN_HIGHLIGHTS
+    assert "8.3%" in finding.why and "250 of 255" in finding.why
 
 
 def test_a_specular_glint_is_not_a_blown_frame():
     assert detect(tone=Tone(cct_k=5500, clipped_high=0.9)) == []
 
 
-@pytest.mark.parametrize("technique", sorted(faults.BRIGHT_ON_PURPOSE))
+@pytest.mark.parametrize("technique", sorted(findings.BRIGHT_ON_PURPOSE))
 def test_white_that_is_the_point_is_not_a_fault(technique: str):
     assert detect(tone=Tone(cct_k=5500, clipped_high=40.0), technique_ids=[technique]) == []
 
@@ -175,16 +175,16 @@ def test_white_that_is_the_point_is_not_a_fault(technique: str):
 
 
 def test_a_blue_frame_with_nothing_to_explain_it_is_a_cast():
-    (fault,) = detect(tone=Tone(cct_k=8639))
-    assert fault.fault_id == faults.COLOUR_CAST
-    assert "8639 K" in fault.why and "5500 K" in fault.why
-    assert "blue" in fault.what
+    (finding,) = detect(tone=Tone(cct_k=8639))
+    assert finding.finding_id == findings.COLOUR_CAST
+    assert "8639 K" in finding.why and "5500 K" in finding.why
+    assert "blue" in finding.what
 
 
 def test_a_warm_frame_with_nothing_to_explain_it_is_a_cast():
-    (fault,) = detect(tone=Tone(cct_k=3200))
-    assert fault.fault_id == faults.COLOUR_CAST
-    assert "orange" in fault.what
+    (finding,) = detect(tone=Tone(cct_k=3200))
+    assert finding.finding_id == findings.COLOUR_CAST
+    assert "orange" in finding.what
 
 
 def test_daylight_is_not_a_cast():
@@ -193,12 +193,12 @@ def test_daylight_is_not_a_cast():
     assert detect(tone=Tone(cct_k=7000)) == []
 
 
-@pytest.mark.parametrize("technique", sorted(faults.COOL_ON_PURPOSE))
+@pytest.mark.parametrize("technique", sorted(findings.COOL_ON_PURPOSE))
 def test_a_cool_frame_the_panel_explains_is_not_a_cast(technique: str):
     assert detect(tone=Tone(cct_k=8639), technique_ids=[technique]) == []
 
 
-@pytest.mark.parametrize("technique", sorted(faults.WARM_ON_PURPOSE))
+@pytest.mark.parametrize("technique", sorted(findings.WARM_ON_PURPOSE))
 def test_a_warm_frame_the_panel_explains_is_not_a_cast(technique: str):
     assert detect(tone=Tone(cct_k=3200), technique_ids=[technique]) == []
 
@@ -215,7 +215,7 @@ def test_a_clean_frame_has_nothing_said_about_it():
 
 def test_guide_choice_stays_finer_than_fault_tolerance():
     """The two measures answer different questions and must not be merged: the
-    guide picks between grids 0.049 apart, the fault asks whether the subject
+    guide picks between grids 0.049 apart, the finding asks whether the subject
     was placed at all."""
     from app.domain import guides
 
@@ -232,8 +232,8 @@ def test_every_fault_carries_a_number_and_a_catalogue_name():
         horizon_row=5,
         tone=Tone(cct_k=8639, clipped_high=8.3),
     )
-    assert len(found) == len(faults.FAULTS)
-    for fault in found:
-        assert fault.fault_id in faults.FAULTS
-        assert faults.FAULTS[fault.fault_id] and fault.what.endswith(".")
-        assert any(character.isdigit() for character in fault.why), fault.fault_id
+    assert len(found) == len(findings.FINDINGS)
+    for finding in found:
+        assert finding.finding_id in findings.FINDINGS
+        assert findings.FINDINGS[finding.finding_id] and finding.what.endswith(".")
+        assert any(character.isdigit() for character in finding.why), finding.finding_id

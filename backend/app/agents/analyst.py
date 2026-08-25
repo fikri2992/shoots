@@ -20,7 +20,7 @@ from pydantic import BaseModel, Field
 from app.agents import prompts
 from app.agents.runtime import WorkflowResult, bytes_part, run_workflow
 from app.config import settings
-from app.domain import exposure, faults, guides, motion, panel, rubric, taxonomy, tone
+from app.domain import exposure, findings, guides, motion, panel, rubric, taxonomy, tone
 from app.domain.entities import (
     Analysis,
     Composition,
@@ -417,7 +417,7 @@ def validate(shot: Shot, result: PanelResult) -> Analysis:
 
     # After the vote, so a technique can excuse the side effect it asks for: a
     # two-second light trail is not camera shake.
-    found = faults.detect(
+    found = findings.detect(
         exif=shot.exif,
         grid=grid,
         technique_ids=[t.technique_id for t in consensus.techniques],
@@ -427,8 +427,8 @@ def validate(shot: Shot, result: PanelResult) -> Analysis:
         horizon_row=horizon,
         tone=shot.tone,
     )
-    for fault in found:
-        logger.info("faults: %s on %s (%s)", fault.fault_id, shot.id, fault.why)
+    for finding in found:
+        logger.info("findings: %s on %s (%s)", finding.finding_id, shot.id, finding.why)
 
     return Analysis(
         shot_id=shot.id,
@@ -444,7 +444,7 @@ def validate(shot: Shot, result: PanelResult) -> Analysis:
             suggested_crop_cells=crop,
             moves=moves,
         ),
-        faults=found,
+        findings=found,
         observations=consensus.observations,
         elements=consensus.elements,
         critique=critique[:2000],

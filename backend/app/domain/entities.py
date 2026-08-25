@@ -114,7 +114,7 @@ class Tone(BaseModel):
     other, so the camera records that it decided and not what it decided.
     Colour therefore has to be measured off the frame or it is not evidence at
     all, which is what left the colour and light families making claims with
-    nothing behind them while composition had a grid, a guide and four faults.
+    nothing behind them while composition had a grid, a guide and four findings.
 
     Raw measurements only, like ``Exif``. ``domain/tone.py`` does the arithmetic
     on top, the same way ``domain/exposure.py`` sits on ``Exif``.
@@ -255,19 +255,19 @@ class TechniqueEvidence(BaseModel):
     lenses: list[str] = Field(default_factory=list)
 
 
-class Fault(BaseModel):
-    """Something wrong with a frame, decided by arithmetic (``domain/faults.py``).
+class Finding(BaseModel):
+    """Something wrong with a frame, decided by arithmetic (``domain/findings.py``).
 
     The mirror of ``TechniqueEvidence``: that says what the frame achieved and
     carries a confidence because a model saw it; this says what the frame gets
     wrong and carries a figure because code computed it. No confidence field —
-    a fault the numbers cannot settle is never raised.
+    a finding the numbers cannot settle is never raised.
     """
 
-    fault_id: str
-    #: The fault in the photographer's words. Reads on its own.
+    finding_id: str
+    #: The finding in the photographer's words. Reads on its own.
     what: str
-    #: The arithmetic behind it. Never empty: a fault without a figure is an
+    #: The arithmetic behind it. Never empty: a finding without a figure is an
     #: opinion, and opinions belong to the lenses.
     why: str
     cells: list[str] = Field(default_factory=list)
@@ -325,9 +325,9 @@ class Analysis(BaseModel):
     composition: Composition = Field(default_factory=Composition)
     #: Neutral, cell-referenced description (Feldman's first step), before judgement.
     observations: list[str] = Field(default_factory=list)
-    #: What the arithmetic says is wrong with the frame (domain/faults.py).
+    #: What the arithmetic says is wrong with the frame (domain/findings.py).
     #: Computed after the vote, so a technique can excuse its own side effect.
-    faults: list[Fault] = Field(default_factory=list)
+    findings: list[Finding] = Field(default_factory=list)
     #: Rubric element scores 1-10 (domain/rubric.py), averaged over the lenses that rate each.
     elements: dict[str, int] = Field(default_factory=dict)
     critique: str = ""
@@ -338,7 +338,7 @@ class Analysis(BaseModel):
     #: Sightings that lost the vote: [{lens, technique_id, confidence}]. Shown, not counted.
     dissent: list[dict] = Field(default_factory=list)
     #: Set when the panel could not call this frame: every lens saw something
-    #: and no two saw the same thing (decision 38). The faults still stand -
+    #: and no two saw the same thing (decision 38). The findings still stand -
     #: they are arithmetic - but nothing here should be read as a verdict, and
     #: the review says so rather than averaging three opinions into one.
     abstained: str = ""

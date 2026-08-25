@@ -6,7 +6,7 @@ import { cameraMove, harmony, measured, readout } from '@/domain/tone'
  *
  * Deliberately not behind a disclosure and deliberately not amber. Amber means
  * "the agent decided this"; a measurement decided nothing — it is the instrument
- * reading that the critique, the faults and the panel all argue from, and the
+ * reading that the critique, the findings and the panel all argue from, and the
  * one part of the page a photographer can check against their own camera.
  */
 export default {

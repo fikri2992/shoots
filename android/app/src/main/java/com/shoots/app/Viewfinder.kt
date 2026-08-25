@@ -54,7 +54,7 @@ import java.util.concurrent.Executors
 import kotlin.coroutines.resume
 import kotlin.coroutines.suspendCoroutine
 
-/** The colour `imaging/faultmark.py` stripes finished reviews with, live. */
+/** The colour `imaging/findingmark.py` stripes finished reviews with, live. */
 val ZEBRA = Color(0xFFFF4040)
 private val AMBER = Color(0xFFFFC857)
 
@@ -273,7 +273,7 @@ private fun ThirdsGrid() {
 /**
  * Figures, not opinions: the share of the frame above CLIP_HIGH and how far
  * from level the camera is aimed. Eye level is stated plainly rather than
- * warned about — it is a tendency, not a fault (decision 39).
+ * warned about — it is a tendency, not a finding (decision 39).
  */
 @Composable
 private fun TopReadout(

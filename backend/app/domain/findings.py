@@ -6,14 +6,14 @@ handheld limit, so that softness is shake" teaches something; "technical: 6"
 does not. The rubric asks whether anything pulls against the frame and had no
 vocabulary for the answer. This is that vocabulary.
 
-Nothing here is asserted by a model. Every fault is computed from numbers the
+Nothing here is asserted by a model. Every finding is computed from numbers the
 pipeline already holds — the EXIF the camera wrote, the subject point and the
 horizon row the Composer measured, the cells it named — so each one carries the
 figure that produced it and a photographer can check the claim by looking. A
-fault the arithmetic cannot settle is not raised at all: silence beats a guess
+finding the arithmetic cannot settle is not raised at all: silence beats a guess
 that the frame disproves.
 
-Each fault is also excused by intent. A two-second exposure is not camera shake
+Each finding is also excused by intent. A two-second exposure is not camera shake
 when the frame is a light trail, and a subject filling the frame is not a
 missing centre of interest when the technique *is* filling the frame. The
 technique the panel agreed on is what tells them apart, which is why detection
@@ -22,7 +22,7 @@ runs after the vote and not before it.
 
 from app.domain import exposure
 from app.domain import tone as tone_rules
-from app.domain.entities import Exif, Fault, Tone
+from app.domain.entities import Exif, Finding, Tone
 from app.domain.grid import Grid
 
 CAMERA_SHAKE = "camera_shake"
@@ -32,9 +32,9 @@ NO_CENTRE_OF_INTEREST = "no_centre_of_interest"
 BLOWN_HIGHLIGHTS = "blown_highlights"
 COLOUR_CAST = "colour_cast"
 
-#: Every fault, with the short name a chip shows. The list is closed, like the
-#: technique catalogue: a fault that is not here cannot be reported.
-FAULTS: dict[str, str] = {
+#: Every finding, with the short name a chip shows. The list is closed, like the
+#: technique catalogue: a finding that is not here cannot be reported.
+FINDINGS: dict[str, str] = {
     CAMERA_SHAKE: "Camera shake",
     OFF_GUIDE_SUBJECT: "Subject off every line",
     SPLIT_HORIZON: "Horizon splits the frame",
@@ -73,7 +73,7 @@ COOL_ON_PURPOSE: frozenset[str] = frozenset(
     {"blue_hour", "warm_cool", "monochrome", "high_key", "astro"}
 )
 
-#: Share of the frame at pure white before the highlights are a fault rather
+#: Share of the frame at pure white before the highlights are a finding rather
 #: than a specular glint. Across the 19-frame corpus the median is 0.4% and the
 #: 90th percentile 1.1%; at 2.0% this accuses the one frame that earns it.
 BLOWN_SHARE = 2.0
@@ -82,15 +82,15 @@ BLOWN_SHARE = 2.0
 #: leave the ordinary warm interior alone and accuse only the far ends.
 #: Replayed over those 19 frames this reports nothing, which is the right
 #: answer: the single frame past the cool edge sits at 8639 K and the panel
-#: called it ``warm_cool``, so the excuse takes it. A fault that fires on a
-#: corpus this small would be a fault with its edge in the wrong place.
+#: called it ``warm_cool``, so the excuse takes it. A finding that fires on a
+#: corpus this small would be a finding with its edge in the wrong place.
 WARM_CAST_K = 4000
 COOL_CAST_K = 7500
 
 #: The placement lines a photographer aims at, as fractions of the frame. Phi is
 #: 1 : 0.618 : 1; the thirds are 1 : 1 : 1; the centre is the third choice a
 #: composition can deliberately make. A subject near none of them was placed by
-#: accident, and that is the only claim this fault makes.
+#: accident, and that is the only claim this finding makes.
 PLACEMENT_LINES: tuple[tuple[float, str], ...] = (
     (1 / 3, "a third"),
     (2 / 3, "a third"),
@@ -100,7 +100,7 @@ PLACEMENT_LINES: tuple[tuple[float, str], ...] = (
 )
 
 #: How near a line still counts as on it, in frame widths. Set to half the
-#: widest gap between two adjacent lines (0.382 to 0.500), so the fault fires
+#: widest gap between two adjacent lines (0.382 to 0.500), so the finding fires
 #: only when the subject is nearer the empty middle of a gap than either side
 #: of it. This is deliberately not the tolerance ``guides.refine`` works to:
 #: choosing between two grids 0.049 apart needs a fine measure, while accusing
@@ -117,7 +117,7 @@ def nearest_line(position: float) -> tuple[float, str, float]:
     return at, label, abs(at - position)
 
 
-def _shake(exif: Exif, seen: set[str]) -> Fault | None:
+def _shake(exif: Exif, seen: set[str]) -> Finding | None:
     derived = exposure.derive(exif)
     if derived.handheld_ok is not False or not exif.exposure_time_s:
         return None
@@ -125,15 +125,15 @@ def _shake(exif: Exif, seen: set[str]) -> Fault | None:
         return None
     focal = exif.focal_length_35mm or exif.focal_length_mm
     limit = exposure.shutter_text(derived.handheld_limit_s or 0.0)
-    return Fault(
-        fault_id=CAMERA_SHAKE,
+    return Finding(
+        finding_id=CAMERA_SHAKE,
         what="Any softness here is camera shake, not missed focus.",
         why=f"{exposure.shutter_text(exif.exposure_time_s)} at {focal:g} mm, "
         f"under the handheld limit of {limit}",
     )
 
 
-def _off_guide(subject_x: float | None, subject_y: float | None) -> Fault | None:
+def _off_guide(subject_x: float | None, subject_y: float | None) -> Finding | None:
     axes = [("across", subject_x), ("down", subject_y)]
     off = [
         (axis, value, nearest_line(value))
@@ -143,37 +143,37 @@ def _off_guide(subject_x: float | None, subject_y: float | None) -> Fault | None
     if not off:
         return None
     axis, value, (at, label, distance) = max(off, key=lambda entry: entry[2][2])
-    return Fault(
-        fault_id=OFF_GUIDE_SUBJECT,
+    return Finding(
+        finding_id=OFF_GUIDE_SUBJECT,
         what="The subject sits on no line the eye expects, so the frame reads unplaced.",
         why=f"{value:.2f} {axis}; the nearest line is {label} at {at:.2f}, "
         f"{distance:.2f} of the frame away",
     )
 
 
-def _split_horizon(horizon_row: int | None, grid: Grid) -> Fault | None:
+def _split_horizon(horizon_row: int | None, grid: Grid) -> Finding | None:
     """The horizon halves the frame when the middle falls inside its row."""
     if horizon_row is None or not (1 <= horizon_row <= grid.rows):
         return None
     top, bottom = (horizon_row - 1) / grid.rows, horizon_row / grid.rows
     if not top <= 0.5 <= bottom:
         return None
-    return Fault(
-        fault_id=SPLIT_HORIZON,
+    return Finding(
+        finding_id=SPLIT_HORIZON,
         what="The horizon cuts the frame into two equal halves, so neither one leads.",
         why=f"row {horizon_row} of {grid.rows} spans {top:.2f} to {bottom:.2f} "
         f"and the middle is 0.50",
     )
 
 
-def _no_centre(subject_cells: list[str], grid: Grid, seen: set[str]) -> Fault | None:
+def _no_centre(subject_cells: list[str], grid: Grid, seen: set[str]) -> Finding | None:
     if not subject_cells or seen & WIDE_SUBJECT_OK:
         return None
     share = len(subject_cells) / grid.cell_count
     if share <= SUBJECT_SHARE:
         return None
-    return Fault(
-        fault_id=NO_CENTRE_OF_INTEREST,
+    return Finding(
+        finding_id=NO_CENTRE_OF_INTEREST,
         what="Nothing in the frame is clearly the subject; the eye has nowhere to land.",
         why=f"{len(subject_cells)} of {grid.cell_count} cells were named as subject, "
         f"{share:.0%} of the frame",
@@ -181,13 +181,13 @@ def _no_centre(subject_cells: list[str], grid: Grid, seen: set[str]) -> Fault | 
     )
 
 
-def _blown(tone: Tone, seen: set[str]) -> Fault | None:
+def _blown(tone: Tone, seen: set[str]) -> Finding | None:
     """Highlights past recovery. Measured off the pixels, so it holds on a
     phone export that threw its EXIF away."""
     if tone.clipped_high < BLOWN_SHARE or seen & BRIGHT_ON_PURPOSE:
         return None
-    return Fault(
-        fault_id=BLOWN_HIGHLIGHTS,
+    return Finding(
+        finding_id=BLOWN_HIGHLIGHTS,
         what="The brightest areas are pure white with nothing in them; that detail "
         "cannot be brought back.",
         why=f"{tone.clipped_high:.1f}% of the frame is above 250 of 255, "
@@ -195,7 +195,7 @@ def _blown(tone: Tone, seen: set[str]) -> Fault | None:
     )
 
 
-def _cast(tone: Tone, seen: set[str]) -> Fault | None:
+def _cast(tone: Tone, seen: set[str]) -> Finding | None:
     """A white balance nobody asked for. The camera cannot tell us: every file
     in the corpus reports auto, so the temperature is measured off the frame
     and only the far ends of the scale are called."""
@@ -209,8 +209,8 @@ def _cast(tone: Tone, seen: set[str]) -> Fault | None:
         which, edge = "blue", COOL_CAST_K
     else:
         return None
-    return Fault(
-        fault_id=COLOUR_CAST,
+    return Finding(
+        finding_id=COLOUR_CAST,
         what=f"The whole frame is pulled {which}; whites are not white, and no technique "
         "here makes that the point.",
         why=f"{tone.cct_k} K measured against {tone_rules.DAYLIGHT_K} K daylight, "
@@ -227,8 +227,8 @@ def detect(
     subject_y: float | None = None,
     horizon_row: int | None = None,
     tone: Tone | None = None,
-) -> list[Fault]:
-    """Every fault the numbers support, in the order a photographer would fix
+) -> list[Finding]:
+    """Every finding the numbers support, in the order a photographer would fix
     them: what cannot be recovered at all first, then the exposure — a shaken
     frame cannot be composed out of — then the framing."""
     seen = set(technique_ids)
@@ -241,4 +241,4 @@ def detect(
         _split_horizon(horizon_row, grid),
         _off_guide(subject_x, subject_y),
     ]
-    return [fault for fault in found if fault is not None]
+    return [finding for finding in found if finding is not None]
