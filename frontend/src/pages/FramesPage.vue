@@ -21,7 +21,7 @@ export default {
     rows() {
       return this.frames.map((v) => ({
         id: v.shot.id,
-        score: v.analysis?.score || 0,
+        kept: Boolean(v.shot.kept_at),
         video: v.shot.kind === 'video',
         pending: !v.analysis && v.shot.status !== 'failed',
         failed: v.shot.status === 'failed',
@@ -60,10 +60,11 @@ export default {
       >
         <img v-if="r.thumb" :src="r.thumb" alt="" class="h-full w-full object-cover" loading="lazy" />
         <span
-          v-if="r.score"
-          class="absolute right-2 top-2 rounded-md bg-black/70 px-1.5 py-0.5 t-num text-[11px] text-neutral-100"
+          v-if="r.kept"
+          class="absolute right-2 top-2 rounded-md bg-black/70 px-1.5 py-0.5 t-num text-[11px] text-accent"
+          title="One you kept"
         >
-          {{ r.score }}
+          kept
         </span>
         <span v-if="r.video" class="absolute left-2 top-2 rounded-md bg-black/70 px-1.5 py-0.5 t-num text-[10px] text-neutral-300">
           video

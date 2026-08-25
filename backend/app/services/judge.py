@@ -101,13 +101,26 @@ async def _judge(ctx: Context, message: dict) -> None:
 
 
 async def _previous_best(ctx: Context, shot, technique_id: str):
-    """The user's highest-scoring earlier shot that showed this technique, with
-    its analysis. The skill graph remembers the shot ids; the rest is a lookup."""
+    """The earlier Shot of this Technique worth putting beside the new one.
+
+    This used to pick the highest-scoring one, which quietly let a number
+    nobody may see decide what "your previous best" means - the model's taste
+    choosing the bar the photographer is measured against. The order now is:
+
+    1. one the photographer marked a Keeper, because that is the only opinion
+       here that is actually theirs (decision 45);
+    2. failing that, the one the panel corroborated hardest, which is a claim
+       about the Evidence rather than about the frame's worth;
+    3. failing that, the most recent, which at least says "since then".
+
+    The Technique Map remembers the Shot ids; the rest is a lookup.
+    """
     skills = {s.technique_id: s for s in await repo.list_skills(ctx.store, shot.user_id)}
     state = skills.get(technique_id)
     if state is None:
         return None
-    best = None
+
+    candidates = []
     for shot_id in state.shot_ids:
         if shot_id == shot.id:
             continue
@@ -115,6 +128,22 @@ async def _previous_best(ctx: Context, shot, technique_id: str):
         analysis = await repo.find_analysis(ctx.store, shot_id) if candidate else None
         if candidate is None or analysis is None:
             continue
-        if best is None or analysis.score > best[1].score:
-            best = (candidate, analysis)
-    return best
+        candidates.append((candidate, analysis))
+    if not candidates:
+        return None
+    return max(candidates, key=lambda pair: _comparable_rank(pair, technique_id))
+
+
+def _comparable_rank(pair, technique_id: str) -> tuple:
+    """Keeper first, then how well the panel corroborated *this* technique in
+    it, then recency. Never the frame's score."""
+    candidate, analysis = pair
+    evidence = next(
+        (t for t in analysis.techniques if t.technique_id == technique_id), None
+    )
+    return (
+        1 if candidate.kept_at else 0,
+        evidence.agreement if evidence else 0,
+        evidence.confidence if evidence else 0.0,
+        candidate.captured_at or candidate.ingested_at,
+    )

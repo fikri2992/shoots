@@ -9,7 +9,6 @@ import { GUIDE_LABELS, verdict as guideVerdict } from '@/domain/guides'
 import { useCoachStore } from '@/stores/coach'
 import { useShootsStore } from '@/stores/shoots'
 
-const ELEMENTS = ['impact', 'composition', 'lighting', 'technical', 'story']
 const PICKABLE = ['thirds', 'phi', 'diagonals', 'centre', 'none']
 const KIND_LABEL = { move: 'reframe', crop: 'crop', camera: 'viewpoint' }
 
@@ -122,10 +121,6 @@ export default {
         ) || null
       )
     },
-    elements() {
-      const scored = this.analysis?.elements || {}
-      return ELEMENTS.filter((k) => k in scored).map((k) => ({ key: k, value: scored[k] }))
-    },
     camera() {
       const e = this.shot?.exif || {}
       const v = this.shot?.video
@@ -236,7 +231,6 @@ export default {
       <div class="gutter md:px-0">
         <div class="flex items-baseline gap-3 pt-6">
           <RouterLink :to="{ name: 'frames' }" class="t-meta hover:text-neutral-200">← Frames</RouterLink>
-          <span v-if="analysis" class="ml-auto t-num text-[15px] text-neutral-300">{{ analysis.score }}/10</span>
         </div>
 
         <template v-if="analysis">
@@ -289,21 +283,6 @@ export default {
               </ul>
             </DisclosureRow>
 
-            <DisclosureRow label="How it scored" :count="`${analysis.score}/10`">
-              <ul class="space-y-2">
-                <li v-for="e in elements" :key="e.key">
-                  <div class="flex items-baseline justify-between t-meta">
-                    <span>{{ e.key }}</span>
-                    <span class="t-num text-neutral-400">{{ e.value }}</span>
-                  </div>
-                  <span class="mt-1 block h-1 overflow-hidden rounded bg-edge">
-                    <span class="block h-full bg-accent/80" :style="{ width: `${e.value * 10}%` }" />
-                  </span>
-                </li>
-              </ul>
-              <p class="mt-3 t-meta">The PPA merit-image elements. Each one is rated by the single lens that owns it.</p>
-            </DisclosureRow>
-
             <DisclosureRow label="Techniques it agreed on" :count="analysis.techniques.length">
               <ul class="space-y-3">
                 <li v-for="t in analysis.techniques" :key="t.technique_id">
@@ -332,7 +311,7 @@ export default {
               <img :src="cropUrl" alt="tested crop" class="max-h-64 rounded-xl object-contain" />
               <p class="mt-2 t-body text-neutral-400">
                 {{ analysis.composition.crop_reason }}
-                <span class="mt-1 block t-meta">Rendered and scored as a finished frame; kept only because it scored higher.</span>
+                <span class="mt-1 block t-meta">Rendered and compared against the original as a finished frame; kept only because it read better.</span>
               </p>
             </DisclosureRow>
 

@@ -47,7 +47,7 @@ async def update(ctx: Context, message: dict) -> None:
                     "from": before.get(s.technique_id, "unexplored"),
                     "to": s.status.value,
                     "attempts": s.attempts,
-                    "best": s.best_score,
+                    "corroborated": s.corroborated,
                 }
                 for s in changed
             ]

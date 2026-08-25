@@ -331,7 +331,14 @@ class Analysis(BaseModel):
     #: Rubric element scores 1-10 (domain/rubric.py), averaged over the lenses that rate each.
     elements: dict[str, int] = Field(default_factory=dict)
     critique: str = ""
-    #: 1-10, computed from ``elements`` by the rubric's weights. Feeds best_score.
+    #: 1-10, computed from ``elements`` by the rubric's weights.
+    #:
+    #: Stored, and read by nothing (decision 46). It reaches no screen, no
+    #: filename, no prompt and no user-facing API, and it decides nothing: not
+    #: the Technique Map, not the Journey, not which earlier frame a new one is
+    #: compared against. Its five elements correlate at r = 0.89 and the
+    #: weighted mean tracks ``impact`` alone at 0.986, so it is one opinion
+    #: wearing five bars. It survives only so old records still load.
     score: int = Field(default=5, ge=1, le=10)
     #: Seconds each lens took; a lens missing here did not answer.
     panel: dict[str, float] = Field(default_factory=dict)
@@ -372,11 +379,17 @@ class TechniqueStatus(StrEnum):
 class TechniqueState(BaseModel):
     """What the Technique Map holds about one Technique for one photographer.
 
-    ``corroborated`` is what moves the status, not ``best_score``. The score
-    belongs to the whole frame: one photograph demonstrating six techniques
-    hands the same number to all six, so promoting on it credits every
-    technique in the frame for whatever the best one earned. Agreement and
-    confidence are the only signals that are *about this technique*.
+    ``corroborated`` is what moves the status. The score belongs to the whole
+    frame: one photograph demonstrating six techniques hands the same number to
+    all six, so promoting on it credits every technique in the frame for
+    whatever the best one earned. Agreement and confidence are the only signals
+    that are *about this technique*.
+
+    ``best_score`` and ``last_score`` are kept for migration and read by
+    nothing. They used to choose which earlier frame became "your previous
+    best", which let a number nobody may see decide the bar a photographer is
+    measured against; that choice now prefers a Keeper, then corroboration
+    (``services/judge.py``).
     """
 
     user_id: str

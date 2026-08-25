@@ -9,10 +9,11 @@ without opening this app, and it can be shared as-is. The file is written *as
 the user* (``drive.file`` token), the only thing that token is used for
 besides creating the folder.
 
-The file is named after what was *found*, not what it scored. A folder of
-``bike — highlights blown to white.jpg`` is a list a photographer can scroll
-and act on; a folder of ``bike — 7 of 10.jpg`` is a report card, and the score
-is the least trustworthy line in the analysis (docs/research-findings.md).
+The file is named after what was *found*, never what it scored. A folder of
+``bike — panning.jpg`` is a list a photographer can scroll and act on; a folder
+of ``bike — 7 of 10.jpg`` is a report card, and no score reaches the
+photographer anywhere in this product (decision 46). What names the file is a
+Technique a second lens corroborated, then a Finding with its figure.
 
 Runs after the Judge on the same shot, so the first write already carries
 the verdict. A redelivery updates name and caption instead of uploading twice.
@@ -96,7 +97,7 @@ def review_finding(analysis: Analysis) -> str:
     if analysis.findings:
         return findings.FINDINGS.get(analysis.findings[0].finding_id, "worth another look").lower()
     seen = _seen(analysis)
-    return ", ".join(seen[:2]).lower() if seen else f"{analysis.score} of 10"
+    return ", ".join(seen[:2]).lower() if seen else "read, nothing to report"
 
 
 def review_name(shot: Shot, analysis: Analysis, verdict: Verdict | None) -> str:
@@ -115,9 +116,10 @@ def review_title(analysis: Analysis, experiment: Experiment | None, verdict: Ver
         return f"Not called — {analysis.abstained}"
     seen = ", ".join(_seen(analysis))
     wrong = findings.FINDINGS.get(analysis.findings[0].finding_id, "") if analysis.findings else ""
-    title = " · ".join(part for part in (seen, wrong) if part) or f"{analysis.score} of 10"
+    title = " · ".join(part for part in (seen, wrong) if part) or "Read, nothing to report"
     if verdict and experiment:
-        title = f"{'PASSED' if verdict.passed else 'NOT YET'} · {experiment.title}  —  {title}"
+        met = "CRITERIA MET" if verdict.passed else "NOT YET"
+        title = f"{met} · {experiment.title}  —  {title}"
     return title
 
 

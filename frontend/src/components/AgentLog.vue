@@ -52,7 +52,7 @@ export default {
             .filter((t) => t.agreement >= 2)
             .map((t) => t.id.replace(/_/g, ' '))
             .join(', ')
-          return `scored it ${d.score}/10${seen ? ` · agreed on ${seen}` : ''}`
+          return seen ? `agreed on ${seen}` : 'read it; nothing corroborated'
         }
         case 'cartographer.mapped':
           return (d.changes || [])

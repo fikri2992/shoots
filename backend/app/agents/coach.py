@@ -73,7 +73,7 @@ def briefing(
             or "- none"
         )
         lines += [
-            f"Analyst's read (score {analysis.score}/10):",
+            "Analyst's read:",
             f"Techniques seen:\n{seen}",
             f"Subject cells: {' '.join(comp.subject_cells) or '?'}",
             f"Horizon row: {comp.horizon_row if comp.horizon_row is not None else 'none'}",

@@ -46,7 +46,6 @@ def feedback_prompt(
         else "- nothing tagged"
     )
     critique = analysis.critique if analysis else "(no analysis)"
-    score = analysis.score if analysis else "-"
     facts = facts_text(shot.exif, shot.video) if shot else "- none available"
     if previous:
         prev_shot, prev_analysis = previous
@@ -54,13 +53,14 @@ def feedback_prompt(
         prev_seen = ", ".join(
             f"{t.technique_id} {t.confidence:.0%}" for t in prev_analysis.techniques
         )
+        kept = ", one they marked a keeper" if prev_shot.kept_at else ""
         previous_text = (
-            f"Image 2 is their previous best for this technique ({when}, score "
-            f"{prev_analysis.score}/10; seen: {prev_seen or '-'}). Observations then:\n"
+            f"Image 2 is their own earlier frame of this technique ({when}{kept}; "
+            f"seen: {prev_seen or '-'}). Observations then:\n"
             + "\n".join(f"- {o}" for o in prev_analysis.observations[:6])
         )
     else:
-        previous_text = "No previous shot of this technique to compare with; say so in one clause."
+        previous_text = "No earlier shot of this technique to compare with; say so in one clause."
     observations = "\n".join(f"- {o}" for o in analysis.observations[:8]) if analysis else "- none"
     # Arithmetic, not opinion: the model may state these figures as fact.
     found = (
@@ -76,7 +76,7 @@ def feedback_prompt(
         f"Checks:\n{checks}\n\n"
         f"Analyst evidence:\n{seen}\n"
         f"Analyst observations (Image 1):\n{observations}\n"
-        f"Analyst critique (score {score}/10): {critique}\n"
+        f"Analyst critique: {critique}\n"
         f"Findings, computed from the numbers (checkable; state them plainly):\n{found}\n\n"
         f"Camera facts:\n{facts}\n\n"
         f"{previous_text}"

@@ -13,8 +13,26 @@ export default {
   components: { VerdictNote },
   computed: {
     ...mapState(useShootsStore, ['busy', 'lastVerdict', 'frames']),
+    /**
+     * One earlier frame worth looking at again. A keeper first, because that
+     * is the photographer's own verdict; failing that the one the panel
+     * corroborated hardest, which is a claim about the evidence. Never the
+     * score: no number decides what "your best" means here.
+     */
     best() {
-      return this.frames.filter((v) => v.analysis).sort((a, b) => b.analysis.score - a.analysis.score)[0] || null
+      const rank = (v) => [
+        v.shot.kept_at ? 1 : 0,
+        Math.max(0, ...(v.analysis.techniques || []).map((t) => t.agreement || 0)),
+      ]
+      return (
+        this.frames
+          .filter((v) => v.analysis)
+          .sort((a, b) => {
+            const [ak, ac] = rank(a)
+            const [bk, bc] = rank(b)
+            return bk - ak || bc - ac
+          })[0] || null
+      )
     },
     bestThumb() {
       const blobs = this.best?.shot.blobs || {}
@@ -50,10 +68,9 @@ export default {
     >
       <img v-if="bestThumb" :src="bestThumb" alt="" class="h-16 w-16 rounded-lg object-cover" />
       <span class="min-w-0">
-        <span class="block t-meta">Your best frame so far</span>
+        <span class="block t-meta">{{ best.shot.kept_at ? 'One you kept' : 'One worth another look' }}</span>
         <span class="mt-1 block truncate t-body">{{ best.analysis.critique }}</span>
       </span>
-      <span class="t-num ml-auto text-[15px] text-neutral-300">{{ best.analysis.score }}/10</span>
     </RouterLink>
   </section>
 </template>

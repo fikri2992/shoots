@@ -101,7 +101,7 @@ async def test_review_lands_in_the_folder_with_caption_and_verdict():
         with Image.open(path) as image:
             assert image.height > 600  # the caption band was added
         sidecar = path.with_suffix(".txt").read_text(encoding="utf-8")
-        assert sidecar.startswith("PASSED · Follow the rider")
+        assert sidecar.startswith("CRITERIA MET · Follow the rider")
         # Places, not coordinates: the reader has no grid in front of them.
         assert "rider: the left of the frame → the centre of the frame" in sidecar
         assert "Clean pan." in sidecar and "C3" not in sidecar
@@ -221,3 +221,74 @@ def test_no_element_scores_reach_the_photographer():
     body = " ".join(scribe.review_body(found, None, GRID))
     for element in found.elements:
         assert element not in body.lower()
+
+
+# --- no score reaches the photographer, anywhere ---------------------------------
+
+
+def test_no_surface_the_photographer_reads_carries_a_score():
+    """Decision 46. The score is stored and read by nothing: not the filename,
+    not the caption, not the body. It used to fill the gap when a frame had
+    nothing else to say, which made a number nobody should see the last word on
+    a quiet frame."""
+    from app.domain.entities import Shot, ShotKind
+
+    quiet = analysis_with()
+    quiet.score = 9
+    shot = Shot(
+        id="s1",
+        user_id="u1",
+        kind=ShotKind.PHOTO,
+        drive_file_id="f1",
+        filename="bike.jpg",
+        mime_type="image/jpeg",
+    )
+    surfaces = [
+        scribe.review_finding(quiet),
+        scribe.review_name(shot, quiet, None),
+        scribe.review_title(quiet, None, None),
+        *scribe.review_body(quiet, None, GRID),
+    ]
+    for text in surfaces:
+        assert "9" not in text and "of 10" not in text and "/10" not in text
+
+
+def test_the_previous_frame_is_chosen_by_the_photographers_own_mark_not_by_a_number():
+    """`_comparable_rank` decides which earlier frame becomes the bar. A keeper
+    outranks everything, because it is the only opinion here that is theirs."""
+    from datetime import UTC, datetime
+
+    from app.domain.entities import Analysis, Shot, ShotKind, TechniqueEvidence
+    from app.services.judge import _comparable_rank
+
+    def pair(sid, *, kept, agreement, score):
+        shot = Shot(
+            id=sid,
+            user_id="u1",
+            kind=ShotKind.PHOTO,
+            drive_file_id=sid,
+            filename=f"{sid}.jpg",
+            mime_type="image/jpeg",
+            kept_at=datetime(2026, 8, 1, tzinfo=UTC) if kept else None,
+        )
+        found = Analysis(
+            shot_id=sid,
+            user_id="u1",
+            model="m",
+            score=score,
+            techniques=[
+                TechniqueEvidence(technique_id="panning", confidence=0.9, agreement=agreement)
+            ],
+        )
+        return (shot, found)
+
+    kept_but_low = pair("kept", kept=True, agreement=1, score=3)
+    scored_high = pair("scored", kept=False, agreement=1, score=10)
+    corroborated = pair("corroborated", kept=False, agreement=3, score=4)
+
+    ranked = sorted(
+        [scored_high, corroborated, kept_but_low],
+        key=lambda p: _comparable_rank(p, "panning"),
+        reverse=True,
+    )
+    assert [p[0].id for p in ranked] == ["kept", "corroborated", "scored"]

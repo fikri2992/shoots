@@ -100,7 +100,7 @@ export default {
           <p class="t-body text-neutral-100">{{ selected.name }} · {{ selected.status }}</p>
           <p class="mt-1 t-meta">
             {{ selected.attempts }} attempt{{ selected.attempts === 1 ? '' : 's' }}
-            <template v-if="selected.best_score"> · best {{ selected.best_score }}/10</template>
+            <template v-if="selected.corroborated"> · {{ selected.corroborated }} corroborated</template>
             <template v-if="selected.last_observed"> · last {{ new Date(selected.last_observed).toLocaleDateString() }}</template>
           </p>
           <p v-if="selected.requires.length" class="mt-1 t-meta">Needs {{ selected.requires.map(name).join(', ') }} first.</p>

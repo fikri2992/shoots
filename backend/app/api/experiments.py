@@ -14,7 +14,7 @@ from app.services.context import Context
 router = APIRouter(prefix="/api", tags=["experiments"])
 
 
-class SkillNode(BaseModel):
+class TechniqueNode(BaseModel):
     technique_id: str
     name: str
     family: str
@@ -22,23 +22,28 @@ class SkillNode(BaseModel):
     requires: list[str]
     status: TechniqueStatus
     attempts: int
-    best_score: int
+    #: How many of those more than one lens saw and meant.
+    corroborated: int
     last_observed: str | None
     unlocked: bool
 
 
-@router.get("/skills", response_model=list[SkillNode])
-async def skill_graph(
+@router.get("/skills", response_model=list[TechniqueNode])
+async def technique_map(
     session_user: dict = Depends(current_user), ctx: Context = Depends(get_context)
 ):
-    """Every technique, with the user's state filled in. The dashboard's map."""
+    """Every Technique with the photographer's record filled in.
+
+    No score crosses this boundary (decision 46): what is reported is how often
+    the Evidence saw it and how often more than one lens agreed.
+    """
     states = {s.technique_id: s for s in await repo.list_skills(ctx.store, session_user["id"])}
-    attempted = {tid for tid, s in states.items() if s.status is not TechniqueStatus.UNOBSERVED}
+    observed = {tid for tid, s in states.items() if s.status is not TechniqueStatus.UNOBSERVED}
     nodes = []
     for t in taxonomy.TECHNIQUES:
         s = states.get(t.id) or TechniqueState(user_id=session_user["id"], technique_id=t.id)
         nodes.append(
-            SkillNode(
+            TechniqueNode(
                 technique_id=t.id,
                 name=t.name,
                 family=t.family.value,
@@ -46,9 +51,9 @@ async def skill_graph(
                 requires=list(t.requires),
                 status=s.status,
                 attempts=s.attempts,
-                best_score=s.best_score,
+                corroborated=s.corroborated,
                 last_observed=s.last_observed.isoformat() if s.last_observed else None,
-                unlocked=all(r in attempted for r in t.requires),
+                unlocked=all(r in observed for r in t.requires),
             )
         )
     return nodes

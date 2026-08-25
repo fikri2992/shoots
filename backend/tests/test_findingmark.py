@@ -104,10 +104,10 @@ def test_a_clean_frame_is_named_for_what_it_does():
     assert scribe.review_finding(analysis(findings_=[], techniques=["panning"])) == "panning"
 
 
-def test_the_score_is_the_last_resort_and_never_the_headline():
-    """It is one number for the whole photograph; nothing else being available
-    is the only reason it appears."""
-    assert scribe.review_finding(analysis(findings_=[], techniques=[])) == "7 of 10"
+def test_a_frame_with_nothing_to_report_says_so_rather_than_scoring_it():
+    """The score used to fill this gap, which made a number nobody should see
+    the last word on a quiet frame. Silence is the honest answer."""
+    assert scribe.review_finding(analysis(findings_=[], techniques=[])) == "read, nothing to report"
 
 
 def test_the_caption_leads_with_what_is_there_then_what_is_wrong():
