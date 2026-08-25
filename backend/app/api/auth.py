@@ -135,9 +135,29 @@ async def auth_config():
     }
 
 
-def current_user(request: Request) -> dict:
-    """FastAPI dependency — 401s unauthenticated callers."""
+async def current_user(request: Request) -> dict:
+    """FastAPI dependency — 401s unauthenticated callers.
+
+    Two ways in, and only two. A browser carries the session cookie Google's
+    sign-in put there. The native camera carries a device token it was handed
+    by a browser that had already signed in (``api/pairing.py``), because a
+    phone cannot run the OAuth flow without shipping a client secret to a
+    device. Everything downstream sees the same dict either way, so no endpoint
+    has to know which door the caller came through.
+    """
     user = request.session.get(SESSION_USER_KEY)
-    if not user:
-        raise HTTPException(401, "not signed in")
-    return user
+    if user:
+        return user
+
+    header = request.headers.get("authorization", "")
+    scheme, _, token = header.partition(" ")
+    if scheme.lower() == "bearer" and token:
+        from app.api import deps, pairing
+
+        device = await repo.find_device(
+            deps.get_context().store, pairing.token_fingerprint(token.strip())
+        )
+        if device:
+            return {"id": device["user_id"], "device": device.get("label", "camera")}
+
+    raise HTTPException(401, "not signed in")

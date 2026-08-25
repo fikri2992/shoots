@@ -3,195 +3,267 @@ package com.shoots.app
 import android.Manifest
 import android.content.pm.PackageManager
 import android.os.Bundle
-import android.util.Size
 import androidx.activity.ComponentActivity
+import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.camera.core.CameraSelector
-import androidx.camera.core.ImageAnalysis
-import androidx.camera.core.Preview
-import androidx.camera.core.resolutionselector.ResolutionSelector
-import androidx.camera.core.resolutionselector.ResolutionStrategy
-import androidx.camera.lifecycle.ProcessCameraProvider
-import androidx.camera.view.PreviewView
-import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.drawscope.clipRect
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardCapitalization
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.content.ContextCompat
-import java.util.concurrent.Executors
-
-/** The zebra colour faultmark.py stripes reviews with, live this time. */
-private val ZEBRA = Color(0xFFFF4040)
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContent {
+            val context = LocalContext.current
+            var paired by remember { mutableStateOf(Api.isPaired(context)) }
             var granted by remember {
                 mutableStateOf(
                     ContextCompat.checkSelfPermission(this, Manifest.permission.CAMERA) ==
                         PackageManager.PERMISSION_GRANTED
                 )
             }
-            val ask = androidx.activity.compose.rememberLauncherForActivityResult(
+            val ask = rememberLauncherForActivityResult(
                 ActivityResultContracts.RequestPermission()
             ) { granted = it }
-            androidx.compose.runtime.LaunchedEffect(Unit) {
-                if (!granted) ask.launch(Manifest.permission.CAMERA)
+            LaunchedEffect(Unit) { if (!granted) ask.launch(Manifest.permission.CAMERA) }
+
+            when {
+                !granted -> Message("Shoots needs the camera.")
+                !paired -> PairScreen { paired = true }
+                else -> Viewfinder(onUnpair = {
+                    Api.forget(context)
+                    paired = false
+                })
             }
-            if (granted) Viewfinder() else NeedsCamera()
         }
     }
 }
 
 @Composable
-private fun NeedsCamera() {
+private fun Message(text: String) {
     Box(Modifier.fillMaxSize().background(Color.Black), contentAlignment = Alignment.Center) {
-        Text("Shoots needs the camera.", color = Color.White)
-    }
-}
-
-@Composable
-private fun Viewfinder() {
-    val context = LocalContext.current
-    var blown by remember { mutableStateOf<Tone.BlownMap?>(null) }
-
-    Box(Modifier.fillMaxSize().background(Color.Black)) {
-        AndroidView(
-            modifier = Modifier.fillMaxSize(),
-            factory = { ctx ->
-                val previewView = PreviewView(ctx).apply {
-                    scaleType = PreviewView.ScaleType.FILL_CENTER
-                }
-                val executor = Executors.newSingleThreadExecutor()
-                var lumaBuf = ByteArray(0)
-
-                val analysis = ImageAnalysis.Builder()
-                    .setResolutionSelector(
-                        ResolutionSelector.Builder()
-                            .setResolutionStrategy(
-                                ResolutionStrategy(
-                                    Size(640, 480),
-                                    ResolutionStrategy.FALLBACK_RULE_CLOSEST_LOWER_THEN_HIGHER,
-                                )
-                            )
-                            .build()
-                    )
-                    .setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST)
-                    .build()
-                analysis.setAnalyzer(executor) { image ->
-                    image.use {
-                        val plane = it.planes[0]
-                        val needed = plane.buffer.remaining()
-                        if (lumaBuf.size < needed) lumaBuf = ByteArray(needed)
-                        plane.buffer.get(lumaBuf, 0, needed)
-                        val map = Tone.blownMap(lumaBuf, it.width, it.height, plane.rowStride)
-                        blown = Tone.rotated(map, it.imageInfo.rotationDegrees)
-                    }
-                }
-
-                ProcessCameraProvider.getInstance(ctx).apply {
-                    addListener({
-                        val provider = get()
-                        val preview = Preview.Builder().build().also { p ->
-                            p.surfaceProvider = previewView.surfaceProvider
-                        }
-                        provider.unbindAll()
-                        provider.bindToLifecycle(
-                            ctx as ComponentActivity,
-                            CameraSelector.DEFAULT_BACK_CAMERA,
-                            preview,
-                            analysis,
-                        )
-                    }, ContextCompat.getMainExecutor(ctx))
-                }
-                previewView
-            },
-        )
-
-        ZebraOverlay(blown)
-        ThirdsGrid()
-        Readout(blown)
+        Text(text, color = Color.White)
     }
 }
 
 /**
- * Stripes over every blown block, drawn to match a FILL_CENTER preview:
- * the grid is scaled to cover the canvas and centred, like the image is.
+ * The camera has no way to sign in on its own, and giving it one would mean
+ * shipping a client secret to a device. So it is handed an identity instead:
+ * the signed-in web page shows a code, the photographer types it here once,
+ * and the phone keeps its own token from then on.
  */
 @Composable
-private fun ZebraOverlay(map: Tone.BlownMap?) {
-    Canvas(Modifier.fillMaxSize()) {
-        val m = map ?: return@Canvas
-        val cell = maxOf(size.width / m.cols, size.height / m.rows)
-        val ox = (size.width - cell * m.cols) / 2f
-        val oy = (size.height - cell * m.rows) / 2f
-        val stripe = cell / 2.5f
-        for (i in m.blocks.indices) {
-            if (!m.blocks[i]) continue
-            val x = ox + (i % m.cols) * cell
-            val y = oy + (i / m.cols) * cell
-            clipRect(x, y, x + cell, y + cell) {
-                var d = -cell
-                while (d < cell * 2) {
-                    drawLine(
-                        ZEBRA,
-                        Offset(x + d, y + cell),
-                        Offset(x + d + cell, y),
-                        strokeWidth = stripe * 0.45f,
-                        alpha = 0.75f,
+private fun PairScreen(onPaired: () -> Unit) {
+    val context = LocalContext.current
+    val scope = androidx.compose.runtime.rememberCoroutineScope()
+    var base by remember { mutableStateOf("http://192.168.1.10:8000") }
+    var code by remember { mutableStateOf("") }
+    var error by remember { mutableStateOf("") }
+    var busy by remember { mutableStateOf(false) }
+
+    Column(
+        Modifier.fillMaxSize().background(Color.Black).padding(28.dp),
+        verticalArrangement = Arrangement.Center,
+    ) {
+        Text("Pair this camera", color = Color.White, fontSize = 26.sp, fontWeight = FontWeight.Bold)
+        Spacer(Modifier.height(8.dp))
+        Text(
+            "Open Shoots on the web, sign in, and ask for a pairing code.",
+            color = Color.White.copy(alpha = 0.7f),
+            fontSize = 15.sp,
+        )
+        Spacer(Modifier.height(28.dp))
+        OutlinedTextField(
+            value = base,
+            onValueChange = { base = it },
+            label = { Text("Server address") },
+            singleLine = true,
+            modifier = Modifier.fillMaxWidth(),
+            colors = fieldColours(),
+        )
+        Spacer(Modifier.height(14.dp))
+        OutlinedTextField(
+            value = code,
+            onValueChange = { code = it.uppercase().take(6) },
+            label = { Text("Code") },
+            singleLine = true,
+            keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Characters),
+            modifier = Modifier.fillMaxWidth(),
+            colors = fieldColours(),
+        )
+        if (error.isNotEmpty()) {
+            Spacer(Modifier.height(12.dp))
+            Text(error, color = ZEBRA, fontSize = 14.sp)
+        }
+        Spacer(Modifier.height(24.dp))
+        Button(
+            onClick = {
+                busy = true
+                error = ""
+                scope.launch {
+                    val result = withContext(Dispatchers.IO) { Api.pair(context, base, code) }
+                    busy = false
+                    result.fold(
+                        onSuccess = { onPaired() },
+                        onFailure = { error = it.message ?: "could not pair" },
                     )
-                    d += stripe
                 }
+            },
+            enabled = !busy && code.length == 6 && base.isNotBlank(),
+            modifier = Modifier.fillMaxWidth().height(52.dp),
+            shape = RoundedCornerShape(12.dp),
+        ) {
+            Text(if (busy) "Pairing…" else "Pair")
+        }
+    }
+}
+
+@Composable
+private fun fieldColours() = androidx.compose.material3.OutlinedTextFieldDefaults.colors(
+    focusedTextColor = Color.White,
+    unfocusedTextColor = Color.White,
+    focusedBorderColor = Color.White.copy(alpha = 0.6f),
+    unfocusedBorderColor = Color.White.copy(alpha = 0.3f),
+    focusedLabelColor = Color.White.copy(alpha = 0.7f),
+    unfocusedLabelColor = Color.White.copy(alpha = 0.5f),
+    cursorColor = Color.White,
+)
+
+/** The shutter, the quest it answers, and what came back. */
+@Composable
+fun ShutterRow(
+    quest: Api.Quest?,
+    pulse: Api.Pulse?,
+    sending: Boolean,
+    shotId: String,
+    onShoot: () -> Unit,
+    onKeep: () -> Unit,
+) {
+    Column(
+        Modifier.fillMaxSize().padding(bottom = 36.dp),
+        verticalArrangement = Arrangement.Bottom,
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
+        if (pulse != null) {
+            PulseCard(pulse, shotId, onKeep)
+            Spacer(Modifier.height(16.dp))
+        }
+        Box(
+            Modifier
+                .size(74.dp)
+                .background(
+                    if (sending) Color.White.copy(alpha = 0.35f) else Color.White,
+                    CircleShape,
+                ),
+            contentAlignment = Alignment.Center,
+        ) {
+            TextButton(onClick = onShoot, enabled = !sending, contentPadding = PaddingValues(0.dp)) {
+                Text(
+                    if (sending) "…" else "",
+                    color = Color.Black,
+                    fontSize = 22.sp,
+                )
             }
         }
+        Spacer(Modifier.height(10.dp))
+        Text(
+            quest?.title ?: "no open challenge",
+            color = Color.White.copy(alpha = 0.75f),
+            fontSize = 13.sp,
+            textAlign = TextAlign.Center,
+        )
     }
 }
 
+/**
+ * What the panel found, in the hand that took the picture. Praise first and
+ * only what a second lens actually corroborated, then the fault with its
+ * figure — the same order the review uses, for the same reason.
+ */
 @Composable
-private fun ThirdsGrid() {
-    Canvas(Modifier.fillMaxSize()) {
-        val w = size.width
-        val h = size.height
-        val grid = Color.White.copy(alpha = 0.35f)
-        for (f in listOf(1f / 3f, 2f / 3f)) {
-            drawLine(grid, Offset(w * f, 0f), Offset(w * f, h), strokeWidth = 2f)
-            drawLine(grid, Offset(0f, h * f), Offset(w, h * f), strokeWidth = 2f)
+private fun PulseCard(pulse: Api.Pulse, shotId: String, onKeep: () -> Unit) {
+    var kept by remember(shotId) { mutableStateOf(pulse.keeper) }
+    Column(
+        Modifier
+            .fillMaxWidth(0.9f)
+            .background(Color.Black.copy(alpha = 0.72f), RoundedCornerShape(14.dp))
+            .padding(16.dp),
+    ) {
+        if (pulse.praise.isNotEmpty()) {
+            Text(
+                "two lenses agreed: ${pulse.praise}",
+                color = Color.White,
+                fontSize = 15.sp,
+                fontWeight = FontWeight.Bold,
+            )
+        } else {
+            Text("read, nothing corroborated", color = Color.White, fontSize = 15.sp)
+        }
+        if (pulse.fault.isNotEmpty()) {
+            Spacer(Modifier.height(6.dp))
+            Text(pulse.fault, color = ZEBRA, fontSize = 13.sp)
+        }
+        Spacer(Modifier.height(10.dp))
+        TextButton(
+            onClick = {
+                kept = !kept
+                onKeep()
+            },
+            contentPadding = PaddingValues(0.dp),
+        ) {
+            Text(
+                if (kept) "kept" else "keep this one",
+                color = if (kept) Color(0xFFFFC857) else Color.White.copy(alpha = 0.8f),
+                fontSize = 14.sp,
+            )
         }
     }
 }
 
-/** The figure, not an opinion: percent of the frame above CLIP_HIGH. */
-@Composable
-private fun Readout(map: Tone.BlownMap?) {
-    val share = map?.sharePct ?: 0f
-    val hot = share >= Tone.BLOWN_SHARE_PCT
-    Box(Modifier.fillMaxSize().padding(top = 48.dp), contentAlignment = Alignment.TopCenter) {
-        Text(
-            text = if (hot) "blown highlights %.1f%%".format(share)
-            else "clipped %.1f%%".format(share),
-            color = if (hot) ZEBRA else Color.White.copy(alpha = 0.8f),
-            fontSize = 16.sp,
-            fontWeight = if (hot) FontWeight.Bold else FontWeight.Normal,
-        )
+/** Poll until the panel has finished. It takes about half a minute. */
+suspend fun awaitPulse(context: android.content.Context, shotId: String): Api.Pulse? {
+    repeat(40) {
+        delay(3_000)
+        val pulse = withContext(Dispatchers.IO) { Api.pulse(context, shotId) }
+        if (pulse != null) return pulse
     }
+    return null
 }

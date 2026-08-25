@@ -161,12 +161,20 @@ MAX_UPLOAD_BYTES = 200 * 1024 * 1024
 async def shoot(
     file: UploadFile = File(...),
     quest_id: str = Form(default=""),
+    pitch_deg: float | None = Form(default=None),
     session_user: dict = Depends(current_user),
     ctx: Context = Depends(get_context),
 ):
-    """The PWA Shoot button. The file goes to the user's Drive folder (so the
-    folder stays the single source of truth), the shot is tagged with the
-    quest it answers, and the pipeline starts now rather than at next sync."""
+    """The Shoot button, from the web app or from the native camera.
+
+    The file goes to the user's Drive folder, so the folder stays the single
+    source of truth; the shot is tagged with the quest it answers; and the
+    pipeline starts now rather than at the next sync.
+
+    ``pitch_deg`` only ever arrives from the native camera. It is the one fact
+    no photograph carries - how far from level the camera was aimed - and it is
+    what closes the height blind spot in the Tendency Profile.
+    """
     user = await _load_user(ctx, session_user)
     if not user.drive_folder_id:
         raise HTTPException(409, "connect a Drive folder first")
@@ -201,6 +209,7 @@ async def shoot(
     existing = await repo.find_shot(ctx.store, shot_id)
     if existing is None:
         shot = ingest.new_shot(shot_id, user.id, drive_file, quest_id=quest_id)
+        shot.pitch_deg = pitch_deg
         await repo.put_shot(ctx.store, shot)
         await repo.record(
             ctx.store,

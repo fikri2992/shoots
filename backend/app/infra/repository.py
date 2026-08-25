@@ -4,6 +4,8 @@ One function per read or write the services need, pydantic in and out. The
 collection names and document ids are decided here and nowhere else.
 """
 
+from datetime import datetime
+
 from app.domain.entities import (
     ActivityEvent,
     Analysis,
@@ -14,6 +16,7 @@ from app.domain.entities import (
     SkillState,
     User,
     new_id,
+    now,
 )
 from app.infra.store import Store
 
@@ -24,6 +27,8 @@ SKILLS = "skills"
 QUESTS = "quests"
 EVENTS = "events"
 JOURNEY = "journey"
+PAIRING = "pairing_codes"
+DEVICES = "devices"
 
 
 class UnknownEntity(LookupError):
@@ -197,3 +202,47 @@ async def list_journey_updates(
 async def latest_journey_update(store: Store, user_id: str) -> JourneyUpdate | None:
     found = await list_journey_updates(store, user_id, limit=1)
     return found[0] if found else None
+
+
+# --- pairing a camera to an account ----------------------------------------
+
+
+async def put_pairing_code(store: Store, code: str, user_id: str, expires_at: datetime) -> None:
+    await store.put(
+        PAIRING, code, {"code": code, "user_id": user_id, "expires_at": expires_at.isoformat()}
+    )
+
+
+async def spend_pairing_code(store: Store, code: str, at: datetime) -> str | None:
+    """The user id the code stands for, and the code is gone either way.
+
+    Single use is the point: a code read off a screen by someone else is worth
+    one attempt within its window, not an open door. Deleting an expired code
+    on the way past keeps the collection from growing without a sweeper.
+    """
+    data = await store.get(PAIRING, code)
+    if data is None:
+        return None
+    await store.delete(PAIRING, code)
+    if datetime.fromisoformat(data["expires_at"]) < at:
+        return None
+    return data["user_id"]
+
+
+async def put_device(store: Store, fingerprint: str, user_id: str, label: str) -> None:
+    """Devices are keyed by the hash of their token: the store never holds a
+    credential that would work if it leaked."""
+    await store.put(
+        DEVICES,
+        fingerprint,
+        {
+            "fingerprint": fingerprint,
+            "user_id": user_id,
+            "label": label,
+            "paired_at": now().isoformat(),
+        },
+    )
+
+
+async def find_device(store: Store, fingerprint: str) -> dict | None:
+    return await store.get(DEVICES, fingerprint)

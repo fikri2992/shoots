@@ -6,7 +6,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from starlette.middleware.sessions import SessionMiddleware
 
-from app.api import auth, deps, drive, live, pubsub, push, quests, shots, tasks
+from app.api import auth, deps, drive, live, pairing, pubsub, push, quests, shots, tasks
 from app.config import settings
 
 logger = logging.getLogger("app.api")
@@ -37,6 +37,7 @@ async def unhandled(request: Request, exc: Exception) -> JSONResponse:
 app.include_router(auth.router)
 app.include_router(drive.router)
 app.include_router(shots.router)
+app.include_router(pairing.router)
 app.include_router(quests.router)
 app.include_router(tasks.router)
 app.include_router(push.router)
