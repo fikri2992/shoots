@@ -479,6 +479,11 @@ class TendencyGrade(BaseModel):
     citation: str = ""
     #: Bucket -> count for that dimension, frozen when the experiment was issued.
     at_issue: dict[str, int] = Field(default_factory=dict)
+    #: The version of the arithmetic that froze ``at_issue`` and will grade it.
+    #: A grade is only meaningful against the calculation that produced its
+    #: baseline, so a bump here means the comparison has to be re-run rather
+    #: than trusted.
+    calc_version: str = ""
     #: Filled in when the grading runs. None until then.
     moved: bool | None = None
     #: What changed, in one plain sentence.
@@ -521,6 +526,33 @@ class Experiment(BaseModel):
 # --- audit trail ----------------------------------------------------------
 
 
+class Provenance(BaseModel):
+    """Where a longitudinal claim came from, so it can be checked or replayed.
+
+    A claim about a body of work is not checkable the way a single Finding is:
+    the reader cannot open one file and see the figure. What makes it honest
+    instead is knowing exactly which Shots it was computed from, how many, by
+    which version of the arithmetic, and - where a model wrote the words -
+    under which model and which prompt.
+
+    Re-running the same ``calc_version`` over the same ``shot_ids`` reproduces
+    every measured number. The sentences are a model's and will vary; the
+    figures underneath them will not.
+    """
+
+    #: Every Shot the claim was computed from, in the order they were read.
+    shot_ids: list[str] = Field(default_factory=list)
+    #: How many that is. Stored beside the ids so a reader sees the sample size
+    #: without counting, and so a truncated id list still reports honestly.
+    sample_size: int = 0
+    #: The version of the pure arithmetic that produced the figures.
+    calc_version: str = ""
+    #: Set only where a model contributed language to the claim.
+    model: str = ""
+    prompt_version: str = ""
+    computed_at: datetime = Field(default_factory=now)
+
+
 class JourneyUpdate(BaseModel):
     """The agent's current conclusion about the photographer (decision 39).
 
@@ -559,6 +591,8 @@ class JourneyUpdate(BaseModel):
     #: True when the photographer had marked enough Keepers for the update to
     #: speak about taste rather than only about change.
     taste_is_known: bool = False
+    #: Which Shots, how many, which arithmetic, which model and prompt.
+    provenance: Provenance = Field(default_factory=Provenance)
     created_at: datetime = Field(default_factory=now)
 
 

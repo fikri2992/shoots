@@ -13,8 +13,10 @@ writer can only say what this function hands it.
 import logging
 
 from app.agents import journey as agent
+from app.agents import prompts
+from app.config import settings
 from app.domain import tendency
-from app.domain.entities import JourneyUpdate, TechniqueStatus, new_id
+from app.domain.entities import JourneyUpdate, Provenance, TechniqueStatus, new_id
 from app.infra import repository as repo
 from app.services.context import Context
 
@@ -80,6 +82,15 @@ async def maybe_write(ctx: Context, user_id: str) -> JourneyUpdate | None:
         became_solid=solid,
         shots=profile.shots,
         taste_is_known=profile.taste_is_known,
+        provenance=Provenance(
+            shot_ids=list(profile.shot_ids),
+            sample_size=profile.shots,
+            calc_version=profile.calc_version,
+            # Only where a model actually contributed language. A figures-only
+            # update that lost its paragraph should not claim a model wrote it.
+            model=settings.model_flash if body else "",
+            prompt_version=prompts.version("journey") if body else "",
+        ),
     )
     await repo.put_journey_update(ctx.store, update)
     await repo.record(
@@ -93,6 +104,7 @@ async def maybe_write(ctx: Context, user_id: str) -> JourneyUpdate | None:
             "became_solid": fresh_solid,
             "evidence": len(evidence),
             "taste_is_known": profile.taste_is_known,
+            "calc_version": profile.calc_version,
         },
     )
     return update

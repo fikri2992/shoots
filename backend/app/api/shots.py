@@ -119,6 +119,9 @@ class ProfileView(BaseModel):
     shots: int
     keepers: int
     taste_is_known: bool
+    #: Which arithmetic produced these figures. Two profiles under different
+    #: versions are not comparable and must not be diffed.
+    calc_version: str
     dimensions: list[DimensionView]
     scenes: int
     frames_per_scene: float
@@ -139,6 +142,7 @@ async def profile(
         shots=built.shots,
         keepers=built.keepers,
         taste_is_known=built.taste_is_known,
+        calc_version=built.calc_version,
         scenes=built.dwell.scenes,
         frames_per_scene=round(built.dwell.per_scene, 2),
         walks_on=built.dwell.walks_on,

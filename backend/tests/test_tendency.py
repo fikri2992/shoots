@@ -404,3 +404,33 @@ def test_taste_stays_unknown_until_enough_has_been_marked():
     rows = [shot(f"s{i}", subject=(0.5, 0.5)) for i in range(12)]
     assert tendency.build(rows, {"s0", "s1"}).taste_is_known is False
     assert tendency.build(rows, set()).taste_is_known is False
+
+
+# --- reproducible from the same inputs ------------------------------------------
+
+
+def test_the_same_shots_under_the_same_version_give_the_same_figures():
+    """What P0.7's provenance is for: a stored claim can be replayed. The
+    sentences are a model's and will vary; the figures underneath will not."""
+    rows = [
+        shot(f"s{i}", subject=(0.5, 0.5), cells=4, luma=90 + i, warm=30, cool=4, captured=at(i))
+        for i in range(12)
+    ]
+    first = tendency.build(rows, {"s0", "s1"})
+    again = tendency.build(rows, {"s0", "s1"})
+
+    assert first.calc_version == again.calc_version == tendency.CALC_VERSION
+    assert first.shot_ids == again.shot_ids
+    for dim in tendency.DIMENSIONS:
+        a, b = first.dimensions[dim.id], again.dimensions[dim.id]
+        assert a.counts == b.counts and a.keepers == b.keepers
+        assert a.exploration == b.exploration
+    assert first.dwell.per_scene == again.dwell.per_scene
+
+
+def test_a_profile_carries_the_shots_it_was_built_from():
+    """A claim that cannot name its own sample is asserting one."""
+    rows = [shot(f"s{i}", subject=(0.5, 0.5)) for i in range(5)]
+    built = tendency.build(rows)
+    assert built.shot_ids == [f"s{i}" for i in range(5)]
+    assert built.shots == len(built.shot_ids)

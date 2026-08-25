@@ -27,6 +27,10 @@ export default {
     when() {
       return this.latest ? new Date(this.latest.created_at).toLocaleDateString() : ''
     },
+    /** Which frames, which arithmetic, and which model wrote the words. */
+    provenance() {
+      return this.latest?.provenance?.sample_size ? this.latest.provenance : null
+    },
   },
 }
 </script>
@@ -44,6 +48,12 @@ export default {
         <ul class="space-y-1.5">
           <li v-for="line in latest.evidence" :key="line" class="t-meta text-neutral-400">{{ line }}</li>
         </ul>
+        <p v-if="provenance" class="mt-4 t-meta text-neutral-600">
+          Computed from {{ provenance.sample_size }} frames by {{ provenance.calc_version }}<template
+            v-if="provenance.prompt_version"
+          >, written by {{ provenance.model }} under prompt {{ provenance.prompt_version }}</template>.
+          The same frames under the same version give the same figures.
+        </p>
       </DisclosureRow>
 
       <DisclosureRow v-if="earlier.length" label="Earlier" :count="earlier.length">

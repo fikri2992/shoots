@@ -105,6 +105,7 @@ async def issue(
             source=challenge.source,
             citation=challenge.citation,
             at_issue=_snapshot(profile, challenge.source),
+            calc_version=profile.calc_version,
         )
     when = timing.deliver_at(technique.light, now(), user.last_latitude, user.last_longitude)
     experiment.deliver_at = when.at
@@ -174,6 +175,16 @@ async def grade_advice(ctx: Context, user_id: str) -> list[Experiment]:
     for experiment in await repo.list_experiments(ctx.store, user_id, limit=RECENT_EXPERIMENTS):
         mark = experiment.tendency
         if mark is None or mark.moved is not None or experiment.status is ExperimentStatus.OPEN:
+            continue
+        if mark.calc_version and mark.calc_version != profile.calc_version:
+            # The baseline was frozen by different arithmetic. Comparing across
+            # it would report a change the photographer never made.
+            logger.info(
+                "scout: %s was frozen under %s, now %s; not graded",
+                experiment.id,
+                mark.calc_version,
+                profile.calc_version,
+            )
             continue
         if mark.source == "dwell":
             result = _grade_dwell(mark.at_issue, profile.dwell)

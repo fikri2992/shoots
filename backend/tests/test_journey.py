@@ -229,3 +229,60 @@ async def test_the_evidence_never_names_the_machinery():
     joined = " ".join(update.evidence).lower()
     for machinery in ("lens", "confidence", "corroborat", "panel", "agreement"):
         assert machinery not in joined
+
+
+# --- provenance -----------------------------------------------------------------
+
+
+async def test_a_claim_names_its_own_sample_and_arithmetic():
+    """A claim about a body of work is not checkable the way one Finding is:
+    the reader cannot open a file and see the figure. What makes it honest is
+    knowing exactly which Shots produced it, and under which calculation."""
+    from app.domain import tendency
+
+    c = ctx()
+    await seed(c, 12)
+    update = await journey.maybe_write(c, "u1")
+    assert update is not None
+
+    prov = update.provenance
+    assert prov.sample_size == 12
+    assert len(prov.shot_ids) == 12
+    assert set(prov.shot_ids) == {f"s{i}" for i in range(12)}
+    assert prov.calc_version == tendency.CALC_VERSION
+
+
+async def test_the_prompt_that_wrote_the_words_is_recorded_with_them():
+    from app.agents import prompts
+
+    c = ctx()
+    await seed(c, 12)
+    update = await journey.maybe_write(c, "u1")
+    assert update is not None
+    assert update.provenance.prompt_version == prompts.version("journey")
+    assert update.provenance.model
+
+
+async def test_an_update_with_no_paragraph_claims_no_model_wrote_one(monkeypatch):
+    """The figures stand on their own when the writer fails. Recording a model
+    against sentences that do not exist would be a false attribution."""
+
+    async def broken(*args, **kwargs):
+        return ""
+
+    monkeypatch.setattr(journey.agent, "write", broken)
+    c = ctx()
+    await seed(c, 12)
+    update = await journey.maybe_write(c, "u1")
+    assert update is not None and update.body == ""
+    assert update.provenance.model == "" and update.provenance.prompt_version == ""
+    assert update.provenance.sample_size == 12  # the measured half is untouched
+
+
+def test_editing_a_prompt_changes_its_recorded_version():
+    """The wording is part of what makes a claim reproducible: a paragraph
+    written under different instructions is a different paragraph."""
+    from app.agents import prompts
+
+    assert prompts.version("journey") != prompts.version("judge")
+    assert len(prompts.version("journey")) == 12

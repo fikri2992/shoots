@@ -42,6 +42,14 @@ from app.domain import sun
 from app.domain import tone as tone_rules
 from app.domain.entities import Analysis, Shot
 
+#: The version of the arithmetic in this module. Bump it whenever a bucket
+#: edge, a threshold or a formula moves, because every stored claim records the
+#: version it was computed under (``entities.Provenance``) and a figure is only
+#: reproducible against the calculation that produced it. Two claims with
+#: different versions are not comparable and must not be diffed.
+CALC_VERSION = "tendency-1"
+
+
 # --- how sure we have to be before we say anything ------------------------------
 
 #: Below this many readable shots a dimension shows its counts and claims
@@ -363,6 +371,11 @@ class Profile:
     shots: int = 0
     keepers: int = 0
     dwell: Dwell = field(default_factory=Dwell)
+    #: Every Shot this was built from, in the order they were read. Carried so
+    #: a claim can name its own sample rather than asserting one.
+    shot_ids: list[str] = field(default_factory=list)
+    #: The arithmetic that produced it (``CALC_VERSION`` at build time).
+    calc_version: str = CALC_VERSION
 
     @property
     def keeper_rate(self) -> float:
@@ -422,6 +435,7 @@ def build(
         shots=len(rows),
         keepers=sum(1 for shot, _ in rows if shot.id in keeper_ids),
         dwell=dwell(rows),
+        shot_ids=[shot.id for shot, _ in rows],
     )
     for shot, analysis in rows:
         point = read_shot(shot, analysis)

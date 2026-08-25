@@ -61,3 +61,49 @@ def test_grading_is_reproducible_from_counts_alone():
     store years later without a model, a photograph, or a prompt."""
     args = (tendency.FRAMING, {"wide": 9}, {"wide": 9, "close": 4})
     assert tendency.grade(*args) == tendency.grade(*args)
+
+
+async def test_a_baseline_frozen_by_older_arithmetic_is_not_compared_across():
+    """A grade is only meaningful against the calculation that produced its
+    baseline. Diffing across a version bump would report a change the
+    photographer never made, so the grading skips it and says why."""
+    from app.domain.entities import (
+        Criteria,
+        Experiment,
+        ExperimentStatus,
+        TendencyGrade,
+        User,
+    )
+    from app.infra import repository as repo
+    from app.infra.bus import InProcessBus
+    from app.infra.store import InMemoryStore
+    from app.services import scout
+    from app.services.context import Context
+
+    ctx = Context(store=InMemoryStore(), blobs=None, bus=InProcessBus(), drive=None, tokens=None)
+    await repo.put_user(ctx.store, User(id="u1", email="u@x", drive_folder_id="local"))
+
+    def experiment(eid: str, version: str) -> Experiment:
+        return Experiment(
+            id=eid,
+            user_id="u1",
+            technique_id="low_angle",
+            title="t",
+            brief="b",
+            why_now="w",
+            criteria=Criteria(),
+            status=ExperimentStatus.COMPLETED,
+            tendency=TendencyGrade(
+                source="placement",
+                citation="10 of 10 readable shots: centred",
+                at_issue={"centred": 10},
+                calc_version=version,
+            ),
+        )
+
+    await repo.put_experiment(ctx.store, experiment("stale", "tendency-0"))
+    await repo.put_experiment(ctx.store, experiment("current", tendency.CALC_VERSION))
+    await scout.grade_advice(ctx, "u1")
+
+    assert (await repo.get_experiment(ctx.store, "stale")).tendency.moved is None
+    assert (await repo.get_experiment(ctx.store, "current")).tendency.moved is not None
