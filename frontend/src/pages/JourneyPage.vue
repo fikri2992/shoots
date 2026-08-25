@@ -3,16 +3,18 @@ import { mapActions, mapState } from 'pinia'
 
 import AgentLog from '@/components/AgentLog.vue'
 import DisclosureRow from '@/components/DisclosureRow.vue'
+import JourneyUpdate from '@/components/JourneyUpdate.vue'
 import SkillBars from '@/components/SkillBars.vue'
+import TendencyProfile from '@/components/TendencyProfile.vue'
 import { useAuthStore } from '@/stores/auth'
 import { useShootsStore } from '@/stores/shoots'
 
 /** Where the user has got to, and what the agents did to get them there. */
 export default {
   name: 'JourneyPage',
-  components: { AgentLog, DisclosureRow, SkillBars },
+  components: { AgentLog, DisclosureRow, JourneyUpdate, SkillBars, TendencyProfile },
   computed: {
-    ...mapState(useShootsStore, ['pastQuests', 'me', 'push', 'busy', 'connected']),
+    ...mapState(useShootsStore, ['pastQuests', 'me', 'push', 'busy', 'connected', 'pairCode']),
     quests() {
       return this.pastQuests.map((q) => ({
         id: q.id,
@@ -28,7 +30,7 @@ export default {
     },
   },
   methods: {
-    ...mapActions(useShootsStore, ['sync', 'enablePush']),
+    ...mapActions(useShootsStore, ['sync', 'enablePush', 'pairCamera']),
     ...mapActions(useAuthStore, ['logout']),
     async signOut() {
       await this.logout()
@@ -42,7 +44,11 @@ export default {
   <div class="mx-auto w-full max-w-2xl pb-24 md:pb-10">
     <h1 class="gutter pt-8 t-hero">Journey</h1>
 
-    <div class="gutter mt-8"><SkillBars /></div>
+    <div class="gutter mt-8"><JourneyUpdate /></div>
+
+    <div class="gutter mt-12"><TendencyProfile /></div>
+
+    <div class="gutter mt-12"><SkillBars /></div>
 
     <section v-if="quests.length" class="gutter mt-12">
       <h2 class="t-title">Quests</h2>
@@ -68,6 +74,26 @@ export default {
     <section class="gutter mt-12">
       <DisclosureRow label="What the agents did" count="log">
         <AgentLog :limit="60" />
+      </DisclosureRow>
+
+      <DisclosureRow label="Pair a camera">
+        <div class="space-y-3">
+          <p class="t-body text-neutral-400">
+            The Shoots camera cannot sign in on its own. Ask for a code here and type it into the app once.
+          </p>
+          <p v-if="pairCode" class="font-mono text-3xl tracking-[0.3em] text-neutral-100">{{ pairCode.code }}</p>
+          <p v-if="pairCode" class="t-meta text-neutral-500">
+            Good for {{ Math.round(pairCode.expires_in_seconds / 60) }} minutes, and once.
+          </p>
+          <button
+            type="button"
+            class="block t-body text-neutral-300 hover:text-neutral-100"
+            :disabled="busy === 'pair'"
+            @click="pairCamera"
+          >
+            {{ busy === 'pair' ? 'Asking…' : pairCode ? 'Another code' : 'Show me a code' }}
+          </button>
+        </div>
       </DisclosureRow>
 
       <DisclosureRow label="Folder and notifications">

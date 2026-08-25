@@ -39,7 +39,7 @@ export default {
   components: { DisclosureRow, ShotCanvas, MeasuredStrip },
   props: { shotId: { type: String, required: true } },
   data() {
-    return { showRead: true, picked: '', guides: PICKABLE, labels: GUIDE_LABELS }
+    return { showRead: true, picked: '', guides: PICKABLE, labels: GUIDE_LABELS, keeping: false }
   },
   computed: {
     ...mapState(useShootsStore, ['shotById', 'questById']),
@@ -161,10 +161,23 @@ export default {
     if (this.$route.hash === '#coach') this.openFor(this.shotId, {})
   },
   methods: {
-    ...mapActions(useShootsStore, ['fetchShot']),
+    ...mapActions(useShootsStore, ['fetchShot', 'setKeeper']),
     ...mapActions(useCoachStore, ['openFor']),
     talk(opener) {
       this.openFor(this.shotId, { opener })
+    },
+    /**
+     * One optional tap. The only thing in Shoots that carries the
+     * photographer's own taste rather than the panel's: it separates what they
+     * do often from what they actually value, and nothing else can.
+     */
+    async keep() {
+      this.keeping = true
+      try {
+        await this.setKeeper(this.shotId, !this.shot.keeper)
+      } finally {
+        this.keeping = false
+      }
     },
   },
 }
@@ -192,6 +205,16 @@ export default {
             @click="showRead = !showRead"
           >
             read
+          </button>
+          <button
+            type="button"
+            class="absolute bottom-3 left-3 rounded-full bg-black/70 px-3 py-1 t-num text-[11px]"
+            :class="shot.keeper ? 'text-accent' : 'text-neutral-500'"
+            :disabled="keeping"
+            :title="shot.keeper ? 'One you would keep' : 'Would you keep this one?'"
+            @click="keep"
+          >
+            {{ shot.keeper ? 'kept' : 'keep' }}
           </button>
         </div>
 

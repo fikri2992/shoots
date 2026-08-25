@@ -23,6 +23,9 @@ export const useShootsStore = defineStore('shoots', {
     timer: null,
     lastEventAt: '',
     push: 'unknown', // unknown | unsupported | off | on | denied
+    profile: null, // the Tendency Profile: what the photographer keeps doing
+    journey: [], // Journey Updates, newest first
+    pairCode: null, // { code, expires_in_seconds } while pairing a camera
     seeding: null, // { done, total, name } while the first frames upload
   }),
 
@@ -76,13 +79,15 @@ export const useShootsStore = defineStore('shoots', {
       this.loading = true
       this.error = ''
       try {
-        const [me, quest, quests, skills, shots, events] = await Promise.all([
+        const [me, quest, quests, skills, shots, events, profile, journey] = await Promise.all([
           api.get('/api/me'),
           api.get('/api/quests/open'),
           api.get('/api/quests?limit=20'),
           api.get('/api/skills'),
           api.get('/api/shots?limit=100'),
           api.get('/api/events?limit=60'),
+          api.get('/api/profile'),
+          api.get('/api/journey?limit=10'),
         ])
         this.me = me
         this.quest = quest
@@ -90,6 +95,8 @@ export const useShootsStore = defineStore('shoots', {
         this.skills = skills
         this.shots = shots
         this.events = events
+        this.profile = profile
+        this.journey = journey
         this.lastEventAt = events[0]?.at || ''
       } catch (error) {
         this.error = error.message
@@ -260,6 +267,28 @@ export const useShootsStore = defineStore('shoots', {
       if (index >= 0) this.shots.splice(index, 1, view)
       else this.shots.unshift(view)
       return view
+    },
+
+    /**
+     * The photographer marks a shot worth keeping. One optional tap, and the
+     * only source of taste in the system: nothing else can separate "you do
+     * this often", which the profile measures on its own, from "this is what
+     * you value". It is not a score and it promotes nothing.
+     */
+    async setKeeper(id, keeper) {
+      const shot = await api.put(`/api/shots/${id}/keeper`, { keeper })
+      const index = this.shots.findIndex((v) => v.shot.id === id)
+      if (index >= 0) this.shots.splice(index, 1, { ...this.shots[index], shot })
+      this.profile = await api.get('/api/profile')
+      return shot
+    },
+
+    /** A code to type into the native camera, so it can be handed this account. */
+    async pairCamera() {
+      return this.run('pair', async () => {
+        this.pairCode = await api.post('/api/pair', {})
+        return this.pairCode
+      })
     },
   },
 })
