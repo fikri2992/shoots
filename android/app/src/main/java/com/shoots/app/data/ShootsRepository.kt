@@ -349,6 +349,16 @@ class ShootsRepository(
         return draft
     }
 
+    suspend fun answerScoutQuestion(
+        shootId: String,
+        revision: Int,
+        optionId: String,
+    ): ScoutAnswerDto {
+        val answer = api.answerScoutQuestion(shootId, ScoutAnswerRequest(revision, optionId))
+        refreshSnapshot()
+        return answer
+    }
+
     suspend fun cacheDeconstructionPages(draft: DeconstructionDto): List<File> {
         require(draft.status == "drafted" && draft.pages.isNotEmpty()) {
             "This Deconstruction has no rendered pages yet"

@@ -2,10 +2,13 @@ package com.shoots.app.ui
 
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.test.performClick
 import com.shoots.app.ShootsTheme
 import com.shoots.app.data.AnalysisDto
 import com.shoots.app.data.MobileSnapshotDto
 import com.shoots.app.data.ScoutDecisionDto
+import com.shoots.app.data.ScoutQuestionDto
+import com.shoots.app.data.ScoutQuestionOptionDto
 import com.shoots.app.data.ShootDto
 import com.shoots.app.data.ShootReceiptDto
 import com.shoots.app.data.ShootRecordDto
@@ -17,6 +20,7 @@ import com.shoots.app.data.UserDto
 import com.shoots.app.phone.MediaAccess
 import org.junit.Rule
 import org.junit.Test
+import org.junit.Assert.assertEquals
 
 class NowScreenIntegrationTest {
     @get:Rule
@@ -124,8 +128,50 @@ class NowScreenIntegrationTest {
         compose.onNodeWithText("Open Shots").assertExists()
     }
 
+    @Test
+    fun consequentialScoutQuestionRecordsOneExplicitChoice() {
+        var selected = ""
+        val shoot = ShootDto(
+            id = "shoot-ask",
+            status = "settled",
+            currentRecordRevision = 1,
+            orderedShotIds = listOf("shot-1", "shot-2"),
+        )
+        val record = ShootRecordDto(
+            shootId = shoot.id,
+            revision = 1,
+            receipt = ShootReceiptDto(
+                shotCount = 2,
+                sceneCount = 1,
+                repeated = listOf("Two decisions repeated together."),
+            ),
+            scout = ScoutDecisionDto(
+                route = "ask",
+                question = ScoutQuestionDto(
+                    id = "question-1",
+                    prompt = "Which decision were you exploring in this Shoot?",
+                    options = listOf(
+                        ScoutQuestionOptionDto("technique_backlight", "Backlight", "backlight"),
+                        ScoutQuestionOptionDto("just_shooting", "I was just shooting"),
+                    ),
+                ),
+            ),
+        )
+
+        compose.setContent {
+            NowTestContent(snapshot(shoot, record)) { _, _, option -> selected = option }
+        }
+
+        compose.onNodeWithText("Which decision were you exploring in this Shoot?").assertExists()
+        compose.onNodeWithText("Backlight").performClick()
+        assertEquals("technique_backlight", selected)
+    }
+
     @androidx.compose.runtime.Composable
-    private fun NowTestContent(snapshot: MobileSnapshotDto) {
+    private fun NowTestContent(
+        snapshot: MobileSnapshotDto,
+        onAnswer: (String, Int, String) -> Unit = { _, _, _ -> },
+    ) {
         ShootsTheme {
             NowScreen(
                 snapshot = snapshot,
@@ -148,6 +194,7 @@ class NowScreenIntegrationTest {
                 onOpenShot = {},
                 onOpenShots = {},
                 onOpenExperiments = {},
+                onAnswerScoutQuestion = onAnswer,
                 onOpenSettings = {},
             )
         }

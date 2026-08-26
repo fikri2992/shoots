@@ -1052,6 +1052,18 @@ class ScoutRejectedRoute(BaseModel):
     reason: str
 
 
+class ScoutQuestionOption(BaseModel):
+    id: str
+    label: str
+    technique_id: str = ""
+
+
+class ScoutQuestion(BaseModel):
+    id: str = ""
+    prompt: str = ""
+    options: list[ScoutQuestionOption] = Field(default_factory=list)
+
+
 class ScoutDecision(BaseModel):
     """Code-gated intervention choice stored with one Shoot Record."""
 
@@ -1069,8 +1081,31 @@ class ScoutDecision(BaseModel):
     execution_detail: str = ""
     attempt_state: InterventionAttemptState = InterventionAttemptState.NOT_APPLICABLE
     observable_outcome: InterventionOutcome = InterventionOutcome.NOT_APPLICABLE
+    question: ScoutQuestion = Field(default_factory=ScoutQuestion)
     decided_at: datetime = Field(default_factory=now)
     executed_at: datetime | None = None
+
+
+class ScoutAnswerState(StrEnum):
+    PENDING = "pending"
+    COMPLETED = "completed"
+
+
+class ScoutAnswer(BaseModel):
+    """One immutable Photographer answer to a stored Scout Question."""
+
+    id: str
+    user_id: str
+    question_id: str
+    shoot_id: str
+    shoot_revision: int
+    option_id: str
+    technique_id: str = ""
+    intent_signal_id: str = ""
+    experiment_id: str = ""
+    state: ScoutAnswerState = ScoutAnswerState.PENDING
+    detail: str = ""
+    answered_at: datetime = Field(default_factory=now)
 
 
 class DeconstructionAttempt(BaseModel):

@@ -20,6 +20,7 @@ from app.domain.entities import (
     JourneyUpdate,
     PhotographerSignal,
     Run,
+    ScoutAnswer,
     Shoot,
     ShootRecord,
     Shot,
@@ -50,6 +51,7 @@ class MobileSnapshot(BaseModel):
     techniques: list[experiment_api.TechniqueNode]
     experiments: list[Experiment]
     latest_deconstruction: Deconstruction | None
+    recent_scout_answers: list[ScoutAnswer]
 
 
 @router.get("/snapshot", response_model=MobileSnapshot)
@@ -99,6 +101,7 @@ async def snapshot(
         techniques=await experiment_api.technique_map(session_user, ctx),
         experiments=experiments,
         latest_deconstruction=deconstructions[0] if deconstructions else None,
+        recent_scout_answers=await repo.list_scout_answers(ctx.store, user.id, limit=20),
     )
     encoded = jsonable_encoder(value)
     # Building the Profile stamps when this read occurred. That timestamp is

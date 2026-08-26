@@ -194,6 +194,11 @@ class MainActivity : ComponentActivity() {
                                 )
                             }
                         },
+                        answerScoutQuestion = { shootId, revision, optionId ->
+                            scope.launch {
+                                viewModel.answerScoutQuestion(shootId, revision, optionId)
+                            }
+                        },
                         shareDeconstruction = { draft ->
                             scope.launch {
                                 runCatching { viewModel.cacheDeconstructionPages(draft) }

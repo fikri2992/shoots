@@ -79,6 +79,12 @@ interface ShootsApi {
     @POST("api/deconstructions")
     suspend fun prepareDeconstruction(@Body body: DeconstructionPrepareRequest): DeconstructionDto
 
+    @POST("api/shoots/{id}/scout-answer")
+    suspend fun answerScoutQuestion(
+        @Path("id") id: String,
+        @Body body: ScoutAnswerRequest,
+    ): ScoutAnswerDto
+
     @Streaming
     @GET
     suspend fun downloadBlob(@Url url: String): okhttp3.ResponseBody

@@ -6,6 +6,7 @@ import IdleStep from '@/components/now/IdleStep.vue'
 import ExperimentHero from '@/components/now/ExperimentHero.vue'
 import ReadingStep from '@/components/now/ReadingStep.vue'
 import RunReceipt from '@/components/now/RunReceipt.vue'
+import ScoutQuestionStep from '@/components/now/ScoutQuestionStep.vue'
 import SeedStep from '@/components/now/SeedStep.vue'
 import { useShootsStore } from '@/stores/shoots'
 
@@ -15,15 +16,24 @@ import { useShootsStore } from '@/stores/shoots'
  */
 export default {
   name: 'NowPage',
-  components: { ConnectStep, IdleStep, ExperimentHero, ReadingStep, RunReceipt, SeedStep },
+  components: { ConnectStep, IdleStep, ExperimentHero, ReadingStep, RunReceipt, ScoutQuestionStep, SeedStep },
   computed: {
-    ...mapState(useShootsStore, ['experiment', 'shots', 'connected', 'loading', 'error', 'push', 'busy', 'working', 'seeding']),
+    ...mapState(useShootsStore, ['experiment', 'shots', 'connected', 'loading', 'error', 'push', 'busy', 'working', 'seeding', 'mobile']),
+    scoutQuestionRecord() {
+      const record = this.mobile?.latest_shoot_record
+      if (!record || record.scout?.route !== 'ask' || !record.scout.question?.id) return null
+      const answered = (this.mobile?.recent_scout_answers || []).some(
+        (answer) => answer.question_id === record.scout.question.id,
+      )
+      return answered ? null : record
+    },
     step() {
       if (this.loading && !this.shots.length && !this.connected) return 'loading'
       if (!this.connected) return 'connect'
       if (this.seeding || (!this.shots.length && !this.experiment)) return 'seed'
       if (this.working.length) return 'reading'
       if (this.experiment) return 'experiment'
+      if (this.scoutQuestionRecord) return 'question'
       return 'idle'
     },
   },
@@ -46,6 +56,7 @@ export default {
     <SeedStep v-else-if="step === 'seed'" />
     <ReadingStep v-else-if="step === 'reading'" :shots="working" />
     <ExperimentHero v-else-if="step === 'experiment'" :experiment="experiment" />
+    <ScoutQuestionStep v-else-if="step === 'question'" :record="scoutQuestionRecord" :busy="busy" />
     <IdleStep v-else-if="step === 'idle'" />
     <p v-else class="page-shell pt-12 t-meta">Loading your Journey…</p>
 

@@ -61,6 +61,7 @@ data class AppActions(
     val startExperiment: (String, String) -> Unit,
     val completeExplore: (String) -> Unit,
     val prepareDeconstruction: (String, String, Int, String) -> Unit,
+    val answerScoutQuestion: (String, Int, String) -> Unit,
     val shareDeconstruction: (DeconstructionDto) -> Unit,
     val continueSession: (String) -> Unit,
     val finishSession: (String) -> Unit,
@@ -158,6 +159,7 @@ fun ShootsApp(
                     onOpenShot = { nav.navigate("shot/$it") },
                     onOpenShots = { nav.navigate("shots") },
                     onOpenExperiments = { nav.navigate("experiments") },
+                    onAnswerScoutQuestion = actions.answerScoutQuestion,
                     onOpenSettings = { nav.navigate("settings") },
                 )
             }

@@ -12,8 +12,11 @@ from app.domain.entities import (
     ExperimentTiming,
     ExperimentType,
     InterventionAttemptState,
+    PhotographerSignalKind,
     ScoutDecision,
     ScoutExecutionState,
+    ScoutQuestion,
+    ScoutQuestionOption,
     ScoutRejectedRoute,
     ScoutRoute,
     ScoutWarrant,
@@ -28,7 +31,7 @@ from app.services import photographer_memory
 from app.services import scout as experiment_scout
 from app.services.context import Context
 
-POLICY_VERSION = "shoot-scout-2"
+POLICY_VERSION = "shoot-scout-3"
 
 
 async def decide(
@@ -138,6 +141,33 @@ async def decide(
         )
 
     current_open = await repo.open_experiment(ctx.store, shoot.user_id)
+    exact_intent = any(
+        signal.scope is SignalScope.SHOOT
+        and signal.scope_id == shoot.id
+        and signal.kind is PhotographerSignalKind.INTENT
+        for signal in await repo.list_photographer_signals(ctx.store, shoot.user_id)
+    )
+    question_techniques = _question_techniques(receipt, constraints.missing_gear)
+    ask_rejection = ""
+    if current_open is not None:
+        ask_rejection = f'Experiment "{current_open.id}" already owns the open slot.'
+    elif exact_intent:
+        ask_rejection = "This Shoot already has Photographer-owned Intent."
+    elif len(question_techniques) < 2:
+        ask_rejection = "Fewer than two corroborated Technique directions need clarification."
+    else:
+        decision = _ask_decision(shoot, receipt, question_techniques)
+        decision.rejected_routes = _rejections(
+            selected=ScoutRoute.ASK,
+            reproduce_reason=reproduce_rejection,
+        )
+        decision.execution_state = ScoutExecutionState.COMPLETED
+        decision.execution_detail = "One consequential Intent question is ready."
+        decision.attempt_state = InterventionAttemptState.OFFERED
+        decision.executed_at = now()
+        await _record(ctx, shoot, decision)
+        return decision
+
     explore_rejection = ""
     if current_open is not None:
         explore_rejection = f'Experiment "{current_open.id}" already owns the open slot.'
@@ -166,6 +196,7 @@ async def decide(
                 selected=ScoutRoute.EXPLAIN,
                 reproduce_reason=reproduce_rejection,
                 explore_reason=explore_rejection,
+                ask_reason=ask_rejection,
             ),
             input_shot_ids=list(shoot.ordered_shot_ids),
             projection_versions=_projection_versions(receipt),
@@ -185,6 +216,7 @@ async def decide(
                 selected=ScoutRoute.SILENCE,
                 reproduce_reason=reproduce_rejection,
                 explore_reason=explore_rejection,
+                ask_reason=ask_rejection,
             ),
             input_shot_ids=list(shoot.ordered_shot_ids),
             projection_versions=_projection_versions(receipt),
@@ -240,6 +272,66 @@ def _receipt_warrant(shoot: Shoot, receipt: ShootReceipt) -> ScoutWarrant:
     )
 
 
+def _question_techniques(
+    receipt: ShootReceipt,
+    missing_gear: list[str],
+) -> list[taxonomy.Technique]:
+    supported = []
+    for figure in sorted(receipt.techniques, key=lambda item: item.technique_id):
+        technique = taxonomy.BY_ID.get(figure.technique_id)
+        if (
+            technique is not None
+            and figure.corroborated_shot_ids
+            and route_rules.available(technique, missing_gear=missing_gear)
+        ):
+            supported.append(technique)
+    return supported[:3]
+
+
+def _ask_decision(
+    shoot: Shoot,
+    receipt: ShootReceipt,
+    techniques: list[taxonomy.Technique],
+) -> ScoutDecision:
+    question = ScoutQuestion(
+        id=f"scout_question_{shoot.id}_r{shoot.revision}",
+        prompt="Which decision were you exploring in this Shoot?",
+        options=[
+            *[
+                ScoutQuestionOption(
+                    id=f"technique_{technique.id}",
+                    label=technique.name,
+                    technique_id=technique.id,
+                )
+                for technique in techniques
+            ],
+            ScoutQuestionOption(id="just_shooting", label="I was just shooting"),
+        ],
+    )
+    warrants = [
+        ScoutWarrant(
+            kind="shoot_technique_choice",
+            shoot_id=shoot.id,
+            shoot_revision=shoot.revision,
+            shot_ids=list(figure.corroborated_shot_ids),
+            technique_id=figure.technique_id,
+            detail=f"{figure.name} was corroborated in this Shoot.",
+        )
+        for figure in receipt.techniques
+        if figure.technique_id in {technique.id for technique in techniques}
+    ]
+    return ScoutDecision(
+        route=ScoutRoute.ASK,
+        reason="Two or more supported decisions appeared together; Intent changes useful help.",
+        warrant=warrants,
+        input_shot_ids=list(shoot.ordered_shot_ids),
+        projection_versions=_projection_versions(receipt),
+        policy_version=POLICY_VERSION,
+        question=question,
+        execution_state=ScoutExecutionState.PENDING,
+    )
+
+
 def _explore_decision(
     shoot: Shoot,
     receipt: ShootReceipt,
@@ -280,9 +372,10 @@ def _rejections(
     selected: ScoutRoute,
     reproduce_reason: str = "",
     explore_reason: str = "",
+    ask_reason: str = "",
 ) -> list[ScoutRejectedRoute]:
     reasons = {
-        ScoutRoute.ASK: "Ask delivery is not implemented yet.",
+        ScoutRoute.ASK: ask_reason or "A stronger eligible route was selected.",
         ScoutRoute.EXPLORE: explore_reason or "A stronger eligible route was selected.",
         ScoutRoute.REPRODUCE: reproduce_reason or "A stronger eligible route was selected.",
         ScoutRoute.EXPLAIN: "A stronger eligible route was selected.",

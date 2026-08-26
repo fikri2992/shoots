@@ -210,6 +210,8 @@ async def issue_explore(
     technique_id: str = "",
     requested_reason: str = "",
     experiment_id: str = "",
+    warrant_shot_ids: list[str] | None = None,
+    selection_basis: str = "",
 ) -> Experiment | None:
     """Offer optional Variations from a Tendency Direction or explicit Technique."""
     opened = await repo.open_experiment(ctx.store, user_id)
@@ -226,8 +228,7 @@ async def issue_explore(
         requested = taxonomy.BY_ID.get(technique_id)
         technique = (
             requested
-            if requested
-            and rules.available(requested, missing_gear=constraints.missing_gear)
+            if requested and rules.available(requested, missing_gear=constraints.missing_gear)
             else None
         )
     else:
@@ -285,7 +286,9 @@ async def issue_explore(
         why_now=why[:500],
         variations=explore.variations_for(technique),
         baseline=baseline,
-        warrant_shot_ids=list(baseline.provenance.shot_ids) if baseline else [],
+        warrant_shot_ids=(
+            list(baseline.provenance.shot_ids) if baseline else list(warrant_shot_ids or [])
+        ),
         status=ExperimentStatus.OPEN,
         due_at=at + timedelta(days=settings.experiment_ttl_days),
         deliver_at=when.at,
@@ -310,7 +313,7 @@ async def issue_explore(
             "type": "explore",
             "title": experiment.title,
             "why": why,
-            "selection_basis": "tendency" if baseline else "explicit_request",
+            "selection_basis": selection_basis or ("tendency" if baseline else "explicit_request"),
             "variations": [variation.id for variation in experiment.variations],
             "deliver_at": experiment.deliver_at.isoformat() if experiment.deliver_at else "",
         },

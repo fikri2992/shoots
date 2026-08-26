@@ -363,6 +363,20 @@ data class ScoutRejectedRouteDto(
 )
 
 @Serializable
+data class ScoutQuestionOptionDto(
+    val id: String,
+    val label: String,
+    @SerialName("technique_id") val techniqueId: String = "",
+)
+
+@Serializable
+data class ScoutQuestionDto(
+    val id: String = "",
+    val prompt: String = "",
+    val options: List<ScoutQuestionOptionDto> = emptyList(),
+)
+
+@Serializable
 data class ScoutDecisionDto(
     val route: String = "silence",
     val reason: String = "",
@@ -376,6 +390,27 @@ data class ScoutDecisionDto(
     @SerialName("execution_detail") val executionDetail: String = "",
     @SerialName("attempt_state") val attemptState: String = "not_applicable",
     @SerialName("observable_outcome") val observableOutcome: String = "not_applicable",
+    val question: ScoutQuestionDto = ScoutQuestionDto(),
+)
+
+@Serializable
+data class ScoutAnswerDto(
+    val id: String,
+    @SerialName("question_id") val questionId: String,
+    @SerialName("shoot_id") val shootId: String,
+    @SerialName("shoot_revision") val shootRevision: Int,
+    @SerialName("option_id") val optionId: String,
+    @SerialName("technique_id") val techniqueId: String = "",
+    @SerialName("intent_signal_id") val intentSignalId: String = "",
+    @SerialName("experiment_id") val experimentId: String = "",
+    val state: String = "pending",
+    val detail: String = "",
+)
+
+@Serializable
+data class ScoutAnswerRequest(
+    val revision: Int,
+    @SerialName("option_id") val optionId: String,
 )
 
 @Serializable
@@ -507,6 +542,7 @@ data class MobileSnapshotDto(
     val techniques: List<TechniqueNodeDto> = emptyList(),
     val experiments: List<ExperimentDto> = emptyList(),
     @SerialName("latest_deconstruction") val latestDeconstruction: DeconstructionDto? = null,
+    @SerialName("recent_scout_answers") val recentScoutAnswers: List<ScoutAnswerDto> = emptyList(),
 )
 
 @Serializable

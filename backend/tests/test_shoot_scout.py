@@ -111,7 +111,7 @@ async def test_useful_shoot_without_keeper_direction_routes_to_explain():
     rejected = {item.route: item.reason for item in record.scout.rejected_routes}
     assert "marked Keeper" in rejected[ScoutRoute.REPRODUCE]
     assert "No supported Tendency Direction" in rejected[ScoutRoute.EXPLORE]
-    assert "not implemented" in rejected[ScoutRoute.ASK]
+    assert "Fewer than two" in rejected[ScoutRoute.ASK]
     assert await repo.open_experiment(ctx.store, "scout_user") is None
 
 
@@ -136,7 +136,7 @@ async def test_supported_tendency_without_keeper_offers_corrected_explore():
     assert record is not None
     assert record.scout.route is ScoutRoute.EXPLORE
     assert record.scout.execution_state is ScoutExecutionState.COMPLETED
-    assert record.scout.policy_version == "shoot-scout-2"
+    assert record.scout.policy_version == "shoot-scout-3"
     experiment = await repo.get_experiment(ctx.store, record.scout.experiment_id)
     assert experiment.type is ExperimentType.EXPLORE
     assert len(experiment.variations) == 3

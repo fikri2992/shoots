@@ -58,6 +58,7 @@ import com.shoots.app.data.LocalCaptureState
 import com.shoots.app.data.MobileSnapshotDto
 import com.shoots.app.data.ShootDto
 import com.shoots.app.data.ShootRecordDto
+import com.shoots.app.data.ScoutAnswerDto
 import com.shoots.app.data.ShotDto
 import com.shoots.app.data.ShotViewDto
 import com.shoots.app.data.SourceStateEntity
@@ -83,6 +84,7 @@ fun NowScreen(
     onOpenShot: (String) -> Unit,
     onOpenShots: () -> Unit,
     onOpenExperiments: () -> Unit,
+    onAnswerScoutQuestion: (String, Int, String) -> Unit,
     onOpenSettings: () -> Unit,
 ) {
     val active = localSession?.takeIf { it.state in ACTIVE_SESSION_STATES }
@@ -138,9 +140,14 @@ fun NowScreen(
                 )
                 "shoot-receipt" -> ShootReceiptHero(
                     record = requireNotNull(latestRecord),
+                    answer = snapshot?.recentScoutAnswers?.firstOrNull {
+                        it.shootId == latestRecord.shootId && it.shootRevision == latestRecord.revision
+                    },
+                    busy = busy,
                     lastSyncedAt = source?.lastSuccessfulSyncAt.orEmpty(),
                     onOpenShots = onOpenShots,
                     onOpenExperiments = onOpenExperiments,
+                    onAnswer = onAnswerScoutQuestion,
                 )
                 "legacy-insight" -> LatestInsightHero(
                     view = requireNotNull(latestView),
@@ -272,9 +279,12 @@ private fun ShootProcessingHero(
 @Composable
 private fun ShootReceiptHero(
     record: ShootRecordDto,
+    answer: ScoutAnswerDto?,
+    busy: Boolean,
     lastSyncedAt: String,
     onOpenShots: () -> Unit,
     onOpenExperiments: () -> Unit,
+    onAnswer: (String, Int, String) -> Unit,
 ) {
     var expanded by rememberSaveable(record.shootId, record.revision) { mutableStateOf(false) }
     val receipt = record.receipt
@@ -330,6 +340,32 @@ private fun ShootReceiptHero(
                 SecondaryAction("Open Shots", onClick = onOpenShots)
             }
             "explain" -> PrimaryAction("Open Shots", onClick = onOpenShots)
+            "ask" -> {
+                if (answer == null) {
+                    Text(
+                        record.scout.question.prompt,
+                        color = WarmWhite,
+                        fontSize = 17.sp,
+                        lineHeight = 23.sp,
+                        fontWeight = FontWeight.SemiBold,
+                    )
+                    Spacer(Modifier.height(10.dp))
+                    record.scout.question.options.forEach { option ->
+                        SecondaryAction(option.label, enabled = !busy) {
+                            onAnswer(record.shootId, record.revision, option.id)
+                        }
+                        Spacer(Modifier.height(7.dp))
+                    }
+                } else {
+                    Text(answer.detail, color = MutedWhite, fontSize = 14.sp, lineHeight = 20.sp)
+                    Spacer(Modifier.height(10.dp))
+                    if (answer.experimentId.isNotBlank()) {
+                        PrimaryAction("Open your Explore", onClick = onOpenExperiments)
+                    } else {
+                        SecondaryAction("Open Shots", onClick = onOpenShots)
+                    }
+                }
+            }
             else -> SecondaryAction("Open Shots", onClick = onOpenShots)
         }
         val hasDetails = receipt.repeated.size + receipt.varied.size > 1 ||

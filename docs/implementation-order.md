@@ -272,9 +272,9 @@ Target time: hours 24 through 32.
 - Start intervention state as `not_applicable`, `offered`, or `entered` where the
   current system can prove it. Do not infer failure from no attempt.
 
-`ask` remains unavailable until its real record and UI exist. Corrected Explore now
-owns Variations, Capture Sessions, and observations; it is no longer a rejected alias
-for Reproduce.
+Ask now owns one stored question, evidenced options, immutable answer, and native/web
+delivery. Corrected Explore owns Variations, Capture Sessions, and observations; neither
+route is a disguised alias for Reproduce.
 
 ### Ordering inside one Shoot
 
@@ -290,8 +290,9 @@ for Reproduce.
 - no Keeper-backed direction produces explain or evidenced silence;
 - supported Keeper Evidence may offer Reproduce;
 - an existing open Experiment blocks another offer;
-- unavailable ask records why it was rejected, while Explore requires a supported
-  Tendency Direction or explicit supported Technique;
+- Ask appears only for two or more corroborated Shoot Technique directions without
+  current Shoot Intent; Explore requires a supported Tendency Direction or explicit
+  supported Technique;
 - replay produces no second Experiment or Scout decision;
 - model output cannot change route eligibility.
 
@@ -471,7 +472,7 @@ authority: no branch is pushed or deployed without explicit approval.
 |---|---|---|---|---|
 | 1 | complete | Full Technique Map axes and invalidation | Rebuildable per-Technique projection with independent recurrence, Scene/Shoot coverage, Reproduce, Criteria, abstention, and Keeper facts | Corrections retract unsupported current claims; Android shows facts separately; no score |
 | 2 | partial | Photographer correction and Mine/Inspiration authority | Superseding source-role and grouping records plus deterministic invalidation | Free manual correction is built; Inspiration cannot write Photographer memory; grouping and Experiment-cited correction remain |
-| 3 | partial | Scoped Photographer memory and Listener migration | Provenance-carrying Intent, constraint, preference, and source-role records behind one signal seam | Signal/recall/correction and Listener migration are built; native Intent authoring and legacy migration remain |
+| 3 | partial | Scoped Photographer memory and Listener migration | Provenance-carrying Intent, constraint, preference, and source-role records behind one signal seam | Signal/recall/correction, Listener migration, and one native consequential Intent answer are built; legacy migration and wider Intent consumers remain |
 | 4 | complete | Corrected Explore | Open Explore Experiment with explicit Variations, immutable per-session choice, ordered results, and structured observations | The Photographer may try alternatives freely; no Criteria, Verdict, or pass/fail language |
 | 5 | complete | Deconstruction | Image-led 4:5 draft from a settled Shoot or Experiment Record plus Android multi-image sharing | Every page cites stored Evidence; Photographer selects the cover; no invented score or automatic post |
 | 6 | complete | Full local acceptance | Backend, web, and emulator workflow covering correction, recall, Explore, and Deconstruction | Full backend suite and Ruff pass; web tests/build pass; Android build/lint and 30 emulator tests pass with two hardware-only skips |

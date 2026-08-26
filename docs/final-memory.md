@@ -29,7 +29,7 @@ personality profile, or a score.
 | Technique Map | Rebuildable projection with separate sightings, corroborated Shots, Scene/Shoot coverage, Reproduce results, Criteria outcomes, abstentions, and positive Keeper figures | Add supported condition coverage after reliable inputs exist |
 | Tendency Profile | Rebuilt from the complete readable archive under `CALC_VERSION` | Rebuild from authoritative evidence; cache only with an input digest |
 | Keeper | Positive `kept_at`; unmarked means unknown | Keep |
-| Intent | Generic scoped Photographer Signal and API exist; no native creation flow yet | Add the smallest contextual client action before using Intent in selection |
+| Intent | Generic scoped Signal plus one native consequential Ask; answer is an attributable Shoot-scoped Photographer action | Extend to Intent-aware review and later Live use without inferring it |
 | Experiment | Baseline, explicit results, Reproduce Criteria and Verdicts, Change; new Shoot route stores exact Keeper warrant ids | Complete intervention outcomes for every Scout route |
 | Scene | Persisted capture-continuity membership with grouping revisions | Add explicit Photographer correction |
 | Shoot | Persisted natural Camera activity, revisioned terminal Shoot Record, deterministic receipt, typed Scout outcome, and Deconstruction attempt | Add explicit grouping correction and configured-device proof |
@@ -273,11 +273,12 @@ The record evaluates the intervention:
 Domain code decides which routes are available. The model writes only inside the
 selected route. An unimplemented route is rejected with a reason or becomes silence.
 
-Current implementation stores the typed Shoot Scout decision and can execute two
-Experiment routes without a writer choosing the work: Keeper-backed Reproduce and
-Tendency-backed Explore. Explore then retains the selected Variation, ordered Capture
+Current implementation stores the typed Shoot Scout decision and executes Ask,
+Keeper-backed Reproduce, and Tendency- or Intent-backed Explore without a writer
+choosing the work. Ask retains its exact Technique warrants, immutable answer, and
+attributable Intent Signal. Explore retains the selected Variation, ordered Capture
 Session members, structured observations, abstentions, and terminal media without a
-Verdict. Delivery of `explain`, `ask`, and longitudinal intervention-outcome adaptation
+Verdict. Richer `explain` delivery and longitudinal intervention-outcome adaptation
 remain target work.
 
 ## Bounded recall
@@ -391,7 +392,7 @@ After submission:
 
 1. Add the full Technique Map evidence axes and projection invalidation.
 2. Complete Scene grouping and Experiment-cited source-role correction.
-3. Add native Intent authoring and remove the legacy `User.constraints` fallback after migration.
+3. Extend native Intent into review/Live context and remove the legacy `User.constraints` fallback after migration.
 4. Add the blind bounded Shoot reader only if deterministic synthesis leaves useful
    ambiguity.
 5. Extend Deconstruction with MediaStore export, caption editing, and optional Drive output.

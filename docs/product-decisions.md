@@ -153,7 +153,7 @@ The agent system must:
 - leave a Shoot Record and optional Deconstruction after the chosen workflow;
 - retire or change an approach only after repeated comparable results, not one miss.
 
-Depth already present includes structured agent outputs, per-Shot Runs, persisted Scene and Shoot membership, a Shoot barrier and deterministic synthesis, typed Scout choice, scoped Photographer memory, Mine/Inspiration authority, corrected Explore, deterministic Reproduce mechanics, measurement vetoes, abstention, Capture Session barriers, and post-Experiment comparison. Gaps include advice adaptation across repeated outcomes, Deconstruction, native Intent authoring, and labelled real-agent evaluation. See [agents](agents.md) and [market comparison](market-agent-comparison.md).
+Depth already present includes structured agent outputs, per-Shot Runs, persisted Scene and Shoot membership, a Shoot barrier and deterministic synthesis, typed Scout choice including consequential Ask, scoped Photographer memory, Mine/Inspiration authority, corrected Explore, deterministic Reproduce mechanics, measurement vetoes, abstention, Capture Session barriers, Deconstruction, and post-Experiment comparison. Gaps include advice adaptation across repeated outcomes, broader Intent consumers, and labelled real-agent evaluation. See [agents](agents.md) and [market comparison](market-agent-comparison.md).
 
 The key causal limit stays explicit: Shoots may say behaviour changed after an Experiment. It may not claim the Experiment caused the Change.
 
@@ -213,7 +213,7 @@ Boundaries:
 - The internal cell grid never reaches the photographer. The Companion shows a human guide, arrow, crop region, or plain direction.
 - Intent may mute a conflicting local warning, such as zebras for a declared silhouette.
 
-The release excludes the earlier Android Ask, custom viewfinder, microphone, Gemini Live, and Scene frames. Those remain later work only if the unattended longitudinal loop first proves useful.
+The release excludes the earlier free-form Android Ask, custom viewfinder, microphone, Gemini Live, and Scene frames. The current one-tap Scout Question is a bounded authority action inside the unattended longitudinal loop, not a live camera coach.
 
 Android and web are two clients of one Shoots identity. Android now uses native Google identity, one build-configured service origin, direct Shot ingress, and optional separate Drive authority. Pairing endpoints remain temporarily for older APKs; the new client has no pairing or server-address UI.
 

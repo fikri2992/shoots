@@ -271,6 +271,15 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         notice.value = "Deconstruction draft is ready"
     }
 
+    suspend fun answerScoutQuestion(
+        shootId: String,
+        revision: Int,
+        optionId: String,
+    ): Boolean = operate {
+        val answer = repository.answerScoutQuestion(shootId, revision, optionId)
+        notice.value = answer.detail
+    }
+
     suspend fun cacheDeconstructionPages(draft: DeconstructionDto): List<File> =
         withContext(Dispatchers.IO) { repository.cacheDeconstructionPages(draft) }
 

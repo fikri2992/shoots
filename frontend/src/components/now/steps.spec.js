@@ -9,6 +9,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import ConnectStep from './ConnectStep.vue'
 import ExperimentHero from './ExperimentHero.vue'
 import ReadingStep from './ReadingStep.vue'
+import ScoutQuestionStep from './ScoutQuestionStep.vue'
 import SeedStep from './SeedStep.vue'
 import { useShootsStore } from '@/stores/shoots'
 
@@ -103,6 +104,32 @@ describe('ReadingStep', () => {
     store.events = [{ id: 'e1', agent: 'ingest', stage: 'ingested', shot_id: 'other', at: '', detail: {} }]
     const rows = render(ReadingStep, { props: { shots: [shot] } }).vm.rows
     expect(rows.every((r) => !r.complete)).toBe(true)
+  })
+})
+
+describe('ScoutQuestionStep', () => {
+  it('offers only evidenced choices and records one explicit answer', async () => {
+    const store = useShootsStore()
+    store.answerScoutQuestion = vi.fn()
+    const record = {
+      shoot_id: 'shoot-1',
+      revision: 2,
+      scout: {
+        question: {
+          prompt: 'Which decision were you exploring in this Shoot?',
+          options: [
+            { id: 'technique_backlight', label: 'Backlight', technique_id: 'backlight' },
+            { id: 'just_shooting', label: 'I was just shooting', technique_id: '' },
+          ],
+        },
+      },
+    }
+    const wrapper = render(ScoutQuestionStep, { props: { record } })
+
+    expect(wrapper.text()).toContain(record.scout.question.prompt)
+    expect(wrapper.text()).toContain('Shoot-scoped Intent')
+    await wrapper.findAll('button')[0].trigger('click')
+    expect(store.answerScoutQuestion).toHaveBeenCalledWith('shoot-1', 2, 'technique_backlight')
   })
 })
 

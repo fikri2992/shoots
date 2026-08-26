@@ -1,6 +1,6 @@
 # Agents
 
-The implemented per-Shot agent architecture on Google ADK, the current backend Shoot-level learning workflow, and the later completed memory and summoned Scene Companion. Solid arrows in the current diagram are built. Corrected Explore and the first Deconstruction draft are current; Ask and Live remain target work in the later diagrams until the [feature list](feature-list.md) marks their rows built.
+The implemented per-Shot agent architecture on Google ADK, the current backend Shoot-level learning workflow, and the later completed memory and summoned Scene Companion. Solid arrows in the current diagram are built. Consequential Ask, corrected Explore, and the first Deconstruction draft are current; Live remains target work in the later diagrams until the [feature list](feature-list.md) marks its rows built.
 The product vocabulary is locked: Experiment, Finding, Technique Map, Change. The
 only migration names left are the `skills` Firestore collection key and
 `TechniqueState`. Scores are not stored. [Domain model](domain-model.md)
@@ -81,7 +81,7 @@ flowchart LR
   SESSION -->|one summary| FCM[(FCM)]
   RUN -->|every natural member settled| SHOOT[Shoot synthesis]
   CLOSE --> SHOOT
-  SHOOT --> ROUTE[Typed Shoot Scout<br/>explain / Explore / Reproduce / silence]
+  SHOOT --> ROUTE[Typed Shoot Scout<br/>explain / Ask / Explore / Reproduce / silence]
   ROUTE --> RECORD[(Shoot Record)]
   ROUTE -->|Keeper warrant| SHOOTOFFER[Deterministic Reproduce]
   ROUTE -->|Tendency warrant| EXPLOREOFFER[Deterministic Explore]
@@ -92,7 +92,7 @@ Android now uses Credential Manager, one build-configured service origin, encryp
 
 ## Shoot-level topology and remaining routes
 
-The current backend implements membership, the barrier, deterministic synthesis, `explain`, supported-Tendency `explore`, Keeper-backed `reproduce`, `silence`, and evidence-bound Deconstruction preparation. Ask remains incomplete; configured-device Deconstruction sharing remains unaccepted.
+The current backend implements membership, the barrier, deterministic synthesis, `explain`, consequential `ask`, supported-Tendency `explore`, Keeper-backed `reproduce`, `silence`, and evidence-bound Deconstruction preparation. Configured-device Deconstruction sharing remains unaccepted.
 
 ```mermaid
 flowchart LR
@@ -104,8 +104,8 @@ flowchart LR
   BARRIER --> SYNTH[Shoot synthesis<br/>deterministic arithmetic]
   SYNTH --> RECORD[(Shoot Record)]
   RECORD --> CART[Cartographer<br/>multi-scale memory]
-  CART --> POLICY[Scout choice<br/>explain / Explore / Reproduce / silence]
-  POLICY -.->|Ask target| ASK[Scoped Intent question]
+  CART --> POLICY[Scout choice<br/>explain / Ask / Explore / Reproduce / silence]
+  POLICY -->|Ask| ASK[Scoped Intent question]
   POLICY -->|Explore| EXPLORE[Variation Capture Session<br/>no Verdict]
   POLICY -->|Reproduce| REPRO[Keeper-backed Capture Session<br/>Criteria + Verdict]
   POLICY -->|explain or silence| REFLECT[Reflection or evidenced silence]

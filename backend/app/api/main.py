@@ -25,6 +25,7 @@ from app.api import (
     pairing,
     pubsub,
     push,
+    scout_answers,
     shots,
     tasks,
 )
@@ -70,6 +71,7 @@ app.include_router(pairing.router)
 app.include_router(experiments.router)
 app.include_router(tasks.router)
 app.include_router(push.router)
+app.include_router(scout_answers.router)
 app.include_router(live.router)
 app.include_router(memory.router)
 app.include_router(mobile.router)

@@ -225,6 +225,17 @@ export const useShootsStore = defineStore('shoots', {
       })
     },
 
+    answerScoutQuestion(shootId, revision, optionId) {
+      return this.run('scout-answer', async () => {
+        const answer = await api.post(`/api/shoots/${shootId}/scout-answer`, {
+          revision,
+          option_id: optionId,
+        })
+        await this.fetchAll()
+        return answer
+      })
+    },
+
     skipExperiment(id) {
       return this.run('skip', async () => {
         await api.post(`/api/experiments/${id}/skip`)

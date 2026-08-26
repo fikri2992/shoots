@@ -32,6 +32,7 @@ from app.domain.entities import (
     RunStatus,
     RunStepState,
     Scene,
+    ScoutAnswer,
     ScoutDecision,
     Shoot,
     ShootRecord,
@@ -67,6 +68,7 @@ ACTIVE_CAPTURE_SESSIONS = "active_capture_sessions"
 ACCOUNT_DELETIONS = "account_deletions"
 PHOTOGRAPHER_SIGNALS = "photographer_signals"
 DECONSTRUCTIONS = "deconstructions"
+SCOUT_ANSWERS = "scout_answers"
 
 
 class UnknownEntity(LookupError):
@@ -1207,6 +1209,36 @@ async def record_scout_decision(
     return event
 
 
+async def claim_scout_answer(store: Store, answer: ScoutAnswer) -> tuple[ScoutAnswer, bool]:
+    """Claim one question before any memory or Experiment side effect."""
+    if await store.create(SCOUT_ANSWERS, answer.id, _dump(answer)):
+        return answer, True
+    existing = await find_scout_answer(store, answer.id)
+    if existing is None:
+        raise UnknownEntity(f"Scout Answer {answer.id}")
+    return existing, False
+
+
+async def put_scout_answer(store: Store, answer: ScoutAnswer) -> None:
+    await store.put(SCOUT_ANSWERS, answer.id, _dump(answer))
+
+
+async def find_scout_answer(store: Store, answer_id: str) -> ScoutAnswer | None:
+    data = await store.get(SCOUT_ANSWERS, answer_id)
+    return ScoutAnswer.model_validate(data) if data else None
+
+
+async def list_scout_answers(store: Store, user_id: str, limit: int = 20) -> list[ScoutAnswer]:
+    rows = await store.query(
+        SCOUT_ANSWERS,
+        where={"user_id": user_id},
+        order_by="answered_at",
+        descending=True,
+        limit=limit,
+    )
+    return [ScoutAnswer.model_validate(row) for row in rows]
+
+
 async def list_events(store: Store, user_id: str, limit: int = 100) -> list[ActivityEvent]:
     rows = await store.query(
         EVENTS, where={"user_id": user_id}, order_by="at", descending=True, limit=limit
@@ -1396,6 +1428,7 @@ async def delete_user_records(store: Store, user_id: str) -> None:
         (SCENES, "id"),
         (SHOOTS, "id"),
         (DECONSTRUCTIONS, "id"),
+        (SCOUT_ANSWERS, "id"),
         (DEVICES, "fingerprint"),
         (PAIRING, "code"),
         ("push", "id"),
