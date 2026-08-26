@@ -6,7 +6,7 @@
 ## Candidate
 
 The protected Shoot workflow remains available at `6ea693f` on
-`codex/shoot-record`. The candidate-protected continuation through `d22abe6` on
+`codex/shoot-record`. The candidate-protected continuation through `3363ee4` on
 `codex/learning-memory` passed the complete local gate. Neither branch exists on the
 remote yet.
 
@@ -79,7 +79,7 @@ input. No Cloud resource changed during this preflight.
 Deployment requires explicit Photographer/developer approval. A push is not a
 deployment. After approval:
 
-1. select the exact clean candidate SHA, currently `d22abe6`;
+1. select the exact clean candidate SHA, currently `3363ee4`;
 2. load the existing backend environment without copying secrets into the worktree;
 3. run the complete local gates once more;
 4. deploy that exact source to Cloud Run;
