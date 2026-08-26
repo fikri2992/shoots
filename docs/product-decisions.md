@@ -170,9 +170,9 @@ Director and generated reference clips are outside the core loop: no automatic t
 
 Competitors already claim personal style, progress, critique, and personalised challenges. Shoots cannot differentiate by repeating those promises. It differentiates by separating measurement, model opinion, and photographer signal, then showing the Evidence behind every Change claim. See [market comparison](market-agent-comparison.md).
 
-## 9. The camera Companion
+## 9. The system-camera Companion
 
-The Android camera is the Companion, not the product's centre and not a generic camera app.
+Android is the daily Companion around the phone's normal camera, not a replacement camera app.
 
 Boundaries:
 
@@ -189,9 +189,9 @@ Boundaries:
 - The internal cell grid never reaches the photographer. The Companion shows a human guide, arrow, crop region, or plain direction.
 - Intent may mute a conflicting local warning, such as zebras for a declared silhouette.
 
-The current Scene capability is a transitional mismatch: an explicit Android Ask sends one temporary preview and compulsory-looking Experiment Criteria to preflight, waits roughly six to eight seconds, then returns one move or a refusal. It has no Android audio, live frames, interruption, or Scene memory. The target replaces it with a server-relayed Gemini Live session and keeps the one-frame Scene Probe only as a no-audio fallback.
+The release excludes the earlier Android Ask, custom viewfinder, microphone, Gemini Live, and Scene frames. Those remain later work only if the unattended longitudinal loop first proves useful.
 
-Android and web are two clients of one Shoots identity. The release app uses one stable service origin and direct Shot ingress. Pairing codes, a server-address field, and Drive-mediated camera upload are transitional implementation, not product behavior.
+Android and web are two clients of one Shoots identity. Android now uses native Google identity, one build-configured service origin, direct Shot ingress, and optional separate Drive authority. Pairing endpoints remain temporarily for older APKs; the new client has no pairing or server-address UI.
 
 Foreground and background have separate acceptance clocks. A ready Live Scene Session targets first audio at or below 1.5 seconds median and 3 seconds at p90 over at least twenty real-device turns. Deep Analysis stays corroborated and may take longer, but it cannot lock the camera.
 
@@ -201,19 +201,19 @@ The selected visual system is Companion-led Ink + amber. Ink holds the Scene and
 
 The idea can compete. The current submission is not ready to win.
 
-Idea risk is medium. Photography may appear less operational than business automation, so the completed background work must be visible. Execution risk is high because the product language changed late, the Companion is largely unbuilt, and submission artifacts still need proof.
+Idea risk is medium. Photography may appear less operational than business automation, so the completed background work must be visible. Execution risk remains high because configured physical acceptance, Cloud deployment, and submission artifacts still need proof.
 
 The chief failure mode is building a chatty camera demo. Judges would see a generic multimodal coach and miss the Taskmaster loop.
 
 The 48-hour pass test is one continuous run:
 
 1. Start with a real Shot history.
-2. Open the Android camera under the same Shoots identity and summon one Live Scene response.
-3. Enter an optional Experiment and capture one explicitly associated Shot.
+2. Open the normal Android camera from the signed-in Shoots client and verify one free Shot arrives unattended.
+3. Reserve a Reproduce Capture Session, take three Shots, and freeze one immutable ordered manifest.
 4. Keep shooting available while the cloud pipeline reads in the background.
 5. Open the Evidence behind a Tendency.
 6. Show why the Experiment was offered and what its type records.
-7. Show a type-appropriate result. Reproduce uses a Verdict; Explore shows Variations and Evidence; Compare shows alternatives and optional preference.
+7. Show every batch member, its Verdict or abstention, the deterministic representative, and one settled summary.
 8. Show the resulting Change and Journey Update without claiming causation.
 9. Show the Google Cloud execution and architecture.
 
@@ -225,4 +225,4 @@ The fallback keeps Android as a thin capture Companion and cuts new context feat
 
 - The minimum sample and comparability rules for a user-grounded improvement claim.
 - Which Live Scene transcript details remain in ActivityEvent after raw audio and frames are discarded.
-- Whether the hackathon ships corrected Explore plus Reproduce, or corrected Explore plus Compare.
+- Which later Experiment type earns implementation after Reproduce: Explore or Compare.

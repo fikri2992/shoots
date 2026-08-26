@@ -6,6 +6,15 @@ later removed. They are not current behavior. As of 2026-08-26, decisions 52–8
 curriculum selection, capped longitudinal corpora, and automatic Director/Veo work.
 Current status is in [the feature list](feature-list.md).
 
+## Day 13 notes (2026-08-26), release-grade Android client
+
+- Added Capture Session as the explicit bridge around a system-camera visit. A reservation freezes an ordered source manifest; ingress derives Experiment membership from it; Judge records every member and closes Reproduce only after the batch barrier. The earliest Criteria-met member represents the result, and one session summary waits for every Run.
+- Added native Google identity with nonce-bound ID-token verification and revocable 30-day device sessions. Drive authorization remains a separate native offline-code grant. Device revoke, Drive disconnect, and idempotent account deletion have explicit APIs.
+- Replaced the single pairing screen with Navigation Compose and Room-backed Now, Shots, Shot detail, Journey, and Settings surfaces. There is no server-address field, CameraX, camera permission, microphone permission, Gemini Live, or automatic shutter.
+- Replaced preference assignments and `readBytes()` uploads with transactional MediaStore discovery, immutable Room assignments, manifest-before-upload WorkManager ordering, and streaming `ContentResolver` request bodies. Legacy device id and Camera watermark migrate forward; the old Experiment preference does not.
+- Added mobile snapshot ETags, compatible Shot cursor pagination, FID-based FCM targets, labelled local import failures, cached offline reads, and native recovery actions. Reproduce Change now ignores unrelated free Shots.
+- Local backend integration coverage includes cryptographic Google claims, revocation, Capture Session ordering and settlement, Drive account matching and preserved files, deletion, cursor pagination, ETags, and explicit-result Change. Android debug compilation passes. Instrumentation, configured sign-in/FCM, physical Xiaomi acceptance, cloud deployment, and signed release verification remain; no deployment occurred.
+
 ## Day 12 notes (2026-08-26), Taskmaster thin slice
 
 - Cut the custom camera and Gemini Live from P0. Android is now a permission-aware Phone Source: it watches approved Camera media with WorkManager, uploads unseen originals by stable source id, survives restart, and leaves the system camera in control of the shutter. Pairing remains the four-day authentication cut.

@@ -1,6 +1,6 @@
 # Agents
 
-The implemented agent architecture on Google ADK, followed by the locked target from real-phone use. Solid arrows in the current diagram are built. Dashed arrows in the target diagram are not built yet.
+The implemented agent architecture on Google ADK, followed by the later summoned Scene Companion. Solid arrows in the current diagram are built. Dashed arrows in the later diagram are not built yet.
 The product vocabulary is locked: Experiment, Finding, Technique Map, Change. The
 only migration names left are the `skills` Firestore collection key and
 `TechniqueState`. Scores are not stored. [Domain model](domain-model.md)
@@ -42,9 +42,14 @@ the source for the submission architecture diagram.
 
 ```mermaid
 flowchart LR
+  ID[Verified Google identity] --> PHONE[Android daily client]
+  ID --> WEB[(Web audit desk)]
   SYS[(Normal phone camera)] --> MEDIA[(Approved Camera media)]
-  MEDIA -->|WorkManager + stable source id| PHONE[Android Phone Source]
-  PHONE -->|POST /api/ingress/shots| ACCEPT[Shot + Run created]
+  MEDIA -->|Room transaction + stable source id| PHONE
+  OFFER[Open Reproduce] -->|reserve| SESSION[Capture Session]
+  PHONE -->|freeze ordered manifest| SESSION
+  PHONE -->|free Shot or committed member| ACCEPT[Shot + Run created]
+  SESSION -->|membership outranks client tags| ACCEPT
   D[(Optional Drive folder)] -->|watch / sync| ACCEPT
   ACCEPT --> NEW[media.new]
   NEW --> ING[Ingest<br/>code]
@@ -56,7 +61,8 @@ flowchart LR
   ANZ --> JUD[Judge<br/>explicit Reproduce only]
   JUD --> JUDG[media.judged]
   JUDG --> SCR[Scribe<br/>optional Drive output]
-  JUD -->|Criteria met| QC[experiment.closed]
+  JUD --> BATCH[Judge-all batch barrier]
+  BATCH -->|any Criteria met| QC[experiment.closed]
   CART -->|free Shot record changed| SC[Scout<br/>Keeper-backed Reproduce or silence]
   QC --> SC
   KEEP[Keeper changed] --> SC
@@ -68,33 +74,27 @@ flowchart LR
   JUD --> RUN
   SCR --> RUN
   SC --> RUN
-  RUN --> WEB[(Web audit desk)]
+  RUN --> WEB
   RUN --> PHONE
+  RUN -->|every member settled| SESSION
+  SESSION -->|one summary| FCM[(FCM)]
 ```
 
-The current path keeps two demo compromises: Android still asks for a server address and pairing code, and the latest build has not completed its physical-phone Reproduce acceptance. Explore, Compare, native Google sign-in, and Gemini Live are outside the Taskmaster proof.
+Android now uses Credential Manager, one build-configured service origin, encrypted device sessions, Room, and WorkManager. Pairing endpoints remain only for older APKs. The configured physical-phone Reproduce acceptance and Cloud deployment have not run. Explore, Compare, and Gemini Live remain outside this release.
 
-## Locked target topology
+## Later summoned Scene Companion topology
 
 ```mermaid
 flowchart LR
-  ID[Google identity] -.-> CAM[(Android camera<br/>same Shoots account)]
-  ID -.-> WEB[(Web)]
-  CAM -.->|direct Shot + stable source id + optional experiment_id| NEW[media.new]
-  D[(Optional Drive import)] -.-> NEW
-  CAM -.->|explicit audio + low-rate Scene frames| LIVE[Live Scene relay<br/>Gemini Live]
+  CAM[(Android daily client<br/>system camera handoff)] -.->|explicit audio + low-rate Scene frames| LIVE[Live Scene relay<br/>Gemini Live]
   LIVE -.->|question, Variation, move, guide cells| CAM
   CAM -.->|no-audio fallback| PROBE[Scene Probe<br/>temporary]
-  NEW --> ING[Ingest]
-  ING --> AN[Analyst panel]
-  AN --> CART[Cartographer]
-  AN -.->|explicit Reproduce only| JUD[Judge]
-  CART --> JOURNEY[Technique Map + Change + Journey]
-  SC[Scout] -.->|offers one optional typed Experiment| CAM
-  CAM -.->|enter, pause, leave| SC
+  MEMORY[(Intent + optional Experiment<br/>relevant memory + measured facts)] -.-> LIVE
+  LIVE -.-> GUIDE[Validated cell refs<br/>human guide]
+  GUIDE -.-> CAM
 ```
 
-The target keeps the deep Analyst and longitudinal code. It changes who owns the foreground decision. Intent and the photographer own it; an Experiment is optional context and Gemini Live is summonable.
+The later path keeps the current system-camera capture, deep Analyst, and longitudinal code. Intent and the photographer own the foreground decision; an Experiment is optional context and Gemini Live is summonable.
 
 Locally every topic is an `InProcessBus` task; on Cloud Run every topic is a
 Pub/Sub push subscription to `/pubsub/<stage>` with OIDC, an ack deadline of 540 s,
@@ -193,13 +193,13 @@ All `LlmAgent`s run `gemini-3.7-flash` on the Vertex global endpoint.
   reads them back after the run and validates each against its schema, reporting a
   missing or malformed one in `errors` so the stage can decide on quorum instead of
   failing.
-- Durable state is the store: `User` (constraints, location, Drive cursor), `Shot`,
+- Durable server state is the store: `User` (constraints, location, Drive cursor), `Shot`,
   `Analysis` (model and prompt version), `TechniqueState`, `Experiment` (fixed Keeper,
-  explicit result Shot ids, and Verdicts), `Run`, one-open slot, `JourneyUpdate`, and
-  `ActivityEvent`. Firestore in
-  the cloud, one `store.json` locally. Every stage is idempotent on shot id or
-  experiment id: a redelivery finds the status already advanced and returns. The
-  later work adds Variations, Intent, and native Android identity under the same User.
+  explicit result Shot ids, and Verdicts), `CaptureSession`, `Run`, device sessions,
+  one-open slot, `JourneyUpdate`, and `ActivityEvent`. Firestore in the cloud, one
+  `store.json` locally. Android Room caches the read model and owns immutable source
+  assignments; it is never a second photographic truth. Every stage is idempotent on
+  Shot, source, Capture Session, or Experiment id.
 - Secrets never enter the store or a prompt: the Drive refresh token is in Secret
   Manager (local: `.blobs/tokens`), the Live session is opened server-side.
 
@@ -211,7 +211,7 @@ All `LlmAgent`s run `gemini-3.7-flash` on the Vertex global endpoint.
 | workflow | per-sub-agent errors collected, not raised; quorum decides; 180 s timeout on the panel |
 | stage | idempotent on id; retryable ingest leaves the Shot `new`; only proven bad media becomes `failed`; other exceptions propagate |
 | transport | Pub/Sub: 5 attempts, 10 s–300 s backoff, then `<topic>.dlq`; a DLQ replay re-runs one stage, never the fan-out |
-| cross-stage | Judge publishes on every Shot; Scout claims one open slot atomically; Scribe updates in place; the atomic Run barrier prevents any one fan-out branch from claiming terminal completion |
+| cross-stage | Judge publishes on every Shot; Scout claims one open slot atomically; Scribe updates in place; the Run barrier prevents one fan-out branch from claiming completion; the Capture Session barrier waits for every member before one summary |
 
 ## What is deliberately not an agent
 
@@ -245,6 +245,7 @@ its schema; the Judge's feedback agent receives `light.check`'s list verbatim.
 sequenceDiagram
   participant Camera as Normal camera
   participant Phone as Phone Source
+  participant Session as Capture Session
   participant API as Direct ingress
   participant Ingest
   participant Analyst
@@ -254,8 +255,12 @@ sequenceDiagram
   participant Scribe
   participant Scout
   participant Run
+  Phone->>Session: reserve open Reproduce
+  Phone->>Camera: explicit system-camera visit
   Camera->>Phone: new approved Camera media
-  Phone->>API: original + stable source id + optional Experiment id
+  Phone->>Session: commit exact ordered source manifest
+  Phone->>API: stream original + stable source id + Capture Session id
+  API->>Session: validate frozen membership; derive Experiment id
   API->>Run: create durable stage account
   API->>Ingest: media.new
   Ingest->>Ingest: EXIF, grid, thumb, location
@@ -269,7 +274,8 @@ sequenceDiagram
   Analyst->>Judge: media.analyzed fan-out
   Cartographer->>Cartographer: Technique Map, Profile, Journey
   Cartographer->>Run: longitudinal record checked
-  Judge->>Judge: explicit Reproduce Criteria or no judgment
+  Judge->>Session: each Verdict, abstention, or terminal member
+  Session->>Session: judge all; any Criteria met; choose representative
   Judge->>Run: Verdict, abstention, or non-applicable
   Judge->>Scribe: media.judged
   Scribe->>Run: Drive write or recorded skip
@@ -277,6 +283,8 @@ sequenceDiagram
   Cartographer->>Scout: free-Shot record changed
   Scout->>Scout: Keeper evidence, research, writer, atomic slot, or silence
   Scout->>Run: offer or silence accounted
+  Run-->>Session: every member complete or terminal
+  Session-->>Phone: one FCM summary + authoritative refresh
   Run-->>Phone: latest status
   Run-->>API: complete only after every required outcome
 ```

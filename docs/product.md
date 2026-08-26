@@ -30,13 +30,15 @@ After one source permission, Shoots intercepts new phone Shots and performs the 
 2. It measures and reads each Shot.
 3. It updates a longitudinal Tendency Profile and Technique Map.
 4. It offers one personal Experiment and cites why it may be worth trying.
-5. It records only Shots explicitly associated with that Experiment.
-6. It recomputes the record and shows what changed without claiming the Experiment caused it.
+5. It freezes the exact ordered Camera members of an explicit Reproduce Capture Session.
+6. It judges every member, waits for every Run, and leaves one batch result instead of interrupting after each Shot.
+7. It recomputes the record and shows what changed without claiming the Experiment caused it.
 
-The work leaves four checkable artifacts:
+The work leaves five checkable artifacts:
 
 - the Run, with one outcome per pipeline stage;
 - the Technique Map;
+- the Capture Session, with its immutable manifest, member outcomes, representative, and terminal summary;
 - the type-specific Experiment Record, including its question, explicit Shot set, evidence, and Change;
 - the Journey Update, with a source behind every sentence.
 
@@ -58,7 +60,7 @@ Every Shot updates the underlying record. A Journey Update appears only when the
 | Observe | Ingest reads EXIF and pixels. Analyst adds bounded visual Evidence. | Analysis |
 | Remember | Cartographer updates recurring Technique Evidence and the Tendency Profile. | Technique Map |
 | Choose | Scout offers one Keeper-backed Reproduce or records why it stayed silent. | Experiment Record with exact Keeper reference |
-| Record | Shoots keeps only Shots explicitly associated with the Experiment. | Type-specific Experiment evidence |
+| Record | Android freezes one ordered Capture Session manifest; Shoots keeps only those members as Reproduce results. | Capture Session and type-specific Experiment evidence |
 | Verify | Judge checks declared Criteria only for Reproduce. Measurements may corroborate or veto model claims. | Optional Verdict |
 | Learn | Domain code compares compatible earlier and later behaviour. | Change record |
 | Reflect | Shoots writes only the longitudinal claims supported by that record. | Journey Update |
@@ -99,7 +101,7 @@ The sentence competitors do not say:
 
 The photographer keeps using Android's normal camera. Shoots asks once for honest media access, filters to approved Camera media, uploads unseen Shots in the background, and reports what was imported, skipped, retrying, or unreadable. Selected-media permission provides manual import only. Full access enables automatic future imports. Shoots never labels one as the other.
 
-The Android client is not where the photography is judged. It shows source permission, background transfer state, the offered Reproduce, and the latest backend Run status. The web remains the audit desk for Evidence, Experiment Records, Change, Journey, and failures.
+Android is the daily client. It shows Now, the Room-backed Shot archive, Shot Evidence, Keeper controls, Capture Session recovery, the Reproduce Record, Change, Technique Map, Tendency Profile, Journey, Drive, and account controls. Cached reads remain visible offline with their sync age. The web remains the deeper ActivityEvent and Run audit desk; both read one Photographer record.
 
 The earlier custom camera, Scene Probe, weather context, and Gemini Live direction are later Companion work. They are excluded from the Taskmaster proof.
 
