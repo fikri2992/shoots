@@ -380,6 +380,33 @@ Keep the Shoot slice only if all are true:
 If any condition remains false at hour 48, stop. Preserve the branch, return to the
 deployed per-Shot fallback, and finish the submission around that honest workflow.
 
+### Checkpoint result — 2026-08-27
+
+**Keep the Shoot slice.** Local evidence now satisfies the checkpoint:
+
+- one real integration scenario forms two Scenes, waits for completed and terminal
+  Runs, includes a Shot shared with a frozen Capture Session, stores the deterministic
+  receipt and typed Scout decision, creates one Keeper-backed Reproduce, accepts late
+  free media as revision 2, preserves revision 1, and serves revision 2 through the
+  ETag mobile snapshot;
+- backend Ruff and the complete integration suite pass;
+- Android assemble and lint pass;
+- all emulator instrumentation passes with the hardware-only local-backend test
+  skipped in the ordinary run;
+- the local-backend test separately passes through real WorkManager, adb reverse,
+  bearer authentication, HTTP snapshot retrieval, and Room persistence;
+- cached Shoot receipt data survives a Room database close/reopen without network;
+- Now focal-order tests pass at the normal emulator size and at an exact approximately
+  390 dp width.
+
+The first local-backend run exposed a test-harness defect: it waited for WorkManager's
+enqueue transaction and then asserted the job had already finished. Device logs showed
+the worker starting after that immediate assertion. The harness now waits for a real
+terminal `WorkInfo` state, and the authenticated backend request is observed.
+
+This is a local keep decision, not a Cloud or physical-device claim. Gate 7 remains
+blocked on explicit deployment approval and configured credentials.
+
 ## Gate 7: candidate deployment and physical proof
 
 Only after Gate 6 and explicit deployment approval:

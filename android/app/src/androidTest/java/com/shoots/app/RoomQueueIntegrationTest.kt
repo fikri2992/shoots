@@ -4,14 +4,23 @@ import android.content.Context
 import androidx.room.Room
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
+import com.shoots.app.data.CachedResourceEntity
 import com.shoots.app.data.ImportEntity
 import com.shoots.app.data.LegacyStateMigrator
 import com.shoots.app.data.LocalCaptureSessionEntity
 import com.shoots.app.data.LocalCaptureState
-import com.shoots.app.data.SessionStore
+import com.shoots.app.data.MobileSnapshotDto
+import com.shoots.app.data.ScoutDecisionDto
+import com.shoots.app.data.ShootDto
+import com.shoots.app.data.ShootReceiptDto
+import com.shoots.app.data.ShootRecordDto
 import com.shoots.app.data.ShootsDatabase
+import com.shoots.app.data.SessionStore
 import com.shoots.app.data.SourceStateEntity
+import com.shoots.app.data.UserDto
 import kotlinx.coroutines.runBlocking
+import kotlinx.serialization.encodeToString
+import kotlinx.serialization.json.Json
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
@@ -119,5 +128,47 @@ class RoomQueueIntegrationTest {
 
         phone.edit().clear().commit()
         identity.edit().clear().commit()
+    }
+
+    @Test
+    fun settledShootReceiptRemainsReadableAfterDatabaseReopenWithoutNetwork(): Unit = runBlocking {
+        val json = Json { ignoreUnknownKeys = true }
+        val snapshot = MobileSnapshotDto(
+            user = UserDto(id = "offline-user", email = "offline@example.test"),
+            latestShoot = ShootDto(
+                id = "shoot-offline",
+                status = "settled",
+                currentRecordRevision = 1,
+                orderedSceneIds = listOf("scene-1"),
+                orderedShotIds = listOf("shot-1", "shot-2"),
+            ),
+            latestShootRecord = ShootRecordDto(
+                shootId = "shoot-offline",
+                receipt = ShootReceiptDto(
+                    shotCount = 2,
+                    sceneCount = 1,
+                    repeated = listOf("2 of 2 Shots used portrait orientation (measured)."),
+                ),
+                scout = ScoutDecisionDto(route = "explain"),
+            ),
+        )
+        database.dao().putResource(
+            CachedResourceEntity(
+                key = "mobile_snapshot",
+                payload = json.encodeToString(snapshot),
+                etag = "receipt-etag",
+                updatedAt = "2026-08-27T01:00:00Z",
+            )
+        )
+
+        database.close()
+        database = Room.databaseBuilder(context, ShootsDatabase::class.java, databaseName).build()
+        val stored = requireNotNull(database.dao().resource("mobile_snapshot"))
+        val restored = json.decodeFromString<MobileSnapshotDto>(stored.payload)
+
+        assertEquals("receipt-etag", stored.etag)
+        assertEquals("shoot-offline", restored.latestShoot?.id)
+        assertEquals(2, restored.latestShootRecord?.receipt?.shotCount)
+        assertEquals("explain", restored.latestShootRecord?.scout?.route)
     }
 }

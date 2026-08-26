@@ -8,12 +8,14 @@ import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.WorkInfo
 import androidx.work.WorkManager
 import com.shoots.app.work.RefreshSnapshotWorker
+import kotlinx.coroutines.delay
 import org.junit.Assert.assertEquals
 import org.junit.Assume.assumeTrue
 import org.junit.Test
 import org.junit.runner.RunWith
 import java.util.concurrent.TimeUnit
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.withTimeout
 
 /**
  * Runs only in the disposable physical-device acceptance invocation:
@@ -32,7 +34,16 @@ class LocalBackendWorkIntegrationTest {
         val request = OneTimeWorkRequestBuilder<RefreshSnapshotWorker>().build()
         val manager = WorkManager.getInstance(context)
         manager.enqueue(request).result.get(20, TimeUnit.SECONDS)
-        val state = requireNotNull(manager.getWorkInfoById(request.id).get(2, TimeUnit.SECONDS))
+        val state = withTimeout(20_000) {
+            var current: WorkInfo
+            do {
+                current = requireNotNull(
+                    manager.getWorkInfoById(request.id).get(2, TimeUnit.SECONDS)
+                )
+                if (!current.state.isFinished) delay(100)
+            } while (!current.state.isFinished)
+            current
+        }
         assertEquals(WorkInfo.State.SUCCEEDED, state.state)
         val snapshot = app.container.database.dao().resource("mobile_snapshot")
         assumeTrue("Backend returned a mobile snapshot", snapshot != null)
