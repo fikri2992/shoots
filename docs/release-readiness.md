@@ -6,8 +6,9 @@
 ## Candidate
 
 The protected Shoot workflow remains available at `6ea693f` on
-`codex/shoot-record`. The candidate-protected continuation through `3363ee4` on
-`codex/learning-memory` passed the complete local gate. Neither branch exists on the
+`codex/shoot-record`. The current clean `codex/learning-memory` head, including
+on-demand Technique Explore, passed the complete local gate. Resolve and record its
+exact SHA immediately before any approved deployment. Neither branch exists on the
 remote yet.
 
 Implemented and locally proven:
@@ -79,7 +80,7 @@ input. No Cloud resource changed during this preflight.
 Deployment requires explicit Photographer/developer approval. A push is not a
 deployment. After approval:
 
-1. select the exact clean candidate SHA, currently `3363ee4`;
+1. select and record the exact clean `codex/learning-memory` candidate SHA;
 2. load the existing backend environment without copying secrets into the worktree;
 3. run the complete local gates once more;
 4. deploy that exact source to Cloud Run;

@@ -308,7 +308,8 @@ chance of proving the work already built.
 
 1. Narrow fixes found by Cloud acceptance, one failure class per commit
 2. Narrow fixes found by Xiaomi acceptance, one failure class per commit
-3. `Prepare the submission proof`
+3. Record accepted Cloud and phone proof without credentials or personal media
+4. Final repository and submission-link audit
 
 No commit, push, deployment, account mutation, or public submission is authorized by
 this document. Each still requires the user's explicit request.
