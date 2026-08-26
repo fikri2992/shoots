@@ -3,11 +3,11 @@ import { mapState } from 'pinia'
 
 import { useShootsStore } from '@/stores/shoots'
 
-/** The pipeline, in the order the user's frame goes through it. */
+/** The pipeline, in the order the user's Shot goes through it. */
 const STAGES = [
-  { key: 'ingest.queued', label: 'landed in your Drive folder' },
+  { key: 'ingest.queued', label: 'source accepted and queued' },
   { key: 'ingest.ingested', label: 'file read: camera settings, grid, thumbnail' },
-  { key: 'analyst.analyzed', label: 'three lenses reading the frame' },
+  { key: 'analyst.analyzed', label: 'three lenses reading the Shot' },
 ]
 
 /**
@@ -30,7 +30,7 @@ export default {
       const key = blobs.thumb ? 'thumb' : blobs.original ? 'original' : ''
       return key ? `/api/blobs/${blobs[key]}` : ''
     },
-    /** Which stages this frame has already cleared. */
+    /** Which stages this Shot has already cleared. */
     done() {
       const mine = this.events.filter((e) => e.shot_id === this.current?.shot.id)
       return new Set(mine.map((e) => `${e.agent}.${e.stage}`))
@@ -63,31 +63,36 @@ export default {
 </script>
 
 <template>
-  <section class="col gutter pt-10">
-    <p class="t-meta text-accent">Reading it now · {{ elapsed }}s</p>
-    <h1 class="mt-2 t-hero">
-      {{ shots.length > 1 ? `${shots.length} frames are being read.` : 'Your frame is being read.' }}
-    </h1>
-
-    <div class="mt-6 flex gap-4">
-      <img v-if="thumb" :src="thumb" alt="" class="h-28 w-28 shrink-0 rounded-xl object-cover" />
-      <ul class="min-w-0 flex-1 space-y-3">
+  <section class="page-shell py-8 md:py-12">
+    <p class="eyebrow">Now · Reading {{ elapsed }}s</p>
+    <div class="mt-6 grid gap-5 lg:grid-cols-[minmax(0,1fr)_420px]">
+      <div class="surface-active overflow-hidden">
+        <img v-if="thumb" :src="thumb" alt="" class="aspect-[4/3] w-full object-cover sm:aspect-[16/9]" />
+        <div class="p-6 sm:p-8">
+          <p class="eyebrow text-accent">Work in motion</p>
+          <h1 class="mt-4 t-hero">
+            {{ shots.length > 1 ? `${shots.length} Shots are being read.` : 'Your Shot is being read.' }}
+          </h1>
+          <p class="mt-4 t-body">You can leave this screen. Shoots keeps working and records every finished or refused step.</p>
+        </div>
+      </div>
+      <div class="surface p-5 sm:p-6">
+        <p class="eyebrow">What is happening</p>
+        <ul class="mt-5 min-w-0 space-y-4">
         <li v-for="row in rows" :key="row.key" class="flex items-start gap-3">
           <span
             class="mt-1.5 h-2 w-2 shrink-0 rounded-full"
-            :class="row.complete ? 'bg-good' : row.active ? 'animate-pulse bg-accent' : 'bg-edge-strong'"
+            :class="row.active ? 'animate-pulse bg-accent' : row.complete ? 'bg-neutral-400' : 'bg-edge-strong'"
           />
-          <span class="t-body" :class="row.complete ? 'text-neutral-500' : row.active ? 'text-neutral-100' : 'text-neutral-600'">
+          <span class="t-body" :class="row.active ? 'text-paper' : row.complete ? 'text-muted' : 'text-neutral-600'">
             {{ row.label }}
           </span>
         </li>
-      </ul>
+        </ul>
+        <p class="mt-7 border-t border-edge pt-5 t-meta">
+          Three readers work independently. A Technique reaches the record only when the Evidence clears its rules.
+        </p>
+      </div>
     </div>
-
-    <p class="mt-8 t-body text-neutral-400">
-      A technician, a composer and a storyteller each read the frame on their own, then have to agree before
-      anything is called a technique you used. It takes about a minute.
-    </p>
-    <p class="mt-4 t-meta">You can close this. The review lands in your Drive either way.</p>
   </section>
 </template>

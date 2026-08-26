@@ -25,15 +25,26 @@ async def update(ctx: Context, message: dict) -> None:
         logger.warning("cartographer: no analysis for %s", shot.id)
         return
 
-    skills = {s.technique_id: s for s in await repo.list_skills(ctx.store, shot.user_id)}
-    before = {tid: s.status for tid, s in skills.items()}
-    changed = rules.apply_analysis(skills, analysis, at=shot.captured_at or now())
+    states = {
+        state.technique_id: state
+        for state in await repo.list_technique_states(ctx.store, shot.user_id)
+    }
+    before = {technique_id: state.status for technique_id, state in states.items()}
+    changed = rules.apply_analysis(states, analysis, at=shot.captured_at or now())
     if not changed:
+        await repo.record(
+            ctx.store,
+            shot.user_id,
+            AGENT,
+            "map_unchanged",
+            {"reason": "this Shot added no new Technique state"},
+            shot_id=shot.id,
+        )
         await _journey(ctx, shot.user_id)
         return
 
     for state in changed:
-        await repo.put_skill(ctx.store, state)
+        await repo.put_technique_state(ctx.store, state)
 
     await repo.record(
         ctx.store,
@@ -69,9 +80,9 @@ async def _journey(ctx: Context, user_id: str) -> None:
     Technique Map is already stored.
     """
     try:
-        await scout.grade_advice(ctx, user_id)
+        await scout.check_advice(ctx, user_id)
     except Exception:  # noqa: BLE001 — the map stands without the grade
-        logger.exception("grading the Scout's advice failed for %s", user_id)
+        logger.exception("checking the Scout's advice failed for %s", user_id)
     try:
         await journey.maybe_write(ctx, user_id)
     except Exception:  # noqa: BLE001 — the map stands without the prose

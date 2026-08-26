@@ -118,9 +118,8 @@ def test_the_caption_leads_with_what_is_there_then_what_is_wrong():
     assert scribe.review_title(a, None, None) == "Panning · Highlights blown to white"
 
 
-def test_the_body_carries_every_fault_with_its_figure_and_no_element_scores():
+def test_the_body_carries_every_finding_with_its_figure_and_no_element_scores():
     a = analysis(findings_=[blown_finding()], techniques=["panning"])
-    a.elements = {"impact": 8, "composition": 8, "lighting": 8, "technical": 8, "story": 8}
     body = "\n".join(scribe.review_body(a, None, grid=None))
     assert "25.0% above 250 of 255" in body
     # The five elements correlate at r = 0.89; printing them prints one number

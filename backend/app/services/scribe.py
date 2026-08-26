@@ -29,7 +29,7 @@ from app.domain.entities import Analysis, Experiment, MoveKind, Shot, ShotStatus
 from app.domain.grid import Grid
 from app.imaging import canvas
 from app.imaging.caption import add_caption
-from app.imaging.findingmark import mark as mark_faults
+from app.imaging.findingmark import mark as mark_findings
 from app.infra import repository as repo
 from app.infra.drive import UserDrive, user_credentials
 from app.infra.storage import ANNOTATED
@@ -177,12 +177,30 @@ async def write_review(
         return None
     if ANNOTATED not in shot.blobs:
         logger.warning("scribe: %s has no annotated frame", shot.id)
+        await repo.record(
+            ctx.store,
+            shot.user_id,
+            AGENT,
+            "write_skipped",
+            {"reason": "no annotated frame was produced"},
+            shot_id=shot.id,
+            experiment_id=shot.experiment_id,
+        )
         return None
 
     user = await repo.get_user(ctx.store, shot.user_id)
     publisher = publisher or await _publisher_for(ctx, user.id)
     if publisher is None:
         logger.info("scribe: no Drive token for %s, skipping", user.id)
+        await repo.record(
+            ctx.store,
+            shot.user_id,
+            AGENT,
+            "write_skipped",
+            {"reason": "Drive output is not connected"},
+            shot_id=shot.id,
+            experiment_id=shot.experiment_id,
+        )
         return None
 
     experiment = verdict = None
@@ -209,7 +227,7 @@ async def write_review(
         frame = canvas.load_bytes(await ctx.blobs.read(shot.blobs[ANNOTATED]))
         # Zebras over the clipped area, so "8.3% above 250" is visible and not
         # merely asserted. Draws nothing when no finding has a region to point at.
-        frame = mark_faults(frame, analysis.findings)
+        frame = mark_findings(frame, analysis.findings)
         captioned = add_caption(
             frame,
             review_title(analysis, experiment, verdict),

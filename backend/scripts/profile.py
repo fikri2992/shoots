@@ -23,15 +23,18 @@ def bar(share: float, width: int = 22) -> str:
 async def main() -> None:
     store = FileStore(settings.blob_root + "/store.json")
     for user in await repo.list_users(store):
-        shots = await repo.list_shots(store, user.id, limit=10_000)
-        rows = [(shot, await repo.find_analysis(store, shot.id)) for shot in shots]
+        shots = await repo.list_shots(store, user.id)
+        analyses = {
+            analysis.shot_id: analysis for analysis in await repo.list_analyses(store, user.id)
+        }
+        rows = [(shot, analyses.get(shot.id)) for shot in shots]
         keepers = {shot.id for shot in shots if shot.kept_at}
         profile = tendency.build(rows, keepers)
 
         print(f"\n{user.id}: {profile.shots} shots, {profile.keepers} keepers")
         print(
             f"  scenes: {profile.dwell.scenes}, "
-            f"{profile.dwell.per_scene:.1f} frames a scene, "
+            f"{profile.dwell.per_scene:.1f} Shots a Scene, "
             f"longest {profile.dwell.longest}"
         )
         for dim in tendency.DIMENSIONS:
@@ -43,8 +46,8 @@ async def main() -> None:
             print(f"\n  {dim.label}: explored {p.exploration:.2f}{claim}")
             for bucket in dim.buckets:
                 count = p.counts.get(bucket, 0)
-                lift = p.keeper_lift(bucket, profile.keeper_rate, profile.keepers)
-                mark = f"  keepers x{lift:.1f}" if lift is not None else ""
+                marked = p.keepers.get(bucket, 0)
+                mark = f"  {marked}/{p.readable_keepers} Keepers" if marked else ""
                 print(f"    {bucket:<14} {bar(count / p.n)} {count:>3}{mark}")
             if p.unreadable:
                 print(f"    {'unreadable':<14} {'':22} {p.unreadable:>3}")

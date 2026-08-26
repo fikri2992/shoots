@@ -11,9 +11,9 @@ export default defineConfig({
   },
   server: {
     proxy: {
-      '/api': { target: 'http://localhost:8000', changeOrigin: true },
-      '/auth': { target: 'http://localhost:8000', changeOrigin: true },
-      '/drive': { target: 'http://localhost:8000', changeOrigin: true },
+      '/api': { target: process.env.SHOOTS_API_TARGET || 'http://localhost:8000', changeOrigin: true },
+      '/auth': { target: process.env.SHOOTS_API_TARGET || 'http://localhost:8000', changeOrigin: true },
+      '/drive': { target: process.env.SHOOTS_API_TARGET || 'http://localhost:8000', changeOrigin: true },
     },
   },
   test: {

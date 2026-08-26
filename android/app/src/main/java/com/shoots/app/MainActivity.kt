@@ -82,6 +82,7 @@ private fun PhoneSourceScreen(onUnpair: () -> Unit) {
     val scope = rememberCoroutineScope()
     var status by remember { mutableStateOf(PhoneSource.status(context)) }
     var experiment by remember { mutableStateOf<Api.Experiment?>(null) }
+    var latestRun by remember { mutableStateOf<Api.RunReceipt?>(null) }
     var selectedExperiment by remember { mutableStateOf(PhoneSource.selectedExperiment(context)) }
     val permission = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions()
@@ -110,7 +111,7 @@ private fun PhoneSourceScreen(onUnpair: () -> Unit) {
                         error = exception.message ?: exception.javaClass.simpleName
                         return@withContext
                     }
-                    if (open?.id != uploadExperiment) {
+                    if (open?.id != uploadExperiment || open?.type != "reproduce") {
                         PhoneSource.clearExperiment(context)
                         uploadExperiment = ""
                     }
@@ -155,11 +156,16 @@ private fun PhoneSourceScreen(onUnpair: () -> Unit) {
             val open = withContext(Dispatchers.IO) { Api.fetchOpenExperiment(context) }
             if (open.isSuccess) {
                 experiment = open.getOrNull()
-                if (selectedExperiment.isNotBlank() && experiment?.id != selectedExperiment) {
+                if (
+                    selectedExperiment.isNotBlank() &&
+                    (experiment?.id != selectedExperiment || experiment?.type != "reproduce")
+                ) {
                     PhoneSource.clearExperiment(context)
                     selectedExperiment = ""
                 }
             }
+            val run = withContext(Dispatchers.IO) { Api.fetchLatestRun(context) }
+            if (run.isSuccess) latestRun = run.getOrNull()
             delay(10_000)
             status = PhoneSource.status(context)
         }
@@ -203,7 +209,7 @@ private fun PhoneSourceScreen(onUnpair: () -> Unit) {
         )
         Spacer(Modifier.height(28.dp))
 
-        if (experiment != null) {
+        if (experiment?.type == "reproduce") {
             Text(
                 experiment?.type?.uppercase().orEmpty() + " EXPERIMENT",
                 color = Amber,
@@ -236,7 +242,7 @@ private fun PhoneSourceScreen(onUnpair: () -> Unit) {
             ) {
                 Text(
                     if (selectedExperiment == experiment?.id) {
-                        "New Camera Shots will join this · Stop"
+                        "New Camera Shots will join this · Pause"
                     } else {
                         "Use new Camera Shots for this"
                     },
@@ -244,6 +250,16 @@ private fun PhoneSourceScreen(onUnpair: () -> Unit) {
                     fontWeight = FontWeight.Bold,
                 )
             }
+            Spacer(Modifier.height(12.dp))
+        } else if (experiment != null) {
+            Text("LEGACY EXPERIMENT", color = Amber, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+            Spacer(Modifier.height(5.dp))
+            Text(
+                "Open Shoots on the web and leave this retired Experiment. Phone Source will not attach Shots to it.",
+                color = MutedWhite,
+                fontSize = 14.sp,
+                lineHeight = 20.sp,
+            )
             Spacer(Modifier.height(12.dp))
         }
 
@@ -309,6 +325,24 @@ private fun PhoneSourceScreen(onUnpair: () -> Unit) {
             if (status.error.isNotBlank()) {
                 Spacer(Modifier.height(8.dp))
                 Text(status.error, color = FindingRed, fontSize = 13.sp, lineHeight = 18.sp)
+            }
+            if (latestRun != null) {
+                Spacer(Modifier.height(14.dp))
+                Text(
+                    "SHOOTS ${latestRun?.status?.uppercase()}",
+                    color = if (latestRun?.status == "retrying") Amber else MutedWhite,
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.Bold,
+                )
+                if (!latestRun?.scoutOutcome.isNullOrBlank()) {
+                    Spacer(Modifier.height(4.dp))
+                    Text(
+                        latestRun?.scoutOutcome.orEmpty(),
+                        color = MutedWhite,
+                        fontSize = 13.sp,
+                        lineHeight = 18.sp,
+                    )
+                }
             }
             Spacer(Modifier.height(12.dp))
             TextButton(

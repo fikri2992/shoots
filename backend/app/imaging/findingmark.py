@@ -59,12 +59,12 @@ def blown_mask(image: Image.Image) -> np.ndarray:
     return luma > CLIP_HIGH
 
 
-def mark(image: Image.Image, shot_faults: list[Finding]) -> Image.Image:
+def mark(image: Image.Image, shot_findings: list[Finding]) -> Image.Image:
     """The frame with every drawable finding marked. Others pass through."""
-    if not any(f.finding_id in DRAWABLE for f in shot_faults):
+    if not any(finding.finding_id in DRAWABLE for finding in shot_findings):
         return image
     out = image
-    for finding in shot_faults:
+    for finding in shot_findings:
         if finding.finding_id == findings.BLOWN_HIGHLIGHTS:
             out = _draw_blown(out)
     return out

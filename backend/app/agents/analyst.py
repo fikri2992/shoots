@@ -34,6 +34,8 @@ from app.domain.grid import Grid
 
 logger = logging.getLogger(__name__)
 
+ANALYST_PROMPTS = ("technician", "composer", "storyteller", "synthesizer")
+
 
 # --- the lenses' output shapes ----------------------------------------------
 
@@ -222,7 +224,7 @@ def catalogue_text(video: bool) -> str:
     for t in taxonomy.TECHNIQUES:
         if t.video_only and not video:
             continue
-        lines.append(f"- `{t.id}` ({t.family.value}, L{t.level}): {t.cue}")
+        lines.append(f"- `{t.id}` ({t.family.value}): {t.cue}")
     return "\n".join(lines)
 
 
@@ -434,6 +436,9 @@ def validate(shot: Shot, result: PanelResult) -> Analysis:
         shot_id=shot.id,
         user_id=shot.user_id,
         model=settings.model_flash,
+        prompt_version=prompts.bundle_version(
+            (*ANALYST_PROMPTS, "scrub") if shot.kind.value == "video" else ANALYST_PROMPTS
+        ),
         techniques=consensus.techniques,
         composition=Composition(
             subject_cells=subject_cells,
@@ -446,9 +451,7 @@ def validate(shot: Shot, result: PanelResult) -> Analysis:
         ),
         findings=found,
         observations=consensus.observations,
-        elements=consensus.elements,
         critique=critique[:2000],
-        score=rubric.overall(consensus.elements),
         panel={lens: round(result.latency.get(lens, 0.0), 1) for lens in result.reads},
         dissent=[
             {"lens": lens, "technique_id": tid, "confidence": round(conf, 2)}

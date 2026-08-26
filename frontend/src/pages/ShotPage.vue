@@ -34,14 +34,14 @@ function dedupe(lines, limit, grid) {
  * a coordinate in a sentence.
  */
 export default {
-  name: 'FramePage',
+  name: 'ShotPage',
   components: { DisclosureRow, ShotCanvas, MeasuredStrip },
   props: { shotId: { type: String, required: true } },
   data() {
     return { showRead: true, picked: '', guides: PICKABLE, labels: GUIDE_LABELS, keeping: false }
   },
   computed: {
-    ...mapState(useShootsStore, ['shotById', 'experimentById']),
+    ...mapState(useShootsStore, ['shotById', 'experimentById', 'runs']),
     view() {
       return this.shotById(this.shotId)
     },
@@ -86,6 +86,19 @@ export default {
     tags() {
       return (this.analysis?.techniques || []).slice(0, 3).map((t) => t.technique_id.replace(/_/g, ' '))
     },
+    strongestTechnique() {
+      const supported = [...(this.analysis?.techniques || [])]
+        .filter((technique) => (technique.agreement || 0) >= 2)
+        .sort((a, b) => (b.agreement || 0) - (a.agreement || 0) || (b.confidence || 0) - (a.confidence || 0))
+      const technique = supported[0]
+      if (!technique) return null
+      return {
+        name: technique.technique_id.replace(/_/g, ' '),
+        proof: technique.note || `${technique.agreement} readers independently agreed`,
+        agreement: technique.agreement,
+        confidence: Math.round((technique.confidence || 0) * 100),
+      }
+    },
     observations() {
       return dedupe(this.analysis?.observations || [], 6, this.shot?.grid)
     },
@@ -106,6 +119,12 @@ export default {
       return (this.analysis?.composition?.moves || [])
         .filter((m) => m.what)
         .map((m) => ({ ...m, kind: m.kind || 'move', shown: this.showRead && m === drawn }))
+    },
+    primaryMove() {
+      return this.moves.find((move) => move.shown) || this.moves[0] || null
+    },
+    otherMoves() {
+      return this.primaryMove ? this.moves.filter((move) => move !== this.primaryMove) : []
     },
     /** The one mark the canvas draws, so the list can say which it is. */
     drawnMove() {
@@ -140,6 +159,16 @@ export default {
     },
     experiment() {
       return this.shot?.experiment_id ? this.experimentById(this.shot.experiment_id) : null
+    },
+    run() {
+      return this.runs.find((item) => item.shot_id === this.shotId) || null
+    },
+    runSteps() {
+      if (!this.run) return []
+      return ['ingest', 'analyst', 'cartographer', 'judge', 'scribe', 'scout'].map((stage) => ({
+        stage,
+        ...this.run.steps[stage],
+      }))
     },
     lenses() {
       return Object.keys(this.analysis?.panel || {}).join(', ') || 'three lenses'
@@ -179,12 +208,26 @@ export default {
 </script>
 
 <template>
-  <div class="pb-24 md:pb-10">
-    <p v-if="!shot" class="col gutter pt-12 t-meta">Loading…</p>
+  <div class="page-shell pb-24 pt-6 md:pb-12 md:pt-8">
+    <p v-if="!shot" class="pt-12 t-meta">Loading the Shot…</p>
 
-    <div v-else class="mx-auto w-full max-w-5xl md:grid md:grid-cols-2 md:gap-8 md:px-6 md:pt-8">
-      <div class="md:sticky md:top-20 md:self-start">
-        <div class="relative">
+    <template v-else>
+      <header class="mb-5 flex items-center justify-between">
+        <RouterLink :to="{ name: 'shots' }" class="t-meta hover:text-paper">← All Shots</RouterLink>
+        <button
+          type="button"
+          class="rounded-xl border px-3 py-2 text-[12px] font-medium transition"
+          :class="shot.kept_at ? 'border-accent/60 text-accent' : 'border-edge text-muted hover:text-paper'"
+          :disabled="keeping"
+          @click="keep"
+        >
+          {{ shot.kept_at ? 'Keeper · yours' : 'Mark as Keeper' }}
+        </button>
+      </header>
+
+      <div class="grid gap-6 lg:grid-cols-[minmax(0,1.15fr)_minmax(360px,0.85fr)] lg:items-start lg:gap-8">
+        <div class="lg:sticky lg:top-6">
+          <div class="relative overflow-hidden rounded-2xl border border-edge bg-panel">
           <ShotCanvas
             v-if="src && shot.grid"
             :src="src"
@@ -195,85 +238,91 @@ export default {
           />
           <button
             type="button"
-            class="absolute bottom-3 right-3 rounded-full bg-black/70 px-3 py-1 t-num text-[11px]"
-            :class="showRead ? 'text-neutral-100' : 'text-neutral-500'"
+            class="absolute bottom-3 right-3 rounded-xl border border-white/10 bg-black/72 px-3 py-1.5 text-[11px]"
+            :class="showRead ? 'text-paper' : 'text-muted'"
             @click="showRead = !showRead"
           >
-            read
-          </button>
-          <button
-            type="button"
-            class="absolute bottom-3 left-3 rounded-full bg-black/70 px-3 py-1 t-num text-[11px]"
-            :class="shot.kept_at ? 'text-accent' : 'text-neutral-500'"
-            :disabled="keeping"
-            :title="shot.kept_at ? 'One you would keep' : 'Would you keep this one?'"
-            @click="keep"
-          >
-            {{ shot.kept_at ? 'kept' : 'keep' }}
+            {{ showRead ? 'Hide read' : 'Show read' }}
           </button>
         </div>
 
-        <div class="gutter mt-3 flex flex-wrap items-center gap-x-3 gap-y-2 md:px-0">
+          <div class="mt-3 flex flex-wrap items-center gap-x-3 gap-y-2 rounded-xl border border-edge bg-panel px-3 py-2.5">
+            <span class="eyebrow mr-1">Guide</span>
           <button
             v-for="g in guides"
             :key="g"
             type="button"
             class="t-meta"
-            :class="guide === g ? 'text-neutral-100' : 'text-neutral-600 hover:text-neutral-400'"
+              :class="guide === g ? 'text-accent' : 'text-muted hover:text-paper'"
             @click="picked = g"
           >
             {{ labels[g] }}
           </button>
-          <span v-if="fit" class="ml-auto t-meta text-accent">{{ fit }}</span>
-        </div>
-      </div>
-
-      <div class="gutter md:px-0">
-        <div class="flex items-baseline gap-3 pt-6">
-          <RouterLink :to="{ name: 'frames' }" class="t-meta hover:text-neutral-200">← Frames</RouterLink>
+            <span v-if="fit" class="ml-auto t-meta text-neutral-300">{{ fit }}</span>
+          </div>
         </div>
 
-        <template v-if="analysis">
-          <p class="mt-1 t-meta">{{ tags.join(' · ') }}</p>
+        <div>
+          <template v-if="analysis">
+            <p class="eyebrow">Shot read</p>
+            <p class="mt-2 t-meta">{{ camera.slice(-2).join(' · ') || shot.filename }}</p>
 
-          <MeasuredStrip class="mt-4" :tone="shot.tone" :motion="shot.motion" />
+            <section class="surface mt-5 p-5 sm:p-6">
+              <p class="eyebrow">What held</p>
+              <template v-if="strongestTechnique">
+                <h1 class="mt-3 text-[28px] leading-8 font-semibold tracking-[-0.035em] text-paper capitalize">
+                  {{ strongestTechnique.name }}
+                </h1>
+                <p class="mt-3 t-body text-neutral-300">{{ strongestTechnique.proof }}</p>
+                <p class="mt-3 t-meta">
+                  {{ strongestTechnique.agreement }} readers · {{ strongestTechnique.confidence }}% confidence
+                </p>
+              </template>
+              <p v-else class="mt-3 t-body text-neutral-300">
+                No Technique had enough independent agreement to lead with one.
+              </p>
+            </section>
 
-          <p class="mt-4 t-body">{{ critique }}</p>
+            <MeasuredStrip class="mt-4" :tone="shot.tone" :motion="shot.motion" />
 
-          <ul v-if="findings.length" class="mt-6 space-y-3">
-            <li v-for="f in findings" :key="f.finding_id" class="flex gap-3">
-              <span
-                class="mt-0.5 shrink-0 whitespace-nowrap rounded bg-accent/15 px-1.5 py-0.5 t-num text-[10px] text-accent"
-              >
-                fix
-              </span>
-              <span class="t-body">
-                <span class="text-neutral-100">{{ f.what }}</span>
-                <span class="mt-0.5 block t-num text-[11px] text-neutral-500">{{ f.why }}</span>
-              </span>
-            </li>
-          </ul>
+            <section v-if="critique" class="mt-5 border-l border-edge pl-4">
+              <p class="eyebrow">Panel read · model opinion</p>
+              <p class="mt-2 t-body text-neutral-200">{{ critique }}</p>
+            </section>
 
-          <ul v-if="moves.length" class="mt-6 space-y-3">
-            <li v-for="(m, i) in moves" :key="i" class="flex gap-3">
-              <span
-                class="mt-0.5 shrink-0 whitespace-nowrap rounded px-1.5 py-0.5 t-num text-[10px]"
-                :class="m.shown ? 'bg-neutral-100 text-neutral-900' : 'bg-panel-2 text-neutral-500'"
-              >
-                {{ kindLabel(m.kind) }}
-              </span>
-              <span class="t-body">
-                <span class="text-neutral-100">{{ m.what }}</span>
-                <span class="mt-0.5 block text-neutral-400">{{ reason(m) }}</span>
-              </span>
-            </li>
-          </ul>
+            <section v-if="primaryMove" class="surface-active mt-6 p-5">
+              <div class="flex items-center justify-between gap-3">
+                <p class="eyebrow text-accent">One move to try</p>
+                <span class="t-meta">{{ kindLabel(primaryMove.kind) }}</span>
+              </div>
+              <p class="mt-3 text-[18px] leading-6 font-medium text-paper">{{ primaryMove.what }}</p>
+              <p v-if="reason(primaryMove)" class="mt-2 t-body">{{ reason(primaryMove) }}</p>
+            </section>
 
-          <button type="button" class="btn-quiet mt-6 w-full" @click="talk('Talk me through this frame.')">
-            Talk it through with the Coach
-          </button>
+            <section v-if="findings.length" class="mt-6 rounded-2xl border border-bad/45 bg-bad/8 p-5">
+              <p class="eyebrow text-bad">Finding{{ findings.length === 1 ? '' : 's' }}</p>
+              <ul class="mt-3 space-y-4">
+                <li v-for="f in findings" :key="f.finding_id">
+                  <p class="t-body text-paper">{{ f.what }}</p>
+                  <p class="mt-1 t-num text-[11px] leading-4 text-muted">{{ f.why }}</p>
+                </li>
+              </ul>
+            </section>
+
+            <button type="button" class="btn mt-6 w-full" @click="talk('Talk me through this Shot.')">
+              Ask about this Shot
+            </button>
 
           <div class="mt-8">
+              <DisclosureRow v-if="otherMoves.length" label="Other possible moves" :count="otherMoves.length">
+                <ul class="space-y-4">
+                  <li v-for="(move, i) in otherMoves" :key="i">
+                    <p class="t-body text-paper">{{ move.what }}</p>
+                    <p class="mt-1 t-meta">{{ kindLabel(move.kind) }} · {{ reason(move) }}</p>
+                  </li>
+                </ul>
+              </DisclosureRow>
+
             <DisclosureRow v-if="observations.length" label="What it saw" :count="observations.length">
               <ul class="space-y-2">
                 <li v-for="(o, i) in observations" :key="i" class="flex gap-3 t-body text-neutral-300">
@@ -287,40 +336,48 @@ export default {
               <ul class="space-y-3">
                 <li v-for="t in analysis.techniques" :key="t.technique_id">
                   <div class="flex items-center gap-2">
-                    <span class="t-body text-neutral-100">{{ t.technique_id.replace(/_/g, ' ') }}</span>
+                      <span class="t-body text-paper">{{ t.technique_id.replace(/_/g, ' ') }}</span>
                     <span
                       v-if="t.agreement"
-                      class="t-num text-[10px] tracking-widest text-neutral-500"
+                        class="t-num text-[10px] tracking-widest text-muted"
                       :title="`seen by ${(t.lenses || []).join(', ')}`"
                     >
                       {{ '●'.repeat(t.agreement) + '○'.repeat(Math.max(0, 3 - t.agreement)) }}
                     </span>
-                    <span class="ml-auto t-num text-[11px] text-neutral-500">{{ Math.round(t.confidence * 100) }}%</span>
+                      <span class="ml-auto t-num text-[11px] text-muted">{{ Math.round(t.confidence * 100) }}%</span>
                   </div>
                   <p class="t-meta">{{ t.note }}</p>
                 </li>
-                <li v-if="!analysis.techniques.length" class="t-meta">Nothing reached agreement on this frame.</li>
+                <li v-if="!analysis.techniques.length" class="t-meta">Nothing reached agreement on this Shot.</li>
               </ul>
             </DisclosureRow>
 
             <DisclosureRow
               v-if="cropUrl"
               label="A crop it tested"
-              :count="`${analysis.composition.crop_before} → ${analysis.composition.crop_after}`"
             >
               <img :src="cropUrl" alt="tested crop" class="max-h-64 rounded-xl object-contain" />
               <p class="mt-2 t-body text-neutral-400">
                 {{ analysis.composition.crop_reason }}
-                <span class="mt-1 block t-meta">Rendered and compared against the original as a finished frame; kept only because it read better.</span>
+                  <span class="mt-1 block t-meta">Rendered and compared against the original; the preference is the crop rater's model opinion.</span>
               </p>
             </DisclosureRow>
 
             <DisclosureRow label="Camera" :count="camera.length ? '' : 'none'">
               <p class="t-num text-[13px] text-neutral-400">{{ camera.join(' · ') || 'No EXIF in this file.' }}</p>
             </DisclosureRow>
+
+            <DisclosureRow v-if="run" label="Autonomous Run" :count="run.status">
+              <ul class="space-y-3">
+                <li v-for="step in runSteps" :key="step.stage" class="flex gap-3">
+                  <span class="w-24 shrink-0 t-meta capitalize">{{ step.stage }}</span>
+                  <span class="t-body text-neutral-300">{{ step.outcome || step.state }}</span>
+                </li>
+              </ul>
+            </DisclosureRow>
           </div>
 
-          <div class="mt-8 space-y-2 border-t border-edge pt-4 t-meta">
+            <div class="mt-8 space-y-2 border-t border-edge pt-4 t-meta">
             <a v-if="shot.drive_review_url" :href="shot.drive_review_url" target="_blank" rel="noopener" class="block hover:text-neutral-200">
               The reviewed copy is in your Drive ↗
             </a>
@@ -329,13 +386,17 @@ export default {
             </RouterLink>
             <p>{{ shot.filename }}</p>
           </div>
-        </template>
+          </template>
 
-        <p v-else-if="shot.error" class="mt-4 rounded-xl border border-bad/40 bg-bad/10 px-4 py-3 t-body text-bad">
-          {{ shot.error }}
-        </p>
-        <p v-else class="mt-4 t-body text-neutral-500">The Analyst has not read this one yet.</p>
+          <p v-else-if="shot.error" class="rounded-xl border border-bad/40 bg-bad/10 px-4 py-3 t-body text-bad">
+            {{ shot.error }}
+          </p>
+          <div v-else class="surface p-6">
+            <p class="eyebrow text-accent">Reading</p>
+            <p class="mt-3 t-body">The Analyst has not finished this Shot yet.</p>
+          </div>
+        </div>
       </div>
-    </div>
+    </template>
   </div>
 </template>

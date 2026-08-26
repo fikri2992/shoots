@@ -43,7 +43,7 @@ class PhoneImportWorker(
                 )
                 return@withContext Result.retry()
             }
-            if (open?.id != experimentId) {
+            if (open?.id != experimentId || open?.type != "reproduce") {
                 PhoneSource.clearExperiment(applicationContext)
                 experimentId = ""
             }

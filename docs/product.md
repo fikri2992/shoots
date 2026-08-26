@@ -33,8 +33,9 @@ After one source permission, Shoots intercepts new phone Shots and performs the 
 5. It records only Shots explicitly associated with that Experiment.
 6. It recomputes the record and shows what changed without claiming the Experiment caused it.
 
-The work leaves three checkable artifacts:
+The work leaves four checkable artifacts:
 
+- the Run, with one outcome per pipeline stage;
 - the Technique Map;
 - the type-specific Experiment Record, including its question, explicit Shot set, evidence, and Change;
 - the Journey Update, with a source behind every sentence.
@@ -45,7 +46,7 @@ Advice without those artifacts is not the product.
 
 Shoots should help the photographer make more deliberate choices, recognise what they value, and repeat or challenge those choices on purpose. The end state is less dependence on the Companion. Silence grows as the photographer gains confidence.
 
-The first session still needs a win. Shoots should find one supported Tendency, name one thing the photographer already does well, and offer one Experiment they can understand immediately.
+The first session still needs a win. Shoots should name one corroborated decision in the photographer's own work immediately. A Reproduce Experiment begins only after they mark a Keeper that supports one; silence is better than a generic first assignment.
 
 Every Shot updates the underlying record. A Journey Update appears only when the Evidence supports a meaningful new conclusion, so tracking stays continuous without manufacturing a milestone after every shutter.
 
@@ -56,7 +57,7 @@ Every Shot updates the underlying record. A Journey Update appears only when the
 | Intercept | Android notices an approved new Camera item, skips a known source reference, and uploads in the background. | Shot arrival and transfer ActivityEvents |
 | Observe | Ingest reads EXIF and pixels. Analyst adds bounded visual Evidence. | Analysis |
 | Remember | Cartographer updates recurring Technique Evidence and the Tendency Profile. | Technique Map |
-| Choose | Scout offers one Explore, Reproduce, or Compare Experiment. | Experiment Record with baseline |
+| Choose | Scout offers one Keeper-backed Reproduce or records why it stayed silent. | Experiment Record with exact Keeper reference |
 | Record | Shoots keeps only Shots explicitly associated with the Experiment. | Type-specific Experiment evidence |
 | Verify | Judge checks declared Criteria only for Reproduce. Measurements may corroborate or veto model claims. | Optional Verdict |
 | Learn | Domain code compares compatible earlier and later behaviour. | Change record |
@@ -71,6 +72,8 @@ The photographer only has to shoot. Keeper and Intent are optional signals that 
 **Reproduce.** Deliberately repeat a pattern associated with the photographer's Keepers. Criteria are fixed before the result, and Judge may issue a Verdict about repeatability only.
 
 **Compare.** Change one variable, preserve both alternatives, and let the photographer say which result they value. The model does not choose the winner.
+
+The Taskmaster build implements Reproduce. Scout does not issue the old Criteria-shaped Explore. Corrected Explore and Compare remain later work.
 
 An Experiment is optional. The camera starts free, only explicitly selected Shots join, and the photographer may pause or leave without failing anything.
 
@@ -96,7 +99,7 @@ The sentence competitors do not say:
 
 The photographer keeps using Android's normal camera. Shoots asks once for honest media access, filters to approved Camera media, uploads unseen Shots in the background, and reports what was imported, skipped, retrying, or unreadable. Selected-media permission provides manual import only. Full access enables automatic future imports. Shoots never labels one as the other.
 
-The Android client is not where the photography is judged. It shows source permission, background transfer state, the offered Experiment, and a route to the web record. The web remains the audit desk for Evidence, Experiment Records, Change, Journey, and failures.
+The Android client is not where the photography is judged. It shows source permission, background transfer state, the offered Reproduce, and the latest backend Run status. The web remains the audit desk for Evidence, Experiment Records, Change, Journey, and failures.
 
 The earlier custom camera, Scene Probe, weather context, and Gemini Live direction are later Companion work. They are excluded from the Taskmaster proof.
 
@@ -106,14 +109,15 @@ The product needs memory, planning, action, refusal, and self-correction across 
 
 Models handle visual ambiguity and language. Versioned domain code owns Technique ids, thresholds, corroboration, vetoes, type-specific Experiment transitions, Reproduce Criteria, and profile comparisons. The agent may recommend. It cannot turn an Explore Variation into a correct answer, rewrite a Reproduce test after seeing the result, or choose a Compare preference.
 
-The system earns depth when it can:
+The current system can:
 
 - refuse an unsupported read;
-- escalate a consequential disagreement;
-- choose an Experiment from the archive;
+- choose a Reproduce from corroborated Evidence in a marked Keeper;
 - remember relevant Evidence and explicit user signals;
-- check whether comparable behaviour changed after an explicitly attempted Experiment;
-- stop using an approach that repeatedly fails under comparable conditions.
+- preserve exact result Shots, abstentions, Criteria, Verdicts, and stage outcomes;
+- check whether compatible longitudinal counts changed without claiming causation.
+
+Bounded escalation and automatic advice retirement remain later work.
 
 ## What Shoots refuses to become
 
@@ -132,7 +136,7 @@ Generated reference clips and the Director are outside the core. Inspiration may
 
 A successful demonstration shows one uninterrupted Shot history to Journey loop. A stranger should be able to say:
 
-> It remembered the photographer's work, found a recurring pattern, chose what to test, and verified what changed.
+> It remembered the photographer's work, chose one decision from a Keeper, verified an explicit result, and accounted for every stage.
 
 If they only say "it gives photography advice," the product has not been made visible.
 

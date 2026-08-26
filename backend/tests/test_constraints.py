@@ -1,7 +1,7 @@
 """What the Coach remembers, and that the Scout respects it."""
 
 from app.domain import scout as rules
-from app.domain.entities import Constraints, TechniqueState, TechniqueStatus
+from app.domain.entities import Constraints
 from app.services.coach import merge
 
 
@@ -23,14 +23,6 @@ def test_merge_caps_notes_newest_last():
 
 
 def test_scout_skips_techniques_needing_missing_gear():
-    skills = {
-        tid: TechniqueState(
-            user_id="u", technique_id=tid, status=TechniqueStatus.OBSERVED, attempts=3
-        )
-        for tid in ("golden_hour", "deep_dof", "freeze_action", "backlight", "rule_of_thirds")
-    }
-    everything = [t.id for t in rules.rank(skills, [])]
-    assert "long_exposure" in everything and "fill_flash" in everything
-    without = [t.id for t in rules.rank(skills, [], missing_gear=["tripod", "flash"])]
-    assert "long_exposure" not in without and "fill_flash" not in without
-    assert "panning" in without  # no gear needed
+    preferred = ("long_exposure", "fill_flash", "panning")
+    selected = rules.choose(preferred, [], missing_gear=["tripod", "flash"])
+    assert selected is not None and selected.id == "panning"

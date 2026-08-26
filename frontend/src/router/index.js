@@ -7,19 +7,18 @@ const authed = { requiresAuth: true }
 const routes = [
   { path: '/login', name: 'login', component: () => import('@/pages/LoginPage.vue') },
   { path: '/', name: 'now', component: () => import('@/pages/NowPage.vue'), meta: authed },
-  { path: '/frames', name: 'frames', component: () => import('@/pages/FramesPage.vue'), meta: authed },
+  { path: '/shots', name: 'shots', component: () => import('@/pages/ShotsPage.vue'), meta: authed },
   {
-    path: '/frames/:shotId',
-    name: 'frame',
-    component: () => import('@/pages/FramePage.vue'),
+    path: '/shots/:shotId',
+    name: 'shot',
+    component: () => import('@/pages/ShotPage.vue'),
     props: true,
     meta: authed,
   },
   { path: '/journey', name: 'journey', component: () => import('@/pages/JourneyPage.vue'), meta: authed },
 
-  // The Scribe wrote /shots/<id> links into Drive descriptions; keep them alive.
-  { path: '/shots', redirect: { name: 'frames' } },
-  { path: '/shots/:shotId', redirect: (to) => ({ name: 'frame', params: to.params }) },
+  { path: '/frames', redirect: { name: 'shots' } },
+  { path: '/frames/:shotId', redirect: (to) => ({ name: 'shot', params: to.params }) },
   { path: '/map', redirect: { name: 'journey' } },
   { path: '/feed', redirect: { name: 'journey' } },
   { path: '/:pathMatch(.*)*', redirect: { name: 'now' } },

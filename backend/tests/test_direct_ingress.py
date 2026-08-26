@@ -4,7 +4,7 @@ from fastapi.testclient import TestClient
 
 from app.api import deps, main
 from app.api.auth import current_user
-from app.domain.entities import ShotSource, ShotStatus, User
+from app.domain.entities import RunStatus, ShotSource, ShotStatus, User
 from app.infra import repository as repo
 from app.infra.bus import TOPICS, InProcessBus
 from app.infra.storage import ORIGINAL, LocalBlobStore
@@ -22,11 +22,12 @@ async def test_android_ingress_is_idempotent_and_runs_the_real_ingest(tmp_path):
         drive=None,
         tokens=None,
     )
-    await repo.put_user(ctx.store, User(id="phone-user", email="phone@example.com"))
+    user_id = "dev:phone@example.test"
+    await repo.put_user(ctx.store, User(id=user_id, email="phone@example.test"))
     ctx.bus.subscribe(TOPICS["media.new"], lambda message: ingest.ingest(ctx, message))
     main.app.dependency_overrides[deps.get_context] = lambda: ctx
     main.app.dependency_overrides[current_user] = lambda: {
-        "id": "phone-user",
+        "id": user_id,
         "device": "Android phone",
     }
 
@@ -44,7 +45,7 @@ async def test_android_ingress_is_idempotent_and_runs_the_real_ingest(tmp_path):
             async def record_resume(message: dict) -> None:
                 await repo.record(
                     ctx.store,
-                    "phone-user",
+                    user_id,
                     "downstream",
                     "resumed",
                     {},
@@ -54,6 +55,8 @@ async def test_android_ingress_is_idempotent_and_runs_the_real_ingest(tmp_path):
             ctx.bus.subscribe(TOPICS["media.ingested"], record_resume)
             third = client.post("/api/ingress/shots", **request)
             await ctx.bus.drain()
+            stored = (await repo.list_shots(ctx.store, user_id))[0]
+            blob_response = client.get(f"/api/blobs/{stored.blobs[ORIGINAL]}")
     finally:
         main.app.dependency_overrides.clear()
 
@@ -63,7 +66,7 @@ async def test_android_ingress_is_idempotent_and_runs_the_real_ingest(tmp_path):
     assert second.json() == {**first.json(), "created": False}
     assert third.json() == {**first.json(), "created": False}
 
-    shots = await repo.list_shots(ctx.store, "phone-user")
+    shots = await repo.list_shots(ctx.store, user_id)
     assert len(shots) == 1
     shot = shots[0]
     assert shot.source is ShotSource.ANDROID
@@ -71,8 +74,14 @@ async def test_android_ingress_is_idempotent_and_runs_the_real_ingest(tmp_path):
     assert shot.drive_file_id == ""
     assert shot.status is ShotStatus.INGESTED
     assert await ctx.blobs.exists(shot.blobs[ORIGINAL])
+    assert blob_response.status_code == 200
+    assert blob_response.headers["content-type"] == "image/jpeg"
 
-    stages = [event.stage for event in await repo.list_events(ctx.store, "phone-user")]
+    run = await repo.find_run_for_shot(ctx.store, shot.id)
+    assert run is not None
+    assert run.status is RunStatus.RUNNING
+
+    stages = [event.stage for event in await repo.list_events(ctx.store, user_id)]
     assert stages.count("queued") == 1
     assert stages.count("ingested") == 1
     assert stages.count("resumed") == 1

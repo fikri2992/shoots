@@ -23,7 +23,14 @@ from app.agents import prompts
 from app.agents.retry import with_retry
 from app.agents.runtime import run_agent
 from app.config import settings
-from app.domain.entities import Constraints, Criteria, ExifRule, Reference, TechniqueState
+from app.domain.entities import (
+    Constraints,
+    Criteria,
+    ExifRule,
+    ExperimentType,
+    Reference,
+    TechniqueState,
+)
 from app.domain.taxonomy import Technique
 
 logger = logging.getLogger(__name__)
@@ -132,7 +139,7 @@ def hard_criteria_text(technique: Technique) -> str:
         parts.append(f"focal length {rule['focal_max_mm']} mm or shorter (35 mm equivalent)")
     if "flash" in rule:
         parts.append("flash must fire" if rule["flash"] else "no flash")
-    return "; ".join(parts) if parts else "none (judged on the frame alone)"
+    return "; ".join(parts) if parts else "none (judged from visible Evidence)"
 
 
 def _shutter(seconds: float) -> str:
@@ -144,8 +151,9 @@ def write_prompt(
     why: str,
     critiques: list[str],
     notes: Research,
-    skills: dict[str, TechniqueState],
+    states: dict[str, TechniqueState],
     constraints: Constraints | None = None,
+    experiment_type: ExperimentType = ExperimentType.EXPLORE,
 ) -> str:
     recent = "\n".join(f"- {c}" for c in critiques[:5]) or "- none yet"
     refs = "\n".join(f"- {r.title}: {r.url}" for r in notes.references) or "- none"
@@ -155,13 +163,21 @@ def write_prompt(
     if constraints:
         said += [f"- {n}" for n in constraints.notes]
     told = "\n".join(said) or "- nothing yet"
+    question = (
+        "This is a Reproduce Experiment. The photographer already marked a Shot "
+        "with this Technique as a Keeper. Ask them to repeat that decision deliberately; "
+        "the declared Criteria must stay fixed."
+        if experiment_type is ExperimentType.REPRODUCE
+        else "This is an Explore Experiment. Offer a way to try the Technique without grading it."
+    )
     return (
-        f"Technique: `{technique.id}` — {technique.name} ({technique.family.value}, "
-        f"level {technique.level}).\nRecognised by: {technique.cue}\n"
+        f"Technique: `{technique.id}` — {technique.name} ({technique.family.value}).\n"
+        f"Experiment type: {experiment_type.value}. {question}\n"
+        f"Recognised by: {technique.cue}\n"
         f"Hard criteria (fixed): {hard_criteria_text(technique)}\n"
         f"Why now: {why}\n"
         f"Techniques the photographer has attempted so far: "
-        f"{', '.join(sorted(skills)) or 'none'}\n\n"
+        f"{', '.join(sorted(states)) or 'none'}\n\n"
         f"What the photographer has told the Coach about their situation:\n{told}\n\n"
         f"Recent critiques of their shots:\n{recent}\n\n"
         f"Research notes:\n{notes.notes or '(no notes; rely on common practice)'}\n\n"
@@ -174,12 +190,21 @@ async def write(
     why: str,
     critiques: list[str],
     notes: Research,
-    skills: dict[str, TechniqueState],
+    states: dict[str, TechniqueState],
     constraints: Constraints | None = None,
+    experiment_type: ExperimentType = ExperimentType.EXPLORE,
 ) -> ExperimentOut:
     return await run_agent(
         scout_agent(),
-        prompt=write_prompt(technique, why, critiques, notes, skills, constraints),
+        prompt=write_prompt(
+            technique,
+            why,
+            critiques,
+            notes,
+            states,
+            constraints,
+            experiment_type,
+        ),
         schema=ExperimentOut,
     )
 

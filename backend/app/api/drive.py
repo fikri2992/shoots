@@ -25,7 +25,7 @@ from app.imaging import canvas
 from app.infra import repository as repo
 from app.infra.bus import TOPICS
 from app.infra.drive import DriveFile, UserDrive, user_credentials
-from app.services import ingest, watch
+from app.services import ingest, runs, watch
 from app.services.context import Context
 
 logger = logging.getLogger(__name__)
@@ -154,9 +154,6 @@ class ShootResponse(BaseModel):
     experiment_id: str
 
 
-MAX_UPLOAD_BYTES = 200 * 1024 * 1024
-
-
 @router.post("/shoot", response_model=ShootResponse)
 async def shoot(
     file: UploadFile = File(...),
@@ -180,9 +177,9 @@ async def shoot(
         raise HTTPException(409, "connect a Drive folder first")
     mime = file.content_type or "application/octet-stream"
     if not mime.startswith(("image/", "video/")):
-        raise HTTPException(415, "photos and videos only")
+        raise HTTPException(415, "image and video files only")
     data = await file.read()
-    if len(data) > MAX_UPLOAD_BYTES:
+    if len(data) > settings.max_upload_bytes:
         raise HTTPException(413, "file too large")
     name = Path(file.filename or "shot").name
 
@@ -211,6 +208,7 @@ async def shoot(
         shot = ingest.new_shot(shot_id, user.id, drive_file, experiment_id=experiment_id)
         shot.pitch_deg = pitch_deg
         await repo.put_shot(ctx.store, shot)
+        await runs.ensure(ctx, shot)
         await repo.record(
             ctx.store,
             user.id,
@@ -243,8 +241,10 @@ async def preflight(
     session_user: dict = Depends(current_user),
     ctx: Context = Depends(get_context),
 ):
-    """On location, before upload: the experiment's criteria checked on a preview
-    in a few seconds, so a miss is reshot now rather than judged later."""
+    """Explicit Ask: visible Criteria checked on a temporary Scene Probe.
+
+    No Shot or image blob is created. Only the ActivityEvent below survives.
+    """
     import time
 
     user = await _load_user(ctx, session_user)
@@ -252,9 +252,9 @@ async def preflight(
     if experiment.user_id != user.id:
         raise HTTPException(404, "experiment not found")
     if not (file.content_type or "").startswith("image/"):
-        raise HTTPException(415, "photos only; videos go straight to the pipeline")
+        raise HTTPException(415, "image files only; videos go straight to the pipeline")
     data = await file.read()
-    if len(data) > MAX_UPLOAD_BYTES:
+    if len(data) > settings.max_upload_bytes:
         raise HTTPException(413, "file too large")
     preview = canvas.fit_for_model(canvas.load_bytes(data), preflight_agent.PREVIEW_EDGE)
     started = time.monotonic()

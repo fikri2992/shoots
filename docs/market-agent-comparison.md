@@ -2,10 +2,9 @@
 
 Research note, 2026-08-25.
 
-This is a market and implementation snapshot, not the current product vocabulary.
-The later [product decisions](product-decisions.md) replace Experiment with Experiment,
-skill graph with Technique Map, and progress claims with Change. Competitor facts
-remain useful; use [feature list](feature-list.md) for current implementation status.
+This is a market and implementation snapshot using the current product vocabulary.
+Competitor language such as challenge, score, and progression is retained only when
+describing those products. Use [feature list](feature-list.md) for build status.
 
 ## Verdict
 
@@ -17,9 +16,9 @@ Its defensible difference is architectural:
 
 > No product in this sample publicly documents the same full chain: an
 > automatic Shot trigger, separately bounded expert readers, measured Evidence
-> that can overrule model opinion, a persistent per-Technique skill graph, a
+> that can overrule model opinion, a persistent Technique Map and Tendency Profile, a
 > fixed-criteria Judge, an artifact written back to the photographer's Drive,
-> and the next Experiment issued without another prompt.
+> and a personal Experiment that is withheld when the archive supports no Direction.
 
 That difference is real, but it is mostly invisible until the demo shows a
 disagreement, a deterministic decision, an external action, and the next state
@@ -41,27 +40,27 @@ the exact camera moment.
 - Most vendors do not publish their internal routing, prompts, models, scoring
   contracts, or state machines. Those fields remain **not disclosed**. Product
   copy is not evidence of a multi-agent architecture.
-- Shoots was read from the local working tree on 2026-08-25. This note compares
-  the legacy implementation vocabulary at that snapshot. It does not establish
-  that later Tendency, Keeper, Scene, Intent, or Companion decisions are built.
+- Shoots was read from the local working tree on 2026-08-25. Current build claims
+  below are limited to behavior present in that tree. Explicit Intent and the
+  scene-aware Android Companion remain unbuilt.
 
 ## What Shoots actually implements
 
 | Dimension | Current behavior | Evidence in this repo |
 |---|---|---|
-| Trigger | A new Drive Shot starts an event-driven pipeline. A passed Experiment triggers Scout; scheduled ticks also issue and deliver Experiments. | `docs/domain-model.md`; `backend/app/services/scout.py:1-5,193-194` |
+| Trigger | A Drive or Android Shot starts the same event-driven pipeline. The first complete archive read, a Criteria-met Experiment, or the daily tick may ask Scout to issue; no supported Direction means silence. | `backend/app/api/deps.py`; `backend/app/services/scout.py`; `backend/app/api/tasks.py` |
 | Perception | Ingest measures EXIF, Tone, and Motion. Analyst runs Technician, Composer, and Storyteller concurrently with different instructions and inputs, then a Synthesizer writes the critique. | `backend/app/agents/analyst.py:152-165`; `docs/domain-model.md`, decision 18 |
 | Evidence control | The panel requires agreement. Measured motion can corroborate or veto a claimed Technique after the model calls. Unknown Technique ids and invalid cells are rejected at validation boundaries. | `backend/app/agents/analyst.py:326-346`; `backend/app/domain/panel.py:120-180` |
-| Planning | Pure ranking selects an unlocked Technique using prerequisites, level, family coverage, recent Experiments, decay, and missing gear. Gemini Search grounds the brief and references. Solar arithmetic picks delivery time from the Technique's light window and the user's last Shot location. | `backend/app/domain/scout.py`; `backend/app/services/scout.py:42-101` |
-| Persistent memory | TechniqueState stores per-Technique attempts, corroboration, status, scores, and recent Shot ids. User constraints, Experiments, Verdicts, and ActivityEvents persist separately. | `backend/app/domain/technique_map.py`; `backend/app/domain/entities.py` |
-| Verification | Pure code checks fixed EXIF bounds and required vision Evidence. Missing EXIF cannot pass an EXIF-dependent Experiment. Gemini writes feedback but cannot change pass or fail. Only Judge closes a passed Experiment. | `backend/app/domain/judge.py`; `backend/app/services/judge.py:31-101` |
-| External action | Scribe uploads or updates an annotated reviewed Shot in `Shoots/Reviewed/`. Scout sends a push and Director can add a reference clip. Coach can issue an Experiment, remember constraints, and read the Technique Map. | `backend/app/services/scribe.py:134-194`; `backend/app/services/coach.py:73-145` |
-| Adaptation | A pass closes the Experiment and triggers the next one. A failed attempt appends a Verdict and leaves the same Experiment open. There is no failure classification or bounded replan yet. | `backend/app/services/judge.py:70-101`; `backend/app/services/scout.py:193-194` |
+| Planning | Pure code derives an Experiment Direction from the complete readable archive. Scout may choose only a supported Technique, then applies recency and gear constraints; there are no levels, locks, prerequisites, or coverage quotas. Gemini Search grounds the brief and references. Solar arithmetic chooses delivery time. | `backend/app/domain/tendency.py`; `backend/app/domain/scout.py`; `backend/app/services/scout.py` |
+| Persistent memory | The Technique Map stores attempts, corroboration, state, and Shot ids. The Tendency Profile spans the readable archive and distinguishes deterministic dimensions from model-read dimensions. Keepers, constraints, Baselines, Verdicts, Changes, and ActivityEvents persist without quality scores. | `backend/app/services/profile.py`; `backend/app/domain/entities.py`; `backend/app/domain/tendency.py` |
+| Verification | Pure code checks frozen EXIF bounds and required vision Evidence. Unknown required Evidence makes Judge abstain and leaves the Experiment open; a known hard miss can still settle Criteria as not met. Gemini writes feedback but cannot change the result. Only Judge records a Verdict. | `backend/app/domain/judge.py`; `backend/app/services/judge.py` |
+| External action | Android captures and uploads into the pipeline. Scribe uploads or updates an annotated review in `Shoots/Reviewed/`; Scout sends a push; Coach can issue an Experiment, remember constraints, and read the Technique Map. Director/Veo is not in the product loop. | `android/app/src/main/java/com/shoots/app/Api.kt`; `backend/app/services/scribe.py`; `backend/app/services/coach.py` |
+| Adaptation | A Criteria-met Verdict closes the Experiment transactionally and may trigger another Direction check. A Criteria-not-met Verdict leaves it open. After closure, Scout compares the frozen Baseline with later comparable Shots and records a Change without claiming causation or improvement. | `backend/app/infra/repository.py`; `backend/app/services/judge.py`; `backend/app/services/scout.py` |
+| Concurrency refusal | One atomic open slot prevents duplicate Experiments. Verdict, Skip, Expire, delivery, and optional legacy writes cannot overwrite a competing terminal transition. | `backend/app/infra/store.py`; `backend/app/infra/repository.py` |
 
 The strongest design decision is authority separation. Models interpret and
-write. Code owns taxonomy, measurement, progression, and Verdict. The system
-does not let the model that helps create an Experiment decide whether the Experiment
-passed.
+write. Code owns taxonomy, measurement, comparability, and Experiment transitions.
+The model that helps write an Experiment cannot record its Verdict.
 
 ## Closest systems
 
@@ -82,11 +81,18 @@ user advances each step and presses the shutter.
 Sources: [Pixel Camera Help](https://support.google.com/pixelcamera/answer/17367411?hl=en),
 [Google product explanation](https://blog.google/products-and-platforms/devices/pixel/how-to-use-camera-coach/).
 
-Pixel makes Shoots' proposed slow viewfinder Coach non-unique. Shoots can still
-differentiate through longitudinal state and post-capture verification, but its
-current Android client only renders measured highlight zebras, a thirds guide,
-and a clipping readout. It does not yet capture, upload, summon Coach, or show a
-Verdict (`android/app/src/main/java/com/shoots/app/MainActivity.kt:74-196`).
+Pixel makes scene-aware viewfinder coaching non-unique. Shoots does not compete at
+that immediate camera moment in the Taskmaster build. Android observes approved
+Camera media, uploads unseen originals, carries an explicitly selected Reproduce id,
+and shows the backend Run state. Shoots differentiates through longitudinal memory,
+fixed Keeper references, and checkable result records.
+
+The locked target corrects two problems found on a physical phone. The camera opens
+free, and an Experiment affects only Shots the photographer explicitly includes.
+A summoned Live Scene Session receives audio and low-rate camera frames, may offer a
+question or Variation, and can call a cell-ref guide tool. Scene conversation becomes
+load-bearing; longitudinal Evidence and type-specific Experiment Records remain the
+difference Pixel does not publicly describe.
 
 ### 2. GudoCam
 
@@ -169,7 +175,7 @@ Sources: [How PhotoCritique works](https://photocritique.ai/how-it-works),
 [current plan matrix](https://photocritique.ai/pricing).
 
 PhotoCritique is already shipping much of `docs/product.md` as product behavior.
-Shoots' Habit Profile, Intent, and Journey concepts should not be pitched as
+Shoots' Tendency Profile, Intent, and Journey concepts should not be pitched as
 market novelty until they exist and use more defensible measurements than a
 whole-Shot score.
 
@@ -221,11 +227,11 @@ publish its models, evaluator contract, or planning logic.
 
 Source: [PickEpic App Store listing](https://apps.apple.com/ca/app/pickepic/id6748054107).
 
-Shoots cannot use "Experiment, Judge, skill graph" as proof of novelty by themselves.
+Shoots cannot use "Experiment, Judge, Technique Map" as proof of novelty by themselves.
 The market already has challenges, submission judgments, progression, and
-unlocking. Shoots' distinction is autonomous assignment based on observed
-Evidence rather than a fixed tier map, plus a Judge whose authority is separate
-from the model that writes the assignment.
+unlocking. Shoots' distinction is a cited Experiment Direction based on the
+photographer's own Tendency rather than a fixed tier map, plus a Judge whose
+authority is separate from the model that writes the Experiment.
 
 ### 7. HauShot
 
@@ -291,22 +297,22 @@ Sources: [Aftershoot product page](https://aftershoot.com/),
 
 Aftershoot is the best benchmark for adaptation to style. It learns from the
 photographer's actual keep and edit decisions, not just model scores. Shoots'
-current skill graph tracks repeatable Technique Evidence. It does not yet learn
+current Technique Map tracks repeatable Technique Evidence. It does not yet learn
 the photographer's selection preferences or an emerging style.
 
 ## Capability snapshot
 
 | Capability | Shoots now | Strongest sampled benchmark | Honest result |
 |---|---|---|---|
-| Live viewfinder help | Measured zebras and thirds prototype | Pixel, GudoCam, HauShot | Shoots behind in usable camera coaching |
+| Live viewfinder help | Not in the Taskmaster build; Phone Source leaves the normal camera untouched | Pixel, GudoCam, HauShot | Shoots does not compete at immediate scene coaching |
 | Specialized perception | Three differently briefed readers plus measured EXIF, Tone, and Motion | GudoCam discloses local composition model; other internals unknown | Shoots has the most inspectable decomposition |
-| Longitudinal learning | Per-Technique reliability graph and remembered constraints | ShutterCoach Photo DNA; PhotoCritique Progress Coach; Aftershoot learned style | Shoots is differentiated in evidence discipline, not existence of memory |
-| Personalized assignment | Scout selects from observed skill state, prerequisites, recency, gear, location, and light | ShutterCoach personalized challenges; PickEpic tier unlocks; PhotoCritique Next Best Shot | Shoots has deeper documented selection logic |
+| Longitudinal learning | Whole-readable-archive Tendency Profile, Technique Map, exact Baselines, and provenance-scoped Change | ShutterCoach Photo DNA; PhotoCritique Progress Coach; Aftershoot learned style | Shoots is differentiated in evidence discipline, not existence of memory |
+| Personal Experiment | Scout selects a corroborated Technique from a marked Keeper, freezes the exact reference and Criteria, then applies recency, gear, location, and light constraints; no supported Keeper means silence | ShutterCoach personalized challenges; PickEpic tier unlocks; PhotoCritique Next Best Shot | Shoots differentiates on evidence and refusal, not curriculum depth |
 | Fixed verification | Pure EXIF checks plus bounded vision Evidence; model cannot change Verdict | Competitors advertise AI scores and challenge checks but do not publish authority boundaries | Shoots' clearest technical advantage |
 | Work in another system | Reviewed Shot written to Drive; push delivery | Aftershoot gallery delivery and creative-app workflow | Shoots has credible external action, but Aftershoot's finished work is easier to value |
-| Automatic background trigger | Drive Shot, scheduled tick, passed Experiment | None in this sample publicly describes an equivalent coaching trigger | Strong Shoots distinction |
+| Automatic background trigger | Drive Shot, scheduled tick, Criteria-met Experiment | None in this sample publicly describes an equivalent coaching trigger | Strong Shoots distinction |
 | Failure replan | Not implemented | Not publicly documented by the sampled coaches | Open opportunity, and the missing proof of adaptive agency |
-| Style learning | Not implemented | Aftershoot culling and editing profiles; Photo DNA and Style Fingerprint | Shoots behind |
+| Style and identity | Keeper-linked distributions exist; explicit style interpretation does not | Aftershoot culling and editing profiles; Photo DNA and Style Fingerprint | Shoots has an honest taste signal but not yet the identity layer |
 | Intent handling | Inferred Technique and current Experiment; proposed explicit Intent is not implemented | PhotoCritique lets the photographer declare special techniques and critique focus | Shoots can currently misread intentional rule-breaking |
 
 ## What this means for the hackathon story
@@ -317,10 +323,11 @@ authority and show it in motion:
 1. A Shot arrives without a prompt.
 2. Three expert readers disagree on a Technique.
 3. Measured Evidence vetoes or corroborates the claim.
-4. Cartographer updates only supported skill state.
-5. Judge applies Criteria that the feedback model cannot move.
-6. Scribe writes the reviewed Shot into Drive.
-7. A pass closes the Experiment and Scout issues the next one from the updated graph.
+4. Cartographer updates only supported Technique Evidence.
+5. Scout offers an Experiment only when the archive supports a Direction.
+6. Judge applies Criteria that the feedback model cannot move.
+7. Scribe writes the reviewed Shot into Drive; later comparable Shots leave a Change.
+8. Criteria met closes atomically and asks Scout again; unsupported advice is silence.
 
 The demo should expose the ActivityEvents and the exact Evidence behind the
 transition. That is what makes the system look intentional rather than like
@@ -338,7 +345,7 @@ Safe:
 
 > Shoots is an event-driven photography practice system. It separates visual
 > interpretation, measured Evidence, planning, verification, and external
-> action so no model can grade its own assignment.
+> action so no model can write an Experiment and declare its own success.
 
 > In the products reviewed here, none publicly documents Shoots' combination of
 > automatic Shot intake, multi-reader Evidence, fixed-criteria Verdicts, Drive

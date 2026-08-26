@@ -21,11 +21,11 @@ export default {
   <div class="border-b border-edge last:border-b-0">
     <button
       type="button"
-      class="flex w-full items-center gap-2 py-3 text-left text-[13px] text-neutral-400 hover:text-neutral-200"
+      class="flex w-full items-center gap-2 py-3.5 text-left text-[13px] text-neutral-400 transition hover:text-paper"
       @click="shown = !shown"
     >
       <span>{{ label }}</span>
-      <span v-if="count !== ''" class="t-num text-[11px] text-neutral-600">{{ count }}</span>
+      <span v-if="count !== ''" class="t-num text-[11px] text-muted">{{ count }}</span>
       <svg
         viewBox="0 0 24 24"
         class="ml-auto h-4 w-4 transition-transform"

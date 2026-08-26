@@ -119,7 +119,7 @@ export default {
         :y1="horizonY"
         :x2="grid.cols"
         :y2="horizonY"
-        stroke="#ffdc5a"
+        stroke="#f5f0e7"
         stroke-opacity="0.75"
         :stroke-width="stroke * 0.8"
       />
@@ -130,7 +130,7 @@ export default {
         :width="subject.w"
         :height="subject.h"
         fill="none"
-        stroke="#50c8ff"
+        stroke="#f5f0e7"
         stroke-opacity="0.8"
         :stroke-width="stroke * 0.8"
       />
@@ -139,7 +139,7 @@ export default {
         :cx="subjectPoint.x"
         :cy="subjectPoint.y"
         :r="stroke * 1.5"
-        fill="#50c8ff"
+        fill="#f5f0e7"
       />
 
       <!-- 3. one instruction -->
@@ -163,7 +163,7 @@ export default {
           :width="move.target.w"
           :height="move.target.h"
           fill="none"
-          stroke="#ff5a5a"
+          stroke="#f0b429"
           stroke-opacity="0.6"
           :stroke-width="stroke * 0.8"
           :stroke-dasharray="`${stroke * 2} ${stroke * 1.5}`"
@@ -173,11 +173,11 @@ export default {
           :y1="move.geo.start.y"
           :x2="move.geo.end.x"
           :y2="move.geo.end.y"
-          stroke="#ff5a5a"
+          stroke="#f0b429"
           :stroke-width="stroke * 1.2"
         />
-        <polygon :points="points(move.geo.head)" fill="#ff5a5a" />
-        <circle :cx="move.geo.start.x" :cy="move.geo.start.y" :r="stroke * 1.4" fill="#ff5a5a" />
+        <polygon :points="points(move.geo.head)" fill="#f0b429" />
+        <circle :cx="move.geo.start.x" :cy="move.geo.start.y" :r="stroke * 1.4" fill="#f0b429" />
       </g>
     </svg>
   </div>

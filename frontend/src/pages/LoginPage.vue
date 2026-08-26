@@ -33,33 +33,63 @@ export default {
 </script>
 
 <template>
-  <div class="col gutter flex h-full flex-col justify-center">
-    <p class="t-meta text-accent">Shoots</p>
-    <h1 class="mt-2 t-hero">A photography coach that watches, decides, and tells you when to go out.</h1>
-    <p class="mt-4 t-body text-neutral-300">
-      It reads the photos you already take, maps what you can do, and sets you one thing to try — timed to the
-      light where you shot last.
-    </p>
+  <div class="page-shell flex min-h-screen items-center py-10 sm:py-16">
+    <div class="grid w-full gap-10 lg:grid-cols-[1.1fr_0.9fr] lg:items-center lg:gap-20">
+      <section>
+        <p class="eyebrow text-accent">Shoots</p>
+        <h1 class="mt-4 max-w-xl t-hero sm:text-[54px]">Learn to see like yourself.</h1>
+        <p class="mt-5 max-w-lg text-[17px] leading-7 text-neutral-300">
+          Shoots learns from every Shot, offers one personal Experiment, and tracks what changes.
+        </p>
 
-    <button v-if="config.google" class="btn mt-10 w-full" @click="login">Continue with Google</button>
+        <div class="mt-9 grid gap-3 sm:grid-cols-3 lg:max-w-2xl">
+          <div class="surface-soft p-4">
+            <p class="eyebrow">Notice</p>
+            <p class="mt-2 text-sm leading-5 text-neutral-300">Patterns across your own Shots</p>
+          </div>
+          <div class="surface-soft p-4">
+            <p class="eyebrow">Try</p>
+            <p class="mt-2 text-sm leading-5 text-neutral-300">One bounded Experiment</p>
+          </div>
+          <div class="surface-soft p-4">
+            <p class="eyebrow">Remember</p>
+            <p class="mt-2 text-sm leading-5 text-neutral-300">Only Change the Evidence supports</p>
+          </div>
+        </div>
+      </section>
 
-    <form v-if="config.dev_login" class="mt-8 rounded-2xl bg-panel p-4" @submit.prevent="devLogin">
-      <p class="t-meta text-accent">Local development</p>
-      <p class="mt-1 t-meta">OAuth is not configured here, so sign-in is by email only.</p>
-      <div class="mt-3 flex gap-2">
-        <input
-          v-model="email"
-          type="email"
-          placeholder="you@company.com"
-          class="min-w-0 flex-1 rounded-xl border border-edge bg-panel-2 px-3 py-2.5 text-[15px] outline-none focus:border-edge-strong"
-        />
-        <button type="submit" :disabled="!email.includes('@')" class="btn-quiet px-4 py-2.5">Sign in</button>
-      </div>
-      <p v-if="error" class="mt-2 t-meta text-bad">{{ error }}</p>
-    </form>
+      <section class="surface p-5 sm:p-7">
+        <p class="eyebrow">Continue your Journey</p>
+        <h2 class="mt-3 text-2xl font-semibold tracking-[-0.03em] text-paper">Your archive becomes the memory.</h2>
+        <p class="mt-3 t-body">
+          Sign in to reconnect the Shots, Experiments, Keeper signals, and Evidence already tied to you.
+        </p>
 
-    <p v-if="!config.google && !config.dev_login" class="mt-8 t-body text-bad">
-      No sign-in method is configured. Set GOOGLE_CLIENT_ID, or ALLOW_DEV_LOGIN=true for local development.
-    </p>
+        <button v-if="config.google" class="btn mt-7 w-full" @click="login">
+          Continue with Google
+        </button>
+
+        <form v-if="config.dev_login" class="mt-6 border-t border-edge pt-6" @submit.prevent="devLogin">
+          <p class="eyebrow text-accent">Local development</p>
+          <p class="mt-2 t-meta">OAuth is unavailable here. This email creates a local session only.</p>
+          <input
+            v-model="email"
+            type="email"
+            placeholder="you@example.com"
+            class="mt-4 w-full rounded-xl border border-edge bg-panel-2 px-4 py-3 text-[15px] text-paper outline-none transition placeholder:text-neutral-600 focus:border-accent"
+          />
+          <button type="submit" :disabled="!email.includes('@')" class="btn mt-3 w-full">Enter Shoots</button>
+          <p v-if="error" class="mt-3 t-meta text-bad">{{ error }}</p>
+        </form>
+
+        <p v-if="!config.google && !config.dev_login" class="mt-7 rounded-xl border border-bad/40 bg-bad/10 p-4 t-body text-bad">
+          No sign-in method is configured. Set GOOGLE_CLIENT_ID, or ALLOW_DEV_LOGIN=true for local development.
+        </p>
+
+        <p class="mt-6 border-t border-edge pt-5 t-meta">
+          Shoots does not grade your eye. It separates measured Evidence, model opinion, and the Shots you choose to keep.
+        </p>
+      </section>
+    </div>
   </div>
 </template>

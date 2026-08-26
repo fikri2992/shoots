@@ -9,10 +9,21 @@ from app.domain.entities import (
     Exif,
     ExifRule,
     Experiment,
+    ExperimentType,
     Shot,
     ShotKind,
     TechniqueEvidence,
+    User,
 )
+from app.infra import repository as repo
+from app.infra.bus import InProcessBus
+from app.infra.drive import LocalDriveClient
+from app.infra.secrets import LocalTokenStore
+from app.infra.storage import LocalBlobStore
+from app.infra.store import InMemoryStore
+from app.services import judge as judge_service
+from app.services import scout as scout_service
+from app.services.context import Context
 
 T = 0.6
 
@@ -66,8 +77,8 @@ def test_passes_hard_first_then_vision():
     assert not judge.passes({"shutter_min_s": True}, {"long_exposure": 0.5}, T)
     # Bounds exist but EXIF is stripped: vision alone cannot pass it.
     assert not judge.passes({"shutter_min_s": None}, {"long_exposure": 0.9}, T)
-    # One checkable bound true, another unknown: still passes.
-    assert judge.passes({"shutter_min_s": True, "iso_min": None}, {"long_exposure": 0.9}, T)
+    # One unknown declared bound keeps the whole result unknown.
+    assert not judge.passes({"shutter_min_s": True, "iso_min": None}, {"long_exposure": 0.9}, T)
     # No bounds at all: vision decides.
     assert judge.passes({}, {"golden_hour": 0.7}, T)
     assert not judge.passes({}, {"golden_hour": 0.59}, T)
@@ -108,7 +119,7 @@ def test_submission_rule():
             experiment_id=experiment_id,
         )
 
-    assert judge.is_submission(shot(issued + timedelta(hours=1)), experiment)
+    assert not judge.is_submission(shot(issued + timedelta(hours=1)), experiment)
     assert not judge.is_submission(shot(issued - timedelta(hours=1)), experiment)
     assert judge.is_submission(shot(issued - timedelta(days=9), experiment_id="q1"), experiment)
     other = shot(issued + timedelta(hours=1), experiment_id="other")
@@ -148,3 +159,185 @@ def test_computed_findings_reach_the_feedback_prompt():
     ]
     text = feedback_prompt(experiment, False, {}, {}, analysis)
     assert "That softness is shake. (1/25 s at 85 mm)" in text
+
+
+async def test_missing_exif_and_panel_abstention_leave_experiment_open(tmp_path):
+    ctx = Context(
+        store=InMemoryStore(),
+        blobs=LocalBlobStore(tmp_path / "blobs"),
+        bus=InProcessBus(),
+        drive=LocalDriveClient(tmp_path),
+        tokens=LocalTokenStore(tmp_path / "tokens"),
+    )
+    await repo.put_user(ctx.store, User(id="u1", email="u@example.com"))
+    experiment = Experiment(
+        id="experiment_abstain",
+        user_id="u1",
+        technique_id="long_exposure",
+        title="Hold the light",
+        brief="Use a long shutter.",
+        why_now="Your own Shots support it.",
+        criteria=Criteria(
+            exif=ExifRule(shutter_min_s=1.0),
+            vision=["long_exposure"],
+            text=["Use a shutter of at least one second."],
+        ),
+        type=ExperimentType.REPRODUCE,
+    )
+    assert await repo.create_open_experiment(ctx.store, experiment)
+    shot = Shot(
+        id="shot_abstain",
+        user_id="u1",
+        kind=ShotKind.PHOTO,
+        drive_file_id="file_abstain",
+        filename="abstain.jpg",
+        mime_type="image/jpeg",
+        experiment_id=experiment.id,
+    )
+    await repo.put_shot(ctx.store, shot)
+    await repo.put_analysis(
+        ctx.store,
+        Analysis(
+            shot_id=shot.id,
+            user_id=shot.user_id,
+            model="reader",
+            prompt_version="prompt-a",
+            abstained="the visual readers disagreed",
+        ),
+    )
+
+    await judge_service.judge(ctx, {"shot_id": shot.id})
+
+    stored = await repo.get_experiment(ctx.store, experiment.id)
+    assert stored.status.value == "open"
+    assert stored.verdicts == []
+    assert stored.result_shot_ids == [shot.id]
+    events = await repo.list_events(ctx.store, "u1")
+    assert events[0].stage == "abstained"
+    assert events[0].detail["exif_checks"] == {"shutter_min_s": None}
+
+
+async def test_an_untagged_shot_never_becomes_an_open_experiment_submission(tmp_path):
+    ctx = Context(
+        store=InMemoryStore(),
+        blobs=LocalBlobStore(tmp_path / "blobs"),
+        bus=InProcessBus(),
+        drive=LocalDriveClient(tmp_path),
+        tokens=LocalTokenStore(tmp_path / "tokens"),
+    )
+    await repo.put_user(ctx.store, User(id="u1", email="u@example.com"))
+    experiment = Experiment(
+        id="experiment_free_camera",
+        user_id="u1",
+        technique_id="golden_hour",
+        type=ExperimentType.REPRODUCE,
+        title="Repeat the warm edge",
+        brief="Try the light you kept before.",
+        why_now="A Keeper supports it.",
+        criteria=Criteria(vision=["golden_hour"]),
+    )
+    assert await repo.create_open_experiment(ctx.store, experiment)
+    shot = Shot(
+        id="shot_free_camera",
+        user_id="u1",
+        kind=ShotKind.PHOTO,
+        filename="free.jpg",
+        mime_type="image/jpeg",
+    )
+    await repo.put_shot(ctx.store, shot)
+    await repo.put_analysis(
+        ctx.store,
+        Analysis(
+            shot_id=shot.id,
+            user_id=shot.user_id,
+            model="reader",
+            techniques=[TechniqueEvidence(technique_id="golden_hour", confidence=0.95)],
+        ),
+    )
+
+    await judge_service.judge(ctx, {"shot_id": shot.id})
+
+    stored_shot = await repo.get_shot(ctx.store, shot.id)
+    stored_experiment = await repo.get_experiment(ctx.store, experiment.id)
+    assert stored_shot.experiment_id == ""
+    assert stored_experiment.verdicts == []
+    assert stored_experiment.status.value == "open"
+
+
+async def test_reproduce_freezes_and_uses_one_exact_keeper_reference(tmp_path):
+    ctx = Context(
+        store=InMemoryStore(),
+        blobs=LocalBlobStore(tmp_path / "blobs"),
+        bus=InProcessBus(),
+        drive=LocalDriveClient(tmp_path),
+        tokens=LocalTokenStore(tmp_path / "tokens"),
+    )
+    first = Shot(
+        id="keeper_first",
+        user_id="u1",
+        kind=ShotKind.PHOTO,
+        filename="first.jpg",
+        mime_type="image/jpeg",
+        kept_at=datetime(2026, 8, 20, tzinfo=UTC),
+    )
+    strongest = Shot(
+        id="keeper_strongest",
+        user_id="u1",
+        kind=ShotKind.PHOTO,
+        filename="strongest.jpg",
+        mime_type="image/jpeg",
+        kept_at=datetime(2026, 8, 21, tzinfo=UTC),
+    )
+    result = Shot(
+        id="result",
+        user_id="u1",
+        kind=ShotKind.PHOTO,
+        filename="result.jpg",
+        mime_type="image/jpeg",
+    )
+    for shot in (first, strongest, result):
+        await repo.put_shot(ctx.store, shot)
+    await repo.put_analysis(
+        ctx.store,
+        Analysis(
+            shot_id=first.id,
+            user_id="u1",
+            model="reader",
+            techniques=[
+                TechniqueEvidence(
+                    technique_id="golden_hour", confidence=0.78, agreement=2
+                )
+            ],
+        ),
+    )
+    await repo.put_analysis(
+        ctx.store,
+        Analysis(
+            shot_id=strongest.id,
+            user_id="u1",
+            model="reader",
+            techniques=[
+                TechniqueEvidence(
+                    technique_id="golden_hour", confidence=0.93, agreement=3
+                )
+            ],
+        ),
+    )
+
+    patterns = await scout_service._keeper_patterns(ctx, "u1")
+    assert patterns["golden_hour"].count == 2
+    assert patterns["golden_hour"].reference_shot_id == strongest.id
+
+    experiment = Experiment(
+        id="reproduce_reference",
+        user_id="u1",
+        technique_id="golden_hour",
+        type=ExperimentType.REPRODUCE,
+        title="Repeat the light",
+        brief="Try the light again.",
+        why_now="A Keeper supports it.",
+        criteria=Criteria(vision=["golden_hour"]),
+        reference_shot_id=strongest.id,
+    )
+    reference = await judge_service._previous_best(ctx, result, experiment)
+    assert reference is not None and reference[0].id == strongest.id

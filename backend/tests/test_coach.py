@@ -58,7 +58,7 @@ def test_briefing_speaks_in_cells_and_technique_ids():
 
 def test_briefing_without_analysis_says_so():
     text = coach.briefing(shot(), None, None)
-    assert "has not read this frame" in text
+    assert "has not read this Shot" in text
 
 
 def test_events_from_server_message():

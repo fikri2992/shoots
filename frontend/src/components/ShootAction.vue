@@ -7,7 +7,7 @@ import { useShootsStore } from '@/stores/shoots'
  * The shutter, always attached to the experiment it answers. `capture="environment"`
  * opens the rear camera on a phone; on desktop it is a file picker.
  *
- * Every frame for an experiment goes through pre-flight first — the experiment's own
+ * Every Shot for an Experiment goes through pre-flight first — the Experiment's own
  * criteria read on a 640px preview in a few seconds — so a miss is reshot
  * where the user is standing rather than found out an hour later.
  */
@@ -27,7 +27,7 @@ export default {
       return this.busy === 'shoot' || this.busy === 'preflight'
     },
     text() {
-      if (this.busy === 'preflight') return 'Checking the frame…'
+      if (this.busy === 'preflight') return 'Checking the Shot…'
       if (this.busy === 'shoot') return 'Sending…'
       return this.label
     },
@@ -82,30 +82,31 @@ export default {
   </label>
 
   <Teleport to="body">
-    <div v-if="check" class="fixed inset-0 z-40 flex items-end justify-center bg-black/70 md:items-center md:p-4">
-      <div class="w-full max-w-[520px] rounded-t-3xl border-t border-edge bg-panel pb-[env(safe-area-inset-bottom)] md:rounded-3xl md:border">
+    <div v-if="check" class="fixed inset-0 z-40 flex items-end justify-center bg-black/76 md:items-center md:p-4">
+      <div class="w-full max-w-[540px] rounded-t-[28px] border-t border-edge bg-panel pb-[env(safe-area-inset-bottom)] shadow-2xl md:rounded-[28px] md:border">
+        <div class="mx-auto mt-3 h-1 w-10 rounded-full bg-edge-strong" />
         <div class="gutter pt-5">
-          <p class="t-meta text-accent">Before you send it</p>
-          <p class="t-hero mt-2">{{ check.say }}</p>
+          <p class="eyebrow text-accent">Before this becomes a Shot</p>
+          <p class="mt-3 text-[25px] leading-8 font-semibold tracking-[-0.03em] text-paper">{{ check.say }}</p>
         </div>
 
-        <ul class="gutter mt-5 space-y-3">
-          <li v-for="(c, i) in check.checks" :key="i" class="flex gap-3">
-            <span class="mt-0.5 shrink-0" :class="c.met ? 'text-good' : 'text-accent'">{{ c.met ? '✓' : '✗' }}</span>
+        <ul class="gutter mt-6 space-y-2">
+          <li v-for="(c, i) in check.checks" :key="i" class="flex gap-3 rounded-xl border border-edge bg-panel-2/50 p-3.5">
+            <span class="mt-0.5 shrink-0 text-[12px]" :class="c.met ? 'text-muted' : 'text-accent'">{{ c.met ? 'SEEN' : 'MOVE' }}</span>
             <span>
-              <span class="t-body" :class="c.met ? 'text-neutral-500' : 'text-neutral-100'">{{ c.criterion }}</span>
-              <span v-if="!c.met && c.fix" class="mt-0.5 block t-body text-neutral-400">{{ c.fix }}</span>
+              <span class="t-body" :class="c.met ? 'text-muted' : 'text-paper'">{{ c.criterion }}</span>
+              <span v-if="!c.met && c.fix" class="mt-1 block t-body text-accent">{{ c.fix }}</span>
             </span>
           </li>
         </ul>
 
         <p class="gutter mt-4 t-meta">
-          Read on a preview in {{ check.seconds }} s, before the upload. The full review runs after you send.
+          Temporary preview · {{ check.seconds }} s · no Shot created yet. Full Analysis begins only after you send.
         </p>
 
         <div class="gutter mt-6 mb-5 flex gap-3">
           <button type="button" class="btn flex-1" @click="again">Shoot again</button>
-          <button type="button" class="btn-quiet" @click="send(pending)">Send anyway</button>
+          <button type="button" class="btn-quiet px-4" @click="send(pending)">Use it anyway</button>
         </div>
       </div>
     </div>

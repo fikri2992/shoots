@@ -9,12 +9,10 @@ Most of it is renaming, but two entries are real decisions rather than
 substitutions, and both come out the same way: where the old shape cannot be
 read honestly, the migration keeps the evidence and drops the verdict.
 
-`rusty` does not survive as a state, and what it becomes matters: a Technique
-that decayed to `rusty` had *recurred* first, and decision 46 says time never
-un-observes what the Evidence saw. So it becomes `recurring`, and whether it
-is worth offering again is answered live by `technique_map.stale_ids` from
-`last_observed`. Reading it as anything less would let the migration itself
-demote work the photographer actually did.
+Old `solid` and `rusty` labels were partly score-derived. The current Map does
+not preserve their grade as recurrence: attempts and corroborated sightings
+are the authority. A row becomes `recurring` only when its own current counts
+meet that rule; otherwise it remains honestly `observed`.
 
 `TendencyGrade.moved` becomes a `Baseline` with no `Change` at all, for the
 reason given in `_experiment_record`: a two-state answer cannot say "I cannot
@@ -26,16 +24,17 @@ import asyncio
 import sys
 
 from app.config import settings
+from app.domain import technique_map
 from app.infra.store import FileStore
 
-#: Old Technique Map state → new. `practiced` and `attempted` were the same
-#: claim with different adjectives; `solid` and `rusty` both mean it recurred.
+#: Old Technique Map state → a provisional current noun. Counts below decide
+#: whether any observed row has enough corroboration to be recurring.
 STATUS = {
     "unexplored": "unobserved",
     "attempted": "observed",
     "practiced": "observed",
-    "solid": "recurring",
-    "rusty": "recurring",
+    "solid": "observed",
+    "rusty": "observed",
 }
 
 EXPERIMENT_STATUS = {"passed": "completed"}
@@ -58,10 +57,29 @@ async def main(dry_run: bool) -> None:
         old = row.get("status")
         if old in STATUS:
             row["status"] = STATUS[old]
-            changes.append(f"skill {key}: {old} -> {row['status']}")
+            changes.append(f"Technique state {key}: {old} -> {row['status']}")
+        attempts = int(row.get("attempts") or 0)
+        corroborated = int(row.get("corroborated") or 0)
+        expected = (
+            "recurring"
+            if attempts >= technique_map.RECURRING_MIN_ATTEMPTS
+            and corroborated >= technique_map.RECURRING_MIN_CORROBORATED
+            else "observed"
+            if attempts > 0
+            else "unobserved"
+        )
+        if row.get("status") != expected:
+            changes.append(
+                f"Technique state {key}: {row.get('status')} -> {expected} from Evidence counts"
+            )
+            row["status"] = expected
         if "last_practiced" in row:
             row["last_observed"] = row.pop("last_practiced")
-            changes.append(f"skill {key}: last_practiced -> last_observed")
+            changes.append(f"Technique state {key}: last_practiced -> last_observed")
+        for field in ("best_score", "last_score"):
+            if field in row:
+                row.pop(field)
+                changes.append(f"Technique state {key}: removed {field}")
 
     # Experiments: the collection and the outcome word.
     quests = raw.pop("quests", None)
@@ -90,6 +108,10 @@ async def main(dry_run: bool) -> None:
                 if "fault_id" in finding:
                     finding["finding_id"] = finding.pop("fault_id")
             changes.append(f"analysis {key}: faults -> findings ({len(row['findings'])})")
+        for field in ("score", "elements"):
+            if field in row:
+                row.pop(field)
+                changes.append(f"analysis {key}: removed {field}")
     for key, row in raw.get("shots", {}).items():
         if "keeper" in row:
             # True became a mark with no date; False was never a rejection and

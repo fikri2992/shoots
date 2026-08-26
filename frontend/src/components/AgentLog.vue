@@ -42,26 +42,32 @@ export default {
       const d = e.detail || {}
       switch (`${e.agent}.${e.stage}`) {
         case 'ingest.queued':
-          return `took in ${d.filename || 'a file'}`
+          return `took in ${d.filename || 'a file'}${d.source || d.via ? ` from ${d.source || d.via}` : ''}`
         case 'ingest.ingested':
           return `read the file · grid ${d.grid || ''}`
         case 'ingest.failed':
           return `could not read it: ${d.error}`
+        case 'ingest.retrying':
+          return `will retry the same Shot: ${d.error}`
         case 'analyst.analyzed': {
           const seen = (d.techniques || [])
             .filter((t) => t.agreement >= 2)
             .map((t) => t.id.replace(/_/g, ' '))
             .join(', ')
-          return seen ? `agreed on ${seen}` : 'read it; nothing corroborated'
+          return seen ? `agreed on ${seen}` : 'read it; nothing confirmed'
         }
         case 'cartographer.mapped':
           return (d.changes || [])
             .map((c) => `${c.technique_id.replace(/_/g, ' ')}: ${c.from} → ${c.to}`)
             .join(' · ')
+        case 'cartographer.map_unchanged':
+          return 'checked the Technique Map; no state changed'
         case 'judge.criteria_met':
           return `criteria met for ${d.technique_id?.replace(/_/g, ' ')}`
         case 'judge.criteria_not_met':
           return `not yet: ${d.technique_id?.replace(/_/g, ' ')}`
+        case 'judge.abstained':
+          return `abstained: ${d.reason}`
         case 'judge.preflight':
           return d.ready ? `pre-flight cleared it · ${d.say}` : `pre-flight said shoot again · ${d.say}`
         case 'scout.issued':
@@ -69,16 +75,20 @@ export default {
         case 'scout.delivered':
           return `sent it to your phone · ${d.timing || ''}`
         case 'scout.nothing_to_issue':
-          return 'found nothing it could ask for within your constraints'
+          return d.reason || 'found no supported Reproduce direction'
+        case 'scout.held':
+          return d.reason || 'kept the current Experiment open'
         case 'scout.change_checked':
           return `checked its own advice: ${d.state} · ${d.outcome}`
-        case 'director.storyboard':
-          return 'storyboarded the reference clip'
-        case 'director.clip_ready':
-          return `rendered the reference clip, ${d.seconds}s`
         case 'scribe.reviewed':
         case 'scribe.updated':
           return `wrote the review into Drive · ${d.name}`
+        case 'scribe.write_skipped':
+          return `finished without Drive write-back · ${d.reason}`
+        case 'pipeline.run_completed':
+          return `completed the background run · ${d.external_write ? 'Drive output written' : 'record updated'}`
+        case 'pipeline.run_terminal':
+          return 'stopped the run after a terminal media result'
         case 'coach.session':
           return `talked it through, ${d.turns} turn${d.turns === 1 ? '' : 's'} in ${d.seconds}s`
         case 'coach.issued_by_voice':
@@ -98,6 +108,8 @@ export default {
           return 'connected your Drive folder'
         case 'user.skipped':
           return `you skipped ${d.technique_id?.replace(/_/g, ' ')}`
+        case 'photographer.left':
+          return `you left ${d.technique_id?.replace(/_/g, ' ')} without a judgment`
         default:
           return ''
       }
@@ -113,7 +125,7 @@ export default {
       <span class="min-w-0 flex-1">
         <span class="t-body text-neutral-300">
           <span class="text-neutral-500">{{ r.agent }}</span>
-          <RouterLink v-if="r.shot_id" :to="{ name: 'frame', params: { shotId: r.shot_id } }" class="hover:text-neutral-100">
+          <RouterLink v-if="r.shot_id" :to="{ name: 'shot', params: { shotId: r.shot_id } }" class="hover:text-neutral-100">
             {{ r.line }}
           </RouterLink>
           <template v-else>{{ r.line }}</template>

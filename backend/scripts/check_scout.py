@@ -35,12 +35,12 @@ async def main(user_id: str | None) -> None:
     if not users:
         raise SystemExit("no users in the store; sign in to the dev server first")
     user = next((u for u in users if u.id == user_id), users[0])
-    skills = await repo.list_skills(store, user.id)
-    print(f"user {user.email}: {len(skills)} techniques attempted")
-    for s in sorted(skills, key=lambda s: s.technique_id):
+    states = await repo.list_technique_states(store, user.id)
+    print(f"user {user.email}: {len(states)} Techniques observed")
+    for state in sorted(states, key=lambda item: item.technique_id):
         print(
-            f"  {s.technique_id:22} {s.status.value:10} "
-            f"attempts={s.attempts} corroborated={s.corroborated}"
+            f"  {state.technique_id:22} {state.status.value:10} "
+            f"attempts={state.attempts} corroborated={state.corroborated}"
         )
 
     experiment = await scout.issue(ctx, user.id, force=True)

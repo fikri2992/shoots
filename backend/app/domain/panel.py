@@ -124,7 +124,7 @@ class Consensus:
     #: a critic, so an honest "I could not call this one" is worth more to them
     #: than a fluent answer that happens to be arbitrary.
     #:
-    #: Faults are unaffected: they are arithmetic, and stay true whatever the
+    #: Findings are unaffected: they are arithmetic, and stay true whatever the
     #: lenses disagreed about.
     abstained: str = ""
 

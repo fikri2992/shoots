@@ -1,9 +1,8 @@
-"""Pre-flight: the experiment's criteria checked on a preview, before upload.
+"""Explicit Companion Ask: visible Criteria checked on a temporary Scene Probe.
 
 One small call on a 640 px preview, answered in a few seconds, so the
-photographer reshoots on the spot instead of learning from a verdict at
-home. It checks only the experiment's SEEN criteria; the panel and the Judge do
-the real reading once the frame is sent.
+photographer can make one supported move while the decision is still open. The
+probe creates no Shot; the panel and Judge do the real reading after capture.
 """
 
 from google.adk.agents import LlmAgent
@@ -49,11 +48,57 @@ def prompt_for(experiment: Experiment, technique: Technique) -> str:
     )
 
 
+def bound_response(out: PreflightOut, criteria: list[str]) -> PreflightOut:
+    """Restore the declared Criteria and enforce one move after model output.
+
+    The model supplies the visual read and words. Code owns which Criteria were
+    asked, whether every one was checked, and the one-move product boundary.
+    Missing checks become unresolved rather than silently disappearing.
+    """
+    unused = list(out.checks)
+    ordered: list[CheckOut] = []
+    for criterion in criteria:
+        exact = next(
+            (
+                check
+                for check in unused
+                if check.criterion.strip().casefold() == criterion.casefold()
+            ),
+            None,
+        )
+        check = exact or (unused[0] if unused else None)
+        if check in unused:
+            unused.remove(check)
+        ordered.append(
+            CheckOut(
+                criterion=criterion,
+                met=check.met if check else False,
+                fix=check.fix.strip() if check and not check.met else "",
+            )
+        )
+
+    fixes = [check for check in ordered if check.fix]
+    if len(fixes) > 1:
+        say_words = set(out.say.casefold().split())
+        keep = max(fixes, key=lambda check: len(say_words & set(check.fix.casefold().split())))
+        for check in fixes:
+            if check is not keep:
+                check.fix = ""
+
+    ready = bool(ordered) and all(check.met for check in ordered)
+    say = out.say.strip()
+    if not say:
+        move = next((check.fix for check in ordered if check.fix), "")
+        say = move or "I cannot verify the visible Criteria from this preview."
+    return PreflightOut(checks=ordered, ready=ready, say=say)
+
+
 async def check(experiment: Experiment, technique: Technique, preview_jpeg: bytes) -> PreflightOut:
-    return await run_agent(
+    out = await run_agent(
         preflight_agent(),
         prompt=prompt_for(experiment, technique),
         images=[bytes_part(preview_jpeg, "image/jpeg")],
         schema=PreflightOut,
         user_id=experiment.user_id,
     )
+    return bound_response(out, experiment.criteria.text)

@@ -11,29 +11,24 @@ than about the photographer. There is no `solid`, because that grades a
 person; no `practiced`, because two sightings and three are the same claim
 with a different adjective; and no decay, because a Technique that recurred
 did recur, and a month of rain does not make that untrue. A photographer who
-would benefit from revisiting something is a *selection* question, answered by
-the Scout's ranking from ``last_observed``, not by a state that expires.
+would benefit from revisiting something is a *selection* question that still
+needs a supported Experiment Direction, not a state or timer that expires.
 
-Promotion reads the technique's own evidence and never the frame's score.
-``Analysis.score`` is one number for the whole photograph, so a frame
-demonstrating six techniques used to hand all six whatever the frame earned:
-measured over the corpus that put 32 of 37 skills at a best score of 8 or 9
-from 18 shots, and 16 of them at solid. The rubric will not separate them
-either — its five elements correlate at r = 0.89 and the weighted mean tracks
-``impact`` alone at 0.986 (docs/research-findings.md, §1 and §5).
+Promotion reads the Technique's own Evidence. Overall and element scores are
+not stored (decision 61), because one opinion about a whole Shot cannot
+measure every Technique visible inside it.
 
-What *is* about one technique is how the panel saw it: how many lenses agreed
-and how sure they were. So the map tracks reliability, which is what a skill
-graph is for, and makes no claim about quality, which it cannot measure.
+What *is* about one Technique is how the panel saw it: how many lenses agreed
+and how sure they were. The map tracks recurrence and makes no quality claim.
 """
 
-from datetime import datetime, timedelta
+from datetime import datetime
 
 from app.domain.entities import Analysis, TechniqueEvidence, TechniqueState, TechniqueStatus
 
 #: Evidence below this confidence does not count as an observation.
 MIN_CONFIDENCE = 0.6
-#: How many recent shot ids a skill remembers.
+#: How many recent Shot ids a Technique state remembers.
 SHOT_MEMORY = 10
 
 #: What corroboration means. The panel lets evidence through on two lenses *or*
@@ -61,14 +56,14 @@ def corroborated(evidence: TechniqueEvidence) -> bool:
 
 
 def apply_analysis(
-    skills: dict[str, TechniqueState],
+    states: dict[str, TechniqueState],
     analysis: Analysis,
     at: datetime,
     min_confidence: float = MIN_CONFIDENCE,
 ) -> list[TechniqueState]:
-    """Return the skills this analysis changed, already updated.
+    """Return the Technique states this Analysis changed, already updated.
 
-    ``skills`` is the user's current map keyed by technique id; techniques
+    ``states`` is the user's current map keyed by Technique id; Techniques
     missing from it are unobserved. Applying the same analysis twice is a
     no-op because the shot id is remembered.
     """
@@ -76,7 +71,7 @@ def apply_analysis(
     for evidence in analysis.techniques:
         if evidence.confidence < min_confidence:
             continue
-        state = skills.get(evidence.technique_id) or TechniqueState(
+        state = states.get(evidence.technique_id) or TechniqueState(
             user_id=analysis.user_id, technique_id=evidence.technique_id
         )
         if analysis.shot_id in state.shot_ids:
@@ -84,17 +79,17 @@ def apply_analysis(
         state.attempts += 1
         state.corroborated += corroborated(evidence)
         state.best_confidence = max(state.best_confidence, evidence.confidence)
-        state.last_score = analysis.score
-        state.best_score = max(state.best_score, analysis.score)
         state.last_observed = at
         state.shot_ids = [*state.shot_ids, analysis.shot_id][-SHOT_MEMORY:]
         state.status = _status_after_attempt(state)
-        skills[evidence.technique_id] = state
+        states[evidence.technique_id] = state
         changed.append(state)
     return changed
 
 
 def _status_after_attempt(state: TechniqueState) -> TechniqueStatus:
+    if state.attempts <= 0:
+        return TechniqueStatus.UNOBSERVED
     if (
         state.attempts >= RECURRING_MIN_ATTEMPTS
         and state.corroborated >= RECURRING_MIN_CORROBORATED
@@ -103,28 +98,17 @@ def _status_after_attempt(state: TechniqueState) -> TechniqueStatus:
     return TechniqueStatus.OBSERVED
 
 
-def stale_ids(
-    skills: dict[str, TechniqueState], now: datetime, after_days: int
-) -> set[str]:
-    """Techniques not seen for a while. Worth offering again, not a state.
+def normalise_state(state: TechniqueState) -> TechniqueState:
+    """Return a state whose label is supported by its own Evidence counts.
 
-    The record used to expire ``solid`` into ``rusty`` here, which said the
-    photographer had got worse at something while all that had actually
-    happened was time. What recurred still recurred; whether it is interesting
-    to revisit is the Scout's question, and this answers it without touching
-    what the record claims.
+    Old graded records could migrate a `solid` label while carrying no
+    corroboration count. The counts are the authority now: persistence may be
+    legacy, but no service or surface may repeat an impossible recurrence.
     """
-    changed: set[str] = set()
-    cutoff = now - timedelta(days=after_days)
-    for tid, state in skills.items():
-        last = state.last_observed
-        if last is not None and last.tzinfo is None:
-            last = last.replace(tzinfo=cutoff.tzinfo)  # older records from zone-less EXIF
-        if state.status is TechniqueStatus.RECURRING and last is not None and last < cutoff:
-            changed.add(tid)
-    return changed
+    expected = _status_after_attempt(state)
+    return state if state.status is expected else state.model_copy(update={"status": expected})
 
 
-def observed_ids(skills: dict[str, TechniqueState]) -> set[str]:
-    """Techniques the Evidence has seen at least once, for prerequisite checks."""
-    return {tid for tid, s in skills.items() if s.status is not TechniqueStatus.UNOBSERVED}
+def observed_ids(states: dict[str, TechniqueState]) -> set[str]:
+    """Techniques the Evidence has seen at least once."""
+    return {tid for tid, state in states.items() if state.status is not TechniqueStatus.UNOBSERVED}

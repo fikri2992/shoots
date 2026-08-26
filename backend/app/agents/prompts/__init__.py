@@ -24,3 +24,10 @@ def version(name: str) -> str:
     identical.
     """
     return hashlib.sha256(load(name).encode()).hexdigest()[:12]
+
+
+@cache
+def bundle_version(names: tuple[str, ...]) -> str:
+    """Digest a complete multi-prompt agent contract in stable name order."""
+    source = "\n".join(f"{name}\n{load(name)}" for name in sorted(names))
+    return hashlib.sha256(source.encode()).hexdigest()[:12]

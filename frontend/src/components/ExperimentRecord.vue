@@ -4,7 +4,7 @@ import VerdictNote from '@/components/VerdictNote.vue'
 
 /** How the three answers read, and how loudly. */
 const CHANGE = {
-  changed: { label: 'changed', tone: 'text-good' },
+  changed: { label: 'changed', tone: 'text-paper' },
   unchanged: { label: 'unchanged', tone: 'text-neutral-400' },
   'insufficient evidence': { label: 'not enough to say', tone: 'text-neutral-500' },
 }
@@ -33,7 +33,7 @@ export default {
     outcome() {
       const verdicts = this.experiment.verdicts || []
       if (verdicts.some((v) => v.criteria_met)) return 'criteria met'
-      return this.experiment.status === 'skipped' ? 'skipped' : this.experiment.status
+      return this.experiment.status === 'skipped' ? 'left under the old contract' : this.experiment.status
     },
     change() {
       const change = this.experiment.change
@@ -51,7 +51,13 @@ export default {
       return [...(this.experiment.verdicts || [])].reverse()
     },
     shotId() {
-      return this.attempts[0]?.shot_id || ''
+      return this.experiment.result_shot_ids?.at(-1) || this.attempts[0]?.shot_id || ''
+    },
+    referenceShotId() {
+      return this.experiment.reference_shot_id || ''
+    },
+    resultCount() {
+      return this.experiment.result_shot_ids?.length || this.attempts.length
     },
   },
 }
@@ -72,8 +78,18 @@ export default {
         <p class="mt-1 t-body text-neutral-300">{{ baseline.citation }}</p>
       </div>
 
+      <div v-if="referenceShotId">
+        <p class="t-meta text-neutral-500">Keeper fixed before the result</p>
+        <RouterLink
+          :to="{ name: 'shot', params: { shotId: referenceShotId } }"
+          class="mt-1 inline-block t-body text-neutral-300 hover:text-paper"
+        >
+          Open the exact reference Shot ▸
+        </RouterLink>
+      </div>
+
       <div v-if="experiment.criteria?.text?.length">
-        <p class="t-meta text-neutral-500">What counted as done</p>
+        <p class="t-meta text-neutral-500">Criteria declared before the result</p>
         <ul class="mt-1 space-y-1">
           <li v-for="(c, i) in experiment.criteria.text" :key="i" class="t-body text-neutral-300">
             {{ c }}
@@ -84,8 +100,12 @@ export default {
       <div v-if="attempts.length">
         <p class="t-meta text-neutral-500">What came back</p>
         <div class="mt-2 rounded-xl bg-panel-2 p-3"><VerdictNote :verdict="attempts[0]" /></div>
-        <p v-if="attempts.length > 1" class="mt-2 t-meta">{{ attempts.length }} attempts</p>
+        <p class="mt-2 t-meta">{{ resultCount }} explicit result Shot{{ resultCount === 1 ? '' : 's' }}</p>
       </div>
+
+      <p v-else-if="resultCount" class="t-body text-neutral-300">
+        {{ resultCount }} result Shot{{ resultCount === 1 ? '' : 's' }} recorded. No Verdict was created.
+      </p>
 
       <div v-if="change">
         <p class="t-meta text-neutral-500">In the shots since</p>
@@ -97,15 +117,16 @@ export default {
       <p v-else-if="baseline" class="t-meta text-neutral-600">Not checked yet.</p>
 
       <p v-if="sample" class="t-meta text-neutral-600">
-        Baseline computed from {{ sample.sample_size }} frames by {{ sample.calc_version }}.
+        Baseline computed from {{ sample.sample_size }} Shots by {{ sample.calc_version }}.
+        <template v-if="sample.inputs?.length"> Model-read dimensions trace to {{ sample.inputs.map((input) => `${input.model}/${input.prompt_version || 'legacy prompt'}`).join(', ') }}.</template>
       </p>
 
       <RouterLink
         v-if="shotId"
-        :to="{ name: 'frame', params: { shotId } }"
+        :to="{ name: 'shot', params: { shotId } }"
         class="inline-block t-meta text-neutral-400 hover:text-neutral-100"
       >
-        See the frame ▸
+        See the Shot ▸
       </RouterLink>
     </div>
   </DisclosureRow>

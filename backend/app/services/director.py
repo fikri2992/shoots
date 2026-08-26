@@ -1,11 +1,8 @@
-"""Director stage: ``experiment.issued`` → reference clip on the experiment.
+"""Optional legacy Director: manually generate a reference clip.
 
-The Scout says what to shoot; the Director shows it. A Veo clip of the
-technique lands on ``experiment.reference_clip`` as a blob the experiment card plays
-inline. Idempotent on the experiment: a second delivery finds the blob and stops.
-The clip is a nicety, so if the experiment was closed meanwhile nothing is
-generated, and a Veo failure raises: Pub/Sub retries, then dead-letters, and
-the experiment simply has no clip.
+A manually requested Veo clip may land on ``experiment.reference_clip``. No
+topic, subscription, Scout call, or core UI depends on it. The conditional
+write cannot revive a closed Experiment; an orphaned blob is deleted.
 """
 
 import logging
@@ -15,7 +12,7 @@ from app.config import settings
 from app.domain import taxonomy
 from app.domain.entities import ExperimentStatus
 from app.infra import repository as repo
-from app.infra.storage import quest_blob_path
+from app.infra.storage import experiment_blob_path
 from app.services.context import Context
 
 logger = logging.getLogger(__name__)
@@ -49,13 +46,15 @@ async def direct(
     )
 
     clip = await gen.clip(board.video_prompt)
-    path = quest_blob_path(experiment.user_id, experiment.id, "reference", "mp4")
+    path = experiment_blob_path(experiment.user_id, experiment.id, "reference", "mp4")
     await ctx.blobs.write(path, clip, "video/mp4")
 
-    # Re-read: the Judge may have closed the experiment while Veo was rendering.
-    experiment = await repo.get_experiment(ctx.store, experiment.id)
-    experiment.reference_clip = path
-    await repo.put_experiment(ctx.store, experiment)
+    # Atomic status gate: closing can race this exact write without being
+    # overwritten or resurrected by the stale Experiment object above.
+    if not await repo.attach_reference_clip_if_open(ctx.store, experiment.id, path):
+        await ctx.blobs.delete(path)
+        logger.info("director: %s closed while rendering; discarded clip", experiment.id)
+        return None
     await repo.record(
         ctx.store,
         experiment.user_id,

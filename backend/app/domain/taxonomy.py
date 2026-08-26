@@ -1,9 +1,9 @@
 """The technique catalogue: the finite vocabulary the whole product speaks.
 
 Every agent refers to techniques by ``id``. The Analyst may only tag ids from
-this list; the Scout may only issue experiments for ids from this list; the skill
-graph has exactly one node per id. Open-ended "discover a technique" is not a
-thing here, on purpose: a finite taxonomy is what makes the graph legible and
+this list; the Scout may only issue Experiments for ids from this list; the Technique
+Map has exactly one state per id. Open-ended "discover a Technique" is not a
+thing here, on purpose: a finite taxonomy is what makes the Map legible and
 the Judge checkable.
 
 Each technique carries two kinds of evidence:
@@ -13,8 +13,9 @@ Each technique carries two kinds of evidence:
 * ``cue``   — what the Analyst is told to look for in the frame. Soft evidence
   with a confidence, counted only above ``settings.judge_min_confidence``.
 
-``requires`` lists prerequisites. The Scout issues an experiment only when every
-prerequisite is at least *attempted*, so experiments climb rather than jump.
+``level`` and ``requires`` are legacy catalogue metadata retained for source
+organisation and integrity. They never gate Scout, the Technique Map, or UI
+(decision 58).
 """
 
 from dataclasses import dataclass, field
@@ -51,7 +52,7 @@ class Technique:
     id: str
     name: str
     family: Family
-    #: 1 = first week with a camera, 3 = deliberate practice.
+    #: Legacy source-order metadata only; never a model, planner, Map, or UI input.
     level: int
     #: What the Analyst looks for. Written for the model, in the second person.
     cue: str
@@ -650,16 +651,6 @@ def by_family(family: Family) -> list[Technique]:
     return [t for t in TECHNIQUES if t.family is family]
 
 
-def unlocked(attempted: set[str]) -> list[Technique]:
-    """Techniques whose prerequisites are all in ``attempted`` and which are not
-    themselves attempted yet. This is the Scout's candidate list."""
-    return [
-        t
-        for t in TECHNIQUES
-        if t.id not in attempted and all(req in attempted for req in t.requires)
-    ]
-
-
 #: Light window per technique (domain/timing.py): golden | blue | night | day.
 #: Not listed = any time. Kept here, not on the entries, so the whole timing
 #: policy is one table.
@@ -728,13 +719,20 @@ def validate() -> None:
                 raise TaxonomyError(
                     f"{t.id} (L{t.level}) requires harder {req} (L{BY_ID[req].level})"
                 )
-    # No cycles: every technique must be reachable from the empty set by repeated unlocking.
-    attempted: set[str] = set()
-    while True:
-        step = unlocked(attempted)
-        if not step:
-            break
-        attempted.update(t.id for t in step)
-    if len(attempted) != len(TECHNIQUES):
-        stuck = sorted(seen - attempted)
-        raise TaxonomyError(f"unreachable techniques (cycle?): {stuck}")
+    # Legacy requirement metadata remains internally consistent and acyclic.
+    visiting: set[str] = set()
+    visited: set[str] = set()
+
+    def visit(technique_id: str) -> None:
+        if technique_id in visited:
+            return
+        if technique_id in visiting:
+            raise TaxonomyError(f"requirement cycle at {technique_id}")
+        visiting.add(technique_id)
+        for required in BY_ID[technique_id].requires:
+            visit(required)
+        visiting.remove(technique_id)
+        visited.add(technique_id)
+
+    for technique_id in seen:
+        visit(technique_id)

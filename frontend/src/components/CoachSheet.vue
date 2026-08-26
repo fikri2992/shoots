@@ -5,7 +5,7 @@ import { useCoachStore } from '@/stores/coach'
 
 /**
  * The Coach, as a sheet over whatever the user was looking at — it is a
- * conversation about the frame on screen, not a place you navigate to.
+ * conversation about the Shot on screen, not a place you navigate to.
  * Typing works from the first second; the microphone is opt-in.
  */
 export default {
@@ -50,31 +50,34 @@ export default {
 <template>
   <Teleport to="body">
     <div v-if="open" class="fixed inset-0 z-40 flex items-end justify-center md:items-center md:p-6">
-      <div class="absolute inset-0 bg-black/70" @click="close" />
+      <div class="absolute inset-0 bg-black/76" @click="close" />
 
       <section
-        class="relative flex max-h-[82vh] w-full max-w-[560px] flex-col rounded-t-3xl border-t border-edge bg-panel md:rounded-3xl md:border"
+        class="relative flex max-h-[84vh] w-full max-w-[580px] flex-col rounded-t-[28px] border-t border-edge bg-panel shadow-2xl md:rounded-[28px] md:border"
       >
+        <div class="mx-auto mt-3 h-1 w-10 rounded-full bg-edge-strong md:hidden" />
         <header class="flex items-center gap-3 border-b border-edge px-5 py-4">
           <span
             class="h-2 w-2 rounded-full"
-            :class="speaking ? 'animate-pulse bg-accent' : status === 'live' ? 'bg-good' : 'bg-edge-strong'"
+            :class="speaking ? 'animate-pulse bg-accent' : status === 'live' ? 'bg-paper' : 'bg-edge-strong'"
           />
-          <h2 class="t-title">Coach</h2>
+          <div>
+            <p class="eyebrow">Shot Coach</p>
+            <h2 class="text-[17px] font-semibold text-paper">Ask about this read</h2>
+          </div>
           <span class="t-meta">{{ state }}</span>
-          <button type="button" class="ml-auto t-meta hover:text-neutral-200" @click="close">Close</button>
+          <button type="button" class="ml-auto t-meta hover:text-paper" @click="close">Close</button>
         </header>
 
         <div ref="scroll" class="min-h-24 flex-1 space-y-4 overflow-y-auto px-5 py-4">
-          <p v-if="!lines.length" class="t-body text-neutral-500">
-            It has the frame and the panel's read in front of it. Ask anything — or tell it what you do not have with
-            you, and it will remember for the next experiment.
+          <p v-if="!lines.length" class="rounded-2xl border border-edge bg-panel-2/45 p-4 t-body text-muted">
+            The Coach has this Shot, its Analysis, and the active Experiment. Ask one specific question, or state a constraint you want remembered.
           </p>
 
           <template v-for="(line, i) in lines" :key="i">
             <p v-if="line.role === 'tool'" class="t-meta">→ {{ line.text }}</p>
-            <p v-else-if="line.role === 'user' && line.text" class="t-body text-neutral-400">{{ line.text }}</p>
-            <p v-else class="t-body text-neutral-100">{{ line.text }}</p>
+            <p v-else-if="line.role === 'user' && line.text" class="ml-8 rounded-2xl border border-edge bg-panel-2 px-4 py-3 t-body text-neutral-300">{{ line.text }}</p>
+            <p v-else class="mr-8 rounded-2xl border border-edge bg-ink px-4 py-3 t-body text-paper">{{ line.text }}</p>
           </template>
 
           <p v-if="error" class="t-body text-bad">{{ error }}</p>
@@ -90,8 +93,8 @@ export default {
             v-model="typed"
             type="text"
             :disabled="!active"
-            placeholder="Ask about this frame"
-            class="min-w-0 flex-1 rounded-xl border border-edge bg-panel-2 px-4 py-3 text-[15px] text-neutral-100 placeholder:text-neutral-600"
+            placeholder="Ask about this Shot"
+            class="min-w-0 flex-1 rounded-xl border border-edge bg-panel-2 px-4 py-3 text-[15px] text-paper outline-none placeholder:text-neutral-600 focus:border-accent"
           />
           <button
             v-if="canMic && !listening"
@@ -109,7 +112,7 @@ export default {
             v-else-if="listening || muted"
             type="button"
             class="rounded-xl border px-3 py-3"
-            :class="muted ? 'border-edge-strong text-neutral-500' : 'border-good/50 text-good'"
+            :class="muted ? 'border-edge-strong text-neutral-500' : 'border-accent/50 text-accent'"
             :title="muted ? 'Unmute' : 'Mute'"
             @click="toggleMute"
           >

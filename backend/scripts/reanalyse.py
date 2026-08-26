@@ -5,7 +5,7 @@
 Stop the dev server first (two processes on one store.json lose writes).
 Only the Analyst stage runs, on a bare context with no bus subscribers, so
 the Cartographer does not count the same shot twice and no verdict moves.
-Afterwards, rebuild the skill graph from the new analyses:
+Afterwards, rebuild the Technique Map from the new Analyses:
 
     uv run python scripts/call_as_user.py POST api/techniques/rebuild
 """

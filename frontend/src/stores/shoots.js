@@ -14,9 +14,10 @@ export const useShootsStore = defineStore('shoots', {
     me: null, // User record (drive_folder_id tells us if Connect happened)
     experiment: null, // open experiment or null
     experiments: [],
-    skills: [],
+    techniques: [],
     shots: [], // [{ shot, analysis }]
     events: [],
+    runs: [], // durable per-Shot stage accounts; events only explain them
     loading: false,
     busy: '', // which action is in flight: connect | sync | issue | skip | shoot | preflight
     error: '',
@@ -26,29 +27,29 @@ export const useShootsStore = defineStore('shoots', {
     profile: null, // the Tendency Profile: what the photographer keeps doing
     journey: [], // Journey Updates, newest first
     pairCode: null, // { code, expires_in_seconds } while pairing a camera
-    seeding: null, // { done, total, name } while the first frames upload
+    seeding: null, // { done, total, name } while the first Shots upload
   }),
 
   getters: {
-    connected: (state) => Boolean(state.me?.drive_folder_id),
+    connected: (state) => Boolean(state.me),
     analysedShots: (state) => state.shots.filter((v) => v.analysis),
-    observed: (state) => state.skills.filter((s) => s.status !== 'unobserved'),
-    skillsByFamily: (state) => {
+    observed: (state) => state.techniques.filter((technique) => technique.status !== 'unobserved'),
+    techniquesByFamily: (state) => {
       const groups = {}
-      for (const node of state.skills) (groups[node.family] ||= []).push(node)
+      for (const node of state.techniques) (groups[node.family] ||= []).push(node)
       return groups
     },
     shotById: (state) => (id) => state.shots.find((v) => v.shot.id === id) || null,
     experimentById: (state) => (id) => state.experiments.find((q) => q.id === id) || null,
 
     /** Newest first by when we received it, not by when the camera says it was
-        taken: an old holiday photo dropped in today belongs at the top. */
-    frames: (state) =>
+        taken: an older holiday Shot dropped in today belongs at the top. */
+    orderedShots: (state) =>
       [...state.shots].sort((a, b) => (b.shot.ingested_at || '').localeCompare(a.shot.ingested_at || '')),
 
     /**
      * Still moving through the pipeline — the Now screen narrates these. Bounded
-     * in time: a frame the Analyst never got to must not pin the home screen on
+     * in time: a Shot the Analyst never got to must not pin the home screen on
      * "reading it now" for the rest of the week.
      */
     working: (state) =>
@@ -79,22 +80,24 @@ export const useShootsStore = defineStore('shoots', {
       this.loading = true
       this.error = ''
       try {
-        const [me, experiment, experiments, skills, shots, events, profile, journey] = await Promise.all([
+        const [me, experiment, experiments, techniques, shots, events, runs, profile, journey] = await Promise.all([
           api.get('/api/me'),
           api.get('/api/experiments/open'),
           api.get('/api/experiments?limit=20'),
           api.get('/api/techniques'),
           api.get('/api/shots?limit=100'),
-          api.get('/api/events?limit=60'),
+          api.get('/api/events?limit=100'),
+          api.get('/api/runs?limit=20'),
           api.get('/api/profile'),
           api.get('/api/journey?limit=10'),
         ])
         this.me = me
         this.experiment = experiment
         this.experiments = experiments
-        this.skills = skills
+        this.techniques = techniques
         this.shots = shots
         this.events = events
+        this.runs = runs
         this.profile = profile
         this.journey = journey
         this.lastEventAt = events[0]?.at || ''
@@ -108,21 +111,27 @@ export const useShootsStore = defineStore('shoots', {
     /** Cheap tick: only events and the open experiment; refetch the rest when something moved. */
     async poll() {
       try {
-        const events = await api.get('/api/events?limit=60')
+        const events = await api.get('/api/events?limit=100')
         const newest = events[0]?.at || ''
         if (newest !== this.lastEventAt) {
           this.events = events
           this.lastEventAt = newest
-          const [experiment, experiments, skills, shots] = await Promise.all([
+          const [experiment, experiments, techniques, shots, runs, profile, journey] = await Promise.all([
             api.get('/api/experiments/open'),
             api.get('/api/experiments?limit=20'),
             api.get('/api/techniques'),
             api.get('/api/shots?limit=100'),
+            api.get('/api/runs?limit=20'),
+            api.get('/api/profile'),
+            api.get('/api/journey?limit=10'),
           ])
           this.experiment = experiment
           this.experiments = experiments
-          this.skills = skills
+          this.techniques = techniques
           this.shots = shots
+          this.runs = runs
+          this.profile = profile
+          this.journey = journey
         }
       } catch {
         // a failed poll is not an error the user needs to see
@@ -185,6 +194,13 @@ export const useShootsStore = defineStore('shoots', {
       })
     },
 
+    leaveExperiment(id) {
+      return this.run('leave', async () => {
+        await api.post(`/api/experiments/${id}/leave`)
+        await this.fetchAll()
+      })
+    },
+
     /** On location: the experiment's criteria on a preview, before the upload. */
     preflight(file, experimentId) {
       return this.run('preflight', async () => {
@@ -199,17 +215,18 @@ export const useShootsStore = defineStore('shoots', {
       return this.run('shoot', async () => {
         const form = new FormData()
         form.append('file', file, file.name)
+        form.append('source_id', webSourceId(file))
         if (experimentId) form.append('experiment_id', experimentId)
-        const result = await api.postForm('/drive/shoot', form)
+        const result = await api.postForm('/api/ingress/shots', form)
         await this.poll()
         return result
       })
     },
 
     /**
-     * First run: a handful of frames in one go, so the agent has something to
+     * First run: a handful of Shots in one go, so the agent has something to
      * read before it is asked for an opinion. Sequential on purpose — each one
-     * goes through Drive, and the pipeline narrates them as they land.
+     * enters the same idempotent direct-ingress path as the Phone Source.
      */
     async seed(files) {
       this.error = ''
@@ -219,7 +236,8 @@ export const useShootsStore = defineStore('shoots', {
           this.seeding.name = file.name
           const form = new FormData()
           form.append('file', file, file.name)
-          await api.postForm('/drive/shoot', form)
+          form.append('source_id', webSourceId(file))
+          await api.postForm('/api/ingress/shots', form)
           this.seeding.done += 1
         }
         await this.fetchAll()
@@ -297,6 +315,10 @@ function urlBase64ToUint8Array(base64) {
   const padding = '='.repeat((4 - (base64.length % 4)) % 4)
   const raw = atob((base64 + padding).replace(/-/g, '+').replace(/_/g, '/'))
   return Uint8Array.from(raw, (c) => c.charCodeAt(0))
+}
+
+function webSourceId(file) {
+  return `web:${file.name}:${file.size}:${file.lastModified}`
 }
 
 if (import.meta.hot) {

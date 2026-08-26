@@ -14,8 +14,6 @@ whole point is a camera setting: if the experiment has bounds and none of them
 could be checked, vision alone is not enough.
 """
 
-from datetime import datetime
-
 from app.domain.entities import Analysis, Criteria, Exif, ExifRule, Experiment, Shot
 
 Check = bool | None
@@ -61,8 +59,31 @@ def passes(
         return False
     if any(conf < threshold for conf in vision_checks.values()):
         return False
-    # Bounds exist but nothing could be checked: vision alone is not enough.
-    return not exif_checks or any(v is True for v in exif_checks.values())
+    # Every declared bound must be known. Unknown is an abstention, not False.
+    return all(v is True for v in exif_checks.values())
+
+
+def abstention_reason(
+    criteria: Criteria,
+    exif_checks: dict[str, Check],
+    vision_checks: dict[str, float],
+    analysis: Analysis | None,
+    threshold: float,
+) -> str:
+    """Why the Criteria cannot honestly be settled, or an empty string."""
+    if any(value is False for value in exif_checks.values()):
+        return ""  # hard evidence has already settled the result
+    unknown = [name for name, value in exif_checks.items() if value is None]
+    if unknown:
+        return f"missing EXIF for {', '.join(unknown)}"
+    visual_unsettled = [
+        technique_id
+        for technique_id in criteria.vision
+        if vision_checks.get(technique_id, 0.0) < threshold
+    ]
+    if visual_unsettled and (analysis is None or analysis.abstained):
+        return analysis.abstained if analysis and analysis.abstained else "no visual reading"
+    return ""
 
 
 def evaluate(
@@ -74,17 +95,8 @@ def evaluate(
 
 
 def is_submission(shot: Shot, experiment: Experiment) -> bool:
-    """A shot answers the experiment if it was tagged for it, or added to the folder
-    after the experiment was issued (decision 6: the folder is the inbox)."""
-    if shot.experiment_id:
-        return shot.experiment_id == experiment.id
-    return _aware(shot.ingested_at) >= _aware(experiment.issued_at)
-
-
-def _aware(value: datetime) -> datetime:
-    from datetime import UTC
-
-    return value if value.tzinfo else value.replace(tzinfo=UTC)
+    """Only an explicit association makes a Shot an Experiment submission."""
+    return bool(shot.experiment_id) and shot.experiment_id == experiment.id
 
 
 def describe_checks(

@@ -40,6 +40,7 @@ from app.infra import repository as repo
 from app.infra.bus import TOPICS
 from app.infra.drive import DriveFile
 from app.infra.storage import GRIDDED, ORIGINAL, SHEET, THUMB, blob_path, extension_for
+from app.services import runs
 from app.services.context import Context
 
 logger = logging.getLogger(__name__)
@@ -69,6 +70,7 @@ async def sync(ctx: Context, user: User) -> list[Shot]:
             continue
         shot = new_shot(shot_id, user.id, file)
         await repo.put_shot(ctx.store, shot)
+        await runs.ensure(ctx, shot)
         await repo.record(
             ctx.store, user.id, AGENT, "queued", {"filename": file.name}, shot_id=shot.id
         )

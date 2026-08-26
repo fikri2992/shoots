@@ -7,6 +7,7 @@ belongs to the signed-in user by prefix alone.
 
 from pathlib import Path
 from typing import Protocol, runtime_checkable
+from urllib.parse import quote
 
 from app.config import settings
 
@@ -89,7 +90,20 @@ def content_type_for(path: str, data: bytes = b"") -> str:
 
 
 def user_prefix(user_id: str) -> str:
-    return f"users/{user_id}/"
+    # Dev identities contain ``:`` and emails contain characters Windows will
+    # not accept in a directory name. Production Google subjects are unchanged.
+    return f"users/{quote(user_id, safe='')}/"
+
+
+def requested_user_path(user_id: str, path: str) -> str:
+    """Map FastAPI's decoded path back to the encoded storage prefix."""
+    stored = user_prefix(user_id)
+    if path.startswith(stored):
+        return path
+    decoded = f"users/{user_id}/"
+    if path.startswith(decoded):
+        return stored + path.removeprefix(decoded)
+    return ""
 
 
 def blob_path(user_id: str, shot_id: str, kind: str, extension: str = "png") -> str:
@@ -97,7 +111,9 @@ def blob_path(user_id: str, shot_id: str, kind: str, extension: str = "png") -> 
     return f"{user_prefix(user_id)}shots/{shot_id}/{kind}.{extension}"
 
 
-def quest_blob_path(user_id: str, experiment_id: str, kind: str, extension: str = "mp4") -> str:
+def experiment_blob_path(
+    user_id: str, experiment_id: str, kind: str, extension: str = "mp4"
+) -> str:
     return f"{user_prefix(user_id)}experiments/{experiment_id}/{kind}.{extension}"
 
 

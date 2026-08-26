@@ -123,7 +123,7 @@ async def test_review_lands_in_the_folder_with_caption_and_verdict():
         assert len(list((Path(folder) / "Reviewed").glob("*.jpg"))) == 1
 
 
-async def test_review_without_quest_has_no_mark():
+async def test_review_without_experiment_has_no_mark():
     with tempfile.TemporaryDirectory() as folder:
         ctx = await seed(folder, with_verdict=False)
         file_id = await scribe.write_review(
@@ -221,9 +221,8 @@ def test_an_abstention_does_not_silence_the_arithmetic():
 def test_no_element_scores_reach_the_photographer():
     """Five bars that correlate at r = 0.89 print one number five times."""
     found = analysis_with(techniques=[("panning", 2)])
-    found.elements = {"impact": 7, "composition": 7, "lighting": 7, "technical": 8, "story": 6}
     body = " ".join(scribe.review_body(found, None, GRID))
-    for element in found.elements:
+    for element in ("impact", "composition", "lighting", "technical", "story"):
         assert element not in body.lower()
 
 
@@ -231,14 +230,14 @@ def test_no_element_scores_reach_the_photographer():
 
 
 def test_no_surface_the_photographer_reads_carries_a_score():
-    """Decision 46. The score is stored and read by nothing: not the filename,
-    not the caption, not the body. It used to fill the gap when a frame had
+    """Decision 61. No score is stored or reaches the filename, caption, or body.
+    It used to fill the gap when a Shot had
     nothing else to say, which made a number nobody should see the last word on
     a quiet frame."""
     from app.domain.entities import Shot, ShotKind
 
     quiet = analysis_with()
-    quiet.score = 9
+    assert "score" not in quiet.model_dump() and "elements" not in quiet.model_dump()
     shot = Shot(
         id="s1",
         user_id="u1",
@@ -265,7 +264,7 @@ def test_the_previous_frame_is_chosen_by_the_photographers_own_mark_not_by_a_num
     from app.domain.entities import Analysis, Shot, ShotKind, TechniqueEvidence
     from app.services.judge import _comparable_rank
 
-    def pair(sid, *, kept, agreement, score):
+    def pair(sid, *, kept, agreement):
         shot = Shot(
             id=sid,
             user_id="u1",
@@ -279,16 +278,15 @@ def test_the_previous_frame_is_chosen_by_the_photographers_own_mark_not_by_a_num
             shot_id=sid,
             user_id="u1",
             model="m",
-            score=score,
             techniques=[
                 TechniqueEvidence(technique_id="panning", confidence=0.9, agreement=agreement)
             ],
         )
         return (shot, found)
 
-    kept_but_low = pair("kept", kept=True, agreement=1, score=3)
-    scored_high = pair("scored", kept=False, agreement=1, score=10)
-    corroborated = pair("corroborated", kept=False, agreement=3, score=4)
+    kept_but_low = pair("kept", kept=True, agreement=1)
+    scored_high = pair("scored", kept=False, agreement=1)
+    corroborated = pair("corroborated", kept=False, agreement=3)
 
     ranked = sorted(
         [scored_high, corroborated, kept_but_low],

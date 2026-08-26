@@ -38,7 +38,7 @@ export default {
       this.openFor(this.verdict.shot_id, {
         opener: this.verdict.criteria_met
           ? 'What made this one work, and what would take it further?'
-          : 'Which of the criteria did this miss, and why? Point at the frame.',
+          : 'Which of the Criteria did this miss, and why? Point at the Shot.',
       })
     },
   },
@@ -50,7 +50,7 @@ export default {
     <!-- A Verdict answers the criteria the photographer declared in advance,
          and nothing else. "Passed" graded them for it. -->
     <p class="t-meta">
-      <span :class="verdict.criteria_met ? 'text-good' : 'text-accent'">
+      <span :class="verdict.criteria_met ? 'text-paper' : 'text-muted'">
         {{ verdict.criteria_met ? 'Criteria met' : 'Not yet' }}
       </span>
       <span v-if="title"> · {{ title }}</span>
@@ -59,12 +59,12 @@ export default {
 
     <div class="mt-3 flex flex-wrap items-center gap-4 t-meta">
       <button type="button" class="text-neutral-400 hover:text-neutral-100" @click="askWhy">Ask the Coach ▸</button>
-      <RouterLink :to="{ name: 'frame', params: { shotId: verdict.shot_id } }" class="hover:text-neutral-200">
-        See the frame ▸
+      <RouterLink :to="{ name: 'shot', params: { shotId: verdict.shot_id } }" class="hover:text-neutral-200">
+        See the Shot ▸
       </RouterLink>
       <RouterLink
         v-if="verdict.compared_with"
-        :to="{ name: 'frame', params: { shotId: verdict.compared_with } }"
+        :to="{ name: 'shot', params: { shotId: verdict.compared_with } }"
         class="hover:text-neutral-200"
       >
         Against your earlier one ▸

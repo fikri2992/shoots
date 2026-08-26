@@ -3,7 +3,7 @@
 A voice session is the one place the photographer talks *to* the planner.
 After each session the Listener pulls out standing facts (no tripod, shoots
 at lunch, walks everywhere) and they are merged into ``User.constraints``,
-which the Scout's ranking and brief respect from the next experiment on. Merge is
+which the Scout's selection and brief respect from the next Experiment on. Merge is
 pure and tested; extraction is a model call checked by
 ``scripts/check_listener.py``.
 """
@@ -12,7 +12,7 @@ import logging
 
 from app.agents import coach as agent
 from app.domain import taxonomy
-from app.domain.entities import Constraints, TechniqueStatus, now
+from app.domain.entities import Constraints, now
 from app.infra import repository as repo
 from app.services import scout
 from app.services.context import Context
@@ -79,7 +79,13 @@ async def run_tool(ctx: Context, user_id: str, name: str, args: dict) -> dict:
         reason = str(args.get("reason", "") or "").strip()[:200]
         if technique_id and technique_id not in taxonomy.BY_ID:
             return {"ok": False, "error": f"unknown technique id {technique_id}"}
-        experiment = await scout.issue(ctx, user_id, force=True, technique_id=technique_id)
+        experiment = await scout.issue(
+            ctx,
+            user_id,
+            force=True,
+            technique_id=technique_id,
+            requested_reason=reason,
+        )
         if experiment is None:
             return {"ok": False, "error": "nothing could be issued"}
         await repo.record(
@@ -116,9 +122,9 @@ async def run_tool(ctx: Context, user_id: str, name: str, args: dict) -> dict:
         )
         return {"ok": True, "missing_gear": merged.missing_gear, "notes": merged.notes}
     if name == "technique_map":
-        skills = await repo.list_skills(ctx.store, user_id)
+        states = await repo.list_technique_states(ctx.store, user_id)
         by_status: dict[str, list[str]] = {}
-        for state in skills:
+        for state in states:
             # How often the Evidence corroborated it, never a score. The Coach
             # speaks out loud, so a number handed to it here is a number the
             # photographer hears - and one frame demonstrating six Techniques
@@ -130,9 +136,7 @@ async def run_tool(ctx: Context, user_id: str, name: str, args: dict) -> dict:
             )
             seen = f" (seen {state.attempts}, confirmed {state.corroborated})"
             by_status.setdefault(state.status.value, []).append(name_or_id + seen)
-        observed = {s.technique_id for s in skills if s.status is not TechniqueStatus.UNOBSERVED}
-        unlocked = [t.name for t in taxonomy.unlocked(observed) if not t.video_only][:12]
-        return {"ok": True, "by_status": by_status, "unlocked_next": unlocked}
+        return {"ok": True, "by_status": by_status}
     return {"ok": False, "error": f"unknown tool {name}"}
 
 

@@ -34,7 +34,7 @@ def test_polar_day_is_flagged_not_crashed():
     assert sun_times(date(2026, 6, 21), 78.2, 15.6).polar
 
 
-def test_golden_quest_lands_before_sunset():
+def test_golden_experiment_lands_before_sunset():
     now = datetime(2026, 8, 23, 3, 0, tzinfo=UTC)  # 10:00 WIB
     t = timing.deliver_at(timing.GOLDEN, now, *BANDUNG)
     sun = sun_times(date(2026, 8, 23), *BANDUNG)

@@ -55,7 +55,7 @@ def feedback_prompt(
         )
         kept = ", one they marked a keeper" if prev_shot.kept_at else ""
         previous_text = (
-            f"Image 2 is their own earlier frame of this technique ({when}{kept}; "
+            f"Image 2 is their own earlier Shot using this Technique ({when}{kept}; "
             f"seen: {prev_seen or '-'}). Observations then:\n"
             + "\n".join(f"- {o}" for o in prev_analysis.observations[:6])
         )
@@ -93,7 +93,7 @@ async def feedback(
     previous: tuple[Shot, Analysis] | None = None,
     images: list[bytes] | None = None,
 ) -> FeedbackOut:
-    """``images``: the current gridded frame, then the previous best's, as PNG bytes."""
+    """``images``: the current gridded Shot, then the earlier reference, as PNG bytes."""
     return await run_agent(
         judge_agent(),
         prompt=feedback_prompt(

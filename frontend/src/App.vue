@@ -7,9 +7,9 @@ import { useAuthStore } from '@/stores/auth'
 import { useShootsStore } from '@/stores/shoots'
 
 /**
- * The shell. On a phone there is no top chrome at all: every screen owns its
- * own first line, and navigation lives in the thumb zone. The desktop gets a
- * slim bar because a bottom bar on a 1280px window is silly.
+ * Phone navigation stays in the thumb zone. Desktop gets a deliberate rail,
+ * leaving the content enough width for image evidence and prose to sit beside
+ * each other instead of stretching a phone column across an empty window.
  */
 export default {
   name: 'App',
@@ -50,32 +50,43 @@ export default {
 </script>
 
 <template>
-  <div class="flex min-h-full flex-col">
-    <header
+  <div class="min-h-full">
+    <aside
       v-if="isAuthenticated"
-      class="sticky top-0 z-20 hidden h-14 items-center justify-between border-b border-edge bg-ink/90 px-6 backdrop-blur md:flex"
+      class="fixed inset-y-0 left-0 z-30 hidden w-60 flex-col border-r border-edge bg-ink/94 px-5 py-7 backdrop-blur md:flex"
     >
-      <div class="flex items-center gap-6">
-        <RouterLink :to="{ name: 'now' }" class="font-semibold tracking-tight">Shoots</RouterLink>
-        <nav class="flex items-center gap-5 text-sm">
+      <RouterLink :to="{ name: 'now' }" class="block">
+        <span class="eyebrow text-accent">Shoots</span>
+        <span class="mt-2 block text-[20px] font-semibold tracking-[-0.03em] text-paper">Learn to see like yourself.</span>
+      </RouterLink>
+
+      <nav class="mt-10 space-y-1.5">
           <RouterLink
             v-for="item in nav"
             :key="item.name"
             :to="{ name: item.name }"
-            class="text-neutral-500 hover:text-neutral-100"
-            active-class="text-neutral-100"
+            class="flex items-center gap-3 rounded-xl border px-3 py-3 text-sm transition hover:bg-panel hover:text-paper"
+            :class="$route.name === item.name || ($route.name === 'shot' && item.name === 'shots') ? 'border-edge bg-panel text-paper' : 'border-transparent text-muted'"
           >
+            <span
+              class="h-1.5 w-1.5 rounded-full"
+              :class="$route.name === item.name || ($route.name === 'shot' && item.name === 'shots') ? 'bg-accent' : 'bg-edge-strong'"
+            />
             {{ item.label }}
           </RouterLink>
-        </nav>
-      </div>
-      <div class="flex items-center gap-4 t-meta">
-        <span>{{ displayName }}</span>
-        <button class="hover:text-neutral-200" @click="signOut">Sign out</button>
-      </div>
-    </header>
+      </nav>
 
-    <main class="flex-1">
+      <p class="mt-8 border-l border-edge pl-3 t-meta">
+        The Companion remembers every readable Shot. It speaks only when something is supported.
+      </p>
+
+      <div class="mt-auto border-t border-edge pt-4">
+        <p class="truncate text-sm text-neutral-300">{{ displayName }}</p>
+        <button class="mt-1 t-meta hover:text-paper" @click="signOut">Sign out</button>
+      </div>
+    </aside>
+
+    <main :class="isAuthenticated ? 'min-h-screen md:pl-60' : 'min-h-screen'">
       <RouterView />
     </main>
 

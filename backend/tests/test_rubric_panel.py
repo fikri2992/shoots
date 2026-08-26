@@ -140,7 +140,9 @@ def test_one_lens_is_enough_when_the_measurement_agrees():
     reads = [
         read("composer", ("pan", 0.5)),
         read("technician", ("shallow_dof", 0.3)),
-        read("storyteller",),
+        read(
+            "storyteller",
+        ),
     ]
     result = panel.aggregate(reads, settled_for=frozenset({"pan"}))
     found = {t.technique_id: t for t in result.techniques}
@@ -148,7 +150,7 @@ def test_one_lens_is_enough_when_the_measurement_agrees():
     assert found["pan"].lenses == ["composer", panel.MEASURED]
     assert found["pan"].agreement == 2
     # Measured, not estimated: a proof does not get less certain because the
-    # lens was only half sure. This is also what carries it past the skill
+    # lens was only half sure. This is also what carries it into the Technique
     # graph's corroboration bar.
     assert found["pan"].confidence == 1.0
 

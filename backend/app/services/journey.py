@@ -21,11 +21,11 @@ from app.domain.entities import (
     Experiment,
     ExperimentStatus,
     JourneyUpdate,
-    Provenance,
     TechniqueStatus,
     new_id,
 )
 from app.infra import repository as repo
+from app.services import profile as profile_service
 from app.services.context import Context
 
 logger = logging.getLogger(__name__)
@@ -40,18 +40,9 @@ MIN_SHOTS = 8
 #: Below this, the change is one shot's arithmetic and not a change in anybody.
 MOVED_BY = 0.05
 
-#: How many shots back to read. A tendency is about the whole body of work.
-CORPUS = 500
-
-#: How many Experiments back to look for one whose Change was measurable.
-EXPERIMENTS_BACK = 6
-
 
 async def profile_now(ctx: Context, user_id: str) -> tendency.Profile:
-    shots = await repo.list_shots(ctx.store, user_id, limit=CORPUS)
-    rows = [(shot, await repo.find_analysis(ctx.store, shot.id)) for shot in shots]
-    keepers = {shot.id for shot in shots if shot.kept_at}
-    return tendency.build(rows, keepers)
+    return await profile_service.build(ctx, user_id)
 
 
 async def maybe_write(ctx: Context, user_id: str) -> JourneyUpdate | None:
@@ -72,28 +63,58 @@ async def maybe_write(ctx: Context, user_id: str) -> JourneyUpdate | None:
     # instead - which is why the write is not suppressed below when it cannot
     # compare, or the profile would be stuck against a baseline it can never
     # legitimately diff.
-    comparable = previous is not None and previous.provenance.calc_version == profile.calc_version
+    current_ids = set(profile.shot_ids)
+    current_analysis_versions = dict(profile.analysis_versions)
+    previous_reads_unchanged = bool(previous and previous.provenance.analysis_versions) and all(
+        current_analysis_versions.get(shot_id) == digest
+        for shot_id, digest in (previous.provenance.analysis_versions.items() if previous else ())
+    )
+    comparable = (
+        previous is not None
+        and previous.provenance.calc_version == profile.calc_version
+        and bool(previous.provenance.shot_ids)
+        and set(previous.provenance.shot_ids) <= current_ids
+        and previous_reads_unchanged
+        and {(item.model, item.prompt_version) for item in previous.provenance.inputs}
+        == set(profile.model_inputs)
+    )
     since = _profile_at(previous if comparable else None)
     movements = (
         [m for m in tendency.diff(since, profile) if abs(m.delta) >= MOVED_BY or m.newly_used]
         if comparable
         else []
     )
-    skills = await repo.list_skills(ctx.store, user_id)
-    recurring = sorted(s.technique_id for s in skills if s.status is TechniqueStatus.RECURRING)
+    states = await repo.list_technique_states(ctx.store, user_id)
+    recurring = sorted(
+        state.technique_id for state in states if state.status is TechniqueStatus.RECURRING
+    )
     # Technique ids do not depend on the arithmetic, so this half stays a fair
     # comparison even when the counts do not.
     fresh = [t for t in recurring if t not in (previous.became_recurring if previous else [])]
+    retracted = sorted(set(previous.became_recurring if previous else []) - set(recurring))
 
-    if comparable and not movements and not fresh:
+    if comparable and not movements and not fresh and not retracted:
         return None
 
     # On a first update every bucket diffs against an empty profile, so every
     # one of them reads as newly used. That is arithmetic, not news, and
     # handing it to the writer as change would make the first paragraph a lie.
-    evidence = _evidence(profile, movements, fresh, await _last_change(ctx, user_id))
-    body = await agent.write(evidence, previous.body if previous else "", profile.taste_is_known)
+    evidence = _evidence(
+        profile,
+        movements,
+        fresh,
+        await _last_change(ctx, user_id),
+        retracted_recurring=retracted,
+    )
+    body = (
+        _correction_body(retracted)
+        if retracted
+        else await agent.write(evidence, previous.body if previous else "", profile.taste_is_known)
+    )
 
+    provenance = profile_service.provenance(profile)
+    provenance.model = settings.model_flash if body and not retracted else ""
+    provenance.prompt_version = prompts.version("journey") if body and not retracted else ""
     update = JourneyUpdate(
         id=new_id("journey"),
         user_id=user_id,
@@ -104,15 +125,7 @@ async def maybe_write(ctx: Context, user_id: str) -> JourneyUpdate | None:
         became_recurring=recurring,
         shots=profile.shots,
         taste_is_known=profile.taste_is_known,
-        provenance=Provenance(
-            shot_ids=list(profile.shot_ids),
-            sample_size=profile.shots,
-            calc_version=profile.calc_version,
-            # Only where a model actually contributed language. A figures-only
-            # update that lost its paragraph should not claim a model wrote it.
-            model=settings.model_flash if body else "",
-            prompt_version=prompts.version("journey") if body else "",
-        ),
+        provenance=provenance,
     )
     await repo.put_journey_update(ctx.store, update)
     await repo.record(
@@ -124,6 +137,7 @@ async def maybe_write(ctx: Context, user_id: str) -> JourneyUpdate | None:
             "shots": profile.shots,
             "widened": update.widened,
             "became_recurring": fresh,
+            "retracted_recurring": retracted,
             "evidence": len(evidence),
             "taste_is_known": profile.taste_is_known,
             "calc_version": profile.calc_version,
@@ -158,7 +172,9 @@ async def _last_change(ctx: Context, user_id: str) -> Experiment | None:
     measured. Anything the arithmetic declined to compare is left out: the
     paragraph is written from figures, and `insufficient evidence` is the
     absence of one."""
-    for experiment in await repo.list_experiments(ctx.store, user_id, limit=EXPERIMENTS_BACK):
+    for experiment in await repo.list_experiments(
+        ctx.store, user_id, limit=settings.journey_experiments_back
+    ):
         change = experiment.change
         if experiment.status is ExperimentStatus.OPEN or experiment.baseline is None:
             continue
@@ -172,6 +188,8 @@ def _evidence(
     movements: list[tendency.Movement],
     fresh_recurring: list[str],
     last_change: Experiment | None = None,
+    *,
+    retracted_recurring: list[str] | None = None,
 ) -> list[str]:
     """Every fact the writer is allowed to use, in plain sentences with their
     figures attached. Nothing about quality: the panel's score is not here, on
@@ -194,8 +212,8 @@ def _evidence(
     if dwell.readable:
         lines.append(
             f"scenes: {dwell.shots} shots across {dwell.scenes} scenes, "
-            f"{dwell.per_scene:.1f} frames each, longest {dwell.longest}"
-            + (" — usually one frame and on" if dwell.walks_on else " — stays with a scene")
+            f"{dwell.per_scene:.1f} Shots each, longest {dwell.longest}"
+            + (" — usually one Shot and on" if dwell.walks_on else " — stays with a Scene")
         )
 
     for movement in movements:
@@ -211,6 +229,13 @@ def _evidence(
         # or confidences, and it will happily repeat any that appear here.
         lines.append(f"now does reliably, seen and confirmed three separate times: {names}")
 
+    if retracted_recurring:
+        names = ", ".join(t.replace("_", " ") for t in retracted_recurring)
+        lines.append(
+            "system correction — the current corroboration counts no longer support "
+            f"calling these Techniques recurring: {names}"
+        )
+
     # Two facts side by side, never joined: what they were offered, and what
     # their counts did afterwards. The prompt forbids the word between them,
     # because nothing here can tell a followed suggestion from a coincidence.
@@ -222,15 +247,17 @@ def _evidence(
         )
 
     if profile.taste_is_known:
-        lines.append(f"{profile.keepers} shots marked as keepers by the photographer themselves.")
+        lines.append(f"{profile.keepers} Shots marked as Keepers by the photographer themselves.")
         for dim in tendency.DIMENSIONS:
             p = profile.dimensions[dim.id]
+            if p.readable_keepers < tendency.MIN_KEEPERS_FOR_TASTE:
+                continue
             for bucket in dim.buckets:
-                lift = p.keeper_lift(bucket, profile.keeper_rate, profile.keepers)
-                if lift is not None and lift >= 1.5:
+                marked = p.keepers.get(bucket, 0)
+                if marked:
                     lines.append(
-                        f"they keep {bucket} shots {lift:.1f} times as often as their average "
-                        f"({dim.label})"
+                        f"{marked} of {p.readable_keepers} readable marked Keepers are "
+                        f"{bucket} ({dim.label})"
                     )
     else:
         lines.append(
@@ -241,3 +268,15 @@ def _evidence(
     for spot in profile.blind_spots:
         lines.append(f"cannot see: {spot}")
     return lines
+
+
+def _correction_body(retracted: list[str]) -> str:
+    """Code-authored correction when Shoots' earlier label was too strong."""
+    examples = ", ".join(item.replace("_", " ") for item in retracted[:3])
+    more = f", and {len(retracted) - 3} others" if len(retracted) > 3 else ""
+    return (
+        f"Shoots corrected an earlier record: {examples}{more} no longer meet the current "
+        "corroboration rule for recurring Techniques. Their sightings remain observed, but the "
+        "Evidence does not support calling them repeatable yet. This corrects Shoots' "
+        "interpretation, not your eye."
+    )

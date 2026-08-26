@@ -27,7 +27,7 @@ export default {
     when() {
       return this.latest ? new Date(this.latest.created_at).toLocaleDateString() : ''
     },
-    /** Which frames, which arithmetic, and which model wrote the words. */
+    /** Which Shots, arithmetic, Analyst readings, and writer produced this. */
     provenance() {
       return this.latest?.provenance?.sample_size ? this.latest.provenance : null
     },
@@ -39,9 +39,9 @@ export default {
   <section v-if="latest">
     <p v-if="latest.body" class="t-hero text-balance text-neutral-100">{{ latest.body }}</p>
     <p v-else class="t-body text-neutral-400">
-      Read {{ latest.shots }} frames. The figures are below; the words did not come back this time.
+      Read {{ latest.shots }} Shots. The figures are below; the words did not come back this time.
     </p>
-    <p class="mt-3 t-meta">{{ when }} · from {{ latest.shots }} frames</p>
+    <p class="mt-3 t-meta">{{ when }} · from {{ latest.shots }} Shots</p>
 
     <div class="mt-5">
       <DisclosureRow label="What that was read from" :count="latest.evidence.length">
@@ -49,10 +49,15 @@ export default {
           <li v-for="line in latest.evidence" :key="line" class="t-meta text-neutral-400">{{ line }}</li>
         </ul>
         <p v-if="provenance" class="mt-4 t-meta text-neutral-600">
-          Computed from {{ provenance.sample_size }} frames by {{ provenance.calc_version }}<template
+          Computed from {{ provenance.sample_size }} Shots by {{ provenance.calc_version }}<template
             v-if="provenance.prompt_version"
           >, written by {{ provenance.model }} under prompt {{ provenance.prompt_version }}</template>.
-          The same frames under the same version give the same figures.
+          Deterministic dimensions replay from those Shots.
+          <template v-if="provenance.inputs?.length">
+            Placement and framing trace to
+            {{ provenance.inputs.map((input) => `${input.model}/${input.prompt_version || 'legacy prompt'}`).join(', ') }};
+            model readings may differ if regenerated.
+          </template>
         </p>
       </DisclosureRow>
 

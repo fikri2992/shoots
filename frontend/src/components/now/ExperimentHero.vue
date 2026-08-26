@@ -7,18 +7,16 @@ import VerdictNote from '@/components/VerdictNote.vue'
 import { useShootsStore } from '@/stores/shoots'
 
 const EXIF_LABELS = {
-  shutter_min_s: (v) => `shutter at least ${shutter(v)}`,
-  shutter_max_s: (v) => `shutter no slower than ${shutter(v)}`,
-  aperture_max: (v) => `aperture f/${v} or wider`,
-  aperture_min: (v) => `aperture f/${v} or narrower`,
-  iso_min: (v) => `ISO ${v} or higher`,
-  iso_max: (v) => `ISO ${v} or lower`,
-  focal_min_mm: (v) => `${v} mm or longer`,
-  focal_max_mm: (v) => `${v} mm or shorter`,
-  flash: (v) => (v ? 'flash must fire' : 'no flash'),
+  shutter_min_s: (value) => `shutter at least ${shutter(value)}`,
+  shutter_max_s: (value) => `shutter no slower than ${shutter(value)}`,
+  aperture_max: (value) => `aperture f/${value} or wider`,
+  aperture_min: (value) => `aperture f/${value} or narrower`,
+  iso_min: (value) => `ISO ${value} or higher`,
+  iso_max: (value) => `ISO ${value} or lower`,
+  focal_min_mm: (value) => `${value} mm or longer`,
+  focal_max_mm: (value) => `${value} mm or shorter`,
+  flash: (value) => (value ? 'flash must fire' : 'no flash'),
 }
-
-const RENDER_MINUTES = 10
 
 function shutter(seconds) {
   return seconds >= 1 ? `${seconds} s` : `1/${Math.round(1 / seconds)} s`
@@ -28,27 +26,14 @@ function clock(iso) {
   return new Date(iso).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
 }
 
-/**
- * The one thing to do today. Media first and full width, one title, the
- * criteria in plain sentences, and the shutter pinned in the thumb zone.
- * Everything that explains rather than instructs sits behind a disclosure.
- */
 export default {
   name: 'ExperimentHero',
   components: { DisclosureRow, ShootAction, VerdictNote },
   props: { experiment: { type: Object, required: true } },
-  data() {
-    return { muted: true }
-  },
   computed: {
-    ...mapState(useShootsStore, ['busy']),
-    clipUrl() {
-      return this.experiment.reference_clip ? `/api/blobs/${this.experiment.reference_clip}` : ''
-    },
-    /** The Director takes about a minute; after that, stop promising a clip. */
-    rendering() {
-      if (this.clipUrl || this.experiment.status !== 'open') return false
-      return (Date.now() - new Date(this.experiment.issued_at)) / 60000 < RENDER_MINUTES
+    ...mapState(useShootsStore, ['busy', 'shotById']),
+    supported() {
+      return this.experiment.type === 'reproduce' && Boolean(this.experiment.reference_shot_id)
     },
     technique() {
       return this.experiment.technique_id.replace(/_/g, ' ')
@@ -66,17 +51,16 @@ export default {
         .filter(([, value]) => value !== null && value !== undefined)
         .map(([key, value]) => EXIF_LABELS[key]?.(value) || `${key}: ${value}`)
     },
-    /** One line: when it lands, why then, how long is left. */
     when() {
-      const q = this.experiment
       const bits = []
-      if (q.timing) {
-        if (q.deliver_at && new Date(q.deliver_at) > Date.now()) bits.push(`Lands ${clock(q.deliver_at)}`)
-        bits.push(q.timing.reason)
-        if (q.timing.anchor_at) bits.push(`${q.timing.anchor} ${clock(q.timing.anchor_at)}`)
+      if (this.experiment.timing) {
+        if (this.experiment.deliver_at && new Date(this.experiment.deliver_at) > Date.now()) {
+          bits.push(`Lands ${clock(this.experiment.deliver_at)}`)
+        }
+        bits.push(this.experiment.timing.reason)
       }
-      if (q.status === 'open' && q.due_at) {
-        const days = Math.ceil((new Date(q.due_at) - Date.now()) / 86400000)
+      if (this.experiment.status === 'open' && this.experiment.due_at) {
+        const days = Math.ceil((new Date(this.experiment.due_at) - Date.now()) / 86400000)
         bits.push(days <= 0 ? 'due today' : `${days} day${days === 1 ? '' : 's'} left`)
       }
       return bits.filter(Boolean).join(' · ')
@@ -84,116 +68,137 @@ export default {
     attempts() {
       return [...(this.experiment.verdicts || [])].reverse()
     },
-    /**
-     * The measurement this was aimed at, shown verbatim rather than through
-     * the Scout's prose. `why_now` is a model's sentence and may paraphrase
-     * the figure away; the citation is arithmetic over their own frames, and
-     * it is the whole difference between this and generic advice.
-     */
-    citation() {
-      return this.experiment.baseline?.citation || ''
+    resultCount() {
+      return this.experiment.result_shot_ids?.length || 0
     },
-    change() {
-      return this.experiment.change
+    referenceView() {
+      return this.shotById(this.experiment.reference_shot_id)
     },
-    host() {
-      return (ref) => {
-        try {
-          const url = new URL(ref.url)
-          return url.hostname.startsWith('vertexaisearch') ? ref.title : url.hostname
-        } catch {
-          return ref.title
-        }
-      }
+    referenceThumb() {
+      const path = this.referenceView?.shot?.blobs?.thumb
+      return path ? `/api/blobs/${path}` : ''
     },
   },
   methods: {
-    ...mapActions(useShootsStore, ['skipExperiment']),
+    ...mapActions(useShootsStore, ['leaveExperiment']),
   },
 }
 </script>
 
 <template>
-  <article class="pb-32">
-    <div v-if="clipUrl" class="relative bg-black">
-      <video :src="clipUrl" class="mx-auto max-h-[46vh] w-full object-contain" autoplay loop playsinline :muted="muted" />
-      <p class="absolute bottom-3 left-3 rounded-full bg-black/70 px-3 py-1 t-num text-[11px] text-neutral-400">
-        what it looks like · Veo
+  <article class="page-shell pb-28 pt-7 md:pb-12 md:pt-10">
+    <header class="flex items-end justify-between gap-5">
+      <div>
+        <p class="eyebrow">Now</p>
+        <p class="mt-1 text-sm text-muted">One optional Experiment. Free Shots remain free.</p>
+      </div>
+      <p class="hidden max-w-xs text-right t-meta sm:block">The Companion waits until you choose to use it.</p>
+    </header>
+
+    <section v-if="!supported" class="surface mt-7 p-6 sm:p-8">
+      <p class="eyebrow text-accent">Legacy Experiment</p>
+      <h1 class="mt-4 max-w-2xl t-hero">This old Experiment used the retired contract.</h1>
+      <p class="mt-5 max-w-2xl t-body text-neutral-300">
+        Shoots will not grade an Explore as though it were Reproduce. Leave it, then Scout will wait for a marked Keeper that supports an honest result.
       </p>
-      <button
-        type="button"
-        class="absolute bottom-3 right-3 rounded-full bg-black/70 px-3 py-1 t-num text-[11px] text-neutral-200"
-        @click="muted = !muted"
-      >
-        {{ muted ? 'sound off' : 'sound on' }}
+      <button class="btn mt-7" :disabled="busy === 'leave'" @click="leaveExperiment(experiment.id)">
+        {{ busy === 'leave' ? 'Leaving…' : 'Leave this Experiment' }}
       </button>
-    </div>
+    </section>
 
-    <div class="col gutter">
-      <p v-if="rendering" class="pt-5 t-meta text-accent">The Director is rendering a reference clip…</p>
+    <div v-else class="mt-7 grid gap-5 lg:grid-cols-[minmax(0,1.25fr)_minmax(320px,0.75fr)] lg:items-start">
+      <section class="surface-active overflow-hidden">
+        <div class="h-1 bg-accent" />
+        <div class="p-5 sm:p-7 lg:p-9">
+          <div class="flex flex-wrap items-center justify-between gap-2">
+            <p class="eyebrow text-accent">Reproduce · {{ technique }}</p>
+            <p v-if="when" class="t-meta">{{ when }}</p>
+          </div>
+          <h1 class="mt-5 max-w-3xl t-hero lg:text-[48px]">{{ experiment.title }}</h1>
 
-      <p class="pt-6 t-meta">{{ experiment.status === 'open' ? 'Today' : 'Experiment' }} · {{ technique }}</p>
-      <h1 class="mt-1 t-hero">{{ experiment.title }}</h1>
-      <p v-if="citation" class="mt-2 t-body text-neutral-400">Your own work: {{ citation }}</p>
-      <p v-if="when" class="mt-2 t-meta text-accent">{{ when }}</p>
+          <RouterLink
+            v-if="referenceView"
+            :to="{ name: 'shot', params: { shotId: experiment.reference_shot_id } }"
+            class="mt-7 grid overflow-hidden rounded-2xl border border-edge bg-panel-2 sm:grid-cols-[150px_1fr]"
+          >
+            <img v-if="referenceThumb" :src="referenceThumb" alt="" class="h-40 w-full object-cover sm:h-full" />
+            <span class="p-4 sm:p-5">
+              <span class="eyebrow">The Keeper to repeat</span>
+              <span class="mt-2 block text-[17px] leading-6 text-paper">{{ referenceView.shot.filename }}</span>
+              <span class="mt-2 block t-meta">This exact Shot was fixed before any result.</span>
+            </span>
+          </RouterLink>
 
-      <ul class="mt-6 space-y-2">
-        <li v-for="(c, i) in criteria" :key="i" class="flex gap-3 t-body">
-          <span class="mt-2 h-1 w-1 shrink-0 rounded-full bg-neutral-600" />
-          <span>{{ c }}</span>
-        </li>
-      </ul>
-      <p v-if="cameraRules.length" class="mt-3 t-meta">Camera: {{ cameraRules.join(' · ') }}</p>
+          <div class="mt-8 border-t border-edge pt-7">
+            <p class="eyebrow">Declared before the result</p>
+            <ol class="mt-4 space-y-3">
+              <li v-for="(criterion, index) in criteria" :key="index" class="flex gap-4 rounded-xl bg-panel-2/55 px-4 py-3.5">
+                <span class="t-num text-[12px] text-accent">0{{ index + 1 }}</span>
+                <span class="t-body text-paper">{{ criterion }}</span>
+              </li>
+            </ol>
+            <p v-if="cameraRules.length" class="mt-4 t-meta">Measured from EXIF: {{ cameraRules.join(' · ') }}</p>
+          </div>
 
-      <div v-if="attempts.length" class="mt-8 rounded-2xl bg-panel p-4">
-        <VerdictNote :verdict="attempts[0]" />
-        <p v-if="attempts.length > 1" class="mt-3 t-meta">{{ attempts.length }} attempts so far</p>
-      </div>
+          <div v-if="attempts.length" class="mt-7 surface-soft p-4">
+            <p class="eyebrow mb-3">Latest result</p>
+            <VerdictNote :verdict="attempts[0]" />
+            <p v-if="resultCount > 1" class="mt-3 t-meta">{{ resultCount }} explicit result Shots recorded</p>
+          </div>
+        </div>
+      </section>
 
-      <div class="mt-8">
-        <DisclosureRow label="How to shoot it" :count="steps.length">
-          <ol class="space-y-3">
-            <li v-for="(step, i) in steps" :key="i" class="flex gap-3 t-body">
-              <span class="w-4 shrink-0 t-num text-[12px] text-neutral-600">{{ i + 1 }}</span>
-              <span>{{ step }}</span>
-            </li>
-          </ol>
-        </DisclosureRow>
+      <aside class="surface p-5 sm:p-6 lg:sticky lg:top-7">
+        <p class="eyebrow text-accent">One move</p>
+        <p class="mt-3 text-[20px] leading-7 font-medium text-paper">
+          {{ steps[0] || 'Make the same decision again, deliberately.' }}
+        </p>
 
-        <DisclosureRow label="Why the Scout picked this">
-          <p class="t-body">{{ experiment.why_now }}</p>
-          <p v-if="citation" class="mt-2 t-meta text-neutral-500">Measured before it was set: {{ citation }}</p>
-        </DisclosureRow>
+        <div v-if="experiment.status === 'open'" class="mt-6 hidden lg:block">
+          <ShootAction :experiment-id="experiment.id" label="Use a Shot as the result" />
+          <button
+            type="button"
+            class="mt-2 w-full py-2 text-center t-meta hover:text-paper"
+            :disabled="busy === 'leave'"
+            @click="leaveExperiment(experiment.id)"
+          >
+            {{ busy === 'leave' ? 'Leaving…' : 'Leave without a judgment' }}
+          </button>
+        </div>
 
-        <DisclosureRow v-if="change" label="In the shots since">
-          <p class="t-body text-neutral-300">{{ change.outcome }}</p>
-          <p class="mt-2 t-meta text-neutral-600">
-            {{ change.state }} — counts either side, compared by code. It does not show that the
-            experiment caused it.
-          </p>
-        </DisclosureRow>
-
-        <DisclosureRow v-if="experiment.references.length" label="What it read" :count="experiment.references.length">
-          <ul class="space-y-2">
-            <li v-for="(ref, i) in experiment.references" :key="i">
-              <a :href="ref.url" target="_blank" rel="noopener" class="t-body text-neutral-400 hover:text-neutral-100">
-                {{ host(ref) }} ↗
-              </a>
-            </li>
-          </ul>
-        </DisclosureRow>
-      </div>
+        <div class="mt-7 border-t border-edge pt-2">
+          <DisclosureRow label="The full approach" :count="steps.length">
+            <ol class="space-y-3">
+              <li v-for="(step, index) in steps" :key="index" class="flex gap-3 t-body">
+                <span class="w-4 shrink-0 t-num text-[11px] text-muted">{{ index + 1 }}</span>
+                <span>{{ step }}</span>
+              </li>
+            </ol>
+          </DisclosureRow>
+          <DisclosureRow label="Why Scout chose it">
+            <p class="t-body">{{ experiment.why_now }}</p>
+          </DisclosureRow>
+          <DisclosureRow v-if="experiment.references?.length" label="Sourced Inspiration" :count="experiment.references.length">
+            <ul class="space-y-2">
+              <li v-for="reference in experiment.references" :key="reference.url">
+                <a :href="reference.url" target="_blank" rel="noopener" class="t-body text-neutral-400 hover:text-paper">
+                  {{ reference.title }} ↗
+                </a>
+              </li>
+            </ul>
+          </DisclosureRow>
+        </div>
+      </aside>
     </div>
 
     <div
-      v-if="experiment.status === 'open'"
-      class="sticky bottom-16 z-10 mt-10 border-t border-edge bg-ink/95 backdrop-blur md:bottom-0"
-      style="padding-bottom: calc(0.75rem + env(safe-area-inset-bottom))"
+      v-if="supported && experiment.status === 'open'"
+      class="fixed inset-x-0 bottom-[68px] z-20 border-t border-edge bg-ink/96 px-5 py-3 backdrop-blur-xl lg:hidden"
     >
-      <div class="col gutter flex items-center gap-3 pt-3">
-        <div class="flex-1"><ShootAction :experiment-id="experiment.id" label="Shoot for this" /></div>
-        <button type="button" class="btn-quiet px-4" :disabled="busy === 'skip'" @click="skipExperiment(experiment.id)">
-          Skip
+      <div class="mx-auto flex max-w-lg items-center gap-3">
+        <div class="flex-1"><ShootAction :experiment-id="experiment.id" label="Use a result Shot" /></div>
+        <button class="btn-quiet px-4" :disabled="busy === 'leave'" @click="leaveExperiment(experiment.id)">
+          Leave
         </button>
       </div>
     </div>

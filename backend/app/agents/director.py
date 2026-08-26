@@ -54,7 +54,7 @@ def director_agent() -> LlmAgent:
 def storyboard_prompt(technique: Technique, experiment: Experiment) -> str:
     criteria = "\n".join(f"- {c}" for c in experiment.criteria.text) or "- (none)"
     return (
-        f"Technique: {technique.name} ({technique.family.value}, level {technique.level})\n"
+        f"Technique: {technique.name} ({technique.family.value})\n"
         f"Recognised by: {technique.cue}\n\n"
         f"Experiment: {experiment.title}\n"
         f"Brief:\n{experiment.brief}\n\n"

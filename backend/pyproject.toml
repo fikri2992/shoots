@@ -1,7 +1,7 @@
 [project]
 name = "shoots"
 version = "0.1.0"
-description = "Shoots — an autonomous photography coach that watches your Drive, maps your skills, and issues quests"
+description = "Shoots learns from every Shot, offers one personal Experiment, and tracks what changes"
 requires-python = ">=3.12"
 dependencies = [
     # Upper bound on purpose: SequentialAgent and ParallelAgent, which are the

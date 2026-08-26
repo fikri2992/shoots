@@ -91,7 +91,7 @@ def test_one_frame_cannot_carry_a_change():
 
 
 def test_shots_that_the_dimension_cannot_read_are_reported_as_shots():
-    """Height needs the Shoots camera's pitch and light needs GPS, so a whole
+    """Height needs recorded pitch and light needs GPS, so a whole
     import can leave a dimension's counts untouched. The frames still happened:
     telling someone who shot forty that they shot none is the exact failure the
     module exists to avoid."""
@@ -125,9 +125,7 @@ def test_only_a_sample_that_can_still_grow_is_left_open():
     )
     from app.domain.entities import Change
 
-    stale = Change(
-        state=ChangeState.INSUFFICIENT, comparability=Comparability.DIFFERENT_ARITHMETIC
-    )
+    stale = Change(state=ChangeState.INSUFFICIENT, comparability=Comparability.DIFFERENT_ARITHMETIC)
     settled = tendency.change(
         PLACEMENT, at_issue={"centred": 12}, now_counts={"centred": 20}, shots_since=8
     )
@@ -213,7 +211,7 @@ def test_a_change_is_reproducible_from_counts_alone():
 
 
 async def context():
-    from app.domain.entities import User
+    from app.domain.entities import Analysis, Composition, GridSpec, Shot, ShotKind, User
     from app.infra import repository as repo
     from app.infra.bus import InProcessBus
     from app.infra.store import InMemoryStore
@@ -221,16 +219,51 @@ async def context():
 
     ctx = Context(store=InMemoryStore(), blobs=None, bus=InProcessBus(), drive=None, tokens=None)
     await repo.put_user(ctx.store, User(id="u1", email="u@x", drive_folder_id="local"))
+    for index in range(18):
+        shot_id = f"baseline_{index}"
+        await repo.put_shot(
+            ctx.store,
+            Shot(
+                id=shot_id,
+                user_id="u1",
+                kind=ShotKind.PHOTO,
+                drive_file_id=shot_id,
+                filename=f"{shot_id}.jpg",
+                mime_type="image/jpeg",
+                grid=GridSpec(cols=8, rows=6, width=800, height=600),
+            ),
+        )
+        await repo.put_analysis(
+            ctx.store,
+            Analysis(
+                shot_id=shot_id,
+                user_id="u1",
+                model="reader",
+                composition=Composition(subject_x=0.5, subject_y=0.5, subject_cells=["D3"]),
+            ),
+        )
     return ctx
 
 
 def experiment(eid: str, *, version: str, sample: int = 18):
     from app.domain.entities import (
+        Analysis,
         Baseline,
+        Composition,
         Criteria,
         Experiment,
         ExperimentStatus,
+        ModelProvenance,
         Provenance,
+    )
+
+    read_version = tendency.model_read_version(
+        Analysis(
+            shot_id="baseline",
+            user_id="u1",
+            model="reader",
+            composition=Composition(subject_x=0.5, subject_y=0.5, subject_cells=["D3"]),
+        )
     )
 
     return Experiment(
@@ -244,10 +277,16 @@ def experiment(eid: str, *, version: str, sample: int = 18):
         status=ExperimentStatus.COMPLETED,
         baseline=Baseline(
             source="placement",
-            citation="10 of 10 readable shots: centred",
-            at_issue={"centred": 10},
+            citation=f"{sample} of {sample} readable Shots: centred",
+            at_issue={"centred": sample} if sample else {"centred": 10},
             calc_version=version,
-            provenance=Provenance(sample_size=sample, calc_version=version),
+            provenance=Provenance(
+                shot_ids=[f"baseline_{index}" for index in range(sample)],
+                sample_size=sample,
+                calc_version=version,
+                inputs=[ModelProvenance(model="reader", prompt_version="")] if sample else [],
+                analysis_versions={f"baseline_{index}": read_version for index in range(sample)},
+            ),
         ),
     )
 
@@ -263,7 +302,7 @@ async def test_a_baseline_frozen_by_older_arithmetic_is_not_compared_across():
     ctx = await context()
     await repo.put_experiment(ctx.store, experiment("stale", version="tendency-0"))
     await repo.put_experiment(ctx.store, experiment("current", version=tendency.CALC_VERSION))
-    await scout.grade_advice(ctx, "u1")
+    await scout.check_advice(ctx, "u1")
 
     stale = (await repo.get_experiment(ctx.store, "stale")).change
     current = (await repo.get_experiment(ctx.store, "current")).change
@@ -281,10 +320,8 @@ async def test_a_baseline_with_no_recorded_sample_cannot_say_how_much_was_shot_s
     from app.services import scout
 
     ctx = await context()
-    await repo.put_experiment(
-        ctx.store, experiment("old", version=tendency.CALC_VERSION, sample=0)
-    )
-    await scout.grade_advice(ctx, "u1")
+    await repo.put_experiment(ctx.store, experiment("old", version=tendency.CALC_VERSION, sample=0))
+    await scout.check_advice(ctx, "u1")
 
     change = (await repo.get_experiment(ctx.store, "old")).change
     assert change.comparability is Comparability.UNRECORDED_SAMPLE
@@ -301,59 +338,27 @@ async def test_a_too_small_sample_is_asked_again_and_a_settled_one_is_not():
 
     ctx = await context()
     await repo.put_experiment(ctx.store, experiment("open", version=tendency.CALC_VERSION))
-    await repo.put_experiment(
-        ctx.store, experiment("settled", version="tendency-0")
-    )
+    await repo.put_experiment(ctx.store, experiment("settled", version="tendency-0"))
 
-    assert {e.id for e in await scout.grade_advice(ctx, "u1")} == {"open", "settled"}
+    assert {e.id for e in await scout.check_advice(ctx, "u1")} == {"open", "settled"}
     assert (await repo.get_experiment(ctx.store, "open")).change.state is State.INSUFFICIENT
 
     # Second pass: only the one that could still change its answer is re-asked.
-    assert {e.id for e in await scout.grade_advice(ctx, "u1")} == {"open"}
+    assert {e.id for e in await scout.check_advice(ctx, "u1")} == {"open"}
 
 
-async def test_a_baseline_is_frozen_only_when_the_tendency_chose_the_technique(monkeypatch):
-    """The Scout freezes a tendency only when that tendency actually picked the
-    technique. The ranking can land elsewhere - prerequisites, missing gear, a
-    technique used too recently - and grading that advice against a tendency it
-    was never aimed at would be the coach marking its own homework with someone
-    else's answers.
-    """
-    import tempfile
-
-    from app.domain import taxonomy
+async def test_reanalysis_under_the_same_prompt_forces_a_new_model_read_baseline():
     from app.infra import repository as repo
     from app.services import scout
-    from tests.test_first_experiment import context, stub_model
 
-    stub_model(monkeypatch, [])
-    with tempfile.TemporaryDirectory() as folder:
-        ctx = context(folder)
-        from app.domain.entities import User
+    ctx = await context()
+    await repo.put_experiment(ctx.store, experiment("model_read", version=tendency.CALC_VERSION))
+    analysis = await repo.find_analysis(ctx.store, "baseline_0")
+    assert analysis is not None
+    analysis.composition.subject_x = 0.1
+    await repo.put_analysis(ctx.store, analysis)
 
-        await repo.put_user(ctx.store, User(id="u1", email="a@b.c"))
+    await scout.check_advice(ctx, "u1")
 
-        aimed = rules_challenge(monkeypatch, scout, prefers=("rule_of_thirds",))
-        chosen = await scout.issue(ctx, "u1", technique_id="rule_of_thirds")
-        assert chosen.baseline is not None
-        assert chosen.baseline.citation == aimed.citation
-        # The citation reaches the card as data, not only as the model's prose.
-        assert chosen.baseline.at_issue == {}  # nothing shot yet; still frozen
-
-        # Same tendency, a technique it does not prefer: no baseline at all, so
-        # there is nothing for the coach to grade itself against later.
-        elsewhere = next(t.id for t in taxonomy.TECHNIQUES if t.id not in aimed.prefers)
-        other = await scout.issue(ctx, "u1", force=True, technique_id=elsewhere)
-        assert other.baseline is None
-
-        checked = await scout.grade_advice(ctx, "u1")
-        assert [e.id for e in checked] == [chosen.id]
-
-
-def rules_challenge(monkeypatch, scout_module, prefers: tuple[str, ...]):
-    """Pin the profile's suggestion so the test is about the aiming rule."""
-    challenge = tendency.Challenge(
-        citation="12 of 18 readable shots: centred", prefers=prefers, source="placement"
-    )
-    monkeypatch.setattr(scout_module.tendency, "challenge_for", lambda profile: challenge)
-    return challenge
+    change = (await repo.get_experiment(ctx.store, "model_read")).change
+    assert change.comparability is Comparability.DIFFERENT_MODEL_READING

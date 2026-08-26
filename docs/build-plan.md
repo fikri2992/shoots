@@ -1,7 +1,7 @@
 # Build diary
 
 Historical implementation notes below preserve what was tried, including features
-later removed. They are not current behavior. As of 2026-08-25, decisions 52–63 in
+later removed. They are not current behavior. As of 2026-08-26, decisions 52–81 in
 [the domain model](domain-model.md) supersede score storage, Keeper-rate arithmetic,
 curriculum selection, capped longitudinal corpora, and automatic Director/Veo work.
 Current status is in [the feature list](feature-list.md).
@@ -12,8 +12,11 @@ Current status is in [the feature list](feature-list.md).
 - Direct ingress is independent of Drive and idempotent on `(user, source, source_id)`. A selected Experiment id is validated at ingress; an untagged Shot remains a free Shot and cannot become a submission merely because it was made while an Experiment was open.
 - The real connected Xiaomi completed the unattended path on a synthetic screen-capture fixture placed in Camera media: Phone Source found and uploaded it, Ingest measured it, the real Analyst found `single_accent` and `low_key`, Cartographer updated both Technique records, Scribe wrote the reviewed Shot to Drive, and `pipeline.run_completed` recorded the terminal receipt. The fixture was removed from the phone after acceptance.
 - Physical testing found and fixed a real Evidence-boundary defect: malformed GPS decoded as `NaN`, reached solar arithmetic, and stopped the pipeline. EXIF parsing and domain records now reject non-finite and out-of-range coordinates while preserving valid 0° latitude/longitude.
-- The web now leads with a per-Shot autonomous run receipt. Its claims are scoped to events at or after that Shot's queue time, so a historical Scout event cannot masquerade as work produced by the newest run. Explore, Reproduce, Compare, free Shots, Drive writes, and recorded write skips have distinct labels.
-- Current local gates: backend ruff plus the full 537-check suite pass; frontend 31 checks and production build pass; Android debug APK builds, installs, and runs on the Xiaomi. No Cloud deployment was attempted.
+- The first receipt was event-derived and could close when Scribe finished before Cartographer and Scout. It is replaced by one durable Run per accepted Shot. Ingest, Analyst, Cartographer, Judge, Scribe, and Scout settle independently; the last required outcome closes the Run atomically. Retry and terminal media remain different states, and the completion ActivityEvent has a deterministic id.
+- The hackathon Experiment is now Reproduce or silence. Scout freezes one exact marked Keeper and Criteria before any result. The Experiment Record keeps every explicit result Shot, including abstentions. Journey shows the exact Keeper beside the latest result and refuses to call it better. The old Criteria-shaped Explore is no longer issued.
+- Android shows the latest backend Run and will not associate Camera media with a legacy non-Reproduce Experiment. Web onboarding now says direct ingress works without Drive; Drive is optional import and reviewed output.
+- A phone-width browser pass covered seed, idle Run receipt, Shot Run detail, and the Reproduce Journey pair. It exposed and fixed Windows local blob paths for `dev:` identities plus the stale claim that Phone Source records camera pitch.
+- Current local gates: backend ruff plus the full 543-check suite pass; frontend 31 checks and production build pass; Android debug assemble and lint pass. The latest APK has not yet been installed on the Xiaomi. No Cloud deployment was attempted.
 
 
 ## Day 2 notes (2026-08-22)

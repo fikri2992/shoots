@@ -42,10 +42,8 @@ async def daily(
     """The tick: sync every folder, expire what has run out, offer something to
     anyone with nothing open. Per user, errors are recorded, not fatal.
 
-    Nothing decays here any more. The Technique Map records what the Evidence
-    observed and does not un-observe it with time (decision 46); whether age
-    makes something worth revisiting is a selection question the Scout answers
-    at the moment it chooses.
+    Nothing decays here. The Technique Map records what the Evidence observed;
+    Scout issues only when the current Profile supports an Experiment Direction.
     """
     _authorised(x_tasks_token)
     report = DailyReport(users=0, synced=0, expired=0, issued=0, errors=[])

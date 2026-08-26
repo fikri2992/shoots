@@ -148,7 +148,7 @@ def test_unreadable_shots_are_counted_separately_from_buckets():
     assert placement.n == 6 and placement.unreadable == 4
 
 
-def test_the_narrowest_dimension_is_what_a_challenge_pushes_against():
+def test_the_narrowest_dimension_is_what_an_experiment_direction_pushes_against():
     """Placement never varies; orientation and key both do."""
     rows = [
         shot(
@@ -182,7 +182,7 @@ def test_blind_spots_are_named_rather_than_dropped():
     profile = tendency.build(corpus(10, subject=(0.5, 0.5)))
     spots = " ".join(profile.blind_spots)
     assert "the height you shoot from" in spots
-    assert "Shoots camera" in spots
+    assert "Phone Source" in spots
     assert "where you put the subject" not in spots  # this one was readable
 
 
@@ -193,15 +193,12 @@ def test_without_keepers_the_profile_knows_no_taste():
     profile = tendency.build(corpus(10, subject=(0.5, 0.5)))
     assert profile.keepers == 0
     assert profile.taste_is_known is False
-    assert (
-        profile.dimensions["placement"].keeper_lift("centred", profile.keeper_rate, 0) is None
-    )
+    placement = profile.dimensions["placement"]
+    assert placement.readable_keepers == 0
+    assert placement.keeper_share("centred") is None
 
 
-def test_keeper_lift_is_the_photographers_own_verdict():
-    """Twelve centred shots kept twice; four low-angle shots kept three times.
-    The lift is what makes a challenge 'what you value, underexplored' rather
-    than generic advice."""
+def test_keeper_distribution_uses_only_positive_marks():
     rows = [shot(f"c{i}", subject=(0.5, 0.5)) for i in range(12)]
     rows += [shot(f"e{i}", subject=(0.1, 0.5)) for i in range(4)]
     keepers = {"c0", "c1", "e0", "e1", "e2"}
@@ -209,11 +206,10 @@ def test_keeper_lift_is_the_photographers_own_verdict():
     placement = profile.dimensions["placement"]
 
     assert profile.keepers == 5 and profile.taste_is_known is True
-    assert profile.keeper_rate == pytest.approx(5 / 16)
-    centred = placement.keeper_lift("centred", profile.keeper_rate, profile.keepers)
-    edge = placement.keeper_lift("near the edge", profile.keeper_rate, profile.keepers)
-    assert centred is not None and edge is not None
-    assert edge > 2.0 > centred  # kept far more often than the habit
+    assert placement.readable_keepers == 5
+    assert placement.keepers == {"centred": 2, "near the edge": 3}
+    assert placement.keeper_share("centred") == pytest.approx(2 / 5)
+    assert placement.keeper_share("near the edge") == pytest.approx(3 / 5)
 
 
 # --- dwell ----------------------------------------------------------------------
@@ -302,18 +298,18 @@ def test_walking_on_beats_every_other_tendency():
     """Sixteen scenes for sixteen shots is the loudest thing the profile can
     see, and the cheapest thing to change."""
     rows = [shot(f"s{i}", subject=(0.5, 0.5), captured=at(i * 30)) for i in range(16)]
-    challenge = tendency.challenge_for(tendency.build(rows))
-    assert challenge is not None and challenge.source == "dwell"
-    assert "1.0 frames before you move on" in challenge.citation
+    direction = tendency.direction_for(tendency.build(rows))
+    assert direction is not None and direction.source == "dwell"
+    assert "1.0 Shots before you move on" in direction.citation
 
 
-def test_a_challenge_cites_the_count_that_earned_it():
+def test_an_experiment_direction_cites_the_count_that_earned_it():
     rows = [shot(f"s{i}", subject=(0.5, 0.5), captured=at(i)) for i in range(10)]
-    challenge = tendency.challenge_for(tendency.build(rows))
-    assert challenge is not None and challenge.source == "placement"
-    assert "10 of 10 readable shots: centred" in challenge.citation
-    assert "never off centre, near the edge" in challenge.citation
-    assert "rule_of_thirds" in challenge.prefers
+    direction = tendency.direction_for(tendency.build(rows))
+    assert direction is not None and direction.source == "placement"
+    assert "10 of 10 readable shots: centred" in direction.citation
+    assert "never off centre, near the edge" in direction.citation
+    assert "rule_of_thirds" in direction.prefers
 
 
 def test_a_photographer_with_no_tendency_is_told_nothing():
@@ -337,57 +333,44 @@ def test_a_photographer_with_no_tendency_is_told_nothing():
     ]
     profile = tendency.build(rows)
     assert profile.dwell.walks_on is False
-    assert tendency.challenge_for(profile) is None
+    assert tendency.direction_for(profile) is None
 
 
-# --- the profile reorders the curriculum; it never widens it --------------------
+# --- an evidenced direction is the complete selection boundary -----------------
 
 
-def test_a_preference_reorders_what_the_curriculum_already_allows():
+def test_an_evidenced_direction_selects_the_experiment_technique():
     from app.domain import scout as rules
 
-    skills = {}
-    plain = rules.choose(skills, [])
-    assert plain is not None
-    other = next(t for t in rules.rank(skills, []) if t.id != plain.id)
-    assert rules.choose(skills, [], prefer=(other.id,)).id == other.id
+    selected = rules.choose(("negative_space", "rule_of_thirds"), [])
+    assert selected is not None and selected.id == "negative_space"
+    assert rules.choose((), []) is None
 
 
-def test_a_preference_cannot_unlock_a_technique_the_photographer_is_not_ready_for():
-    """The curriculum decides what is possible; the profile only decides what
-    is interesting among those. A locked technique stays locked however loudly
-    the tendency asks for it."""
+def test_an_evidenced_direction_is_not_a_prerequisite_tree():
     from app.domain import scout as rules
-    from app.domain import taxonomy
 
-    skills = {}
-    open_now = {t.id for t in rules.rank(skills, [])}
-    locked = next(t for t in taxonomy.TECHNIQUES if t.id not in open_now)
-    assert rules.choose(skills, [], prefer=(locked.id,)).id != locked.id
+    selected = rules.choose(("rim_light",), [])
+    assert selected is not None and selected.id == "rim_light"
 
 
 # --- the Keeper is positive only ------------------------------------------------
 
 
 def test_an_unmarked_shot_is_unknown_and_never_a_negative_example():
-    """A hobbyist marks a handful of frames out of hundreds and has said
-    nothing at all about the rest (decision 45). The denominators here are
-    exposure - how many shots landed in a bucket - and never opinion."""
+    """A hobbyist marks a handful of Shots and says nothing about the rest."""
     rows = [shot(f"c{i}", subject=(0.5, 0.5)) for i in range(12)]
     rows += [shot(f"e{i}", subject=(0.1, 0.5)) for i in range(4)]
     marked = tendency.build(rows, {"e0", "e1", "e2", "c0", "c1"})
 
     placement = marked.dimensions["placement"]
-    # Exposure is the denominator: 12 centred shots, 2 of them marked.
+    # Counts remain descriptive: 12 centred Shots, 2 of them marked.
     assert placement.counts["centred"] == 12 and placement.keepers["centred"] == 2
-    # And nothing anywhere counts unmarked frames as disliked.
+    # Nothing anywhere counts unmarked Shots as disliked.
     assert sum(placement.keepers.values()) == marked.keepers == 5
 
 
-def test_concentration_is_marks_over_shots_not_marks_over_rejections():
-    """Same marks, more unmarked shots in the same bucket: the ratio falls
-    because exposure rose, which is the honest reading. If unmarked frames were
-    being counted as rejections the number would move differently."""
+def test_unmarked_shots_cannot_change_keeper_distribution():
     base = [shot(f"c{i}", subject=(0.5, 0.5)) for i in range(10)]
     edge = [shot(f"e{i}", subject=(0.1, 0.5)) for i in range(4)]
     keepers = {"e0", "e1", "e2", "c0", "c1"}
@@ -396,13 +379,9 @@ def test_concentration_is_marks_over_shots_not_marks_over_rejections():
     diluted = tendency.build(
         base + edge + [shot(f"x{i}", subject=(0.1, 0.5)) for i in range(6)], keepers
     )
-    before = tight.dimensions["placement"].keeper_lift(
-        "near the edge", tight.keeper_rate, tight.keepers
-    )
-    after = diluted.dimensions["placement"].keeper_lift(
-        "near the edge", diluted.keeper_rate, diluted.keepers
-    )
-    assert before is not None and after is not None and after < before
+    before = tight.dimensions["placement"].keeper_share("near the edge")
+    after = diluted.dimensions["placement"].keeper_share("near the edge")
+    assert before == after == pytest.approx(3 / 5)
 
 
 def test_taste_stays_unknown_until_enough_has_been_marked():
@@ -411,15 +390,7 @@ def test_taste_stays_unknown_until_enough_has_been_marked():
     assert tendency.build(rows, {"s0", "s1"}).taste_is_known is False
 
 
-def test_the_lift_is_silent_wherever_the_profile_says_it_knows_no_taste():
-    """The figure has to be silenced by the same bar that silences the words.
-
-    Two taps on the same kind of frame produce a lift of six, and six reads as
-    a discovered preference. The profile refuses to speak about taste at that
-    point; if the number is still published the profile says in arithmetic what
-    it has just declined to say in prose, and a screen renders "kept x6" beside
-    "mark a few frames and this can show where your keepers gather".
-    """
+def test_keeper_share_is_silent_until_enough_positive_marks_exist():
     rows = [shot(f"c{i}", subject=(0.5, 0.5)) for i in range(30)]
     rows += [shot(f"e{i}", subject=(0.1, 0.5)) for i in range(6)]
     profile = tendency.build(rows, {"e0", "e1"})
@@ -427,15 +398,13 @@ def test_the_lift_is_silent_wherever_the_profile_says_it_knows_no_taste():
 
     assert profile.taste_is_known is False
     for bucket in ("centred", "near the edge"):
-        assert placement.keeper_lift(bucket, profile.keeper_rate, profile.keepers) is None
+        assert placement.keeper_share(bucket) is None
 
-    # And it speaks as soon as there is a habit of marking behind it.
+    # It speaks as soon as enough positive marks exist.
     spoken = tendency.build(rows, {"e0", "e1", "e2", "e3", "e4"})
     assert spoken.taste_is_known is True
-    lift = spoken.dimensions["placement"].keeper_lift(
-        "near the edge", spoken.keeper_rate, spoken.keepers
-    )
-    assert lift is not None and lift > 2.0
+    share = spoken.dimensions["placement"].keeper_share("near the edge")
+    assert share == 1.0
     assert tendency.build(rows, set()).taste_is_known is False
 
 

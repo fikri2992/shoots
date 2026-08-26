@@ -1,23 +1,32 @@
-"""Typed persistence on top of the four-method Store.
+"""Typed persistence on top of Store.
 
 One function per read or write the services need, pydantic in and out. The
 collection names and document ids are decided here and nowhere else.
 """
 
 import hashlib
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Any
 
+from pydantic import BaseModel
+
+from app.domain import run as run_rules
+from app.domain import technique_map
 from app.domain.entities import (
     ActivityEvent,
     Analysis,
     Experiment,
     ExperimentStatus,
     JourneyUpdate,
+    Run,
+    RunStage,
+    RunStatus,
+    RunStepState,
     Shot,
     ShotStatus,
     TechniqueState,
     User,
+    Verdict,
     new_id,
     now,
 )
@@ -26,9 +35,11 @@ from app.infra.store import Store
 USERS = "users"
 SHOTS = "shots"
 ANALYSES = "analyses"
-SKILLS = "skills"
+TECHNIQUE_STATES = "skills"  # legacy Firestore collection key; decision 62
 EXPERIMENTS = "experiments"
+OPEN_EXPERIMENTS = "open_experiments"
 EVENTS = "events"
+RUNS = "runs"
 JOURNEY = "journey"
 PAIRING = "pairing_codes"
 DEVICES = "devices"
@@ -38,7 +49,7 @@ class UnknownEntity(LookupError):
     pass
 
 
-def _dump(model) -> dict:
+def _dump(model: BaseModel) -> dict[str, Any]:
     return model.model_dump(mode="json")
 
 
@@ -107,6 +118,61 @@ async def list_shots(store: Store, user_id: str, limit: int | None = None) -> li
     return [Shot.model_validate(d) for d in rows]
 
 
+# --- runs -----------------------------------------------------------------
+
+
+async def ensure_run_for_shot(store: Store, shot: Shot) -> Run:
+    """Create the Shot's deterministic Run before the first pipeline publish."""
+    candidate = run_rules.for_shot(shot)
+    if await store.create(RUNS, candidate.id, _dump(candidate)):
+        return candidate
+    data = await store.get(RUNS, candidate.id)
+    if data is None:
+        raise UnknownEntity(f"run {candidate.id}")
+    return Run.model_validate(data)
+
+
+async def get_run(store: Store, run_id: str) -> Run:
+    data = await store.get(RUNS, run_id)
+    if data is None:
+        raise UnknownEntity(f"run {run_id}")
+    return Run.model_validate(data)
+
+
+async def find_run_for_shot(store: Store, shot_id: str) -> Run | None:
+    data = await store.get(RUNS, f"run_{shot_id}")
+    return Run.model_validate(data) if data else None
+
+
+async def list_runs(store: Store, user_id: str, limit: int = 20) -> list[Run]:
+    rows = await store.query(
+        RUNS, where={"user_id": user_id}, order_by="started_at", descending=True, limit=limit
+    )
+    return [Run.model_validate(row) for row in rows]
+
+
+async def advance_run(
+    store: Store,
+    run_id: str,
+    stage: RunStage,
+    state: RunStepState,
+    outcome: str,
+    detail: dict[str, Any] | None = None,
+    at: datetime | None = None,
+) -> tuple[Run, bool]:
+    def advance(data: dict[str, Any]) -> dict[str, Any] | None:
+        current = Run.model_validate(data)
+        updated = run_rules.advance(current, stage, state, outcome, detail, at)
+        if updated == current:
+            return None
+        return _dump(updated)
+
+    data, changed = await store.mutate(RUNS, run_id, advance)
+    if data is None:
+        raise UnknownEntity(f"run {run_id}")
+    return Run.model_validate(data), changed
+
+
 async def claim_shot_for_ingest(
     store: Store, shot_id: str, claimed_at: datetime, stale_before: datetime
 ) -> tuple[Shot, bool]:
@@ -141,20 +207,30 @@ async def find_analysis(store: Store, shot_id: str) -> Analysis | None:
     return Analysis.model_validate(data) if data else None
 
 
-# --- skills ---------------------------------------------------------------
+async def list_analyses(store: Store, user_id: str) -> list[Analysis]:
+    rows = await store.query(ANALYSES, where={"user_id": user_id})
+    return [Analysis.model_validate(row) for row in rows]
 
 
-def skill_id_for(user_id: str, technique_id: str) -> str:
+# --- technique states -----------------------------------------------------
+
+
+def technique_state_id_for(user_id: str, technique_id: str) -> str:
     return f"{user_id}__{technique_id}"
 
 
-async def put_skill(store: Store, skill: TechniqueState) -> None:
-    await store.put(SKILLS, skill_id_for(skill.user_id, skill.technique_id), _dump(skill))
+async def put_technique_state(store: Store, state: TechniqueState) -> None:
+    state = technique_map.normalise_state(state)
+    await store.put(
+        TECHNIQUE_STATES,
+        technique_state_id_for(state.user_id, state.technique_id),
+        _dump(state),
+    )
 
 
-async def list_skills(store: Store, user_id: str) -> list[TechniqueState]:
-    rows = await store.query(SKILLS, where={"user_id": user_id})
-    return [TechniqueState.model_validate(d) for d in rows]
+async def list_technique_states(store: Store, user_id: str) -> list[TechniqueState]:
+    rows = await store.query(TECHNIQUE_STATES, where={"user_id": user_id})
+    return [technique_map.normalise_state(TechniqueState.model_validate(d)) for d in rows]
 
 
 # --- experiments ---------------------------------------------------------------
@@ -162,6 +238,108 @@ async def list_skills(store: Store, user_id: str) -> list[TechniqueState]:
 
 async def put_experiment(store: Store, experiment: Experiment) -> None:
     await store.put(EXPERIMENTS, experiment.id, _dump(experiment))
+
+
+async def append_verdict_if_open(
+    store: Store,
+    experiment_id: str,
+    verdict: Verdict,
+    closed_at: datetime,
+) -> tuple[Experiment, bool]:
+    """Compatibility wrapper for records created before result Shot sets."""
+    return await record_reproduce_result_if_open(
+        store, experiment_id, verdict.shot_id, verdict, closed_at
+    )
+
+
+async def record_reproduce_result_if_open(
+    store: Store,
+    experiment_id: str,
+    shot_id: str,
+    verdict: Verdict | None,
+    closed_at: datetime,
+) -> tuple[Experiment, bool]:
+    """Record one explicit result and optional Verdict in one transaction.
+
+    Abstention supplies ``verdict=None``. The result Shot still belongs in the
+    Experiment Record, but the Experiment stays open.
+    """
+
+    def append(data: dict[str, Any]) -> dict[str, Any] | None:
+        experiment = Experiment.model_validate(data)
+        if experiment.status is not ExperimentStatus.OPEN:
+            return None
+        if shot_id in experiment.result_shot_ids:
+            return None
+        experiment.result_shot_ids.append(shot_id)
+        if verdict is not None:
+            experiment.verdicts.append(verdict)
+        if verdict is not None and verdict.criteria_met:
+            experiment.status = ExperimentStatus.COMPLETED
+            experiment.closed_at = closed_at
+        return _dump(experiment)
+
+    data, changed = await store.mutate(EXPERIMENTS, experiment_id, append)
+    if data is None:
+        raise UnknownEntity(f"experiment {experiment_id}")
+    return Experiment.model_validate(data), changed
+
+
+async def transition_open_experiment(
+    store: Store,
+    experiment_id: str,
+    status: ExperimentStatus,
+    closed_at: datetime,
+) -> tuple[Experiment, bool]:
+    """Move one open Experiment to a terminal status without stale overwrites."""
+    if status is ExperimentStatus.OPEN:
+        raise ValueError("terminal Experiment status required")
+
+    def transition(data: dict[str, Any]) -> dict[str, Any] | None:
+        experiment = Experiment.model_validate(data)
+        if experiment.status is not ExperimentStatus.OPEN:
+            return None
+        experiment.status = status
+        experiment.closed_at = closed_at
+        return _dump(experiment)
+
+    data, changed = await store.mutate(EXPERIMENTS, experiment_id, transition)
+    if data is None:
+        raise UnknownEntity(f"experiment {experiment_id}")
+    return Experiment.model_validate(data), changed
+
+
+async def mark_experiment_delivered_if_open(
+    store: Store, experiment_id: str, delivered_at: datetime
+) -> bool:
+    return await store.patch_if(
+        EXPERIMENTS,
+        experiment_id,
+        {"delivered_at": delivered_at.isoformat()},
+        {"status": ExperimentStatus.OPEN.value, "delivered_at": None},
+    )
+
+
+OPEN_SLOT_LEASE = timedelta(minutes=5)
+
+
+async def create_open_experiment(store: Store, experiment: Experiment) -> bool:
+    """Create the user's one-open claim and Experiment Record atomically."""
+    if experiment.status is not ExperimentStatus.OPEN:
+        raise ValueError("only an open Experiment may claim the open slot")
+    slot = {
+        "user_id": experiment.user_id,
+        "experiment_id": experiment.id,
+        "reserved_at": now().isoformat(),
+    }
+    return await store.create_claimed(
+        OPEN_EXPERIMENTS,
+        experiment.user_id,
+        slot,
+        EXPERIMENTS,
+        experiment.id,
+        _dump(experiment),
+    )
 
 
 async def get_experiment(store: Store, experiment_id: str) -> Experiment:
@@ -177,10 +355,75 @@ async def find_experiment(store: Store, experiment_id: str) -> Experiment | None
 
 
 async def open_experiment(store: Store, user_id: str) -> Experiment | None:
+    slot = await store.get(OPEN_EXPERIMENTS, user_id)
+    if slot is not None:
+        experiment_id = str(slot.get("experiment_id", ""))
+        data = await store.get(EXPERIMENTS, experiment_id) if experiment_id else None
+        if data is not None:
+            experiment = Experiment.model_validate(data)
+            if experiment.status is ExperimentStatus.OPEN:
+                return experiment
+            await store.delete_if(OPEN_EXPERIMENTS, user_id, {"experiment_id": experiment_id})
+        elif not _slot_expired(slot):
+            return None
+        else:
+            await store.delete_if(OPEN_EXPERIMENTS, user_id, {"experiment_id": experiment_id})
+
+    # Adopt a pre-slot open Experiment written by an older release.
     rows = await store.query(
-        EXPERIMENTS, where={"user_id": user_id, "status": ExperimentStatus.OPEN.value}, limit=1
+        EXPERIMENTS,
+        where={"user_id": user_id, "status": ExperimentStatus.OPEN.value},
+        order_by="issued_at",
+        limit=1,
     )
-    return Experiment.model_validate(rows[0]) if rows else None
+    if not rows:
+        return None
+    legacy = Experiment.model_validate(rows[0])
+    claimed = await store.create(
+        OPEN_EXPERIMENTS,
+        user_id,
+        {
+            "user_id": user_id,
+            "experiment_id": legacy.id,
+            "reserved_at": now().isoformat(),
+        },
+    )
+    if claimed:
+        return legacy
+    current = await store.get(OPEN_EXPERIMENTS, user_id)
+    current_id = str(current.get("experiment_id", "")) if current else ""
+    current_data = await store.get(EXPERIMENTS, current_id) if current_id else None
+    if current_data is None:
+        return None
+    experiment = Experiment.model_validate(current_data)
+    return experiment if experiment.status is ExperimentStatus.OPEN else None
+
+
+async def release_open_experiment(store: Store, user_id: str, experiment_id: str) -> bool:
+    return await store.delete_if(OPEN_EXPERIMENTS, user_id, {"experiment_id": experiment_id})
+
+
+async def attach_reference_clip_if_open(store: Store, experiment_id: str, path: str) -> bool:
+    """Optional Director write that cannot overwrite or revive a closed record."""
+    return await store.patch_if(
+        EXPERIMENTS,
+        experiment_id,
+        {"reference_clip": path},
+        {"status": ExperimentStatus.OPEN.value},
+    )
+
+
+def _slot_expired(slot: dict[str, Any]) -> bool:
+    raw = slot.get("reserved_at")
+    if not isinstance(raw, str):
+        return True
+    try:
+        reserved_at = datetime.fromisoformat(raw)
+    except ValueError:
+        return True
+    if reserved_at.tzinfo is None:
+        reserved_at = reserved_at.replace(tzinfo=now().tzinfo)
+    return now() - reserved_at >= OPEN_SLOT_LEASE
 
 
 async def list_experiments(
@@ -200,7 +443,7 @@ async def record(
     user_id: str,
     agent: str,
     stage: str,
-    detail: dict | None = None,
+    detail: dict[str, Any] | None = None,
     shot_id: str = "",
     experiment_id: str = "",
 ) -> ActivityEvent:
@@ -212,6 +455,32 @@ async def record(
         detail=detail or {},
         shot_id=shot_id,
         experiment_id=experiment_id,
+    )
+    await store.put(EVENTS, event.id, _dump(event))
+    return event
+
+
+async def record_run_settled(store: Store, run: Run) -> ActivityEvent:
+    """Write one replay-safe terminal ActivityEvent for a Run."""
+    external_write = bool(run.steps[RunStage.SCRIBE.value].detail.get("external_write"))
+    event = ActivityEvent(
+        id=f"evt_{run.id}_settled",
+        user_id=run.user_id,
+        agent="pipeline",
+        stage=(
+            "run_completed" if run.status is RunStatus.COMPLETED else "run_terminal"
+        ),
+        detail={
+            "status": run.status.value,
+            "source": run.source.value,
+            "external_write": external_write,
+            "stages": {
+                stage: step.state.value for stage, step in run.steps.items()
+            },
+        },
+        shot_id=run.shot_id,
+        experiment_id=run.experiment_id,
+        at=run.completed_at or run.updated_at,
     )
     await store.put(EVENTS, event.id, _dump(event))
     return event
@@ -231,9 +500,7 @@ async def put_journey_update(store: Store, update: JourneyUpdate) -> None:
     await store.put(JOURNEY, update.id, _dump(update))
 
 
-async def list_journey_updates(
-    store: Store, user_id: str, limit: int = 20
-) -> list[JourneyUpdate]:
+async def list_journey_updates(store: Store, user_id: str, limit: int = 20) -> list[JourneyUpdate]:
     """Newest first: the photographer reads the current conclusion, and the
     older ones are the record of how it changed."""
     rows = await store.query(
@@ -287,5 +554,5 @@ async def put_device(store: Store, fingerprint: str, user_id: str, label: str) -
     )
 
 
-async def find_device(store: Store, fingerprint: str) -> dict | None:
+async def find_device(store: Store, fingerprint: str) -> dict[str, Any] | None:
     return await store.get(DEVICES, fingerprint)

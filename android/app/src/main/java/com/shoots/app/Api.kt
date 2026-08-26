@@ -68,6 +68,16 @@ object Api {
         )
     }
 
+    fun fetchLatestRun(context: Context): Result<RunReceipt?> = runCatching {
+        val payload = get(context, "/api/runs/latest") ?: return@runCatching null
+        val json = payload.optJSONObject("run") ?: return@runCatching null
+        val scout = json.optJSONObject("steps")?.optJSONObject("scout")
+        RunReceipt(
+            status = json.optString("status"),
+            scoutOutcome = scout?.optString("outcome").orEmpty(),
+        )
+    }
+
     /** Upload one original found in Android's Camera media. */
     fun importShot(
         context: Context,
@@ -181,6 +191,8 @@ object Api {
     private fun deviceName(): String = "${android.os.Build.MANUFACTURER} ${android.os.Build.MODEL}"
 
     data class Experiment(val id: String, val title: String, val whyNow: String, val type: String)
+
+    data class RunReceipt(val status: String, val scoutOutcome: String)
 
     data class ImportResult(val shotId: String, val created: Boolean)
 }

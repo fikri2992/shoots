@@ -34,33 +34,151 @@ def build_context() -> Context:
 
 def wire(ctx: Context) -> None:
     """Register every stage handler. Same registrations on either bus."""
+    from app.domain.entities import ExperimentType, RunStage, ShotStatus
     from app.infra import repository
-    from app.services import analyst, cartographer, director, ingest, judge, scout, scribe
+    from app.services import analyst, cartographer, ingest, judge, runs, scout, scribe
 
     async def on_media_new(message: dict) -> None:
-        await ingest.ingest(ctx, message)
+        try:
+            await ingest.ingest(ctx, message)
+        except Exception as error:
+            await runs.retrying(
+                ctx,
+                message["shot_id"],
+                RunStage.INGEST,
+                "Ingest will retry",
+                {"error": f"{type(error).__name__}: {error}"[:500]},
+            )
+            raise
+        shot = await repository.get_shot(ctx.store, message["shot_id"])
+        if shot.status is ShotStatus.FAILED:
+            await runs.terminal(
+                ctx,
+                shot.id,
+                RunStage.INGEST,
+                "Ingest proved the Shot unreadable",
+                {"error": shot.error},
+            )
+        elif shot.status in {
+            ShotStatus.INGESTED,
+            ShotStatus.ANALYSING,
+            ShotStatus.ANALYZED,
+        }:
+            await runs.completed(ctx, shot.id, RunStage.INGEST, "Media measured and prepared")
 
     async def on_media_ingested(message: dict) -> None:
-        await analyst.analyse(ctx, message)
+        try:
+            await analyst.analyse(ctx, message)
+        except Exception as error:
+            await runs.retrying(
+                ctx,
+                message["shot_id"],
+                RunStage.ANALYST,
+                "Analyst will retry",
+                {"error": f"{type(error).__name__}: {error}"[:500]},
+            )
+            raise
+        shot = await repository.get_shot(ctx.store, message["shot_id"])
+        if shot.status is ShotStatus.ANALYZED:
+            await runs.completed(ctx, shot.id, RunStage.ANALYST, "Visual reading stored")
 
     async def on_media_analyzed(message: dict) -> None:
-        await cartographer.update(ctx, message)
-        # The map moved; if this user has never had an experiment, that is enough to
-        # choose one. Nothing to click, on the first run or any other.
+        try:
+            await cartographer.update(ctx, message)
+            await runs.completed(
+                ctx,
+                message["shot_id"],
+                RunStage.CARTOGRAPHER,
+                "Technique Map and longitudinal record checked",
+            )
+        except Exception as error:
+            await runs.retrying(
+                ctx,
+                message["shot_id"],
+                RunStage.CARTOGRAPHER,
+                "Cartographer will retry",
+                {"error": f"{type(error).__name__}: {error}"[:500]},
+            )
+            raise
+
         shot = await repository.get_shot(ctx.store, message["shot_id"])
-        await scout.issue_first(ctx, shot.user_id)
+        experiment = (
+            await repository.find_experiment(ctx.store, shot.experiment_id)
+            if shot.experiment_id
+            else None
+        )
+        if experiment is not None and experiment.type is ExperimentType.REPRODUCE:
+            return
+        try:
+            outcome = await scout.consider_after_shot(ctx, shot.user_id, shot.id)
+            await runs.completed(ctx, shot.id, RunStage.SCOUT, outcome)
+        except Exception as error:
+            await runs.retrying(
+                ctx,
+                shot.id,
+                RunStage.SCOUT,
+                "Scout will retry",
+                {"error": f"{type(error).__name__}: {error}"[:500]},
+            )
+            raise
 
     async def on_media_analyzed_judge(message: dict) -> None:
-        await judge.judge(ctx, message)
+        try:
+            outcome = await judge.judge(ctx, message)
+            if outcome in {
+                "free Shot; no Experiment judgment",
+                "Shot is not an explicit Reproduce result",
+            } or outcome.endswith("creates no Verdict"):
+                await runs.skipped(ctx, message["shot_id"], RunStage.JUDGE, outcome)
+            else:
+                await runs.completed(ctx, message["shot_id"], RunStage.JUDGE, outcome)
+        except Exception as error:
+            await runs.retrying(
+                ctx,
+                message["shot_id"],
+                RunStage.JUDGE,
+                "Judge will retry",
+                {"error": f"{type(error).__name__}: {error}"[:500]},
+            )
+            raise
+
+        shot = await repository.get_shot(ctx.store, message["shot_id"])
+        if shot.experiment_id and outcome != "Reproduce Criteria met":
+            await runs.skipped(
+                ctx,
+                shot.id,
+                RunStage.SCOUT,
+                "The associated Experiment remained open or had already settled",
+            )
 
     async def on_experiment_closed(message: dict) -> None:
-        await scout.on_experiment_closed(ctx, message)
+        outcome = await scout.on_experiment_closed(ctx, message)
+        if message.get("shot_id"):
+            await runs.completed(ctx, message["shot_id"], RunStage.SCOUT, outcome)
 
-    async def on_experiment_issued(message: dict) -> None:
-        await director.direct(ctx, message)
+    async def on_keeper_changed(message: dict) -> None:
+        if message.get("keeper"):
+            await scout.issue(ctx, message["user_id"])
 
     async def on_media_judged(message: dict) -> None:
-        await scribe.write_review(ctx, message)
+        try:
+            output_id = await scribe.write_review(ctx, message)
+            await runs.completed(
+                ctx,
+                message["shot_id"],
+                RunStage.SCRIBE,
+                "Reviewed Shot written to Drive" if output_id else "External write not available",
+                {"external_write": bool(output_id)},
+            )
+        except Exception as error:
+            await runs.retrying(
+                ctx,
+                message["shot_id"],
+                RunStage.SCRIBE,
+                "Scribe will retry",
+                {"error": f"{type(error).__name__}: {error}"[:500]},
+            )
+            raise
 
     # Stage names match the push subscriptions in infra/topics.sh.
     ctx.bus.subscribe(TOPICS["media.new"], on_media_new, stage="ingest")
@@ -69,7 +187,7 @@ def wire(ctx: Context) -> None:
     ctx.bus.subscribe(TOPICS["media.analyzed"], on_media_analyzed_judge, stage="judge")
     ctx.bus.subscribe(TOPICS["media.judged"], on_media_judged, stage="scribe")
     ctx.bus.subscribe(TOPICS["experiment.closed"], on_experiment_closed, stage="scout")
-    ctx.bus.subscribe(TOPICS["experiment.issued"], on_experiment_issued, stage="director")
+    ctx.bus.subscribe(TOPICS["keeper.changed"], on_keeper_changed, stage="scout-signal")
 
 
 context = build_context()

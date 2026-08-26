@@ -79,8 +79,6 @@ async def seed(ctx: Context) -> None:
             composition=Composition(subject_cells=["C3"], guide="thirds"),
             observations=["the light is behind them"],
             critique="works",
-            elements={"impact": 8, "composition": 6},
-            score=9,
         ),
     )
 
@@ -102,9 +100,7 @@ READ_ENDPOINTS = (
 
 @pytest.mark.parametrize("path", READ_ENDPOINTS)
 async def test_no_user_facing_endpoint_returns_a_score(client, path):
-    """Decision 46: the score is stored and read by nothing. "Nothing" has to
-    include the wire, or the first component that renders `analysis.score`
-    restores the report card with no server change and no failing test."""
+    """Decision 61: scores are absent from storage schemas and the wire."""
     await seed(client.ctx)
     response = client.get(path)
     assert response.status_code == 200, response.text
@@ -133,6 +129,11 @@ async def test_the_analysis_a_photographer_receives_still_carries_its_evidence(c
 #: must not appear in anything a photographer reads or a model is told.
 RETIRED = {
     "quest": "experiment",
+    "challenge": "experiment",
+    "fault": "finding",
+    "skill": "technique",
+    "skills": "techniques",
+    "progress": "change",
     "rusty": "recurring",
     "unexplored": "unobserved",
     "practised": "observed",
@@ -147,6 +148,9 @@ SURFACES = (
     *(ROOT / "backend/app/agents/prompts").glob("*.md"),
     *(ROOT / "frontend/src/components").rglob("*.vue"),
     *(ROOT / "frontend/src/pages").glob("*.vue"),
+    ROOT / "frontend/index.html",
+    ROOT / "frontend/public/manifest.webmanifest",
+    ROOT / "backend/pyproject.toml",
 )
 
 
@@ -162,9 +166,7 @@ def test_no_retired_word_reaches_a_prompt_or_a_screen(path: Path):
     text = path.read_text(encoding="utf-8").lower()
     for retired, instead in RETIRED.items():
         pattern = rf"\b{re.escape(retired)}\b"
-        assert not re.search(pattern, text), (
-            f"{path.name} still says {retired!r}; use {instead!r}"
-        )
+        assert not re.search(pattern, text), f"{path.name} still says {retired!r}; use {instead!r}"
 
 
 def test_the_words_that_replaced_them_are_actually_in_use():
@@ -202,7 +204,7 @@ async def test_the_coachs_technique_map_tool_hands_over_evidence_not_a_score():
 
     ctx = Context(store=InMemoryStore(), blobs=None, bus=InProcessBus(), drive=None, tokens=None)
     await repo.put_user(ctx.store, User(id="u1", email="u@x"))
-    await repo.put_skill(
+    await repo.put_technique_state(
         ctx.store,
         TechniqueState(
             user_id="u1",
@@ -210,8 +212,6 @@ async def test_the_coachs_technique_map_tool_hands_over_evidence_not_a_score():
             status=TechniqueStatus.RECURRING,
             attempts=5,
             corroborated=3,
-            best_score=9,
-            last_score=7,
         ),
     )
 

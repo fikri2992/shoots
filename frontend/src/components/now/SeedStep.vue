@@ -4,7 +4,7 @@ import { mapActions, mapState } from 'pinia'
 import { useShootsStore } from '@/stores/shoots'
 
 /**
- * The step that buys the first opinion. Handing over a few frames from the
+ * The step that buys the first opinion. Handing over a few Shots from the
  * gallery is the shortest path to something true about the user's own
  * photography — shorter than opening Drive in another app and moving files.
  */
@@ -25,34 +25,40 @@ export default {
 </script>
 
 <template>
-  <section class="col gutter pt-12">
+  <section class="page-shell py-8 md:py-12">
     <template v-if="!seeding">
-      <p class="t-meta text-accent">One step left</p>
-      <h1 class="mt-2 t-hero">Show it three or four photos you have already taken.</h1>
-      <p class="mt-4 t-body text-neutral-300">
-        It reads them the way a print judge would — what you did well, what you have not tried — and that read is
-        what the first experiment is built from. Old photos are fine. Anything on this phone is fine.
-      </p>
-
-      <label class="btn mt-8 w-full cursor-pointer">
-        <svg viewBox="0 0 24 24" class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round">
-          <path d="M4 5h16v14H4zM4 15l4-4 4 4 3-3 5 5" />
-        </svg>
-        Choose photos
-        <input type="file" accept="image/*,video/*" multiple class="hidden" @change="onPick" />
-      </label>
-      <p class="mt-3 t-meta">They go into your own Drive folder, and stay yours.</p>
+      <p class="eyebrow">Now · One step left</p>
+      <div class="mt-6 grid gap-5 lg:grid-cols-[1fr_360px]">
+        <div class="surface-active p-6 sm:p-9">
+          <p class="eyebrow text-accent">Start with your work, not a questionnaire</p>
+          <h1 class="mt-4 max-w-2xl t-hero lg:text-[48px]">Show it three or four Shots you already made.</h1>
+          <p class="mt-5 max-w-2xl text-[16px] leading-7 text-neutral-300">
+            Older Shots are useful. Shoots needs enough of your own work to notice a supported Tendency before it offers an Experiment.
+          </p>
+        </div>
+        <div class="surface p-5 sm:p-6">
+          <p class="eyebrow">First read</p>
+          <p class="mt-3 t-body">Choose stills or video from this device. Unreadable dimensions remain unknown.</p>
+          <label class="btn mt-6 w-full cursor-pointer">
+            Choose Shots
+            <input type="file" accept="image/*,video/*" multiple class="hidden" @change="onPick" />
+          </label>
+          <p class="mt-3 t-meta">They enter Shoots directly. Drive is optional.</p>
+        </div>
+      </div>
     </template>
 
     <template v-else>
-      <p class="t-meta text-accent">Uploading {{ seeding.done + 1 }} of {{ seeding.total }}</p>
-      <h1 class="mt-2 t-hero">Handing them over…</h1>
-      <p class="mt-4 t-body text-neutral-400">{{ seeding.name }}</p>
-      <div class="mt-6 h-1 overflow-hidden rounded bg-edge">
+      <div class="mx-auto max-w-2xl surface-active p-6 sm:p-9">
+        <p class="eyebrow text-accent">Uploading {{ seeding.done + 1 }} of {{ seeding.total }}</p>
+        <h1 class="mt-4 t-hero">Building the first memory.</h1>
+        <p class="mt-4 t-body">{{ seeding.name }}</p>
+        <div class="mt-7 h-1 overflow-hidden rounded bg-edge">
         <div
           class="h-full bg-accent transition-all"
           :style="{ width: `${Math.round((seeding.done / seeding.total) * 100)}%` }"
         />
+        </div>
       </div>
     </template>
   </section>

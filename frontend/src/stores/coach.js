@@ -4,7 +4,7 @@ import api from '@/api'
 import { openMic, Player } from '@/live/audio'
 
 /**
- * One conversation at a time, about one frame. The socket carries PCM both
+ * One conversation at a time, about one Shot. The socket carries PCM both
  * ways and JSON for transcripts; this store turns that into lines the sheet
  * renders. Options syntax (AGENTS.md).
  *
@@ -37,7 +37,7 @@ export const useCoachStore = defineStore('coach', {
 
   actions: {
     /**
-     * Open the sheet for a frame, optionally with the question the user just
+     * Open the sheet for a Shot, optionally with the question the user just
      * clicked — "why did this not pass" should not need retyping.
      * Must be called from a tap: audio playback needs a gesture.
      */
@@ -76,8 +76,8 @@ export const useCoachStore = defineStore('coach', {
         this.socket.onclose = (event) => {
           if (this.status === 'error') return
           if (event.code === 4401) this.fail('Sign in again')
-          else if (event.code === 4404) this.fail('Frame not found')
-          else if (event.code === 4409) this.fail('There is no frame to talk about yet')
+          else if (event.code === 4404) this.fail('Shot not found')
+          else if (event.code === 4409) this.fail('There is no Shot to talk about yet')
           else this.finish()
         }
         this.ticker = setInterval(() => {

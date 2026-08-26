@@ -12,6 +12,7 @@ from app.domain.entities import ExperimentStatus, Shot, ShotKind, ShotSource, Sh
 from app.infra import repository as repo
 from app.infra.bus import TOPICS
 from app.infra.storage import ORIGINAL, blob_path, extension_for
+from app.services import runs
 from app.services.context import Context
 
 router = APIRouter(prefix="/api/ingress", tags=["ingress"])
@@ -49,6 +50,7 @@ async def receive_shot(
         # after that Experiment closed must still succeed, never reinterpret
         # the same media as a different result. Resume from durable state in
         # case the previous request committed the Shot but lost its publish.
+        await runs.ensure(ctx, existing)
         await _resume(ctx, existing)
         return IngressResponse(
             shot_id=existing.id,
@@ -87,6 +89,7 @@ async def receive_shot(
         experiment_id=experiment_id,
     )
     await repo.put_shot(ctx.store, shot)
+    await runs.ensure(ctx, shot)
     await repo.record(
         ctx.store,
         user_id,

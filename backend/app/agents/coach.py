@@ -44,7 +44,7 @@ def briefing(
     experiment: Experiment | None,
     constraints: Constraints | None = None,
 ) -> str:
-    """Everything the Coach knows about the frame before the first word."""
+    """Everything the Coach knows about the Shot before the first word."""
     grid = shot.grid
     lines = [
         f"Grid: {grid.cols} columns x {grid.rows} rows "
@@ -83,10 +83,10 @@ def briefing(
             "",
         ]
     else:
-        lines += ["The Analyst has not read this frame yet; work from the image alone.", ""]
+        lines += ["The Analyst has not read this Shot yet; work from the image alone.", ""]
     if experiment:
         lines += [
-            f"This frame was shot for the experiment '{experiment.title}' "
+            f"This Shot was made for the Experiment '{experiment.title}' "
             f"(technique {experiment.technique_id}, status {experiment.status.value}).",
             "Criteria: " + "; ".join(experiment.criteria.text),
             "",
@@ -182,8 +182,8 @@ TOOLS = types.Tool(
         types.FunctionDeclaration(
             name="technique_map",
             description=(
-                "The photographer's Technique Map: what the evidence has observed, what "
-                "recurs, and what is unlocked next. States are unobserved, observed and "
+                "The photographer's Technique Map: what the Evidence has observed and what "
+                "recurs. States are unobserved, observed and "
                 "recurring - they describe the evidence, never the photographer's ability."
             ),
             parameters=types.Schema(type=types.Type.OBJECT, properties={}),

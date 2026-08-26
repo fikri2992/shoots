@@ -135,16 +135,56 @@ async def test_a_technique_becoming_repeatable_earns_an_update_on_its_own():
     c = ctx()
     await seed(c, 12)
     await journey.maybe_write(c, "u1")
-    await repo.put_skill(
+    await repo.put_technique_state(
         c.store,
         TechniqueState(
-            user_id="u1", technique_id="backlight", status=TechniqueStatus.RECURRING, attempts=3
+            user_id="u1",
+            technique_id="backlight",
+            status=TechniqueStatus.RECURRING,
+            attempts=3,
+            corroborated=3,
         ),
     )
     update = await journey.maybe_write(c, "u1")
     assert update is not None
     assert "backlight" in update.became_recurring
     assert any("now does reliably" in line for line in update.evidence)
+
+
+async def test_retracted_recurrence_writes_a_code_authored_correction(no_model):
+    c = ctx()
+    await seed(c, 12)
+    await repo.put_technique_state(
+        c.store,
+        TechniqueState(
+            user_id="u1",
+            technique_id="backlight",
+            status=TechniqueStatus.RECURRING,
+            attempts=3,
+            corroborated=3,
+        ),
+    )
+    first = await journey.maybe_write(c, "u1")
+    assert first is not None and first.became_recurring == ["backlight"]
+    writer_calls = len(no_model)
+
+    await repo.put_technique_state(
+        c.store,
+        TechniqueState(
+            user_id="u1",
+            technique_id="backlight",
+            status=TechniqueStatus.OBSERVED,
+            attempts=3,
+            corroborated=0,
+        ),
+    )
+    correction = await journey.maybe_write(c, "u1")
+
+    assert correction is not None
+    assert "corrected an earlier record" in correction.body
+    assert any("system correction" in line and "backlight" in line for line in correction.evidence)
+    assert correction.provenance.model == "" and correction.provenance.prompt_version == ""
+    assert len(no_model) == writer_calls
 
 
 async def test_without_keepers_the_writer_is_told_not_to_speak_about_taste():
@@ -156,13 +196,14 @@ async def test_without_keepers_the_writer_is_told_not_to_speak_about_taste():
     assert not any("keep" in line and "times as often" in line for line in update.evidence)
 
 
-async def test_keeper_lift_reaches_the_writer_as_the_photographers_own_verdict():
+async def test_keeper_distribution_reaches_the_writer_as_positive_marks():
     c = ctx()
     await seed(c, 12, keepers=6)
     update = await journey.maybe_write(c, "u1")
     assert update is not None and update.taste_is_known is True
-    marked = "marked as keepers by the photographer themselves"
+    marked = "marked as Keepers by the photographer themselves"
     assert any(marked in line for line in update.evidence)
+    assert any("6 of 6 readable marked Keepers" in line for line in update.evidence)
 
 
 async def test_the_evidence_never_carries_a_score(no_model):
@@ -215,13 +256,14 @@ async def test_the_evidence_never_names_the_machinery():
     c = ctx()
     await seed(c, 12)
     await journey.maybe_write(c, "u1")
-    await repo.put_skill(
+    await repo.put_technique_state(
         c.store,
         TechniqueState(
             user_id="u1",
             technique_id="low_angle",
             status=TechniqueStatus.RECURRING,
             attempts=3,
+            corroborated=3,
         ),
     )
     update = await journey.maybe_write(c, "u1")

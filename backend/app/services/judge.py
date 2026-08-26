@@ -6,11 +6,20 @@ once: a second delivery finds its verdict already on the experiment.
 """
 
 import logging
+from datetime import datetime
 
 from app.agents import judge as agent
 from app.config import settings
 from app.domain import judge as rules
-from app.domain.entities import ExperimentStatus, Verdict, now
+from app.domain.entities import (
+    Analysis,
+    Experiment,
+    ExperimentStatus,
+    ExperimentType,
+    Shot,
+    Verdict,
+    now,
+)
 from app.infra import repository as repo
 from app.infra.bus import TOPICS
 from app.infra.storage import GRIDDED
@@ -22,30 +31,67 @@ logger = logging.getLogger(__name__)
 AGENT = "judge"
 
 
-async def judge(ctx: Context, message: dict) -> None:
+async def judge(ctx: Context, message: dict) -> str:
     """Judge if there is something to judge, then always publish ``media.judged``
     so the Scribe writes the review back with whatever verdict exists."""
-    await _judge(ctx, message)
+    outcome = await _judge(ctx, message)
     await ctx.bus.publish(TOPICS["media.judged"], {"shot_id": message["shot_id"]})
+    return outcome
 
 
-async def _judge(ctx: Context, message: dict) -> None:
+async def _judge(ctx: Context, message: dict) -> str:
     shot = await repo.get_shot(ctx.store, message["shot_id"])
-    experiment = await repo.open_experiment(ctx.store, shot.user_id)
-    if experiment is None:
-        return
+    if not shot.experiment_id:
+        return "free Shot; no Experiment judgment"
+    experiment = await repo.find_experiment(ctx.store, shot.experiment_id)
+    if experiment is None or experiment.user_id != shot.user_id:
+        return "associated Experiment is unavailable"
+    if experiment.type is not ExperimentType.REPRODUCE:
+        return f"{experiment.type.value} creates no Verdict"
     if not rules.is_submission(shot, experiment):
-        return
-    if any(v.shot_id == shot.id for v in experiment.verdicts):
-        logger.info("judge: %s already judged for %s", shot.id, experiment.id)
-        return
+        return "Shot is not an explicit Reproduce result"
+    if shot.id in experiment.result_shot_ids or any(
+        verdict.shot_id == shot.id for verdict in experiment.verdicts
+    ):
+        logger.info("judge: %s already recorded for %s", shot.id, experiment.id)
+        return "Reproduce result already recorded"
+    if experiment.status is not ExperimentStatus.OPEN:
+        return "Experiment settled before this result was read"
 
     analysis = await repo.find_analysis(ctx.store, shot.id)
     met, exif_checks, vision_checks = rules.evaluate(
         experiment.criteria, shot.exif, analysis, settings.judge_min_confidence
     )
+    abstained = rules.abstention_reason(
+        experiment.criteria,
+        exif_checks,
+        vision_checks,
+        analysis,
+        settings.judge_min_confidence,
+    )
+    if abstained:
+        _, recorded = await repo.record_reproduce_result_if_open(
+            ctx.store, experiment.id, shot.id, None, now()
+        )
+        if not recorded:
+            return "Experiment settled before abstention was recorded"
+        await repo.record(
+            ctx.store,
+            shot.user_id,
+            AGENT,
+            "abstained",
+            {
+                "technique_id": experiment.technique_id,
+                "reason": abstained,
+                "exif_checks": exif_checks,
+                "vision_checks": {key: round(value, 2) for key, value in vision_checks.items()},
+            },
+            shot_id=shot.id,
+            experiment_id=experiment.id,
+        )
+        return "Judge abstained; no Verdict"
 
-    previous = await _previous_best(ctx, shot, experiment.technique_id)
+    previous = await _previous_best(ctx, shot, experiment)
     try:
         images = [await ctx.blobs.read(shot.blobs[GRIDDED])] if GRIDDED in shot.blobs else []
         if previous and GRIDDED in previous[0].blobs and images:
@@ -69,15 +115,14 @@ async def _judge(ctx: Context, message: dict) -> None:
         feedback=text[:2000],
         compared_with=previous[0].id if previous else "",
     )
-    experiment.verdicts.append(verdict)
+    experiment, recorded = await repo.record_reproduce_result_if_open(
+        ctx.store, experiment.id, shot.id, verdict, now()
+    )
+    if not recorded:
+        logger.info("judge: %s lost the Experiment transition", shot.id)
+        return "Experiment settled before Verdict was recorded"
     if met:
-        experiment.status = ExperimentStatus.COMPLETED
-        experiment.closed_at = now()
-    await repo.put_experiment(ctx.store, experiment)
-
-    if not shot.experiment_id:
-        shot.experiment_id = experiment.id
-        await repo.put_shot(ctx.store, shot)
+        await repo.release_open_experiment(ctx.store, shot.user_id, experiment.id)
 
     await repo.record(
         ctx.store,
@@ -96,11 +141,19 @@ async def _judge(ctx: Context, message: dict) -> None:
     await notify.verdict_given(ctx, experiment, verdict)
     if met:
         await ctx.bus.publish(
-            TOPICS["experiment.closed"], {"user_id": shot.user_id, "experiment_id": experiment.id}
+            TOPICS["experiment.closed"],
+            {
+                "user_id": shot.user_id,
+                "experiment_id": experiment.id,
+                "shot_id": shot.id,
+            },
         )
+    return "Reproduce Criteria met" if met else "Reproduce Criteria not met"
 
 
-async def _previous_best(ctx: Context, shot, technique_id: str):
+async def _previous_best(
+    ctx: Context, shot: Shot, experiment: Experiment
+) -> tuple[Shot, Analysis] | None:
     """The earlier Shot of this Technique worth putting beside the new one.
 
     This used to pick the highest-scoring one, which quietly let a number
@@ -115,12 +168,24 @@ async def _previous_best(ctx: Context, shot, technique_id: str):
 
     The Technique Map remembers the Shot ids; the rest is a lookup.
     """
-    skills = {s.technique_id: s for s in await repo.list_skills(ctx.store, shot.user_id)}
-    state = skills.get(technique_id)
+    technique_id = experiment.technique_id
+    if experiment.reference_shot_id and experiment.reference_shot_id != shot.id:
+        reference = await repo.find_shot(ctx.store, experiment.reference_shot_id)
+        reference_analysis = (
+            await repo.find_analysis(ctx.store, experiment.reference_shot_id) if reference else None
+        )
+        if reference is not None and reference_analysis is not None:
+            return reference, reference_analysis
+
+    states = {
+        state.technique_id: state
+        for state in await repo.list_technique_states(ctx.store, shot.user_id)
+    }
+    state = states.get(technique_id)
     if state is None:
         return None
 
-    candidates = []
+    candidates: list[tuple[Shot, Analysis]] = []
     for shot_id in state.shot_ids:
         if shot_id == shot.id:
             continue
@@ -134,13 +199,13 @@ async def _previous_best(ctx: Context, shot, technique_id: str):
     return max(candidates, key=lambda pair: _comparable_rank(pair, technique_id))
 
 
-def _comparable_rank(pair, technique_id: str) -> tuple:
+def _comparable_rank(
+    pair: tuple[Shot, Analysis], technique_id: str
+) -> tuple[int, int, float, datetime]:
     """Keeper first, then how well the panel corroborated *this* technique in
     it, then recency. Never the frame's score."""
     candidate, analysis = pair
-    evidence = next(
-        (t for t in analysis.techniques if t.technique_id == technique_id), None
-    )
+    evidence = next((t for t in analysis.techniques if t.technique_id == technique_id), None)
     return (
         1 if candidate.kept_at else 0,
         evidence.agreement if evidence else 0,

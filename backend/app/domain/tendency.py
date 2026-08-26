@@ -14,19 +14,15 @@ What it may claim, in order of how hard the claim is:
 * **exploration** — normalised entropy over a dimension's buckets: 0 when every
   shot landed in one, 1 when they are spread evenly. A number about the spread
   of a distribution, not about anybody's talent.
-* **keeper concentration** — where a photographer's Keeper marks sit relative to
-  where their shooting sits. This is the only place taste enters the system, it
-  comes from the photographer's own marks and never from the panel's score, and
-  it stays silent until there are enough of them to mean anything.
+* **Keeper distribution** — where the photographer's positive Keeper marks sit.
+  It uses only marked Keepers and stays silent until there are enough marks.
 
   The Keeper signal is **positive only** (decision 45), and the arithmetic has
   to respect that or the claim is a lie. A mark means *valued*; no mark means
-  *unknown*, never *rejected* — a hobbyist marks a handful of frames out of
-  hundreds and has said nothing at all about the rest. So the denominators here
-  are exposure, not opinion: how many shots landed in a bucket, and how many
-  landed anywhere. The ratio says "your marks concentrate here more than your
-  shooting does". It never says "you disliked the others", because nobody
-  asked them.
+  *unknown*, never *rejected* — a hobbyist marks a handful of Shots out of
+  hundreds and has said nothing at all about the rest. Unmarked Shots never
+  enter the denominator. The strongest permitted sentence is "3 of 5 readable
+  marked Keepers use this placement."
 
 Pure. No I/O, no model call, and every function here can be replayed over the
 stored corpus.
@@ -34,6 +30,8 @@ stored corpus.
 
 from __future__ import annotations
 
+import hashlib
+import json
 from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta
 from math import log, sqrt
@@ -47,7 +45,7 @@ from app.domain.entities import Analysis, Change, ChangeState, Comparability, Sh
 #: version it was computed under (``entities.Provenance``) and a figure is only
 #: reproducible against the calculation that produced it. Two claims with
 #: different versions are not comparable and must not be diffed.
-CALC_VERSION = "tendency-1"
+CALC_VERSION = "tendency-2"
 
 
 # --- how sure we have to be before we say anything ------------------------------
@@ -57,12 +55,11 @@ CALC_VERSION = "tendency-1"
 #: about five frames.
 MIN_SHOTS_FOR_TENDENCY = 8
 
-#: A dimension is narrow enough to be worth a challenge below this exploration.
+#: A dimension is narrow enough to support an Experiment Direction below this.
 NARROW_BELOW = 0.55
 
-#: Keeper lift needs both a habit of marking and a bucket with something in it.
-MIN_KEEPERS_FOR_LIFT = 5
-MIN_BUCKET_FOR_LIFT = 3
+#: Below this many positive marks, the distribution is shown only as raw counts.
+MIN_KEEPERS_FOR_TASTE = 5
 
 #: Two shots inside this gap belong to the same scene. Working a scene means
 #: staying; walking on and shooting something else is a new one.
@@ -83,17 +80,21 @@ class Dimension:
     #: Set when the measurement is not available from every source, so the
     #: profile can name its own blind spots instead of implying completeness.
     blind: str = ""
+    #: A model-read bucket is traceable to Analysis provenance, not replayable.
+    source: str = "measurement"
 
 
 PLACEMENT = Dimension(
     id="placement",
     label="where you put the subject",
     buckets=("centred", "off centre", "near the edge"),
+    source="model read",
 )
 FRAMING = Dimension(
     id="framing",
     label="how close you get",
     buckets=("wide", "medium", "close"),
+    source="model read",
 )
 LIGHT = Dimension(
     id="light",
@@ -120,7 +121,7 @@ HEIGHT = Dimension(
     id="height",
     label="the height you shoot from",
     buckets=("low", "eye level", "high"),
-    blind="only measured for shots taken through the Shoots camera",
+    blind="not recorded by Phone Source or standard gallery imports",
 )
 
 DIMENSIONS: tuple[Dimension, ...] = (
@@ -223,9 +224,11 @@ def _orientation(shot: Shot, analysis: Analysis | None) -> str | None:
 
 
 def _height(shot: Shot, analysis: Analysis | None) -> str | None:
-    """The camera's pitch when the shutter fired, which only the Shoots camera
-    records. Every shot that arrived through Drive is silent here, and the
-    profile says so rather than implying the dimension was explored."""
+    """Legacy pitch when a transitional custom camera recorded it.
+
+    Phone Source and standard gallery imports do not provide device attitude,
+    so the Profile stays silent instead of defaulting to eye level.
+    """
     pitch = getattr(shot, "pitch_deg", None)
     if pitch is None:
         return None
@@ -311,29 +314,16 @@ class DimensionProfile:
     def narrow(self) -> bool:
         return self.readable and self.exploration < NARROW_BELOW
 
-    def keeper_lift(self, bucket: str, overall_rate: float, keepers: int) -> float | None:
-        """How much more of this bucket the photographer marked than their
-        marking rate overall. Above 1 means their Keepers concentrate here.
+    @property
+    def readable_keepers(self) -> int:
+        """Positive marks whose Shot was readable on this dimension."""
+        return sum(self.keepers.values())
 
-        Both terms are marks over *shots taken*, never marks over some notion
-        of shots rejected: an unmarked frame carries no verdict (decision 45),
-        so it is only ever exposure in a denominator. ``None`` when too little
-        has been marked for the ratio to be worth a sentence, which is the
-        usual state and a fine one.
-
-        ``keepers`` is how many marks the photographer has made in total, and
-        it has to clear ``MIN_KEEPERS_FOR_LIFT`` before any lift is returned.
-        Two taps on the same kind of frame produce a lift of six, which reads
-        as a discovered preference and is really two taps: the same bar that
-        makes ``Profile.taste_is_known`` false has to silence the figure, or
-        the profile says in numbers what it has just refused to say in words.
-        """
-        shots = self.counts.get(bucket, 0)
-        if keepers < MIN_KEEPERS_FOR_LIFT:
+    def keeper_share(self, bucket: str) -> float | None:
+        """Share among readable marked Keepers; unknown Shots never enter."""
+        if self.readable_keepers < MIN_KEEPERS_FOR_TASTE:
             return None
-        if shots < MIN_BUCKET_FOR_LIFT or overall_rate <= 0:
-            return None
-        return (self.keepers.get(bucket, 0) / shots) / overall_rate
+        return self.keepers.get(bucket, 0) / self.readable_keepers
 
 
 #: Below this many frames a scene, the photographer takes one picture and walks
@@ -385,17 +375,17 @@ class Profile:
     shot_ids: list[str] = field(default_factory=list)
     #: The arithmetic that produced it (``CALC_VERSION`` at build time).
     calc_version: str = CALC_VERSION
-
-    @property
-    def keeper_rate(self) -> float:
-        return self.keepers / self.shots if self.shots else 0.0
+    #: Distinct Analyst model/prompt pairs behind model-read dimensions.
+    model_inputs: tuple[tuple[str, str], ...] = ()
+    #: Shot id -> digest of placement/framing fields read from its Analysis.
+    analysis_versions: tuple[tuple[str, str], ...] = ()
 
     @property
     def taste_is_known(self) -> bool:
-        """Whether the photographer has marked enough Keepers for lift to mean
+        """Whether the photographer has marked enough Keepers for a distribution to mean
         anything. Without this the profile can say "you changed" and must not
         say "you are moving toward what you value" (decision 39)."""
-        return self.keepers >= MIN_KEEPERS_FOR_LIFT
+        return self.keepers >= MIN_KEEPERS_FOR_TASTE
 
     @property
     def blind_spots(self) -> tuple[str, ...]:
@@ -412,7 +402,7 @@ class Profile:
 
     def narrowest(self) -> DimensionProfile | None:
         """The dimension with the least variation, among those with enough
-        shots behind them to say so. What a challenge should push against.
+        Shots behind them to say so. What an Experiment Direction should explore.
 
         Ties are common and they matter: a corpus shot entirely in landscape
         puts orientation at zero exploration on day one, and left to sort
@@ -445,6 +435,22 @@ def build(
         keepers=sum(1 for shot, _ in rows if shot.id in keeper_ids),
         dwell=dwell(rows),
         shot_ids=[shot.id for shot, _ in rows],
+        model_inputs=tuple(
+            sorted(
+                {
+                    (analysis.model, analysis.prompt_version)
+                    for _, analysis in rows
+                    if analysis is not None and analysis.model
+                }
+            )
+        ),
+        analysis_versions=tuple(
+            sorted(
+                (shot.id, model_read_version(analysis))
+                for shot, analysis in rows
+                if analysis is not None
+            )
+        ),
     )
     for shot, analysis in rows:
         point = read_shot(shot, analysis)
@@ -458,6 +464,20 @@ def build(
             if kept:
                 dim_profile.keepers[bucket] = dim_profile.keepers.get(bucket, 0) + 1
     return profile
+
+
+def model_read_version(analysis: Analysis) -> str:
+    """Version the exact soft fields used by placement and framing buckets."""
+    composition = analysis.composition
+    payload = {
+        "model": analysis.model,
+        "prompt_version": analysis.prompt_version,
+        "subject_cells": composition.subject_cells,
+        "subject_x": composition.subject_x,
+        "subject_y": composition.subject_y,
+    }
+    encoded = json.dumps(payload, sort_keys=True, separators=(",", ":")).encode()
+    return hashlib.sha256(encoded).hexdigest()[:12]
 
 
 def dwell(rows: list[tuple[Shot, Analysis | None]]) -> Dwell:
@@ -533,8 +553,8 @@ def diff(before: Profile, after: Profile) -> list[Movement]:
 
 #: Which techniques push against a dimension's dominant bucket. This is the
 #: whole bridge from "you always do X" to "here is something to try": the Scout
-#: still chooses from the Technique Map and its prerequisites, but a technique
-#: named here is preferred when the profile has something to say. Ids are
+#: a Technique named here is eligible only when the Profile supports the
+#: direction. Ids are
 #: checked against the catalogue by a test, so a rename cannot rot this quietly.
 PUSHES_AGAINST: dict[tuple[str, str], tuple[str, ...]] = {
     ("placement", "centred"): ("rule_of_thirds", "negative_space", "rule_of_odds"),
@@ -562,22 +582,22 @@ PUSHES_AGAINST: dict[tuple[str, str], tuple[str, ...]] = {
 }
 
 #: What to try when the photographer takes one frame and walks on. Working the
-#: scene is not a technique in the catalogue, so the challenge is carried by the
+#: scene is not a Technique in the catalogue, so the direction is carried by the
 #: sentence rather than by an id.
 DWELL_SUGGESTS: tuple[str, ...] = ("fill_the_frame", "low_angle", "negative_space")
 
 
 @dataclass(frozen=True)
-class Challenge:
+class ExperimentDirection:
     """One thing to try, and the counts that earned it.
 
-    The citation is the point. A challenge that cannot name the arithmetic
+    The citation is the point. A direction that cannot name the arithmetic
     behind it is generic advice, which is the tier this product exists to rise
     above — so this carries the sentence, and the Scout is required to show it
     on the card rather than paraphrase it away.
     """
 
-    #: What the photographer reads: "13 of 18 frames are warm".
+    #: What the photographer reads: "13 of 18 Shots are warm".
     citation: str
     #: Techniques that would push against the tendency, best first.
     prefers: tuple[str, ...]
@@ -588,7 +608,7 @@ class Challenge:
         return bool(self.citation)
 
 
-def challenge_for(profile: Profile) -> Challenge | None:
+def direction_for(profile: Profile) -> ExperimentDirection | None:
     """What the profile suggests trying next, or nothing.
 
     Nothing is a real answer: a photographer whose work is spread across every
@@ -597,10 +617,10 @@ def challenge_for(profile: Profile) -> Challenge | None:
     """
     if profile.dwell.walks_on:
         dwell = profile.dwell
-        return Challenge(
+        return ExperimentDirection(
             citation=(
                 f"{dwell.shots} shots across {dwell.scenes} scenes — "
-                f"{dwell.per_scene:.1f} frames before you move on"
+                f"{dwell.per_scene:.1f} Shots before you move on"
             ),
             prefers=DWELL_SUGGESTS,
             source="dwell",
@@ -614,7 +634,7 @@ def challenge_for(profile: Profile) -> Challenge | None:
     citation = f"{count} of {narrowest.n} readable shots: {bucket}"
     if narrowest.never_used:
         citation += f" — never {', '.join(narrowest.never_used)}"
-    return Challenge(
+    return ExperimentDirection(
         citation=citation,
         prefers=PUSHES_AGAINST.get((narrowest.dimension.id, bucket), ()),
         source=narrowest.dimension.id,
@@ -658,7 +678,7 @@ def change(
     ``shots_since`` is how many frames the photographer actually took, which is
     *not* the difference between the two count totals. Those totals hold only
     the frames this dimension could read, and a dimension can read almost
-    nothing: height needs the Shoots camera's pitch, light needs GPS and a
+    nothing: height needs recorded pitch, light needs GPS and a
     timestamp. Forty imports carrying neither move the totals by zero, and
     telling a photographer who shot forty frames that they shot none is the
     exact failure this module exists to avoid. So the sentence counts frames
@@ -727,12 +747,12 @@ def dwell_change(at_issue: dict[str, int], current: Dwell) -> Change:
     if per_scene >= was + DWELL_ROSE_BY:
         return Change(
             state=ChangeState.CHANGED,
-            outcome=f"{per_scene:.1f} frames a scene since, up from {was:.1f}",
+            outcome=f"{per_scene:.1f} Shots a Scene since, up from {was:.1f}",
             added=added,
         )
     return Change(
         state=ChangeState.UNCHANGED,
-        outcome=f"{per_scene:.1f} frames a scene since, was {was:.1f}",
+        outcome=f"{per_scene:.1f} Shots a Scene since, was {was:.1f}",
         added=added,
     )
 

@@ -88,15 +88,8 @@ def test_vote_cells_and_catalogue_are_enforced():
     # owner alone at >= 0.75 counts; owner alone at 0.5 does not; unknown/video ids never
     assert by_id["rule_of_thirds"].agreement == 1 and by_id["single_accent"].agreement == 1
     assert "deep_dof" not in by_id and "made_up" not in by_id and "pan" not in by_id
-    # elements: only each lens's own, clamped, then the weighted overall computed here
-    assert analysis.elements == {
-        "impact": 8,
-        "composition": 6,
-        "lighting": 10,
-        "technical": 7,
-        "story": 6,
-    }
-    assert analysis.score == 8  # 0.3*8 + 0.25*6 + 0.2*10 + 0.15*7 + 0.1*6 = 7.55
+    assert analysis.prompt_version
+    assert "elements" not in analysis.model_dump() and "score" not in analysis.model_dump()
     assert analysis.composition.subject_cells == ["D4", "E5"]
     assert analysis.composition.horizon_row is None
     assert [m.what for m in analysis.composition.moves] == ["subject"]
@@ -162,7 +155,7 @@ def test_missing_synthesis_falls_back_to_lens_notes_and_two_lenses_suffice():
     del result.reads["storyteller"]
     analysis = validate(PHOTO, result)
     assert "Shutter suits the pan." in analysis.critique
-    assert "impact" not in analysis.elements and analysis.score >= 1
+    assert "elements" not in analysis.model_dump() and "score" not in analysis.model_dump()
 
 
 def test_prompt_carries_grid_and_catalogue_and_state_carries_facts():

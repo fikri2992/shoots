@@ -5,22 +5,30 @@ Firestore runs the same store tests when FIRESTORE_EMULATOR_HOST is set.
 
 import asyncio
 import os
+import uuid
 
 import pytest
 
 from app.domain.entities import (
+    Analysis,
+    Composition,
     Criteria,
     Experiment,
     ExperimentStatus,
     Shot,
     ShotKind,
     TechniqueState,
+    TechniqueStatus,
     User,
+    Verdict,
+    now,
 )
 from app.infra import repository as repo
 from app.infra.bus import InProcessBus
 from app.infra.secrets import LocalTokenStore
 from app.infra.store import FileStore, InMemoryStore
+from app.services import profile as profile_service
+from app.services.context import Context
 
 
 def stores():
@@ -46,6 +54,32 @@ async def test_put_get_query_order_limit(store):
     assert len(await store.query("t", where={"tag_ids": "t0"})) == 1
     await store.delete("t", "d0")
     assert await store.get("t", "d0") is None
+    assert await store.create("t", "unique", {"owner": "u1"}) is True
+    assert await store.create("t", "unique", {"owner": "u2"}) is False
+    assert await store.delete_if("t", "unique", {"owner": "u2"}) is False
+    assert await store.patch_if("t", "unique", {"value": 3}, {"owner": "u2"}) is False
+    assert await store.patch_if("t", "unique", {"value": 3}, {"owner": "u1"}) is True
+    assert (await store.get("t", "unique"))["value"] == 3
+    assert await store.delete_if("t", "unique", {"owner": "u1"}) is True
+    assert await store.create_claimed(
+        "claims", "owner", {"document_id": "paired"}, "t", "paired", {"value": 1}
+    )
+    assert await store.get("claims", "owner") == {"document_id": "paired"}
+    assert await store.get("t", "paired") == {"value": 1}
+    assert not await store.create_claimed(
+        "claims", "owner", {"document_id": "other"}, "t", "other", {"value": 2}
+    )
+    assert await store.get("t", "other") is None
+    await store.put("counter", "one", {"value": 0})
+
+    def increment(document):
+        document["value"] += 1
+        return document
+
+    await asyncio.gather(*(store.mutate("counter", "one", increment) for _ in range(8)))
+    assert (await store.get("counter", "one"))["value"] == 8
+    unchanged, changed = await store.mutate("counter", "one", lambda document: None)
+    assert changed is False and unchanged["value"] == 8
 
 
 async def test_repository_round_trips_every_entity(store):
@@ -67,9 +101,22 @@ async def test_repository_round_trips_every_entity(store):
     await repo.put_shot(store, shot)
     assert [s.id for s in await repo.list_shots(store, "u1")] == [shot.id]
 
-    skill = TechniqueState(user_id="u1", technique_id="panning", attempts=2)
-    await repo.put_skill(store, skill)
-    assert (await repo.list_skills(store, "u1"))[0].attempts == 2
+    state = TechniqueState(user_id="u1", technique_id="panning", attempts=2)
+    await repo.put_technique_state(store, state)
+    assert (await repo.list_technique_states(store, "u1"))[0].attempts == 2
+
+    # A migrated graded label cannot outrank the Evidence counts. Repository
+    # contracts protect every service and API surface, not only this UI.
+    impossible = TechniqueState(
+        user_id="u1",
+        technique_id="leading_lines",
+        status=TechniqueStatus.RECURRING,
+        attempts=8,
+        corroborated=0,
+    )
+    await repo.put_technique_state(store, impossible)
+    loaded = {item.technique_id: item for item in await repo.list_technique_states(store, "u1")}
+    assert loaded["leading_lines"].status is TechniqueStatus.OBSERVED
 
     experiment = Experiment(
         id="q1",
@@ -89,6 +136,98 @@ async def test_repository_round_trips_every_entity(store):
     await repo.record(store, "u1", "ingest", "queued", {"x": 1}, shot_id=shot.id)
     events = await repo.list_events(store, "u1")
     assert events[0].stage == "queued" and events[0].shot_id == shot.id
+
+
+async def test_concurrent_open_experiment_creation_has_one_winner(store):
+    user_id = f"user_atomic_{uuid.uuid4().hex}"
+
+    def candidate(number: int) -> Experiment:
+        return Experiment(
+            id=f"experiment_atomic_{uuid.uuid4().hex}_{number}",
+            user_id=user_id,
+            technique_id="panning",
+            title=f"candidate {number}",
+            brief="Follow one subject.",
+            why_now="A cited Tendency supports it.",
+            criteria=Criteria(),
+        )
+
+    experiments = [candidate(number) for number in range(8)]
+    results = await asyncio.gather(
+        *(repo.create_open_experiment(store, experiment) for experiment in experiments)
+    )
+
+    assert sum(results) == 1
+    opened = await repo.open_experiment(store, user_id)
+    assert opened is not None
+    assert opened.id == experiments[results.index(True)].id
+    stored = await repo.list_experiments(store, user_id)
+    assert [experiment.id for experiment in stored] == [opened.id]
+
+
+async def test_skip_and_verdict_cannot_overwrite_each_other(store):
+    suffix = uuid.uuid4().hex
+    experiment = Experiment(
+        id=f"experiment_transition_race_{suffix}",
+        user_id=f"user_transition_race_{suffix}",
+        technique_id="panning",
+        title="race",
+        brief="Follow one subject.",
+        why_now="A cited Tendency supports it.",
+        criteria=Criteria(),
+    )
+    assert await repo.create_open_experiment(store, experiment)
+    verdict = Verdict(
+        shot_id="race_shot",
+        criteria_met=True,
+        feedback="The declared Criteria were met.",
+    )
+
+    judged, skipped = await asyncio.gather(
+        repo.append_verdict_if_open(store, experiment.id, verdict, now()),
+        repo.transition_open_experiment(store, experiment.id, ExperimentStatus.SKIPPED, now()),
+    )
+
+    assert sum((judged[1], skipped[1])) == 1
+    stored = await repo.get_experiment(store, experiment.id)
+    if stored.status is ExperimentStatus.COMPLETED:
+        assert [item.shot_id for item in stored.verdicts] == ["race_shot"]
+    else:
+        assert stored.status is ExperimentStatus.SKIPPED and stored.verdicts == []
+
+
+async def test_tendency_profile_reads_beyond_the_old_500_shot_window():
+    store = InMemoryStore()
+    ctx = Context(store=store, blobs=None, bus=InProcessBus(), drive=None, tokens=None)
+    for number in range(505):
+        shot_id = f"archive_{number}"
+        await repo.put_shot(
+            store,
+            Shot(
+                id=shot_id,
+                user_id="archive_user",
+                kind=ShotKind.PHOTO,
+                drive_file_id=shot_id,
+                filename=f"{shot_id}.jpg",
+                mime_type="image/jpeg",
+            ),
+        )
+        await repo.put_analysis(
+            store,
+            Analysis(
+                shot_id=shot_id,
+                user_id="archive_user",
+                model="reader-v1",
+                prompt_version="prompt-v1",
+                composition=Composition(subject_x=0.5, subject_y=0.5),
+            ),
+        )
+
+    profile = await profile_service.build(ctx, "archive_user")
+
+    assert profile.shots == 505
+    assert len(profile.shot_ids) == 505
+    assert profile.model_inputs == (("reader-v1", "prompt-v1"),)
 
 
 def test_shot_id_is_deterministic():

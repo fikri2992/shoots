@@ -276,9 +276,9 @@ class Shot(BaseModel):
     #: "this is what you value", which nothing else can supply. It is not a
     #: score, it promotes nothing, and it is never second-guessed.
     kept_at: datetime | None = None
-    #: The camera's pitch when the shutter fired, degrees from level: negative
-    #: is aimed down, positive up. Only shots taken through the Shoots camera
-    #: carry it, which is why height is a declared blind spot of the profile.
+    #: Legacy camera pitch, degrees from level: negative is aimed down,
+    #: positive up. Phone Source cannot recover device attitude from gallery
+    #: media, so new Android imports normally leave it empty.
     pitch_deg: float | None = None
     #: The reviewed copy the Scribe wrote back into the user's Drive.
     drive_review_id: str = ""
@@ -376,6 +376,8 @@ class Analysis(BaseModel):
     shot_id: str
     user_id: str
     model: str
+    #: Digest of the complete Analyst prompt bundle used for this reading.
+    prompt_version: str = ""
     techniques: list[TechniqueEvidence] = Field(default_factory=list)
     composition: Composition = Field(default_factory=Composition)
     #: Neutral, cell-referenced description (Feldman's first step), before judgement.
@@ -383,22 +385,11 @@ class Analysis(BaseModel):
     #: What the arithmetic says is wrong with the frame (domain/findings.py).
     #: Computed after the vote, so a technique can excuse its own side effect.
     findings: list[Finding] = Field(default_factory=list)
-    #: Rubric element scores 1-10 (domain/rubric.py), averaged over the lenses that rate each.
-    elements: dict[str, int] = Field(default_factory=dict)
     critique: str = ""
-    #: 1-10, computed from ``elements`` by the rubric's weights.
-    #:
-    #: Stored, and read by nothing (decision 46). It reaches no screen, no
-    #: filename, no prompt and no user-facing API, and it decides nothing: not
-    #: the Technique Map, not the Journey, not which earlier frame a new one is
-    #: compared against. Its five elements correlate at r = 0.89 and the
-    #: weighted mean tracks ``impact`` alone at 0.986, so it is one opinion
-    #: wearing five bars. It survives only so old records still load.
-    score: int = Field(default=5, ge=1, le=10)
     #: Seconds each lens took; a lens missing here did not answer.
     panel: dict[str, float] = Field(default_factory=dict)
     #: Sightings that lost the vote: [{lens, technique_id, confidence}]. Shown, not counted.
-    dissent: list[dict] = Field(default_factory=list)
+    dissent: list[dict[str, Any]] = Field(default_factory=list)
     #: Set when the panel could not call this frame: every lens saw something
     #: and no two saw the same thing (decision 38). The findings still stand -
     #: they are arithmetic - but nothing here should be read as a verdict, and
@@ -434,17 +425,12 @@ class TechniqueStatus(StrEnum):
 class TechniqueState(BaseModel):
     """What the Technique Map holds about one Technique for one photographer.
 
-    ``corroborated`` is what moves the status. The score belongs to the whole
-    frame: one photograph demonstrating six techniques hands the same number to
-    all six, so promoting on it credits every technique in the frame for
-    whatever the best one earned. Agreement and confidence are the only signals
-    that are *about this technique*.
+    ``corroborated`` is what moves the status. Whole-Shot scores were removed:
+    one number cannot measure every Technique visible inside the same Shot.
+    Agreement and confidence are the signals that are about this Technique.
 
-    ``best_score`` and ``last_score`` are kept for migration and read by
-    nothing. They used to choose which earlier frame became "your previous
-    best", which let a number nobody may see decide the bar a photographer is
-    measured against; that choice now prefers a Keeper, then corroboration
-    (``services/judge.py``).
+    Earlier records may contain score keys. Pydantic ignores those legacy
+    extras; new Technique states never carry them (decision 61).
     """
 
     user_id: str
@@ -455,17 +441,19 @@ class TechniqueState(BaseModel):
     corroborated: int = 0
     #: Highest voted confidence this technique has ever reached.
     best_confidence: float = 0.0
-    #: The frame's overall score when this technique was last seen, and the
-    #: best such frame. Recorded for the Judge's comparison and the Coach's
-    #: briefing; deliberately not part of the promotion rule.
-    best_score: int = 0
-    last_score: int = 0
     last_observed: datetime | None = None
     #: Shot ids, newest last, capped by the Cartographer.
     shot_ids: list[str] = Field(default_factory=list)
 
 
 # --- provenance -----------------------------------------------------------
+
+
+class ModelProvenance(BaseModel):
+    """One model-read input a longitudinal calculation depended on."""
+
+    model: str
+    prompt_version: str
 
 
 class Provenance(BaseModel):
@@ -478,8 +466,8 @@ class Provenance(BaseModel):
     under which model and which prompt.
 
     Re-running the same ``calc_version`` over the same ``shot_ids`` reproduces
-    every measured number. The sentences are a model's and will vary; the
-    figures underneath them will not.
+    deterministic dimensions. Dimensions sourced from an Analysis are
+    traceable through ``inputs`` but are not promised to regenerate identically.
     """
 
     #: Every Shot the claim was computed from, in the order they were read.
@@ -492,6 +480,10 @@ class Provenance(BaseModel):
     #: Set only where a model contributed language to the claim.
     model: str = ""
     prompt_version: str = ""
+    #: Distinct Analyst versions behind model-read dimensions in this sample.
+    inputs: list[ModelProvenance] = Field(default_factory=list)
+    #: Shot id -> digest of the stored model-read fields used by the Profile.
+    analysis_versions: dict[str, str] = Field(default_factory=dict)
     computed_at: datetime = Field(default_factory=now)
 
 
@@ -528,10 +520,10 @@ class Reference(BaseModel):
 class ExperimentType(StrEnum):
     """Which of the three questions this Experiment asks (decision 43).
 
-    Only ``EXPLORE`` is issued today. The other two are named here because an
-    Experiment Record has to say which question it answered, and a record
-    written now must still mean the same thing once the Scout learns to ask
-    the other two - not silently become "whatever we did back then".
+    Scout currently issues ``REPRODUCE`` from corroborated Techniques in
+    photographer-marked Keepers and otherwise offers ``EXPLORE`` from a
+    supported Direction. ``COMPARE`` remains deliberately unissued until the
+    photographer-owned preference result exists.
     """
 
     #: Widen a dimension the archive barely uses.
@@ -549,6 +541,9 @@ class ExperimentStatus(StrEnum):
     #: The Criteria were met. "Passed" graded the photographer; an Experiment
     #: is something they tried, and it either completed or it did not.
     COMPLETED = "completed"
+    #: The photographer ended the offer without making a claim about the
+    #: Technique or the result. ``SKIPPED`` remains readable for old records.
+    LEFT = "left"
     SKIPPED = "skipped"  # the human gate: the photographer declined it
     EXPIRED = "expired"
 
@@ -564,7 +559,7 @@ class Verdict(BaseModel):
 
     shot_id: str
     criteria_met: bool
-    exif_checks: dict[str, bool] = Field(default_factory=dict)
+    exif_checks: dict[str, bool | None] = Field(default_factory=dict)
     vision_checks: dict[str, float] = Field(default_factory=dict)
     feedback: str
     #: An earlier Shot of the same Technique the feedback was written against.
@@ -588,7 +583,7 @@ class Baseline(BaseModel):
     against a tendency it was never aimed at (``services/scout.py``).
     """
 
-    #: The dimension id the challenge came from, or "dwell".
+    #: The dimension id the Experiment Direction came from, or "dwell".
     source: str = ""
     #: The sentence the photographer was shown: "12 of 18 readable: centred".
     #: Arithmetic, not prose - it is rendered verbatim rather than paraphrased.
@@ -633,12 +628,16 @@ class Comparability(StrEnum):
     #: The baseline was frozen by a different ``CALC_VERSION``. Diffing across
     #: it would report a change the photographer never made. Never re-checked.
     DIFFERENT_ARITHMETIC = "different arithmetic"
+    #: A model-read dimension changed Analyst model or prompt provenance.
+    DIFFERENT_MODEL_READING = "different model reading"
     #: Nothing measures that dimension any more. Never re-checked.
     UNKNOWN_DIMENSION = "unknown dimension"
     #: The baseline predates the record of how many Shots it was taken over, so
     #: there is no honest way to say how much has been shot since. Only ever
     #: true of Experiments issued before ``Baseline.provenance`` existed.
     UNRECORDED_SAMPLE = "unrecorded sample"
+    #: One or more exact Baseline Shots no longer exist in the archive.
+    BASELINE_SHOTS_MISSING = "baseline shots missing"
 
 
 class Change(BaseModel):
@@ -714,6 +713,12 @@ class Experiment(BaseModel):
     #: The tendency this Experiment was aimed at, frozen before any result.
     #: None when the photographer's own work did not choose it.
     baseline: Baseline | None = None
+    #: Reproduce freezes one exact marked Keeper before any result arrives.
+    #: Empty for Explore, Compare, and legacy records.
+    reference_shot_id: str = ""
+    #: Every Shot explicitly submitted while this Experiment owned it. This
+    #: includes an abstention, which creates no Verdict but remains a result.
+    result_shot_ids: list[str] = Field(default_factory=list)
     #: Whether comparable behaviour differs now. None until it has been checked,
     #: and re-checked while the sample is only too small (``Change.settled``).
     change: Change | None = None
@@ -725,6 +730,54 @@ class Experiment(BaseModel):
 
 
 # --- audit trail ----------------------------------------------------------
+
+
+class RunStage(StrEnum):
+    INGEST = "ingest"
+    ANALYST = "analyst"
+    CARTOGRAPHER = "cartographer"
+    SCOUT = "scout"
+    JUDGE = "judge"
+    SCRIBE = "scribe"
+
+
+class RunStepState(StrEnum):
+    PENDING = "pending"
+    COMPLETED = "completed"
+    SKIPPED = "skipped"
+    RETRYING = "retrying"
+    TERMINAL = "terminal"
+
+
+class RunStatus(StrEnum):
+    RUNNING = "running"
+    RETRYING = "retrying"
+    COMPLETED = "completed"
+    TERMINAL = "terminal"
+
+
+class RunStep(BaseModel):
+    state: RunStepState = RunStepState.PENDING
+    outcome: str = ""
+    detail: dict[str, Any] = Field(default_factory=dict)
+    settled_at: datetime | None = None
+
+
+class Run(BaseModel):
+    """The durable terminal account for one accepted Shot."""
+
+    id: str
+    user_id: str
+    shot_id: str
+    source: ShotSource
+    experiment_id: str = ""
+    status: RunStatus = RunStatus.RUNNING
+    steps: dict[str, RunStep] = Field(
+        default_factory=lambda: {stage.value: RunStep() for stage in RunStage}
+    )
+    started_at: datetime = Field(default_factory=now)
+    updated_at: datetime = Field(default_factory=now)
+    completed_at: datetime | None = None
 
 
 class JourneyUpdate(BaseModel):
@@ -750,7 +803,7 @@ class JourneyUpdate(BaseModel):
     #: The paragraph the photographer reads.
     body: str
     #: What it was written from: exploration per dimension, what widened, which
-    #: techniques became repeatable, the dwell figure, the keeper lifts.
+    #: techniques became repeatable, the dwell figure, and marked-Keeper counts.
     evidence: list[str] = Field(default_factory=list)
     #: Dimension ids that widened since the last update, widest first.
     widened: list[str] = Field(default_factory=list)
@@ -779,7 +832,7 @@ class ActivityEvent(BaseModel):
     user_id: str
     agent: str  # ingest | analyst | cartographer | scout | judge | scheduler
     stage: str
-    detail: dict = Field(default_factory=dict)
+    detail: dict[str, Any] = Field(default_factory=dict)
     shot_id: str = ""
     experiment_id: str = ""
     at: datetime = Field(default_factory=now)

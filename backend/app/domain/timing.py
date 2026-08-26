@@ -109,7 +109,7 @@ def deliver_at(
         return Timing(now, ANY, "Any light works for this one.")
     if latitude is None or longitude is None:
         return Timing(
-            now, light, "No location in your recent frames yet, so this one comes right away."
+            now, light, "No location in your recent Shots yet, so this one comes right away."
         )
 
     day = now.date() - timedelta(days=1)
