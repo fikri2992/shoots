@@ -35,6 +35,7 @@ for role in \
   roles/secretmanager.admin \
   roles/pubsub.publisher \
   roles/aiplatform.user \
+  roles/firebasecloudmessaging.admin \
   roles/logging.logWriter \
   roles/cloudtrace.agent; do
   gcloud projects add-iam-policy-binding "$PROJECT" \
@@ -55,7 +56,6 @@ gcloud projects add-iam-policy-binding "$PROJECT" \
 ENV_FILE="${ENV_FILE:-}"
 ensure_secret() {
   local name="$1" value="$2"
-  [ -n "$value" ] || { echo "skip $name (empty)"; return; }
   if ! gcloud secrets describe "$name" --project "$PROJECT" >/dev/null 2>&1; then
     gcloud secrets create "$name" --project "$PROJECT" --replication-policy automatic >/dev/null
   fi
@@ -65,11 +65,29 @@ ensure_secret() {
   echo "secret $name: new version"
 }
 if [ -n "$ENV_FILE" ]; then
-  value_of() { grep -E "^$1=" "$ENV_FILE" | head -1 | cut -d= -f2- | tr -d '\r"'; }
-  ensure_secret shoots-google-client-secret "$(value_of GOOGLE_CLIENT_SECRET)"
-  ensure_secret shoots-session-secret "$(value_of SESSION_SECRET)"
-  ensure_secret shoots-tasks-token "$(value_of TASKS_TOKEN)"
-  ensure_secret shoots-vapid-private-key "$(value_of VAPID_PRIVATE_KEY)"
+  value_of() {
+    grep -E "^$1=" "$ENV_FILE" | head -1 | cut -d= -f2- | tr -d '\r"' || true
+  }
+  require_value() {
+    local key="$1" value="$2" minimum="$3"
+    [ -n "$value" ] || { echo "$key is empty in $ENV_FILE" >&2; exit 1; }
+    [ "${#value}" -ge "$minimum" ] \
+      || { echo "$key is shorter than $minimum characters" >&2; exit 1; }
+    [[ "$value" != change-me* && "$value" != *example.com* ]] \
+      || { echo "$key still contains an example value" >&2; exit 1; }
+  }
+  google_secret="$(value_of GOOGLE_CLIENT_SECRET)"
+  session_secret="$(value_of SESSION_SECRET)"
+  tasks_token="$(value_of TASKS_TOKEN)"
+  vapid_private="$(value_of VAPID_PRIVATE_KEY)"
+  require_value GOOGLE_CLIENT_SECRET "$google_secret" 10
+  require_value SESSION_SECRET "$session_secret" 32
+  require_value TASKS_TOKEN "$tasks_token" 32
+  require_value VAPID_PRIVATE_KEY "$vapid_private" 20
+  ensure_secret shoots-google-client-secret "$google_secret"
+  ensure_secret shoots-session-secret "$session_secret"
+  ensure_secret shoots-tasks-token "$tasks_token"
+  ensure_secret shoots-vapid-private-key "$vapid_private"
 fi
 
 echo "state ready: firestore (default) in $REGION, gs://$BUCKET, $SA"

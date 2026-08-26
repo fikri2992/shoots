@@ -374,7 +374,7 @@ fun guideLabel(guide: String): String = when (guide) {
 }
 
 fun findingLabel(findingId: String): String = when (findingId) {
-    "camera_shake" -> "Camera shake"
+    "camera_shake" -> "Camera shake risk"
     "off_guide_subject" -> "Subject placement"
     "split_horizon" -> "Split horizon"
     "no_centre_of_interest" -> "Centre of interest"

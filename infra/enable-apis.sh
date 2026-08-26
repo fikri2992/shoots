@@ -14,6 +14,7 @@ gcloud services enable \
   pubsub.googleapis.com \
   cloudscheduler.googleapis.com \
   secretmanager.googleapis.com \
+  fcm.googleapis.com \
   drive.googleapis.com \
   gmail.googleapis.com \
   cloudtrace.googleapis.com \

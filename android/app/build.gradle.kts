@@ -1,3 +1,5 @@
+import java.net.URI
+
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
@@ -17,6 +19,13 @@ val signingStoreFile = configured("SHOOTS_SIGNING_STORE_FILE")
 val signingStorePassword = configured("SHOOTS_SIGNING_STORE_PASSWORD")
 val signingKeyAlias = configured("SHOOTS_SIGNING_KEY_ALIAS")
 val signingKeyPassword = configured("SHOOTS_SIGNING_KEY_PASSWORD")
+val googleServerClientId = configured("SHOOTS_GOOGLE_SERVER_CLIENT_ID")
+val firebaseApplicationId = configured("SHOOTS_FIREBASE_APPLICATION_ID")
+val firebaseApiKey = configured("SHOOTS_FIREBASE_API_KEY")
+val firebaseProjectId = configured("SHOOTS_FIREBASE_PROJECT_ID")
+val firebaseSenderId = configured("SHOOTS_FIREBASE_SENDER_ID")
+val serviceOrigin = configured("SHOOTS_SERVICE_ORIGIN")
+val appLinkHost = configured("SHOOTS_APP_LINK_HOST")
 val internalSigningReady = listOf(
     signingStoreFile,
     signingStorePassword,
@@ -35,13 +44,13 @@ android {
         versionCode = 1
         versionName = "0.1"
 
-        buildConfigField("String", "GOOGLE_SERVER_CLIENT_ID", quoted(configured("SHOOTS_GOOGLE_SERVER_CLIENT_ID")))
-        buildConfigField("String", "FIREBASE_APPLICATION_ID", quoted(configured("SHOOTS_FIREBASE_APPLICATION_ID")))
-        buildConfigField("String", "FIREBASE_API_KEY", quoted(configured("SHOOTS_FIREBASE_API_KEY")))
-        buildConfigField("String", "FIREBASE_PROJECT_ID", quoted(configured("SHOOTS_FIREBASE_PROJECT_ID")))
-        buildConfigField("String", "FIREBASE_SENDER_ID", quoted(configured("SHOOTS_FIREBASE_SENDER_ID")))
+        buildConfigField("String", "GOOGLE_SERVER_CLIENT_ID", quoted(googleServerClientId))
+        buildConfigField("String", "FIREBASE_APPLICATION_ID", quoted(firebaseApplicationId))
+        buildConfigField("String", "FIREBASE_API_KEY", quoted(firebaseApiKey))
+        buildConfigField("String", "FIREBASE_PROJECT_ID", quoted(firebaseProjectId))
+        buildConfigField("String", "FIREBASE_SENDER_ID", quoted(firebaseSenderId))
         manifestPlaceholders["shootsAppLinkHost"] =
-            configured("SHOOTS_APP_LINK_HOST").ifBlank { "unconfigured.invalid" }
+            appLinkHost.ifBlank { "unconfigured.invalid" }
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
@@ -67,7 +76,7 @@ android {
         }
         release {
             isMinifyEnabled = false
-            buildConfigField("String", "SERVICE_ORIGIN", quoted(configured("SHOOTS_SERVICE_ORIGIN")))
+            buildConfigField("String", "SERVICE_ORIGIN", quoted(serviceOrigin))
             signingConfig = signingConfigs.findByName("internal")
         }
     }
@@ -86,6 +95,48 @@ android {
     packaging {
         resources.excludes += "/META-INF/{AL2.0,LGPL2.1}"
     }
+}
+
+val verifyReleaseConfiguration by tasks.registering {
+    group = "verification"
+    description = "Refuse an unsigned or unconfigured internal release APK."
+    doLast {
+        val values = mapOf(
+            "SHOOTS_GOOGLE_SERVER_CLIENT_ID" to googleServerClientId,
+            "SHOOTS_FIREBASE_APPLICATION_ID" to firebaseApplicationId,
+            "SHOOTS_FIREBASE_API_KEY" to firebaseApiKey,
+            "SHOOTS_FIREBASE_PROJECT_ID" to firebaseProjectId,
+            "SHOOTS_FIREBASE_SENDER_ID" to firebaseSenderId,
+            "SHOOTS_SERVICE_ORIGIN" to serviceOrigin,
+            "SHOOTS_APP_LINK_HOST" to appLinkHost,
+            "SHOOTS_SIGNING_STORE_FILE" to signingStoreFile,
+            "SHOOTS_SIGNING_STORE_PASSWORD" to signingStorePassword,
+            "SHOOTS_SIGNING_KEY_ALIAS" to signingKeyAlias,
+            "SHOOTS_SIGNING_KEY_PASSWORD" to signingKeyPassword,
+        )
+        val missing = values.filterValues(String::isBlank).keys.sorted()
+        check(missing.isEmpty()) { "Missing release configuration: ${missing.joinToString()}" }
+        check(googleServerClientId.endsWith(".apps.googleusercontent.com")) {
+            "SHOOTS_GOOGLE_SERVER_CLIENT_ID must be a Google web client id"
+        }
+        val origin = URI(serviceOrigin)
+        check(origin.scheme == "https" && !origin.host.isNullOrBlank()) {
+            "SHOOTS_SERVICE_ORIGIN must be a valid HTTPS origin"
+        }
+        check(origin.host == appLinkHost) {
+            "SHOOTS_APP_LINK_HOST must match SHOOTS_SERVICE_ORIGIN"
+        }
+        val store = file(signingStoreFile).canonicalFile
+        check(store.isFile) { "SHOOTS_SIGNING_STORE_FILE does not exist" }
+        val repositoryRoot = rootProject.projectDir.parentFile.canonicalFile
+        check(!store.toPath().startsWith(repositoryRoot.toPath())) {
+            "The release keystore must stay outside the repository"
+        }
+    }
+}
+
+tasks.matching { it.name == "preReleaseBuild" }.configureEach {
+    dependsOn(verifyReleaseConfiguration)
 }
 
 ksp {

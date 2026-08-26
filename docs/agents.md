@@ -300,7 +300,7 @@ All `LlmAgent`s run `gemini-3.7-flash` on the Vertex global endpoint.
 | model call | `with_retry`: exponential backoff with jitter, ≤ 4 retries, only on transient markers (429, 503, 500, deadline, connection); permanent markers (400, 401, 403, 404) fail at once — a 400 that mentions "internal" is still a 400 |
 | workflow | per-sub-agent errors collected, not raised; quorum decides; 180 s timeout on the panel |
 | stage | idempotent on id; retryable ingest leaves the Shot `new`; only proven bad media becomes `failed`; other exceptions propagate |
-| transport | Pub/Sub: 5 attempts, 10 s–300 s backoff, then `<topic>.dlq`; a DLQ replay re-runs one stage, never the fan-out |
+| transport | Pub/Sub: 5 attempts, 10 s–300 s backoff, then one stage-owned DLQ topic and retained pull subscription; a replay re-runs one stage, never the fan-out |
 | cross-stage | Judge publishes on every Shot; Scout claims one open slot atomically; Scribe updates in place; the Run barrier prevents one fan-out branch from claiming completion; the Capture Session barrier waits for every member before one summary |
 | target Shoot | a terminal barrier accounts for every member Run; synthesis is idempotent on Shoot revision; late discovery versions or reopens the record; Scout and Deconstruction failures settle as explicit outcomes rather than losing the Shoot |
 

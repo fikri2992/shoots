@@ -16,7 +16,7 @@ SA="${SERVICE_ACCOUNT:-shoots-ingest@${PROJECT}.iam.gserviceaccount.com}"
 TZ_NAME="${SCHEDULE_TZ:-Asia/Jakarta}"
 
 NUMBER="$(gcloud projects describe "$PROJECT" --format='value(projectNumber)')"
-URL="https://${SERVICE}-${NUMBER}.${REGION}.run.app"
+URL="${SERVICE_URL:-https://${SERVICE}-${NUMBER}.${REGION}.run.app}"
 TOKEN="$(gcloud secrets versions access latest --secret shoots-tasks-token --project "$PROJECT")"
 
 ensure_job() {

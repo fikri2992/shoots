@@ -15,7 +15,7 @@ with, never stored, so the picture and the figure cannot drift apart. Only
 findings whose evidence is a region of pixels can be drawn, and the rest return
 the frame unchanged — the way ``domain/motion.py`` stays silent about the
 moves translation cannot see. A finding that cannot draw itself is not a lesser
-finding; it has nothing to point at. Camera shake is a statement about the
+finding; it has nothing to point at. Camera-shake risk is a statement about the
 shutter, and no region of the frame is the shake.
 """
 

@@ -1,0 +1,162 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="1000" viewBox="0 0 1600 1000" role="img" aria-labelledby="title desc">
+  <title id="title">Shoots continuous agent architecture</title>
+  <desc id="desc">Phone Camera media becomes durable Shot Runs, one revisioned Shoot Record, bounded longitudinal memory, a typed Scout decision, optional Experiments, and native Android or web artifacts. Capture Session, Run, and Shoot barriers remain independent.</desc>
+  <defs>
+    <style>
+      .bg{fill:#11110f}.lane{fill:#181713;stroke:#353126;stroke-width:2}.box{fill:#211f19;stroke:#5a5240;stroke-width:2}.code{fill:#182126;stroke:#4d8295;stroke-width:2}.model{fill:#2a2114;stroke:#d89a3b;stroke-width:2}.person{fill:#1b251d;stroke:#75a67c;stroke-width:2}.external{fill:#1e1e1d;stroke:#77736b;stroke-width:2}.terminal{fill:#2a2419;stroke:#e2b55c;stroke-width:3}.title{fill:#f4efe3;font:700 34px system-ui,sans-serif}.subtitle{fill:#afa99c;font:18px system-ui,sans-serif}.laneTitle{fill:#d8d1c2;font:700 18px system-ui,sans-serif;letter-spacing:1px}.h{fill:#f5efe2;font:700 18px system-ui,sans-serif}.t{fill:#c8c0b2;font:15px system-ui,sans-serif}.small{fill:#a9a294;font:13px system-ui,sans-serif}.label{fill:#d4cdbf;font:13px system-ui,sans-serif}.arrow{stroke:#8a8377;stroke-width:2.5;fill:none;marker-end:url(#arrow)}.amberArrow{stroke:#d89a3b;stroke-width:3;fill:none;marker-end:url(#arrowAmber)}.dash{stroke:#8a8377;stroke-width:2;fill:none;stroke-dasharray:8 7;marker-end:url(#arrow)}.barrier{fill:#11110f;stroke:#d89a3b;stroke-width:2}.legend{font:14px system-ui,sans-serif;fill:#c8c0b2}
+    </style>
+    <marker id="arrow" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto" markerUnits="strokeWidth"><path d="M0,0 L0,6 L9,3 z" fill="#8a8377"/></marker>
+    <marker id="arrowAmber" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto" markerUnits="strokeWidth"><path d="M0,0 L0,6 L9,3 z" fill="#d89a3b"/></marker>
+  </defs>
+
+  <rect class="bg" width="1600" height="1000"/>
+  <text class="title" x="48" y="58">Shoots turns ordinary Camera activity into finished learning work</text>
+  <text class="subtitle" x="48" y="88">One Shot Run. Three independent barriers. One correctable Photographer record.</text>
+
+  <rect class="lane" x="40" y="120" width="250" height="780" rx="24"/>
+  <rect class="lane" x="315" y="120" width="520" height="780" rx="24"/>
+  <rect class="lane" x="860" y="120" width="430" height="780" rx="24"/>
+  <rect class="lane" x="1315" y="120" width="245" height="780" rx="24"/>
+  <text class="laneTitle" x="65" y="155">EVENT SOURCES</text>
+  <text class="laneTitle" x="340" y="155">ONE SHOT</text>
+  <text class="laneTitle" x="885" y="155">ONE SHOOT</text>
+  <text class="laneTitle" x="1340" y="155">PHOTOGRAPHER</text>
+
+  <rect class="external" x="70" y="185" width="190" height="80" rx="16"/>
+  <text class="h" x="95" y="218">Normal Camera</text>
+  <text class="t" x="95" y="244">Photographer owns shutter</text>
+  <rect class="code" x="70" y="305" width="190" height="105" rx="16"/>
+  <text class="h" x="95" y="338">Phone Source</text>
+  <text class="t" x="95" y="365">MediaStore + Room</text>
+  <text class="t" x="95" y="387">WorkManager outbox</text>
+  <rect class="external" x="70" y="450" width="190" height="80" rx="16"/>
+  <text class="h" x="95" y="483">Drive, optional</text>
+  <text class="t" x="95" y="508">Explicit import / output</text>
+  <rect class="person" x="70" y="570" width="190" height="105" rx="16"/>
+  <text class="h" x="95" y="603">Photographer signals</text>
+  <text class="t" x="95" y="630">Keeper, Intent, role</text>
+  <text class="t" x="95" y="652">correction, preference</text>
+  <rect class="code" x="70" y="715" width="190" height="105" rx="16"/>
+  <text class="h" x="95" y="748">Capture Session</text>
+  <text class="t" x="95" y="775">Frozen Experiment batch</text>
+  <text class="t" x="95" y="797">Never inferred from time</text>
+
+  <path class="arrow" d="M165 265 L165 305"/>
+  <path class="arrow" d="M260 357 L340 357"/>
+  <path class="dash" d="M260 490 L340 420"/>
+
+  <rect class="code" x="340" y="195" width="205" height="95" rx="16"/>
+  <text class="h" x="365" y="228">Shot + durable Run</text>
+  <text class="t" x="365" y="255">Stable source id</text>
+  <text class="t" x="365" y="276">Every stage accounted for</text>
+  <rect class="code" x="340" y="330" width="205" height="105" rx="16"/>
+  <text class="h" x="365" y="363">Ingest</text>
+  <text class="t" x="365" y="390">EXIF, Tone, Motion</text>
+  <text class="t" x="365" y="412">grid + display assets</text>
+  <rect class="model" x="590" y="330" width="215" height="105" rx="16"/>
+  <text class="h" x="615" y="363">Analyst panel</text>
+  <text class="t" x="615" y="390">3 disjoint lenses</text>
+  <text class="t" x="615" y="412">schema + taxonomy bound</text>
+  <rect class="code" x="340" y="490" width="205" height="105" rx="16"/>
+  <text class="h" x="365" y="523">Cartographer</text>
+  <text class="t" x="365" y="550">Technique evidence axes</text>
+  <text class="t" x="365" y="572">rebuildable projections</text>
+  <rect class="code" x="590" y="490" width="215" height="105" rx="16"/>
+  <text class="h" x="615" y="523">Judge, Reproduce only</text>
+  <text class="t" x="615" y="550">Criteria or abstention</text>
+  <text class="t" x="615" y="572">Never grades the Shot</text>
+  <rect class="code" x="340" y="650" width="205" height="105" rx="16"/>
+  <text class="h" x="365" y="683">Teaching Receipt</text>
+  <text class="t" x="365" y="710">Keep · Notice · Try · Check</text>
+  <text class="t" x="365" y="732">one image layer</text>
+  <rect class="code" x="590" y="650" width="215" height="105" rx="16"/>
+  <text class="h" x="615" y="683">Scribe</text>
+  <text class="t" x="615" y="710">reviewed output</text>
+  <text class="t" x="615" y="732">Deconstruction attempt</text>
+
+  <path class="arrow" d="M442 290 L442 330"/>
+  <path class="arrow" d="M545 382 L590 382"/>
+  <path class="arrow" d="M697 435 L697 490"/>
+  <path class="arrow" d="M590 420 L545 515"/>
+  <path class="arrow" d="M590 410 L510 650"/>
+  <path class="arrow" d="M697 595 L697 650"/>
+
+  <rect class="barrier" x="480" y="800" width="185" height="58" rx="14"/>
+  <text class="h" x="510" y="825">RUN BARRIER</text>
+  <text class="small" x="505" y="846">complete or terminal</text>
+  <path class="amberArrow" d="M442 755 L520 800"/>
+  <path class="amberArrow" d="M697 755 L625 800"/>
+
+  <rect class="code" x="885" y="195" width="180" height="95" rx="16"/>
+  <text class="h" x="910" y="228">Shoot lifecycle</text>
+  <text class="t" x="910" y="255">capture continuity</text>
+  <text class="t" x="910" y="276">revisioned late media</text>
+  <rect class="barrier" x="1095" y="205" width="165" height="75" rx="14"/>
+  <text class="h" x="1118" y="235">SHOOT BARRIER</text>
+  <text class="small" x="1118" y="258">every current Run</text>
+  <rect class="terminal" x="885" y="335" width="375" height="110" rx="18"/>
+  <text class="h" x="910" y="370">Settled Shoot Record</text>
+  <text class="t" x="910" y="397">exact members · repeated · varied · blind spots</text>
+  <text class="t" x="910" y="421">provenance · typed Scout outcome · audit trail</text>
+  <rect class="code" x="885" y="505" width="180" height="125" rx="16"/>
+  <text class="h" x="910" y="538">Memory projections</text>
+  <text class="t" x="910" y="565">Technique Map</text>
+  <text class="t" x="910" y="587">Tendency + Journey</text>
+  <text class="t" x="910" y="609">Intervention outcome</text>
+  <rect class="code" x="1095" y="505" width="165" height="125" rx="16"/>
+  <text class="h" x="1120" y="538">Scout policy</text>
+  <text class="t" x="1120" y="565">explain · ask</text>
+  <text class="t" x="1120" y="587">Explore · Reproduce</text>
+  <text class="t" x="1120" y="609">or evidenced silence</text>
+  <rect class="barrier" x="1095" y="695" width="165" height="75" rx="14"/>
+  <text class="h" x="1115" y="725">BATCH BARRIER</text>
+  <text class="small" x="1118" y="748">committed members</text>
+  <rect class="terminal" x="885" y="690" width="180" height="120" rx="18"/>
+  <text class="h" x="910" y="723">Experiment Record</text>
+  <text class="t" x="910" y="750">Variation / Criteria</text>
+  <text class="t" x="910" y="772">Verdict where allowed</text>
+  <text class="t" x="910" y="794">comparable Change</text>
+
+  <path class="amberArrow" d="M665 829 L885 250"/>
+  <path class="arrow" d="M1065 242 L1095 242"/>
+  <path class="arrow" d="M1178 280 L1178 335"/>
+  <path class="arrow" d="M1072 445 L990 505"/>
+  <path class="arrow" d="M1065 567 L1095 567"/>
+  <path class="arrow" d="M1178 630 L1178 695"/>
+  <path class="arrow" d="M1095 732 L1065 750"/>
+  <path class="dash" d="M260 622 L885 567"/>
+  <path class="dash" d="M260 768 L1095 732"/>
+
+  <rect class="terminal" x="1340" y="195" width="195" height="95" rx="18"/>
+  <text class="h" x="1365" y="228">Now</text>
+  <text class="t" x="1365" y="255">one focal receipt</text>
+  <text class="t" x="1365" y="276">cached offline</text>
+  <rect class="terminal" x="1340" y="330" width="195" height="95" rx="18"/>
+  <text class="h" x="1365" y="363">Shots</text>
+  <text class="t" x="1365" y="390">Evidence + Run detail</text>
+  <text class="t" x="1365" y="411">Keeper control</text>
+  <rect class="terminal" x="1340" y="465" width="195" height="95" rx="18"/>
+  <text class="h" x="1365" y="498">Experiments</text>
+  <text class="t" x="1365" y="525">daily or on demand</text>
+  <text class="t" x="1365" y="546">normal Camera handoff</text>
+  <rect class="terminal" x="1340" y="600" width="195" height="95" rx="18"/>
+  <text class="h" x="1365" y="633">Journey</text>
+  <text class="t" x="1365" y="660">self-comparison</text>
+  <text class="t" x="1365" y="681">evidence-bound Change</text>
+  <rect class="external" x="1340" y="735" width="195" height="80" rx="16"/>
+  <text class="h" x="1365" y="768">Web audit desk</text>
+  <text class="t" x="1365" y="793">same record, more detail</text>
+
+  <path class="arrow" d="M1260 390 L1340 242"/>
+  <path class="arrow" d="M805 702 L1340 377"/>
+  <path class="arrow" d="M1260 732 L1340 512"/>
+  <path class="arrow" d="M1065 567 L1340 647"/>
+  <path class="dash" d="M1260 420 L1340 775"/>
+
+  <rect x="40" y="925" width="1520" height="50" rx="14" fill="#181713" stroke="#353126"/>
+  <circle cx="72" cy="950" r="8" fill="#4d8295"/><text class="legend" x="88" y="955">deterministic code and durable state</text>
+  <circle cx="390" cy="950" r="8" fill="#d89a3b"/><text class="legend" x="406" y="955">bounded model read / finished artifact</text>
+  <circle cx="760" cy="950" r="8" fill="#75a67c"/><text class="legend" x="776" y="955">Photographer-owned signal</text>
+  <circle cx="1050" cy="950" r="8" fill="#77736b"/><text class="legend" x="1066" y="955">external adapter</text>
+  <text class="legend" x="1280" y="955">Amber never means quality.</text>
+</svg>

@@ -16,7 +16,7 @@ Entry for the All Things Agentic Hackathon, Taskmaster track.
 
 The current implementation has per-Shot Runs, one bounded Shot Teaching Receipt, typed Reproduce and Explore Capture Sessions, Technique Map, Tendency Profile, Change, Journey, persisted Scene/Shoot grouping, revisioned terminal Shoot Records, deterministic evidence-labelled Shoot receipts, scoped Photographer Signals, Mine/Inspiration authority, stored Scout routes for explain, one consequential Ask, Tendency-backed Explore, Keeper-backed Reproduce, or evidenced silence, replayable Intervention Records that adapt after repeated comparable outcomes, and evidence-bound Deconstruction carousels with photographer-owned covers. Android caches and leads Now with the current Shoot state or newest valid receipt. Cloud and physical acceptance remain incomplete.
 
-- Docs: [product](docs/product.md) · [decisions](docs/product-decisions.md) · [feature list](docs/feature-list.md) · [implementation order](docs/implementation-order.md) · [learning path](docs/learning-path.md) · [agent quality](docs/agent-quality.md) · [domain model](docs/domain-model.md) · [agents](docs/agents.md) · [memory contract](docs/final-memory.md) · [release readiness](docs/release-readiness.md) · [Deconstruction](docs/deconstruction.md) · [build diary](docs/build-plan.md) · [codebase rules](AGENTS.md)
+- Docs: [product](docs/product.md) · [decisions](docs/product-decisions.md) · [feature list](docs/feature-list.md) · [implementation order](docs/implementation-order.md) · [learning path](docs/learning-path.md) · [agent quality](docs/agent-quality.md) · [architecture](docs/architecture.md) · [domain model](docs/domain-model.md) · [agents](docs/agents.md) · [memory contract](docs/final-memory.md) · [release readiness](docs/release-readiness.md) · [Cloud proof](docs/cloud-proof.md) · [Android setup](docs/android-setup.md) · [Deconstruction](docs/deconstruction.md) · [build diary](docs/build-plan.md) · [codebase rules](AGENTS.md)
 - Stack: Vue 3 (Options API) + Vite + Tailwind PWA · Kotlin + Compose + WorkManager (`android/`) · FastAPI + Google ADK · Firestore + GCS + Pub/Sub + Cloud Scheduler + Secret Manager + Cloud Run
 - Models: `gemini-3.7-flash` (Analyst panel, Scout, Judge feedback, Journey writer, Listener) · `gemini-live-2.5-flash-native-audio` (Coach). The retained Director/Veo prototype is optional legacy code, outside the product loop.
 
@@ -64,11 +64,21 @@ The suite uses real files, real ffmpeg, real stores, and integration contracts f
 One Cloud Run service in `asia-southeast2`, running as the `shoots-ingest` service account, with Firestore, a GCS bucket, Secret Manager, Pub/Sub push subscriptions (one per stage, each with a dead-letter topic) and three Cloud Scheduler jobs. The image is built on Cloud Build; no local Docker needed.
 
 ```bash
+export GCP_PROJECT=<project-id>
+export GCP_LOCATION=asia-southeast2
+export ENV_FILE=backend/.env
+```
+
+```bash
 ./infra/enable-apis.sh
 ```
 
 ```bash
 ENV_FILE=backend/.env ./infra/state.sh
+```
+
+```bash
+./infra/preflight.sh
 ```
 
 ```bash
@@ -84,3 +94,7 @@ PUBSUB_PUSH_BASE_URL=https://shoots-<project-number>.asia-southeast2.run.app PUB
 ```
 
 Then add `<service url>/auth/callback` to the OAuth client's redirect URIs. `deploy.sh` prints the URL; it is deterministic from the project number, so the env vars that need it are right on the first deploy.
+
+See [Cloud proof](docs/cloud-proof.md) for the exact readback and unattended workflow,
+and [Android setup](docs/android-setup.md) for OAuth, Firebase, App Links, release
+signing, and physical acceptance.

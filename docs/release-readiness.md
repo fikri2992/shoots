@@ -50,11 +50,29 @@ The current dependency order and acceptance boundaries are recorded in
 | Android debug build | `:app:assembleDebug` | pass |
 | Android static analysis | `:app:lintDebug` | pass |
 | Android instrumentation | 33 emulator tests passed; two hardware-only tests skipped | pass |
+| Android release guard | `verifyReleaseConfiguration` rejects blank OAuth, Firebase, HTTPS origin, App Link, and external signing inputs by name without printing values | pass; production values absent |
 | Android/backend integration | authenticated `RefreshSnapshotWorker` produced a real `GET /api/mobile/snapshot` and cached it | pass separately |
 | 390 dp Now | receipt, processing, stale-revision, and Experiment focus tests | pass |
 | Cloud Run | project `agentic-system-505405` has `sh-api` and `visual-qa`; `sh-api` serves a different Scene Hunter app, so no Shoots service was found in `asia-southeast2` | not deployed |
 | Physical Xiaomi | current Shoot workflow not installed or exercised | not verified |
 | Signed internal APK | production identity, Firebase, service origin, and signing inputs unavailable | not buildable yet |
+
+### Read-only Cloud preflight
+
+The native Windows preflight ran against `agentic-system-505405` on 2026-08-27. It
+confirmed an active gcloud account, readable project, service account, Firestore
+database, and every required API except FCM. It found eight concrete blockers:
+
+- `VAPID_SUBJECT` is empty;
+- `ANDROID_APP_LINK_SHA256` is empty because no internal release certificate is
+  configured;
+- `fcm.googleapis.com` is not enabled;
+- `gs://agentic-system-505405-shoots` does not exist;
+- the four mounted backend secrets have no enabled versions.
+
+The approved `enable-apis.sh` and `state.sh` runs create the API, bucket, and Secret
+Manager state. The contact value and release certificate require explicit developer
+input. No Cloud resource changed during this preflight.
 
 ## Deployment boundary
 
@@ -73,6 +91,10 @@ No Shoots Cloud Run service currently exists, so there is no prior Shoots revisi
 call a fallback. The protected `6ea693f` branch remains the source fallback only.
 
 ## Android production inputs
+
+The exact setup, source of each value, release-build guard, and physical verification
+commands are in [Android setup](android-setup.md). The approved Cloud sequence and
+readback evidence are in [Cloud proof](cloud-proof.md).
 
 These values were absent from both process environment and checked Gradle property
 locations during the audit:

@@ -184,6 +184,10 @@ the public example manifest documents the schema without publishing the corpus.
 
 Do this only after explicit deployment approval.
 
+The read-only preflight is complete. It found eight external setup inputs recorded in
+[release readiness](release-readiness.md); [Cloud proof](cloud-proof.md) now owns the
+approved provisioning, deployment, transport reconciliation, and readback sequence.
+
 1. Select an exact accepted commit and rerun all local gates.
 2. Deploy that exact revision to the intended Google Cloud project.
 3. Verify HTTPS health, Android authentication, Firestore, blob storage, Pub/Sub or
