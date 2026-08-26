@@ -60,6 +60,7 @@ data class ShotDto(
     val grid: GridSpecDto? = null,
     val blobs: Map<String, String> = emptyMap(),
     @SerialName("experiment_id") val experimentId: String = "",
+    @SerialName("variation_id") val variationId: String = "",
     @SerialName("capture_session_id") val captureSessionId: String = "",
     @SerialName("kept_at") val keptAt: String? = null,
     @SerialName("drive_review_url") val driveReviewUrl: String = "",
@@ -192,6 +193,25 @@ data class ChangeDto(
 )
 
 @Serializable
+data class VariationDto(
+    val id: String,
+    val title: String,
+    val instruction: String,
+    val inversion: Boolean = false,
+)
+
+@Serializable
+data class VariationObservationDto(
+    @SerialName("variation_id") val variationId: String,
+    @SerialName("shot_id") val shotId: String,
+    @SerialName("technique_ids") val techniqueIds: List<String> = emptyList(),
+    @SerialName("corroborated_technique_ids") val corroboratedTechniqueIds: List<String> = emptyList(),
+    val guide: String = "",
+    @SerialName("finding_ids") val findingIds: List<String> = emptyList(),
+    val abstained: String = "",
+)
+
+@Serializable
 data class ExperimentDto(
     val id: String,
     @SerialName("technique_id") val techniqueId: String = "",
@@ -200,6 +220,8 @@ data class ExperimentDto(
     val brief: String = "",
     @SerialName("why_now") val whyNow: String = "",
     val criteria: CriteriaDto = CriteriaDto(),
+    val variations: List<VariationDto> = emptyList(),
+    @SerialName("variation_observations") val variationObservations: List<VariationObservationDto> = emptyList(),
     @SerialName("reference_shot_id") val referenceShotId: String = "",
     @SerialName("result_shot_ids") val resultShotIds: List<String> = emptyList(),
     val status: String = "open",
@@ -210,6 +232,9 @@ data class ExperimentDto(
 
 val ExperimentDto.canStartReproduce: Boolean
     get() = type == "reproduce" && referenceShotId.isNotBlank() && criteria.text.isNotEmpty()
+
+val ExperimentDto.canStartExplore: Boolean
+    get() = type == "explore" && variations.size in 2..4 && criteria.text.isEmpty()
 
 @Serializable
 data class CaptureSessionMemberDto(
@@ -223,6 +248,7 @@ data class CaptureSessionMemberDto(
 data class CaptureSessionDto(
     val id: String,
     @SerialName("experiment_id") val experimentId: String,
+    @SerialName("variation_id") val variationId: String = "",
     val status: String,
     val members: List<CaptureSessionMemberDto> = emptyList(),
     @SerialName("representative_result_shot_id") val representativeResultShotId: String = "",
@@ -235,6 +261,7 @@ data class CaptureSessionDto(
 @Serializable
 data class CaptureSessionReserveRequest(
     @SerialName("experiment_id") val experimentId: String,
+    @SerialName("variation_id") val variationId: String = "",
 )
 
 @Serializable

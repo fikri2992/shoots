@@ -47,6 +47,19 @@ async def _judge(ctx: Context, message: dict) -> str:
     experiment = await repo.find_experiment(ctx.store, shot.experiment_id)
     if experiment is None or experiment.user_id != shot.user_id:
         return "associated Experiment is unavailable"
+    if experiment.type is ExperimentType.EXPLORE:
+        if not shot.capture_session_id or not shot.variation_id:
+            return "Explore result has no Variation Capture Session; no record was inferred"
+        analysis = await repo.find_analysis(ctx.store, shot.id)
+        if analysis is None:
+            return "Explore result has no Analysis yet"
+        await capture_session_service.record_explore_outcome(
+            ctx,
+            shot.capture_session_id,
+            shot.id,
+            analysis,
+        )
+        return "Explore Variation observed; no Verdict"
     if experiment.type is not ExperimentType.REPRODUCE:
         return f"{experiment.type.value} creates no Verdict"
     if not rules.is_submission(shot, experiment):

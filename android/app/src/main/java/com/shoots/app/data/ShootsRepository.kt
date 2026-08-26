@@ -85,14 +85,20 @@ class ShootsRepository(
         return true
     }
 
-    suspend fun reserveCaptureSession(experimentId: String): LocalCaptureSessionEntity {
+    suspend fun reserveCaptureSession(
+        experimentId: String,
+        variationId: String = "",
+    ): LocalCaptureSessionEntity {
         require(isSignedIn()) { "Sign in is required" }
         phoneSource.prepareCaptureWatermark()
-        val remote = api.reserveCaptureSession(CaptureSessionReserveRequest(experimentId))
+        val remote = api.reserveCaptureSession(
+            CaptureSessionReserveRequest(experimentId, variationId)
+        )
         val watermark = dao.sourceState() ?: SourceStateEntity()
         return LocalCaptureSessionEntity(
             id = remote.id,
             experimentId = remote.experimentId,
+            variationId = remote.variationId,
             state = LocalCaptureState.RESERVED,
             baselineDateAdded = watermark.lastDateAdded,
             baselineMediaId = watermark.lastMediaId,
@@ -316,6 +322,17 @@ class ShootsRepository(
         val experiment = api.issueExperiment(force)
         refreshSnapshot()
         return experiment
+    }
+
+    suspend fun requestExplore(force: Boolean): ExperimentDto? {
+        val experiment = api.issueExplore(force)
+        refreshSnapshot()
+        return experiment
+    }
+
+    suspend fun completeExplore(id: String) {
+        api.completeExplore(id)
+        refreshSnapshot()
     }
 
     suspend fun registerNotificationTarget(target: String) {

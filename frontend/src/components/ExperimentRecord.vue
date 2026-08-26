@@ -97,6 +97,20 @@ export default {
         </ul>
       </div>
 
+      <div v-if="experiment.type === 'explore' && experiment.variations?.length">
+        <p class="t-meta text-neutral-500">Optional Variations · no Verdict</p>
+        <ul class="mt-2 space-y-2">
+          <li v-for="variation in experiment.variations" :key="variation.id" class="t-body text-neutral-300">
+            {{ variation.title }}
+            <span class="block t-meta">{{ variation.instruction }}</span>
+          </li>
+        </ul>
+        <p v-if="experiment.variation_observations?.length" class="mt-2 t-meta">
+          {{ new Set(experiment.variation_observations.map((item) => item.variation_id)).size }} Variations observed across
+          {{ experiment.variation_observations.length }} readable result Shots.
+        </p>
+      </div>
+
       <div v-if="attempts.length">
         <p class="t-meta text-neutral-500">What came back</p>
         <div class="mt-2 rounded-xl bg-panel-2 p-3"><VerdictNote :verdict="attempts[0]" /></div>

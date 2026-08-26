@@ -107,9 +107,12 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    suspend fun reserveCaptureSession(experimentId: String): String? {
+    suspend fun reserveCaptureSession(
+        experimentId: String,
+        variationId: String = "",
+    ): String? {
         var id: String? = null
-        operate { id = repository.reserveCaptureSession(experimentId).id }
+        operate { id = repository.reserveCaptureSession(experimentId, variationId).id }
         return id
     }
 
@@ -236,6 +239,24 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             }
         }
         return completed && offered
+    }
+
+    suspend fun requestExplore(force: Boolean = false): Boolean {
+        var offered = false
+        val completed = operate {
+            offered = repository.requestExplore(force) != null
+            notice.value = if (offered) {
+                "Optional Variations are ready"
+            } else {
+                "No supported Tendency Direction is ready for Explore."
+            }
+        }
+        return completed && offered
+    }
+
+    suspend fun completeExplore(id: String): Boolean = operate {
+        repository.completeExplore(id)
+        notice.value = "Explore ended. Shoots kept the Variations you tried."
     }
 
     fun imageUrl(shot: ShotDto, original: Boolean = false): String =

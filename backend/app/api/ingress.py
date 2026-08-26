@@ -12,6 +12,7 @@ from app.config import settings
 from app.domain.entities import (
     CaptureSessionStatus,
     ExperimentStatus,
+    ExperimentType,
     Inspiration,
     Shot,
     ShotKind,
@@ -71,6 +72,7 @@ async def receive_shot(
         if automatic_camera or capture_session_id
         else "legacy_default"
     )
+    variation_id = ""
     if capture_session_id:
         capture_session = await repo.find_capture_session(ctx.store, capture_session_id)
         if capture_session is None or capture_session.user_id != user_id:
@@ -83,6 +85,7 @@ async def receive_shot(
         if not any(member.source_id == source_id for member in capture_session.members):
             raise HTTPException(409, "Shot is not in the committed Capture Session manifest")
         experiment_id = capture_session.experiment_id
+        variation_id = capture_session.variation_id
 
     shot_id = repo.source_shot_id_for(user_id, ShotSource.ANDROID.value, source_id)
     inspiration_id = repo.source_inspiration_id_for(
@@ -153,6 +156,8 @@ async def receive_shot(
             or experiment.status is not ExperimentStatus.OPEN
         ):
             raise HTTPException(409, "Experiment is not open for this photographer")
+        if experiment.type is ExperimentType.EXPLORE and not capture_session_id:
+            raise HTTPException(409, "Explore results require a Variation Capture Session")
 
     name = Path(file.filename or "shot").name
     record_id = inspiration_id if resolved_role is SourceRole.INSPIRATION else shot_id
@@ -201,6 +206,7 @@ async def receive_shot(
         mime_type=mime,
         blobs={ORIGINAL: original},
         experiment_id=experiment_id,
+        variation_id=variation_id,
         capture_session_id=capture_session_id,
     )
     await repo.put_shot(ctx.store, shot)

@@ -68,6 +68,12 @@ interface ShootsApi {
     @POST("api/experiments/issue")
     suspend fun issueExperiment(@Query("force") force: Boolean = false): ExperimentDto?
 
+    @POST("api/experiments/explore")
+    suspend fun issueExplore(@Query("force") force: Boolean = false): ExperimentDto?
+
+    @POST("api/experiments/{id}/complete")
+    suspend fun completeExplore(@Path("id") id: String): ExperimentDto
+
     @GET("api/shots")
     suspend fun shots(
         @Query("limit") limit: Int,

@@ -11,8 +11,8 @@ from datetime import datetime, timedelta
 
 from app.agents import scout as agent
 from app.config import settings
+from app.domain import explore, taxonomy, technique_map, tendency, timing
 from app.domain import scout as rules
-from app.domain import taxonomy, technique_map, tendency, timing
 from app.domain.entities import (
     Baseline,
     Change,
@@ -26,6 +26,7 @@ from app.domain.entities import (
     now,
 )
 from app.infra import repository as repo
+from app.infra.bus import TOPICS
 from app.services import notify, photographer_memory
 from app.services import profile as profile_service
 from app.services.context import Context
@@ -201,6 +202,169 @@ async def keeper_patterns(ctx: Context, user_id: str) -> dict[str, KeeperPattern
     return dict(sorted(patterns.items(), key=lambda item: (-item[1].count, item[0])))
 
 
+async def issue_explore(
+    ctx: Context,
+    user_id: str,
+    *,
+    force: bool = False,
+    technique_id: str = "",
+    requested_reason: str = "",
+    experiment_id: str = "",
+) -> Experiment | None:
+    """Offer optional Variations from a Tendency Direction or explicit Technique."""
+    opened = await repo.open_experiment(ctx.store, user_id)
+    if opened is not None and not force:
+        return None
+    profile = await profile_for(ctx, user_id)
+    direction = tendency.direction_for(profile)
+    recent = [
+        item.technique_id
+        for item in await repo.list_experiments(ctx.store, user_id, limit=RECENT_EXPERIMENTS)
+    ]
+    constraints = await photographer_memory.constraints_for(ctx, user_id)
+    if technique_id:
+        requested = taxonomy.BY_ID.get(technique_id)
+        technique = (
+            requested
+            if requested
+            and rules.available(requested, missing_gear=constraints.missing_gear)
+            else None
+        )
+    else:
+        technique = (
+            rules.choose(
+                direction.prefers,
+                recent,
+                missing_gear=constraints.missing_gear,
+            )
+            if direction is not None
+            else None
+        )
+    if technique is None:
+        await repo.record(
+            ctx.store,
+            user_id,
+            AGENT,
+            "nothing_to_issue",
+            {
+                "recent": recent,
+                "reason": "No supported Tendency Direction is available for Explore.",
+                "type": "explore",
+            },
+        )
+        return None
+
+    supported_direction = direction is not None and technique.id in direction.prefers
+    why = (
+        rules.why_now(technique, direction.citation)
+        if supported_direction and direction is not None
+        else requested_reason.strip()
+        or f"You asked to explore {technique.name} without grading the result."
+    )
+    baseline = (
+        Baseline(
+            source=direction.source,
+            citation=direction.citation,
+            at_issue=_snapshot(profile, direction.source),
+            calc_version=profile.calc_version,
+            provenance=profile_service.provenance(profile),
+        )
+        if supported_direction and direction is not None
+        else None
+    )
+    user = await repo.get_user(ctx.store, user_id)
+    at = now()
+    when = timing.deliver_at(technique.light, at, user.last_latitude, user.last_longitude)
+    experiment = Experiment(
+        id=experiment_id or new_id("experiment"),
+        user_id=user_id,
+        technique_id=technique.id,
+        type=ExperimentType.EXPLORE,
+        title=f"Explore {technique.name}",
+        brief="Choose one Variation. Make as many Shots as you want, then try another.",
+        why_now=why[:500],
+        variations=explore.variations_for(technique),
+        baseline=baseline,
+        warrant_shot_ids=list(baseline.provenance.shot_ids) if baseline else [],
+        status=ExperimentStatus.OPEN,
+        due_at=at + timedelta(days=settings.experiment_ttl_days),
+        deliver_at=when.at,
+        timing=ExperimentTiming(
+            light=when.light,
+            reason=when.reason,
+            anchor=when.anchor,
+            anchor_at=when.anchor_at,
+        ),
+    )
+    if opened is not None and force:
+        await leave(ctx, user_id, opened.id)
+    if not await repo.create_open_experiment(ctx.store, experiment):
+        return None
+    await repo.record(
+        ctx.store,
+        user_id,
+        AGENT,
+        "issued",
+        {
+            "technique_id": technique.id,
+            "type": "explore",
+            "title": experiment.title,
+            "why": why,
+            "selection_basis": "tendency" if baseline else "explicit_request",
+            "variations": [variation.id for variation in experiment.variations],
+            "deliver_at": experiment.deliver_at.isoformat() if experiment.deliver_at else "",
+        },
+        experiment_id=experiment.id,
+    )
+    await deliver_if_due(ctx, experiment)
+    return experiment
+
+
+async def complete_explore(ctx: Context, user_id: str, experiment_id: str) -> Experiment:
+    """End an Explore after at least one explicit result, without a Verdict."""
+    experiment = await repo.get_experiment(ctx.store, experiment_id)
+    if experiment.user_id != user_id:
+        raise repo.UnknownEntity(f"experiment {experiment_id}")
+    if experiment.type is not ExperimentType.EXPLORE:
+        raise ValueError("Only Explore is completed by the Photographer")
+    if not experiment.result_shot_ids:
+        raise ValueError("Try at least one Variation, or leave the Experiment")
+    active = await repo.active_capture_session(ctx.store, experiment.id)
+    if active is not None and active.status.value not in {"settled", "cancelled", "expired"}:
+        raise ValueError("Finish the active Capture Session first")
+    experiment, changed = await repo.transition_open_experiment(
+        ctx.store,
+        experiment.id,
+        ExperimentStatus.COMPLETED,
+        now(),
+    )
+    if changed:
+        await repo.release_open_experiment(ctx.store, user_id, experiment.id)
+        await repo.record(
+            ctx.store,
+            user_id,
+            "photographer",
+            "explore_completed",
+            {
+                "results": len(experiment.result_shot_ids),
+                "variations_tried": len(
+                    {item.variation_id for item in experiment.variation_observations}
+                ),
+                "verdicts": 0,
+            },
+            experiment_id=experiment.id,
+        )
+        await ctx.bus.publish(
+            TOPICS["experiment.closed"],
+            {
+                "user_id": user_id,
+                "experiment_id": experiment.id,
+                "shot_id": experiment.result_shot_ids[-1],
+            },
+        )
+    return experiment
+
+
 async def _keeper_patterns(ctx: Context, user_id: str) -> dict[str, KeeperPattern]:
     """Compatibility seam for older callers; new code uses ``keeper_patterns``."""
     return await keeper_patterns(ctx, user_id)
@@ -251,7 +415,7 @@ async def check_advice(ctx: Context, user_id: str) -> list[Experiment]:
             continue
         change_profile = profile
         explicit_results: int | None = None
-        if experiment.type is ExperimentType.REPRODUCE:
+        if experiment.type in {ExperimentType.REPRODUCE, ExperimentType.EXPLORE}:
             selected = set(experiment.baseline.provenance.shot_ids)
             selected.update(experiment.result_shot_ids)
             change_profile = await profile_service.build_for_shots(ctx, user_id, selected)

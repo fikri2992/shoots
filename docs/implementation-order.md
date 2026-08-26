@@ -63,9 +63,10 @@ previous phase's real artifact.
 | 6 and 7 | P0.10, P0.17, P0.19 physical and cloud acceptance |
 | 8 | P0.15 architecture artifact, P0.16 continuous demo |
 
-P0.4 corrected Explore, P0.33 Mine/Inspiration, and P0.35 Deconstruction remain
-valid product work. They do not enter the 48-hour slice because none is required to
-prove the new Shoot work unit.
+P0.4 corrected Explore, P0.33 Mine/Inspiration, and scoped Photographer memory were
+built on the candidate-protected continuation after the Shoot slice. P0.35
+Deconstruction is next because it presents the completed learning work without changing
+its Evidence.
 
 ## Work isolation
 
@@ -261,8 +262,8 @@ Target time: hours 24 through 32.
 
 - Add the route enum `explain`, `ask`, `explore`, `reproduce`, and `silence`.
 - Code computes route eligibility before any writer call.
-- For the deadline slice, expose only implemented routes: `explain`, `reproduce`, and
-  `silence`.
+- The protected candidate first exposed `explain`, `reproduce`, and `silence`; the
+  continuation now also exposes corrected `explore` after its record and UI landed.
 - Record exact warrant references, rejected routes, projection versions, policy
   version, and writer provenance where used.
 - Reuse the current Keeper-backed Reproduce selection and one-open Experiment claim.
@@ -271,8 +272,9 @@ Target time: hours 24 through 32.
 - Start intervention state as `not_applicable`, `offered`, or `entered` where the
   current system can prove it. Do not infer failure from no attempt.
 
-`ask` and corrected Explore remain unavailable until their real records and UI exist.
-They appear as rejected routes, never disguised as Reproduce.
+`ask` remains unavailable until its real record and UI exist. Corrected Explore now
+owns Variations, Capture Sessions, and observations; it is no longer a rejected alias
+for Reproduce.
 
 ### Ordering inside one Shoot
 
@@ -288,7 +290,8 @@ They appear as rejected routes, never disguised as Reproduce.
 - no Keeper-backed direction produces explain or evidenced silence;
 - supported Keeper Evidence may offer Reproduce;
 - an existing open Experiment blocks another offer;
-- unavailable ask and Explore routes record why they were rejected;
+- unavailable ask records why it was rejected, while Explore requires a supported
+  Tendency Direction or explicit supported Technique;
 - replay produces no second Experiment or Scout decision;
 - model output cannot change route eligibility.
 
@@ -469,8 +472,8 @@ authority: no branch is pushed or deployed without explicit approval.
 | 1 | complete | Full Technique Map axes and invalidation | Rebuildable per-Technique projection with independent recurrence, Scene/Shoot coverage, Reproduce, Criteria, abstention, and Keeper facts | Corrections retract unsupported current claims; Android shows facts separately; no score |
 | 2 | partial | Photographer correction and Mine/Inspiration authority | Superseding source-role and grouping records plus deterministic invalidation | Free manual correction is built; Inspiration cannot write Photographer memory; grouping and Experiment-cited correction remain |
 | 3 | partial | Scoped Photographer memory and Listener migration | Provenance-carrying Intent, constraint, preference, and source-role records behind one signal seam | Signal/recall/correction and Listener migration are built; native Intent authoring and legacy migration remain |
-| 4 | next | Corrected Explore | Open Explore Experiment with explicit Variations and no Criteria or Verdict | The Photographer may try alternatives freely; the record shows what changed without pass/fail language |
-| 5 | queued | Deconstruction | Image-led draft from a settled Shoot or Experiment Record | Every page cites stored Evidence; Photographer selects the cover; no invented score or automatic post |
+| 4 | complete | Corrected Explore | Open Explore Experiment with explicit Variations, immutable per-session choice, ordered results, and structured observations | The Photographer may try alternatives freely; no Criteria, Verdict, or pass/fail language |
+| 5 | next | Deconstruction | Image-led draft from a settled Shoot or Experiment Record | Every page cites stored Evidence; Photographer selects the cover; no invented score or automatic post |
 | 6 | queued | Full local acceptance | One continuous emulator/backend workflow covering correction, recall, Explore, and Deconstruction | Backend, web schema if affected, Android build/lint, and full instrumentation all pass |
 | 7 | approval-gated | Cloud and physical acceptance | Exact deployed revision and Xiaomi evidence | Requires explicit deployment approval and production credentials |
 

@@ -28,7 +28,7 @@ from app.services import photographer_memory
 from app.services import scout as experiment_scout
 from app.services.context import Context
 
-POLICY_VERSION = "shoot-scout-1"
+POLICY_VERSION = "shoot-scout-2"
 
 
 async def decide(
@@ -42,19 +42,22 @@ async def decide(
     if recovered is not None:
         if recovered.user_id != shoot.user_id:
             raise repo.UnknownEntity(f"experiment {experiment_id}")
-        decision = _reproduce_decision(
-            shoot,
-            receipt,
-            technique_id=recovered.technique_id,
-            reference_shot_id=recovered.reference_shot_id,
-            keeper_shot_ids=(
-                list(recovered.warrant_shot_ids)
-                if recovered.warrant_shot_ids
-                else [recovered.reference_shot_id]
-            ),
-            reason=recovered.why_now,
-            experiment_id=recovered.id,
-        )
+        if recovered.type is ExperimentType.EXPLORE:
+            decision = _explore_decision(shoot, receipt, recovered)
+        else:
+            decision = _reproduce_decision(
+                shoot,
+                receipt,
+                technique_id=recovered.technique_id,
+                reference_shot_id=recovered.reference_shot_id,
+                keeper_shot_ids=(
+                    list(recovered.warrant_shot_ids)
+                    if recovered.warrant_shot_ids
+                    else [recovered.reference_shot_id]
+                ),
+                reason=recovered.why_now,
+                experiment_id=recovered.id,
+            )
         decision.execution_state = ScoutExecutionState.COMPLETED
         decision.execution_detail = "Existing deterministic Experiment recovered."
         decision.attempt_state = InterventionAttemptState.OFFERED
@@ -134,6 +137,26 @@ async def decide(
             else "The one-open Experiment claim changed before execution."
         )
 
+    current_open = await repo.open_experiment(ctx.store, shoot.user_id)
+    explore_rejection = ""
+    if current_open is not None:
+        explore_rejection = f'Experiment "{current_open.id}" already owns the open slot.'
+    else:
+        explored = await experiment_scout.issue_explore(
+            ctx,
+            shoot.user_id,
+            experiment_id=experiment_id,
+        )
+        if explored is not None:
+            decision = _explore_decision(shoot, receipt, explored)
+            decision.execution_state = ScoutExecutionState.COMPLETED
+            decision.execution_detail = "Explore Variations offered."
+            decision.attempt_state = InterventionAttemptState.OFFERED
+            decision.executed_at = now()
+            await _record(ctx, shoot, decision)
+            return decision
+        explore_rejection = "No supported Tendency Direction is available for Explore."
+
     if receipt.repeated or receipt.varied:
         decision = ScoutDecision(
             route=ScoutRoute.EXPLAIN,
@@ -142,6 +165,7 @@ async def decide(
             rejected_routes=_rejections(
                 selected=ScoutRoute.EXPLAIN,
                 reproduce_reason=reproduce_rejection,
+                explore_reason=explore_rejection,
             ),
             input_shot_ids=list(shoot.ordered_shot_ids),
             projection_versions=_projection_versions(receipt),
@@ -160,6 +184,7 @@ async def decide(
             rejected_routes=_rejections(
                 selected=ScoutRoute.SILENCE,
                 reproduce_reason=reproduce_rejection,
+                explore_reason=explore_rejection,
             ),
             input_shot_ids=list(shoot.ordered_shot_ids),
             projection_versions=_projection_versions(receipt),
@@ -215,6 +240,34 @@ def _receipt_warrant(shoot: Shoot, receipt: ShootReceipt) -> ScoutWarrant:
     )
 
 
+def _explore_decision(
+    shoot: Shoot,
+    receipt: ShootReceipt,
+    experiment: Experiment,
+) -> ScoutDecision:
+    baseline = experiment.baseline
+    return ScoutDecision(
+        route=ScoutRoute.EXPLORE,
+        reason=experiment.why_now,
+        warrant=[
+            ScoutWarrant(
+                kind="tendency_direction",
+                shoot_id=shoot.id,
+                shoot_revision=shoot.revision,
+                shot_ids=list(experiment.warrant_shot_ids),
+                technique_id=experiment.technique_id,
+                detail=baseline.citation if baseline else experiment.why_now,
+            )
+        ],
+        rejected_routes=_rejections(selected=ScoutRoute.EXPLORE),
+        input_shot_ids=list(shoot.ordered_shot_ids),
+        projection_versions=_projection_versions(receipt),
+        policy_version=POLICY_VERSION,
+        experiment_id=experiment.id,
+        execution_state=ScoutExecutionState.PENDING,
+    )
+
+
 def _projection_versions(receipt: ShootReceipt) -> dict[str, str]:
     return {
         "shoot_receipt": receipt.calc_version,
@@ -226,10 +279,11 @@ def _rejections(
     *,
     selected: ScoutRoute,
     reproduce_reason: str = "",
+    explore_reason: str = "",
 ) -> list[ScoutRejectedRoute]:
     reasons = {
-        ScoutRoute.ASK: "Ask is not implemented with scoped Intent memory yet.",
-        ScoutRoute.EXPLORE: "Explore is not implemented with Variation Evidence yet.",
+        ScoutRoute.ASK: "Ask delivery is not implemented yet.",
+        ScoutRoute.EXPLORE: explore_reason or "A stronger eligible route was selected.",
         ScoutRoute.REPRODUCE: reproduce_reason or "A stronger eligible route was selected.",
         ScoutRoute.EXPLAIN: "A stronger eligible route was selected.",
         ScoutRoute.SILENCE: "Supported action or explanation is available.",

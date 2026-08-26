@@ -8,6 +8,7 @@ import com.shoots.app.data.ExperimentDto
 import com.shoots.app.data.MobileSnapshotDto
 import com.shoots.app.data.ShotDto
 import com.shoots.app.data.UserDto
+import com.shoots.app.data.VariationDto
 import org.junit.Rule
 import org.junit.Test
 
@@ -55,6 +56,30 @@ class ExperimentsScreenIntegrationTest {
         compose.onNodeWithText("OLDER EXPERIMENT").assertDoesNotExist()
     }
 
+    @Test
+    fun correctedExploreShowsOptionalVariationsWithoutCriteriaOrVerdict() {
+        val snapshot = snapshotWith(
+            ExperimentDto(
+                id = "explore-1",
+                type = "explore",
+                title = "Explore negative space",
+                variations = listOf(
+                    VariationDto("clear", "Make it obvious", "Let empty space lead."),
+                    VariationDto("invert", "Try the opposite", "Fill the frame.", true),
+                ),
+            )
+        )
+
+        compose.setContent { ExperimentsTestContent(snapshot) }
+
+        compose.onNodeWithText("EXPLORE").assertExists()
+        compose.onNodeWithText("NO VERDICT").assertExists()
+        compose.onNodeWithText("Make it obvious").assertExists()
+        compose.onNodeWithText("Try the opposite").assertExists()
+        compose.onNodeWithText("CRITERIA").assertDoesNotExist()
+        compose.onNodeWithText("OLDER EXPERIMENT").assertDoesNotExist()
+    }
+
     @androidx.compose.runtime.Composable
     private fun ExperimentsTestContent(snapshot: MobileSnapshotDto) {
         ShootsTheme {
@@ -64,7 +89,9 @@ class ExperimentsScreenIntegrationTest {
                 busy = false,
                 imageUrl = { _ -> "" },
                 onRequestExperiment = { _ -> },
-                onStartExperiment = { _ -> },
+                onRequestExplore = { _ -> },
+                onStartExperiment = { _, _ -> },
+                onCompleteExplore = { _ -> },
                 onContinueSession = { _ -> },
                 onFinishSession = { _ -> },
                 onCancelSession = { _ -> },

@@ -18,7 +18,7 @@ sequence is [implementation order](implementation-order.md).
 - Selected corrected Explore as the next Experiment type. It offers bounded Variations and records visible differences without a Verdict. Reproduce keeps frozen Criteria and Judge. Compare remains later.
 - Defined Deconstruction as a shareable draft built from stored Evidence, one visual claim per page. The photographer selects the Keeper cover, export, and posting. Shoots does not automate taste or social publishing.
 - The architecture target deepens the existing pipeline instead of adding a critic swarm. Code owns grouping, barriers, evidence arithmetic, eligibility, and transitions. One bounded Shoot reader handles unresolved visual comparison. Scout writes only inside a code-selected route and stores its warrant and rejected routes.
-- This pass changed documentation only. Persisted Scene/Shoot lifecycle, Shoot synthesis, typed Scout routing, corrected Explore, source authority, and Deconstruction remain unbuilt until their feature-list rows are completed.
+- This Day 15 pass changed documentation only. Later continuation work built persisted Scene/Shoot lifecycle, Shoot synthesis, typed Scout routing, scoped memory, source authority, and corrected Explore. Deconstruction remains unbuilt; the feature list is current.
 
 ## Day 14 notes (2026-08-26), decision-led Android redesign
 

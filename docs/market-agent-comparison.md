@@ -51,10 +51,11 @@ the exact camera moment.
 - Most vendors do not publish their internal routing, prompts, models, scoring
   contracts, or state machines. Those fields remain **not disclosed**. Product
   copy is not evidence of a multi-agent architecture.
-- Shoots current-build claims were refreshed from the local working tree on
-  2026-08-26. The Shoot-level layer is labelled target throughout. Explicit Intent,
-  corrected Explore, persisted Scene/Shoot records, Deconstruction, and the
-  scene-aware Android Companion remain unbuilt.
+- Shoots current-build claims were refreshed from the local continuation on
+  2026-08-27. Persisted Scene/Shoot records, scoped Photographer memory,
+  Mine/Inspiration authority, and corrected Explore are current. Explicit native
+  Intent authoring, Deconstruction, and the scene-aware Android Companion remain
+  unbuilt; older comparison rows preserve their dated audit context.
 
 ## What Shoots actually implements
 

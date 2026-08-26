@@ -170,10 +170,17 @@ class MainActivity : ComponentActivity() {
                         requestExperiment = { force ->
                             scope.launch { viewModel.requestExperiment(force) }
                         },
-                        startExperiment = { experimentId ->
+                        requestExplore = { force ->
+                            scope.launch { viewModel.requestExplore(force) }
+                        },
+                        startExperiment = { experimentId, variationId ->
                             scope.launch {
-                                viewModel.reserveCaptureSession(experimentId)?.let(::launchCamera)
+                                viewModel.reserveCaptureSession(experimentId, variationId)
+                                    ?.let(::launchCamera)
                             }
+                        },
+                        completeExplore = { experimentId ->
+                            scope.launch { viewModel.completeExplore(experimentId) }
                         },
                         continueSession = ::launchCamera,
                         finishSession = { sessionId ->

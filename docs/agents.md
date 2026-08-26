@@ -1,6 +1,6 @@
 # Agents
 
-The implemented per-Shot agent architecture on Google ADK, the current backend Shoot-level learning workflow, and the later completed memory and summoned Scene Companion. Solid arrows in the current diagram are built. Client receipt, corrected Explore, Ask, Deconstruction, and Live remain target work in the later diagrams until the [feature list](feature-list.md) marks their rows built.
+The implemented per-Shot agent architecture on Google ADK, the current backend Shoot-level learning workflow, and the later completed memory and summoned Scene Companion. Solid arrows in the current diagram are built. Corrected Explore is current; Ask, Deconstruction, and Live remain target work in the later diagrams until the [feature list](feature-list.md) marks their rows built.
 The product vocabulary is locked: Experiment, Finding, Technique Map, Change. The
 only migration names left are the `skills` Firestore collection key and
 `TechniqueState`. Scores are not stored. [Domain model](domain-model.md)
@@ -81,17 +81,18 @@ flowchart LR
   SESSION -->|one summary| FCM[(FCM)]
   RUN -->|every natural member settled| SHOOT[Shoot synthesis]
   CLOSE --> SHOOT
-  SHOOT --> ROUTE[Typed Shoot Scout<br/>explain / Reproduce / silence]
+  SHOOT --> ROUTE[Typed Shoot Scout<br/>explain / Explore / Reproduce / silence]
   ROUTE --> RECORD[(Shoot Record)]
   ROUTE -->|Keeper warrant| SHOOTOFFER[Deterministic Reproduce]
+  ROUTE -->|Tendency warrant| EXPLOREOFFER[Deterministic Explore]
   SHOOTOFFER --> PUSH
 ```
 
-Android now uses Credential Manager, one build-configured service origin, encrypted device sessions, Room, and WorkManager. Pairing endpoints remain only for older APKs. The configured physical-phone Reproduce acceptance and Cloud deployment have not run. Explore, Compare, and Gemini Live remain outside this release.
+Android now uses Credential Manager, one build-configured service origin, encrypted device sessions, Room, and WorkManager. Pairing endpoints remain only for older APKs. Typed Reproduce and corrected Explore Capture Sessions are current. Configured physical-phone acceptance and Cloud deployment have not run; Compare and Gemini Live remain outside this release.
 
 ## Shoot-level topology and remaining routes
 
-The current backend implements membership, the barrier, deterministic synthesis, and `explain`, Keeper-backed `reproduce`, or `silence`. Dashed product branches below remain incomplete.
+The current backend implements membership, the barrier, deterministic synthesis, and `explain`, supported-Tendency `explore`, Keeper-backed `reproduce`, or `silence`. Ask and Deconstruction remain incomplete.
 
 ```mermaid
 flowchart LR
@@ -103,13 +104,14 @@ flowchart LR
   BARRIER --> SYNTH[Shoot synthesis<br/>deterministic arithmetic]
   SYNTH --> RECORD[(Shoot Record)]
   RECORD --> CART[Cartographer<br/>multi-scale memory]
-  CART --> POLICY[Scout choice<br/>explain / Reproduce / silence current]
+  CART --> POLICY[Scout choice<br/>explain / Explore / Reproduce / silence]
   POLICY -.->|Ask target| ASK[Scoped Intent question]
-  POLICY -.->|Explore target| EXPLORE[Variation Capture Session<br/>no Verdict]
+  POLICY -->|Explore| EXPLORE[Variation Capture Session<br/>no Verdict]
   POLICY -->|Reproduce| REPRO[Keeper-backed Capture Session<br/>Criteria + Verdict]
   POLICY -->|explain or silence| REFLECT[Reflection or evidenced silence]
-  EXPLORE --> CHANGE[Experiment Record + Change]
-  REPRO --> CHANGE
+  EXPLORE --> OBSERVE[Experiment Record + Variation observations]
+  REPRO --> CHANGE[Experiment Record + Change]
+  OBSERVE --> CART
   CHANGE --> CART
   RECORD -.-> SCRIBE[Scribe<br/>Deconstruction draft target]
   SCRIBE -.-> DONE[(Shoot settled + one receipt)]
@@ -188,8 +190,8 @@ Not ADK, on purpose:
 | `crop_rater` | `LlmAgent` | original + rendered crop | `CropVerdict` (`crop`) | Analyst stage crop loop | ≤ 2 rounds; kept only if composition rose |
 | `shoot_reader` (target) | bounded `LlmAgent` | code-derived Shoot figures, member thumbnails, and only the unresolved visual comparisons | typed subject-continuity and Variation observations | Analyst Shoot synthesis, after the terminal barrier | unbuilt; does not grade, rank, choose a Keeper, or repeat every Shot critique |
 | `judge` (feedback) | `LlmAgent` | Verdict facts from code, result Shot, and the exact frozen Keeper reference | `FeedbackOut` (`feedback`) | explicit Reproduce result only | writes words; decides nothing |
-| `shoot_scout` | code stage | settled Shoot receipt, exact Keeper Evidence, open and recent Experiments, constraints | typed `explain`, `reproduce`, or `silence` decision plus deterministic Reproduce when eligible | Shoot settlement, after the member barrier | records exact warrant ids, rejected Ask/Explore routes, versions, execution and attempt state; no model decides or writes the current route |
-| `scout` (writer) | `LlmAgent` | Keeper-backed Technique, exact reference Shot id and warrant ids, recent critiques, grounded research, Technique Map, constraints | `ExperimentOut` with Reproduce Criteria | explicit, daily, Coach, and post-Experiment Scout paths | legacy/current non-Shoot entry points; code eligibility and the atomic open slot still bound it |
+| `shoot_scout` | code stage | settled Shoot receipt, exact Keeper or Tendency Evidence, open and recent Experiments, constraints | typed `explain`, `explore`, `reproduce`, or `silence` decision plus deterministic typed Experiment when eligible | Shoot settlement, after the member barrier | records exact warrant ids, rejected routes, versions, execution and attempt state; no model decides or writes the current route |
+| `scout` (writer) | `LlmAgent` | Keeper-backed Technique, exact reference Shot id and warrant ids, recent critiques, grounded research, Technique Map, constraints | `ExperimentOut` with Reproduce Criteria | explicit, daily, Coach, and post-Experiment Reproduce paths | Explore is now deterministic domain work; code eligibility and the atomic open slot still bind all entry points |
 | `director` (optional legacy) | `LlmAgent` | Technique + Experiment | `Storyboard` (`storyboard`): Veo prompt | manual check script only | atomically discards the clip if the Experiment closed while rendering |
 | `preflight` | `LlmAgent` | current: Experiment Criteria + 640 px preview; target: optional Intent and Experiment context | current `PreflightOut`; target returns one question, Variation, move, or refusal | Scene Probe fallback | temporary preview; never creates a Shot or guesses camera settings |
 | `listener` | `LlmAgent` | Coach transcript | `NotesOut.facts`: constraint value plus literal Photographer quote | after a Coach session | candidates are stored only when code finds the quote in a Photographer turn; no inferred fact is promoted |

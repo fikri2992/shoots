@@ -273,6 +273,13 @@ The record evaluates the intervention:
 Domain code decides which routes are available. The model writes only inside the
 selected route. An unimplemented route is rejected with a reason or becomes silence.
 
+Current implementation stores the typed Shoot Scout decision and can execute two
+Experiment routes without a writer choosing the work: Keeper-backed Reproduce and
+Tendency-backed Explore. Explore then retains the selected Variation, ordered Capture
+Session members, structured observations, abstentions, and terminal media without a
+Verdict. Delivery of `explain`, `ask`, and longitudinal intervention-outcome adaptation
+remain target work.
+
 ## Bounded recall
 
 Agents never query the archive directly.

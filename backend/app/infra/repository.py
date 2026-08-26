@@ -22,6 +22,7 @@ from app.domain.entities import (
     CaptureSessionStatus,
     Experiment,
     ExperimentStatus,
+    ExperimentType,
     Inspiration,
     JourneyUpdate,
     PhotographerSignal,
@@ -38,6 +39,7 @@ from app.domain.entities import (
     ShotStatus,
     TechniqueState,
     User,
+    VariationObservation,
     Verdict,
     new_id,
     now,
@@ -903,6 +905,62 @@ async def finalize_reproduce_batch(
     if data is None:
         raise UnknownEntity(f"experiment {experiment_id}")
     return Experiment.model_validate(data), completed_now
+
+
+async def record_explore_result(
+    store: Store,
+    experiment_id: str,
+    shot_id: str,
+    observation: VariationObservation | None,
+) -> Experiment:
+    """Append one explicit Explore result and its optional structured observation."""
+
+    def append(data: dict[str, Any]) -> dict[str, Any] | None:
+        experiment = Experiment.model_validate(data)
+        if experiment.type is not ExperimentType.EXPLORE:
+            return None
+        if shot_id not in experiment.result_shot_ids:
+            experiment.result_shot_ids.append(shot_id)
+        if observation is not None and not any(
+            item.shot_id == observation.shot_id
+            for item in experiment.variation_observations
+        ):
+            experiment.variation_observations.append(observation)
+        return _dump(experiment)
+
+    data, _ = await store.mutate(EXPERIMENTS, experiment_id, append)
+    if data is None:
+        raise UnknownEntity(f"Explore Experiment {experiment_id}")
+    return Experiment.model_validate(data)
+
+
+async def finalize_explore_batch(
+    store: Store,
+    experiment_id: str,
+    ordered_shot_ids: list[str],
+) -> Experiment:
+    """Keep Explore results and observations in committed manifest order."""
+
+    def finalize(data: dict[str, Any]) -> dict[str, Any] | None:
+        experiment = Experiment.model_validate(data)
+        if experiment.type is not ExperimentType.EXPLORE:
+            return None
+        batch = set(ordered_shot_ids)
+        prior = [shot_id for shot_id in experiment.result_shot_ids if shot_id not in batch]
+        experiment.result_shot_ids = prior + ordered_shot_ids
+        by_shot = {item.shot_id: item for item in experiment.variation_observations}
+        prior_observations = [
+            item for item in experiment.variation_observations if item.shot_id not in batch
+        ]
+        experiment.variation_observations = prior_observations + [
+            by_shot[shot_id] for shot_id in ordered_shot_ids if shot_id in by_shot
+        ]
+        return _dump(experiment)
+
+    data, _ = await store.mutate(EXPERIMENTS, experiment_id, finalize)
+    if data is None:
+        raise UnknownEntity(f"Explore Experiment {experiment_id}")
+    return Experiment.model_validate(data)
 
 
 async def mark_capture_session_evaluated(

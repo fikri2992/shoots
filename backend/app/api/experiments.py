@@ -142,6 +142,36 @@ async def issue_experiment(
     return await scout.issue(ctx, session_user["id"], force=force)
 
 
+@router.post("/experiments/explore", response_model=Experiment | None)
+async def issue_explore(
+    force: bool = False,
+    technique_id: str = "",
+    session_user: dict[str, str] = Depends(current_user),
+    ctx: Context = Depends(get_context),
+) -> Experiment | None:
+    """Ask Scout for supported optional Variations, never a graded substitute."""
+    return await scout.issue_explore(
+        ctx,
+        session_user["id"],
+        force=force,
+        technique_id=technique_id,
+    )
+
+
+@router.post("/experiments/{experiment_id}/complete", response_model=Experiment)
+async def complete_explore(
+    experiment_id: str,
+    session_user: dict[str, str] = Depends(current_user),
+    ctx: Context = Depends(get_context),
+) -> Experiment:
+    try:
+        return await scout.complete_explore(ctx, session_user["id"], experiment_id)
+    except repo.UnknownEntity as exc:
+        raise HTTPException(404, "Experiment not found") from exc
+    except ValueError as exc:
+        raise HTTPException(409, str(exc)) from exc
+
+
 @router.post("/experiments/{experiment_id}/skip", response_model=Experiment)
 async def skip_experiment(
     experiment_id: str,

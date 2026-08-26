@@ -321,6 +321,9 @@ class Shot(BaseModel):
     blobs: dict[str, str] = Field(default_factory=dict)
     #: Set when the user shot this for a specific experiment.
     experiment_id: str = ""
+    #: Explicit Explore Variation frozen by the Capture Session. Empty for
+    #: free Shots and Reproduce.
+    variation_id: str = ""
     #: The explicit system-camera batch that froze this association. Empty for
     #: free Shots and legacy/manual Experiment submissions.
     capture_session_id: str = ""
@@ -609,6 +612,30 @@ class Criteria(BaseModel):
     text: list[str] = Field(default_factory=list)
 
 
+class Variation(BaseModel):
+    """One optional decision route inside an Explore or Compare."""
+
+    id: str
+    title: str
+    instruction: str
+    inversion: bool = False
+
+
+class VariationObservation(BaseModel):
+    """Structured Analyst Evidence observed for one explicit Explore result."""
+
+    variation_id: str
+    shot_id: str
+    technique_ids: list[str] = Field(default_factory=list)
+    corroborated_technique_ids: list[str] = Field(default_factory=list)
+    guide: str = ""
+    finding_ids: list[str] = Field(default_factory=list)
+    abstained: str = ""
+    model: str = ""
+    prompt_version: str = ""
+    observed_at: datetime = Field(default_factory=now)
+
+
 class Reference(BaseModel):
     title: str
     url: str
@@ -617,10 +644,10 @@ class Reference(BaseModel):
 class ExperimentType(StrEnum):
     """Which of the three questions this Experiment asks (decision 43).
 
-    Scout currently issues ``REPRODUCE`` from corroborated Techniques in
-    Photographer-marked Keepers. Corrected ``EXPLORE`` and ``COMPARE`` remain
-    deliberately unissued until their Variation and Photographer-owned result
-    records exist.
+    Scout issues ``REPRODUCE`` from corroborated Techniques in Photographer-marked
+    Keepers and corrected ``EXPLORE`` from a supported Tendency Direction or an
+    explicit supported Technique. ``COMPARE`` remains deliberately unissued until
+    its paired Variation and Photographer-owned preference records exist.
     """
 
     #: Widen a dimension the archive barely uses.
@@ -800,7 +827,9 @@ class Experiment(BaseModel):
     title: str
     brief: str
     why_now: str  # the Scout's gap reasoning, shown to the user
-    criteria: Criteria
+    criteria: Criteria = Field(default_factory=Criteria)
+    variations: list[Variation] = Field(default_factory=list)
+    variation_observations: list[VariationObservation] = Field(default_factory=list)
     references: list[Reference] = Field(default_factory=list)
     reference_clip: str = ""  # blob path of the Veo clip
     #: When the push lands. The experiment exists before that; the phone waits.
@@ -1045,6 +1074,7 @@ class CaptureMemberOutcome(StrEnum):
     CRITERIA_NOT_MET = "criteria_not_met"
     ABSTAINED = "abstained"
     TERMINAL = "terminal"
+    OBSERVED = "observed"
 
 
 class CaptureSessionMember(BaseModel):
@@ -1062,6 +1092,7 @@ class CaptureSession(BaseModel):
     id: str
     user_id: str
     experiment_id: str
+    variation_id: str = ""
     device_id: str
     device_label: str = "Android"
     status: CaptureSessionStatus = CaptureSessionStatus.RESERVED

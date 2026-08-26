@@ -102,7 +102,7 @@ The photographer only has to shoot. Keeper, Intent, Experiment participation, an
 
 ## Three kinds of Experiment
 
-**Explore.** Ask what changes across two to four optional Variations. It records what the photographer tried, what visibly differed, and which results became Keepers. There is no correct result, pass, fail, or Verdict. Explore is the next Experiment type after the Shoot-level record because it expands knowledge without taking over the camera.
+**Explore.** Ask what changes across two or three optional Variations. It records what the photographer tried and what Evidence appeared. There is no correct result, pass, fail, or Verdict. Its next memory step is interpreting positive Keeper signals across repeated Variation attempts without turning them into a score.
 
 **Reproduce.** Deliberately repeat a pattern associated with the photographer's Keepers. Criteria are frozen before the result, and Judge may issue a Verdict about those Criteria only. A Verdict is not a quality judgment.
 

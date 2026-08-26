@@ -29,6 +29,7 @@ SESSION_TTL = timedelta(hours=2)
 
 class ReserveIn(BaseModel):
     experiment_id: str = Field(min_length=1, max_length=120)
+    variation_id: str = Field(default="", max_length=120)
 
 
 class MemberIn(BaseModel):
@@ -65,14 +66,21 @@ async def reserve(
         raise HTTPException(404, "Experiment not found")
     if experiment.status is not ExperimentStatus.OPEN:
         raise HTTPException(409, "Experiment is not open")
-    if experiment.type is not ExperimentType.REPRODUCE:
-        raise HTTPException(409, "Capture Sessions currently require Reproduce")
+    if experiment.type is ExperimentType.REPRODUCE and body.variation_id:
+        raise HTTPException(409, "Reproduce does not use Variations")
+    if experiment.type is ExperimentType.EXPLORE and not any(
+        variation.id == body.variation_id for variation in experiment.variations
+    ):
+        raise HTTPException(409, "Choose one current Explore Variation")
+    if experiment.type is ExperimentType.COMPARE:
+        raise HTTPException(409, "Compare Capture Sessions are not implemented")
 
     at = now()
     session = CaptureSession(
         id=new_id("capture"),
         user_id=experiment.user_id,
         experiment_id=experiment.id,
+        variation_id=body.variation_id,
         device_id=str(session_user.get("device_id") or session_user.get("device") or "android"),
         device_label=str(session_user.get("device") or "Android")[:60],
         reserved_at=at,
@@ -84,6 +92,7 @@ async def reserve(
             active is not None
             and active.user_id == session.user_id
             and active.device_id == session.device_id
+            and active.variation_id == session.variation_id
             and active.status is CaptureSessionStatus.RESERVED
             and active.expires_at > at
         ):
@@ -109,7 +118,7 @@ async def reserve(
         session.user_id,
         "phone_source",
         "capture_session_reserved",
-        {"device": session.device_label},
+        {"device": session.device_label, "variation_id": session.variation_id},
         experiment_id=session.experiment_id,
     )
     return session

@@ -1,8 +1,11 @@
 """Batch barriers for explicit system-camera Capture Sessions."""
 
+from app.domain import explore
 from app.domain.entities import (
+    Analysis,
     CaptureMemberOutcome,
     CaptureSessionStatus,
+    ExperimentType,
     RunStatus,
     Verdict,
     now,
@@ -52,6 +55,9 @@ async def record_judge_outcome(
 ) -> None:
     """Record one member and evaluate only when the whole batch has answered."""
     session = await repo.get_capture_session(ctx.store, session_id)
+    experiment = await repo.get_experiment(ctx.store, session.experiment_id)
+    if experiment.type is not ExperimentType.REPRODUCE:
+        raise ValueError("Only Reproduce records Judge outcomes")
     if terminal:
         outcome = CaptureMemberOutcome.TERMINAL
     elif abstained:
@@ -121,6 +127,81 @@ async def record_judge_outcome(
         )
 
 
+async def record_explore_outcome(
+    ctx: Context,
+    session_id: str,
+    shot_id: str,
+    analysis: Analysis | None,
+    *,
+    terminal: bool = False,
+) -> None:
+    """Record one Explore member without inventing Criteria or a Verdict."""
+    session = await repo.get_capture_session(ctx.store, session_id)
+    experiment = await repo.get_experiment(ctx.store, session.experiment_id)
+    if experiment.type is not ExperimentType.EXPLORE:
+        raise ValueError("Only Explore records Variation observations")
+    if not session.variation_id or not any(
+        variation.id == session.variation_id for variation in experiment.variations
+    ):
+        raise ValueError("Explore Capture Session has no current Variation")
+    observation = (
+        None if analysis is None else explore.observe(analysis, session.variation_id)
+    )
+    outcome = (
+        CaptureMemberOutcome.TERMINAL
+        if terminal
+        else CaptureMemberOutcome.ABSTAINED
+        if analysis is not None and analysis.abstained
+        else CaptureMemberOutcome.OBSERVED
+    )
+    await repo.record_explore_result(ctx.store, experiment.id, shot_id, observation)
+    session = await repo.record_capture_session_outcome(
+        ctx.store,
+        session.id,
+        shot_id,
+        outcome,
+    )
+    if session.evaluated_at is not None or any(
+        member.outcome is CaptureMemberOutcome.PENDING for member in session.members
+    ):
+        return
+    ordered_members = sorted(session.members, key=lambda member: member.order)
+    ordered_shot_ids = [member.shot_id for member in ordered_members if member.shot_id]
+    await repo.finalize_explore_batch(ctx.store, experiment.id, ordered_shot_ids)
+    representative = next(
+        (
+            member.shot_id
+            for member in reversed(ordered_members)
+            if member.shot_id and member.outcome is not CaptureMemberOutcome.TERMINAL
+        ),
+        ordered_shot_ids[-1] if ordered_shot_ids else "",
+    )
+    await repo.mark_capture_session_evaluated(ctx.store, session.id, representative, now())
+    await repo.record(
+        ctx.store,
+        session.user_id,
+        "analyst",
+        "explore_session_evaluated",
+        {
+            "variation_id": session.variation_id,
+            "members": len(session.members),
+            "observed": sum(
+                member.outcome is CaptureMemberOutcome.OBSERVED
+                for member in ordered_members
+            ),
+            "abstained": sum(
+                member.outcome is CaptureMemberOutcome.ABSTAINED
+                for member in ordered_members
+            ),
+            "terminal": sum(
+                member.outcome is CaptureMemberOutcome.TERMINAL
+                for member in ordered_members
+            ),
+        },
+        experiment_id=experiment.id,
+    )
+
+
 async def on_run_settled(ctx: Context, session_id: str, shot_id: str) -> None:
     """Close the Capture Session only after every member Run has settled."""
     session = await repo.get_capture_session(ctx.store, session_id)
@@ -130,13 +211,23 @@ async def on_run_settled(ctx: Context, session_id: str, shot_id: str) -> None:
     if run is not None and run.status is RunStatus.TERMINAL:
         member = next((item for item in session.members if item.shot_id == shot_id), None)
         if member is not None and member.outcome is CaptureMemberOutcome.PENDING:
-            await record_judge_outcome(
-                ctx,
-                session.id,
-                shot_id,
-                None,
-                terminal=True,
-            )
+            experiment = await repo.get_experiment(ctx.store, session.experiment_id)
+            if experiment.type is ExperimentType.EXPLORE:
+                await record_explore_outcome(
+                    ctx,
+                    session.id,
+                    shot_id,
+                    None,
+                    terminal=True,
+                )
+            else:
+                await record_judge_outcome(
+                    ctx,
+                    session.id,
+                    shot_id,
+                    None,
+                    terminal=True,
+                )
             session = await repo.get_capture_session(ctx.store, session_id)
 
     if session.evaluated_at is None or any(not member.shot_id for member in session.members):
@@ -148,6 +239,7 @@ async def on_run_settled(ctx: Context, session_id: str, shot_id: str) -> None:
     ):
         return
 
+    experiment = await repo.get_experiment(ctx.store, session.experiment_id)
     summary = {
         "members": len(session.members),
         "completed": sum(
@@ -166,6 +258,10 @@ async def on_run_settled(ctx: Context, session_id: str, shot_id: str) -> None:
             member.outcome is CaptureMemberOutcome.ABSTAINED for member in session.members
         ),
     }
+    if experiment.type is ExperimentType.EXPLORE:
+        summary["observed"] = sum(
+            member.outcome is CaptureMemberOutcome.OBSERVED for member in session.members
+        )
     settled, settled_now = await repo.settle_capture_session(ctx.store, session.id, summary, now())
     if not settled_now:
         return

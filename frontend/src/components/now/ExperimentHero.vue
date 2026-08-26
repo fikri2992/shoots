@@ -32,7 +32,13 @@ export default {
   props: { experiment: { type: Object, required: true } },
   computed: {
     ...mapState(useShootsStore, ['busy', 'shotById']),
+    isExplore() {
+      return this.experiment.type === 'explore'
+    },
     supported() {
+      if (this.isExplore) {
+        return (this.experiment.variations?.length || 0) >= 2 && !this.experiment.criteria?.text?.length
+      }
       return this.experiment.type === 'reproduce' && Boolean(this.experiment.reference_shot_id)
     },
     technique() {
@@ -80,7 +86,7 @@ export default {
     },
   },
   methods: {
-    ...mapActions(useShootsStore, ['leaveExperiment']),
+    ...mapActions(useShootsStore, ['leaveExperiment', 'completeExplore']),
   },
 }
 </script>
@@ -111,13 +117,13 @@ export default {
         <div class="h-1 bg-accent" />
         <div class="p-5 sm:p-7 lg:p-9">
           <div class="flex flex-wrap items-center justify-between gap-2">
-            <p class="eyebrow text-accent">Reproduce · {{ technique }}</p>
+            <p class="eyebrow text-accent">{{ isExplore ? 'Explore' : 'Reproduce' }} · {{ technique }}</p>
             <p v-if="when" class="t-meta">{{ when }}</p>
           </div>
           <h1 class="mt-5 max-w-3xl t-hero lg:text-[48px]">{{ experiment.title }}</h1>
 
           <RouterLink
-            v-if="referenceView"
+            v-if="!isExplore && referenceView"
             :to="{ name: 'shot', params: { shotId: experiment.reference_shot_id } }"
             class="mt-7 grid overflow-hidden rounded-2xl border border-edge bg-panel-2 sm:grid-cols-[150px_1fr]"
           >
@@ -129,7 +135,7 @@ export default {
             </span>
           </RouterLink>
 
-          <div class="mt-8 border-t border-edge pt-7">
+          <div v-if="!isExplore" class="mt-8 border-t border-edge pt-7">
             <p class="eyebrow">Declared before the result</p>
             <ol class="mt-4 space-y-3">
               <li v-for="(criterion, index) in criteria" :key="index" class="flex gap-4 rounded-xl bg-panel-2/55 px-4 py-3.5">
@@ -140,7 +146,21 @@ export default {
             <p v-if="cameraRules.length" class="mt-4 t-meta">Measured from EXIF: {{ cameraRules.join(' · ') }}</p>
           </div>
 
-          <div v-if="attempts.length" class="mt-7 surface-soft p-4">
+          <div v-else class="mt-8 border-t border-edge pt-7">
+            <div class="flex items-center justify-between gap-3">
+              <p class="eyebrow">Choose one Variation</p>
+              <p class="t-meta">No Verdict</p>
+            </div>
+            <div class="mt-4 grid gap-3 sm:grid-cols-2">
+              <article v-for="variation in experiment.variations" :key="variation.id" class="rounded-xl bg-panel-2/55 p-4">
+                <p class="t-body font-medium text-paper">{{ variation.title }}</p>
+                <p class="mt-2 t-meta">{{ variation.instruction }}</p>
+              </article>
+            </div>
+            <p class="mt-4 t-meta">Use Android to choose a Variation and open the normal camera. Free Shots remain free.</p>
+          </div>
+
+          <div v-if="!isExplore && attempts.length" class="mt-7 surface-soft p-4">
             <p class="eyebrow mb-3">Latest result</p>
             <VerdictNote :verdict="attempts[0]" />
             <p v-if="resultCount > 1" class="mt-3 t-meta">{{ resultCount }} explicit result Shots recorded</p>
@@ -149,12 +169,12 @@ export default {
       </section>
 
       <aside class="surface p-5 sm:p-6 lg:sticky lg:top-7">
-        <p class="eyebrow text-accent">One move</p>
+        <p class="eyebrow text-accent">{{ isExplore ? 'Open choice' : 'One move' }}</p>
         <p class="mt-3 text-[20px] leading-7 font-medium text-paper">
-          {{ steps[0] || 'Make the same decision again, deliberately.' }}
+          {{ isExplore ? 'Pick whichever Variation makes you curious. None is the correct answer.' : (steps[0] || 'Make the same decision again, deliberately.') }}
         </p>
 
-        <div v-if="experiment.status === 'open'" class="mt-6 hidden lg:block">
+        <div v-if="experiment.status === 'open' && !isExplore" class="mt-6 hidden lg:block">
           <ShootAction :experiment-id="experiment.id" label="Use a Shot as the result" />
           <button
             type="button"
@@ -163,6 +183,13 @@ export default {
             @click="leaveExperiment(experiment.id)"
           >
             {{ busy === 'leave' ? 'Leaving…' : 'Leave without a judgment' }}
+          </button>
+        </div>
+
+        <div v-if="isExplore && resultCount" class="mt-6">
+          <p class="t-meta">{{ resultCount }} explicit result Shot{{ resultCount === 1 ? '' : 's' }} · no Verdict</p>
+          <button class="btn-quiet mt-3 w-full" :disabled="busy === 'complete-explore'" @click="completeExplore(experiment.id)">
+            {{ busy === 'complete-explore' ? 'Finishing…' : 'Finish Explore' }}
           </button>
         </div>
 
@@ -192,7 +219,7 @@ export default {
     </div>
 
     <div
-      v-if="supported && experiment.status === 'open'"
+      v-if="supported && !isExplore && experiment.status === 'open'"
       class="fixed inset-x-0 bottom-[68px] z-20 border-t border-edge bg-ink/96 px-5 py-3 backdrop-blur-xl lg:hidden"
     >
       <div class="mx-auto flex max-w-lg items-center gap-3">

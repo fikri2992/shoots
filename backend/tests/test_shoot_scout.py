@@ -110,9 +110,40 @@ async def test_useful_shoot_without_keeper_direction_routes_to_explain():
     assert record.scout.warrant[0].shoot_id == membership.shoot_id
     rejected = {item.route: item.reason for item in record.scout.rejected_routes}
     assert "marked Keeper" in rejected[ScoutRoute.REPRODUCE]
-    assert "not implemented" in rejected[ScoutRoute.EXPLORE]
+    assert "No supported Tendency Direction" in rejected[ScoutRoute.EXPLORE]
     assert "not implemented" in rejected[ScoutRoute.ASK]
     assert await repo.open_experiment(ctx.store, "scout_user") is None
+
+
+async def test_supported_tendency_without_keeper_offers_corrected_explore():
+    ctx = context()
+    await repo.put_user(ctx.store, User(id="scout_user", email="scout@example.test"))
+    start = datetime(2026, 8, 26, 8, 30, tzinfo=UTC)
+    first = None
+    for index in range(8):
+        shot = await add_readable_shot(
+            ctx,
+            shot_id=f"explore_{index}",
+            captured_at=start + timedelta(minutes=index),
+        )
+        first = first or shot
+    assert first is not None
+    membership = await shoots.observe_shot(ctx, first.id)
+
+    await shoots.close_inactive(ctx, start + timedelta(hours=1))
+
+    record = await repo.find_shoot_record(ctx.store, membership.shoot_id, 1)
+    assert record is not None
+    assert record.scout.route is ScoutRoute.EXPLORE
+    assert record.scout.execution_state is ScoutExecutionState.COMPLETED
+    assert record.scout.policy_version == "shoot-scout-2"
+    experiment = await repo.get_experiment(ctx.store, record.scout.experiment_id)
+    assert experiment.type is ExperimentType.EXPLORE
+    assert len(experiment.variations) == 3
+    assert experiment.criteria.text == []
+    assert experiment.verdicts == []
+    assert experiment.baseline is not None
+    assert record.scout.warrant[0].kind == "tendency_direction"
 
 
 async def test_sparse_shoot_records_evidenced_silence():

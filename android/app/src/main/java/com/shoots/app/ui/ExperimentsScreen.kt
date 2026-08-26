@@ -50,6 +50,7 @@ import com.shoots.app.data.LocalCaptureState
 import com.shoots.app.data.MobileSnapshotDto
 import com.shoots.app.data.ShotDto
 import com.shoots.app.data.canStartReproduce
+import com.shoots.app.data.canStartExplore
 
 @Composable
 fun ExperimentsScreen(
@@ -58,7 +59,9 @@ fun ExperimentsScreen(
     busy: Boolean,
     imageUrl: (ShotDto) -> String,
     onRequestExperiment: (Boolean) -> Unit,
-    onStartExperiment: (String) -> Unit,
+    onRequestExplore: (Boolean) -> Unit,
+    onStartExperiment: (String, String) -> Unit,
+    onCompleteExplore: (String) -> Unit,
     onContinueSession: (String) -> Unit,
     onFinishSession: (String) -> Unit,
     onCancelSession: (String) -> Unit,
@@ -80,8 +83,8 @@ fun ExperimentsScreen(
     ) {
         ScreenTitle(
             "Experiments",
-            "Practice one decision.",
-            "One optional Experiment, grounded in your Keepers.",
+            "Try one decision on purpose.",
+            "Explore optional Variations, or Reproduce something you value.",
         )
         Spacer(Modifier.height(24.dp))
 
@@ -99,16 +102,27 @@ fun ExperimentsScreen(
                 keeper = snapshot.recentShots.firstOrNull { it.id == open.referenceShotId },
                 imageUrl = imageUrl,
                 busy = busy,
-                onStart = { onStartExperiment(open.id) },
+                onStart = { onStartExperiment(open.id, "") },
                 onKeeper = { open.referenceShotId.takeIf(String::isNotBlank)?.let(onShot) },
                 onAnother = { replaceConfirm = true },
+            )
+            open?.canStartExplore == true -> ActiveExploreCard(
+                experiment = open,
+                busy = busy,
+                onStart = { variationId -> onStartExperiment(open.id, variationId) },
+                onComplete = { onCompleteExplore(open.id) },
+                onAnother = { onRequestExplore(true) },
             )
             open != null -> OlderExperimentCard(
                 experiment = open,
                 busy = busy,
                 onReplace = { replaceConfirm = true },
             )
-            else -> NoExperimentCard(busy) { onRequestExperiment(false) }
+            else -> NoExperimentCard(
+                busy = busy,
+                onExplore = { onRequestExplore(false) },
+                onReproduce = { onRequestExperiment(false) },
+            )
         }
 
         Spacer(Modifier.height(30.dp))
@@ -157,6 +171,66 @@ fun ExperimentsScreen(
             },
             containerColor = InkRaised,
         )
+    }
+}
+
+@Composable
+private fun ActiveExploreCard(
+    experiment: ExperimentDto,
+    busy: Boolean,
+    onStart: (String) -> Unit,
+    onComplete: () -> Unit,
+    onAnother: () -> Unit,
+) {
+    InkCard {
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+            StatusPill("Explore", amber = true)
+            Text("NO VERDICT", color = MutedWhite, fontSize = 10.sp, fontWeight = FontWeight.Bold)
+        }
+        Spacer(Modifier.height(13.dp))
+        Text(
+            experiment.title,
+            color = WarmWhite,
+            fontSize = 24.sp,
+            lineHeight = 29.sp,
+            fontWeight = FontWeight.Bold,
+        )
+        if (experiment.whyNow.isNotBlank()) {
+            Spacer(Modifier.height(8.dp))
+            Text(experiment.whyNow, color = MutedWhite, fontSize = 13.sp, lineHeight = 19.sp)
+        }
+        Spacer(Modifier.height(18.dp))
+        Text("CHOOSE ONE VARIATION", color = Amber, fontSize = 10.sp, fontWeight = FontWeight.Bold)
+        Spacer(Modifier.height(8.dp))
+        experiment.variations.forEach { variation ->
+            InkCard(onClick = { if (!busy) onStart(variation.id) }) {
+                Text(
+                    variation.title,
+                    color = WarmWhite,
+                    fontSize = 15.sp,
+                    fontWeight = FontWeight.SemiBold,
+                )
+                Spacer(Modifier.height(4.dp))
+                Text(variation.instruction, color = MutedWhite, fontSize = 12.sp, lineHeight = 17.sp)
+                Spacer(Modifier.height(7.dp))
+                Text("TRY WITH NORMAL CAMERA", color = Amber, fontSize = 10.sp, fontWeight = FontWeight.Bold)
+            }
+            Spacer(Modifier.height(8.dp))
+        }
+        if (experiment.resultShotIds.isNotEmpty()) {
+            Spacer(Modifier.height(6.dp))
+            Text(
+                "${experiment.resultShotIds.size} explicit result Shots · " +
+                    "${experiment.variationObservations.map { it.variationId }.distinct().size} Variations observed",
+                color = MutedWhite,
+                fontSize = 12.sp,
+            )
+            Spacer(Modifier.height(12.dp))
+            SecondaryAction("Finish Explore", enabled = !busy, onClick = onComplete)
+        }
+        TextButton(onClick = onAnother, modifier = Modifier.align(Alignment.End)) {
+            Text("Another Explore direction", color = MutedWhite, fontSize = 12.sp)
+        }
     }
 }
 
@@ -258,20 +332,26 @@ private fun OlderExperimentCard(
 }
 
 @Composable
-private fun NoExperimentCard(busy: Boolean, onRequest: () -> Unit) {
+private fun NoExperimentCard(
+    busy: Boolean,
+    onExplore: () -> Unit,
+    onReproduce: () -> Unit,
+) {
     InkCard {
         StatusPill("Quiet")
         Spacer(Modifier.height(12.dp))
         Text("Want something deliberate to try?", color = WarmWhite, fontSize = 21.sp, lineHeight = 26.sp, fontWeight = FontWeight.Bold)
         Spacer(Modifier.height(7.dp))
         Text(
-            "Ask Scout to look across your marked Keepers now. It will stay silent rather than invent a generic exercise.",
+            "Scout can open optional Variations from a Tendency, or test a decision supported by one of your Keepers.",
             color = MutedWhite,
             fontSize = 14.sp,
             lineHeight = 20.sp,
         )
         Spacer(Modifier.height(18.dp))
-        PrimaryAction("Find an Experiment", enabled = !busy, onClick = onRequest)
+        PrimaryAction("Explore a Tendency", enabled = !busy, onClick = onExplore)
+        Spacer(Modifier.height(8.dp))
+        SecondaryAction("Reproduce a Keeper", enabled = !busy, onClick = onReproduce)
     }
 }
 
@@ -344,6 +424,8 @@ private fun ExperimentHistoryRow(experiment: ExperimentDto, onClick: (() -> Unit
                 Spacer(Modifier.height(4.dp))
                 Text(
                     when {
+                        experiment.type == "explore" && experiment.variationObservations.isNotEmpty() ->
+                            "${experiment.variationObservations.map { it.variationId }.distinct().size} Variations observed · no Verdict"
                         experiment.change != null -> experiment.change.outcome.ifBlank { experiment.change.state }
                         experiment.resultShotIds.isNotEmpty() -> "${experiment.resultShotIds.size} explicit result Shots"
                         experiment.status == "skipped" -> "Left without result Shots"

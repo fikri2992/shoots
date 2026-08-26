@@ -192,6 +192,21 @@ export const useShootsStore = defineStore('shoots', {
       })
     },
 
+    issueExplore(force = false) {
+      return this.run('issue-explore', async () => {
+        const experiment = await api.post(`/api/experiments/explore?force=${force}`)
+        await this.fetchAll()
+        return experiment
+      })
+    },
+
+    completeExplore(id) {
+      return this.run('complete-explore', async () => {
+        await api.post(`/api/experiments/${id}/complete`)
+        await this.fetchAll()
+      })
+    },
+
     skipExperiment(id) {
       return this.run('skip', async () => {
         await api.post(`/api/experiments/${id}/skip`)

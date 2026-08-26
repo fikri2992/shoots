@@ -64,6 +64,7 @@ object ImportState {
 data class LocalCaptureSessionEntity(
     @androidx.room.PrimaryKey val id: String,
     val experimentId: String,
+    val variationId: String = "",
     val state: String,
     val baselineDateAdded: Long,
     val baselineMediaId: Long,
@@ -254,7 +255,7 @@ abstract class ShootsDao {
         CachedResourceEntity::class,
         CachedShotEntity::class,
     ],
-    version = 2,
+    version = 3,
     // Version 1 is checked in under app/schemas. Room 2.8.4 cannot re-read its
     // own exported JSON with its current serialization ABI; re-enable export
     // when the upstream compiler fix lands, before introducing version 2.
@@ -268,13 +269,22 @@ abstract class ShootsDatabase : RoomDatabase() {
             context.applicationContext,
             ShootsDatabase::class.java,
             "shoots.db",
-        ).addMigrations(MIGRATION_1_2)
+        ).addMigrations(MIGRATION_1_2, MIGRATION_2_3)
             .setJournalMode(JournalMode.WRITE_AHEAD_LOGGING)
             .build()
 
         private val MIGRATION_1_2 = object : Migration(1, 2) {
             override fun migrate(db: SupportSQLiteDatabase) {
                 db.execSQL("ALTER TABLE imports ADD COLUMN sourceRole TEXT NOT NULL DEFAULT 'mine'")
+            }
+        }
+
+        private val MIGRATION_2_3 = object : Migration(2, 3) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    "ALTER TABLE local_capture_sessions " +
+                        "ADD COLUMN variationId TEXT NOT NULL DEFAULT ''"
+                )
             }
         }
     }
