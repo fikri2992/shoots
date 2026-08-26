@@ -121,4 +121,3 @@ class RoomQueueIntegrationTest {
         identity.edit().clear().commit()
     }
 }
-

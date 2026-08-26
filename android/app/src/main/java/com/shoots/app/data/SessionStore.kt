@@ -97,4 +97,3 @@ class SessionStore(private val context: Context) {
         const val DEVICE_ID = "device_id"
     }
 }
-

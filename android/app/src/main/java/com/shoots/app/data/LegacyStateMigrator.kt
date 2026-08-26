@@ -21,4 +21,3 @@ class LegacyStateMigrator(
         old.edit().clear().apply()
     }
 }
-
