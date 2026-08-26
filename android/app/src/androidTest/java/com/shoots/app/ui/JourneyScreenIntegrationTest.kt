@@ -58,9 +58,24 @@ class JourneyScreenIntegrationTest {
                     distinctShoots = 1,
                     reproduceAttempts = 3,
                     criteriaMetResults = 1,
+                    reproduceSessions = 2,
+                    evaluableReproduceSessions = 2,
+                    criteriaMetSessions = 1,
                     abstentions = 1,
                     positiveKeeperShots = 2,
-                )
+                ),
+                TechniqueNodeDto(
+                    techniqueId = "rule_of_thirds",
+                    name = "Rule of thirds",
+                    family = "composition",
+                    status = "recurring",
+                    attempts = 3,
+                    corroborated = 3,
+                    sightings = 3,
+                    corroboratedShots = 3,
+                    distinctScenes = 2,
+                    distinctShoots = 2,
+                ),
             ),
         )
         compose.setContent {
@@ -70,9 +85,13 @@ class JourneyScreenIntegrationTest {
         }
 
         compose.onNodeWithText("Techniques").performClick()
-        compose.onNodeWithText("4 sightings · 3 corroborated Shots").assertExists()
-        compose.onNodeWithText("2 Scenes · 1 Shoot").assertExists()
-        compose.onNodeWithText("3 Reproduce results · 1 Criteria met · 1 abstention").assertExists()
+        compose.onNodeWithText("3 corroborated Shots · 2 Scenes · 1 Shoot").assertExists()
+        compose.onNodeWithText("3 explicit result Shots · 1 abstention").assertExists()
+        compose.onNodeWithText("REPRODUCE EVIDENCE").assertExists()
+        compose.onNodeWithText("2 settled sessions · 2 evaluable · 1 met Criteria").assertExists()
+        compose.onNodeWithText(
+            "It recurs in your Shots, but deliberate control has not been tested.",
+        ).assertExists()
         compose.onNodeWithText("2 marked Keepers").assertExists()
     }
 

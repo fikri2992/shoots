@@ -29,6 +29,9 @@ class TechniqueNode(BaseModel):
     distinct_shoots: int
     reproduce_attempts: int
     criteria_met_results: int
+    reproduce_sessions: int
+    evaluable_reproduce_sessions: int
+    criteria_met_sessions: int
     abstentions: int
     positive_keeper_shots: int
     supported_condition_coverage: dict[str, int]
@@ -82,6 +85,9 @@ async def technique_map(
                 distinct_shoots=state.distinct_shoots,
                 reproduce_attempts=state.reproduce_attempts,
                 criteria_met_results=state.criteria_met_results,
+                reproduce_sessions=state.reproduce_sessions,
+                evaluable_reproduce_sessions=state.evaluable_reproduce_sessions,
+                criteria_met_sessions=state.criteria_met_sessions,
                 abstentions=state.abstentions,
                 positive_keeper_shots=state.positive_keeper_shots,
                 supported_condition_coverage=state.supported_condition_coverage,
@@ -103,6 +109,9 @@ def _has_evidence(state: TechniqueState) -> bool:
             state.distinct_shoots,
             state.reproduce_attempts,
             state.criteria_met_results,
+            state.reproduce_sessions,
+            state.evaluable_reproduce_sessions,
+            state.criteria_met_sessions,
             state.abstentions,
             state.positive_keeper_shots,
         )

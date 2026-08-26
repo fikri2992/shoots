@@ -11,13 +11,16 @@ from app.domain import taxonomy
 from app.domain import technique_map as rules
 from app.domain.entities import (
     Analysis,
+    CaptureMemberOutcome,
+    CaptureSession,
+    CaptureSessionStatus,
     Experiment,
     ExperimentType,
     TechniqueEvidence,
     TechniqueState,
 )
 
-PROJECTION_VERSION = "technique-map-3"
+PROJECTION_VERSION = "technique-map-4"
 
 
 @dataclass(frozen=True)
@@ -34,6 +37,7 @@ class ProjectionInputs:
     analyses: tuple[Analysis, ...] = ()
     shots: dict[str, ShotFact] = field(default_factory=dict)
     experiments: tuple[Experiment, ...] = ()
+    capture_sessions: tuple[CaptureSession, ...] = ()
     abstained_by_experiment: dict[str, frozenset[str]] = field(default_factory=dict)
     existing_technique_ids: frozenset[str] = frozenset()
 
@@ -122,6 +126,28 @@ def _state(
         for experiment in experiments
         for shot_id in inputs.abstained_by_experiment.get(experiment.id, frozenset())
     }
+    experiment_ids = {experiment.id for experiment in experiments}
+    settled_sessions = [
+        session
+        for session in inputs.capture_sessions
+        if session.experiment_id in experiment_ids
+        and session.status is CaptureSessionStatus.SETTLED
+        and session.members
+    ]
+    evaluable_sessions = [
+        session
+        for session in settled_sessions
+        if any(
+            member.outcome
+            in {CaptureMemberOutcome.CRITERIA_MET, CaptureMemberOutcome.CRITERIA_NOT_MET}
+            for member in session.members
+        )
+    ]
+    met_sessions = [
+        session
+        for session in evaluable_sessions
+        if any(member.outcome is CaptureMemberOutcome.CRITERIA_MET for member in session.members)
+    ]
     kept_ids = {
         shot_id
         for shot_id in corroborated_ids
@@ -148,12 +174,21 @@ def _state(
         distinct_shoots=len(shoots),
         reproduce_attempts=len(result_ids),
         criteria_met_results=len(met_ids),
+        reproduce_sessions=len(settled_sessions),
+        evaluable_reproduce_sessions=len(evaluable_sessions),
+        criteria_met_sessions=len(met_sessions),
         abstentions=len(abstained_ids),
         positive_keeper_shots=len(kept_ids),
         supported_condition_coverage={},
         projection_version=PROJECTION_VERSION,
     )
-    state.input_digest = _digest(inputs, technique_id, ordered, experiments)
+    state.input_digest = _digest(
+        inputs,
+        technique_id,
+        ordered,
+        experiments,
+        settled_sessions,
+    )
     return rules.normalise_state(state)
 
 
@@ -162,6 +197,7 @@ def _digest(
     technique_id: str,
     evidence_rows: list[tuple[Analysis, TechniqueEvidence]],
     experiments: list[Experiment],
+    sessions: list[CaptureSession],
 ) -> str:
     payload = {
         "version": PROJECTION_VERSION,
@@ -198,6 +234,21 @@ def _digest(
                 "abstained": sorted(inputs.abstained_by_experiment.get(experiment.id, frozenset())),
             }
             for experiment in sorted(experiments, key=lambda item: item.id)
+        ],
+        "capture_sessions": [
+            {
+                "id": session.id,
+                "experiment_id": session.experiment_id,
+                "members": [
+                    {
+                        "order": member.order,
+                        "shot_id": member.shot_id,
+                        "outcome": member.outcome.value,
+                    }
+                    for member in sorted(session.members, key=lambda item: item.order)
+                ],
+            }
+            for session in sorted(sessions, key=lambda item: item.id)
         ],
     }
     encoded = json.dumps(payload, sort_keys=True, separators=(",", ":")).encode()

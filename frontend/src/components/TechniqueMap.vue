@@ -43,6 +43,12 @@ export default {
     pick(node) {
       this.selected = this.selected?.technique_id === node.technique_id ? null : node
     },
+    repeatabilityEvidence(node) {
+      if (!node.reproduce_sessions) return 'Deliberate repeatability has not been tested.'
+      return `${node.reproduce_sessions} settled session${node.reproduce_sessions === 1 ? '' : 's'} · ` +
+        `${node.evaluable_reproduce_sessions || 0} evaluable · ` +
+        `${node.criteria_met_sessions || 0} met Criteria`
+    },
   },
 }
 </script>
@@ -85,10 +91,12 @@ export default {
         <div v-if="open === f.key && selected" class="mt-3 rounded-xl bg-panel-2 p-3">
           <p class="t-body text-neutral-100">{{ selected.name }} · {{ selected.status }}</p>
           <p class="mt-1 t-meta">
-            {{ selected.attempts }} attempt{{ selected.attempts === 1 ? '' : 's' }}
-            <template v-if="selected.corroborated"> · {{ selected.corroborated }} confirmed</template>
+            {{ selected.sightings }} sighting{{ selected.sightings === 1 ? '' : 's' }}
+            <template v-if="selected.corroborated_shots"> · {{ selected.corroborated_shots }} corroborated</template>
+            <template v-if="selected.distinct_shoots"> · {{ selected.distinct_shoots }} Shoot{{ selected.distinct_shoots === 1 ? '' : 's' }}</template>
             <template v-if="selected.last_observed"> · last {{ new Date(selected.last_observed).toLocaleDateString() }}</template>
           </p>
+          <p class="mt-2 t-meta text-neutral-300">{{ repeatabilityEvidence(selected) }}</p>
         </div>
       </div>
     </div>

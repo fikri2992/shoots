@@ -104,7 +104,7 @@ Android now uses Credential Manager, one build-configured service origin, encryp
 
 ## Shoot-level topology and remaining routes
 
-The current backend implements membership, the barrier, deterministic synthesis, `explain`, consequential `ask`, supported-Tendency or explicitly selected `explore`, Keeper-backed `reproduce`, `silence`, and evidence-bound Deconstruction preparation. Android exposes a searchable still-Technique catalogue after missing-gear filtering; new-to-record choices create no invented Baseline. Configured-device Deconstruction sharing remains unaccepted.
+The current backend implements membership, the barrier, deterministic synthesis, `explain`, consequential `ask`, supported-Tendency or explicitly selected `explore`, Keeper-backed `reproduce`, `silence`, and evidence-bound Deconstruction preparation. Cartographer keeps natural recurrence separate from settled, evaluable, and Criteria-met Reproduce Capture Sessions; one successful batch cannot claim repeated control. Android exposes a searchable still-Technique catalogue after missing-gear filtering; new-to-record choices create no invented Baseline. Configured-device Deconstruction sharing remains unaccepted.
 
 ```mermaid
 flowchart LR

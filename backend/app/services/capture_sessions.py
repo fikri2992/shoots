@@ -1,5 +1,7 @@
 """Batch barriers for explicit system-camera Capture Sessions."""
 
+import logging
+
 from app.domain import explore
 from app.domain.entities import (
     Analysis,
@@ -14,6 +16,8 @@ from app.infra import repository as repo
 from app.infra.bus import TOPICS
 from app.services import notify
 from app.services.context import Context
+
+logger = logging.getLogger(__name__)
 
 
 async def expire_reserved(ctx: Context, user_id: str) -> int:
@@ -266,6 +270,17 @@ async def on_run_settled(ctx: Context, session_id: str, shot_id: str) -> None:
     if not settled_now:
         return
     await repo.release_capture_session_claim(ctx.store, settled.experiment_id, settled.id)
+    from app.services import cartographer
+
+    # Judge evaluation happens before the Run barrier. Rebuild again at settlement so
+    # session-level repeatability Evidence cannot stay one event behind.
+    try:
+        await cartographer.rebuild(ctx, settled.user_id)
+    except Exception:  # noqa: BLE001 - settlement and its one notification still stand
+        logger.exception(
+            "refreshing Technique Map after Capture Session %s failed",
+            settled.id,
+        )
     await repo.record(
         ctx.store,
         settled.user_id,

@@ -577,8 +577,14 @@ class TechniqueState(BaseModel):
     corroborated_shots: int = 0
     distinct_scenes: int = 0
     distinct_shoots: int = 0
+    #: Explicit result-Shot attempts; session figures below prevent one burst from
+    #: masquerading as repeated control.
     reproduce_attempts: int = 0
     criteria_met_results: int = 0
+    #: Settled Capture Sessions keep natural recurrence separate from deliberate tests.
+    reproduce_sessions: int = 0
+    evaluable_reproduce_sessions: int = 0
+    criteria_met_sessions: int = 0
     abstentions: int = 0
     positive_keeper_shots: int = 0
     supported_condition_coverage: dict[str, int] = Field(default_factory=dict)

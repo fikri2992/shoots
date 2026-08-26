@@ -90,8 +90,9 @@ async def rebuild(ctx: Context, user_id: str) -> dict[str, TechniqueState]:
                 scenes_by_shot[shot_id] = scene.id
                 shoots_by_shot[shot_id] = shoot.id
     experiments = await repo.list_experiments(ctx.store, user_id)
+    capture_sessions = await repo.list_capture_sessions(ctx.store, user_id, limit=None)
     abstained: dict[str, set[str]] = {}
-    for session in await repo.list_capture_sessions(ctx.store, user_id, limit=None):
+    for session in capture_sessions:
         for member in session.members:
             if member.shot_id and member.outcome is CaptureMemberOutcome.ABSTAINED:
                 abstained.setdefault(session.experiment_id, set()).add(member.shot_id)
@@ -110,6 +111,7 @@ async def rebuild(ctx: Context, user_id: str) -> dict[str, TechniqueState]:
                 for shot in shots
             },
             experiments=tuple(experiments),
+            capture_sessions=tuple(capture_sessions),
             abstained_by_experiment={
                 experiment_id: frozenset(shot_ids) for experiment_id, shot_ids in abstained.items()
             },

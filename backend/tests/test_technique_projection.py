@@ -11,6 +11,7 @@ from app.domain.entities import (
     CaptureMemberOutcome,
     CaptureSession,
     CaptureSessionMember,
+    CaptureSessionStatus,
     Criteria,
     Experiment,
     ExperimentStatus,
@@ -167,14 +168,68 @@ async def test_rebuild_keeps_each_evidence_axis_separate_and_exposes_it():
     await repo.commit_capture_session(
         ctx.store,
         session.id,
-        [CaptureSessionMember(source_id=weak.source_id, order=0, shot_id=weak.id)],
+        [
+            CaptureSessionMember(
+                source_id="camera:first",
+                order=0,
+                shot_id=first.id,
+                outcome=CaptureMemberOutcome.CRITERIA_MET,
+            ),
+            CaptureSessionMember(
+                source_id="camera:third",
+                order=1,
+                shot_id=third.id,
+                outcome=CaptureMemberOutcome.CRITERIA_NOT_MET,
+            ),
+            CaptureSessionMember(
+                source_id="camera:weak",
+                order=2,
+                shot_id=weak.id,
+                outcome=CaptureMemberOutcome.ABSTAINED,
+            ),
+        ],
         start,
     )
-    await repo.record_capture_session_outcome(
-        ctx.store,
-        session.id,
-        weak.id,
-        CaptureMemberOutcome.ABSTAINED,
+    settled_session = (await repo.get_capture_session(ctx.store, session.id)).model_copy(
+        update={"status": CaptureSessionStatus.SETTLED, "settled_at": start}
+    )
+    await ctx.store.put(
+        repo.CAPTURE_SESSIONS,
+        settled_session.id,
+        settled_session.model_dump(mode="json"),
+    )
+    retry_experiment = Experiment(
+        id="experiment_panning_retry",
+        user_id=user.id,
+        technique_id="panning",
+        type=ExperimentType.REPRODUCE,
+        title="Repeat panning again",
+        brief="Repeat the motion in another Camera visit.",
+        why_now="Test the same decision again.",
+        criteria=Criteria(vision=["panning"]),
+        reference_shot_id=first.id,
+    )
+    await repo.put_experiment(ctx.store, retry_experiment)
+    terminal_session = CaptureSession(
+        id="capture_panning_terminal",
+        user_id=user.id,
+        experiment_id=retry_experiment.id,
+        device_id="device",
+        status=CaptureSessionStatus.SETTLED,
+        members=[
+            CaptureSessionMember(
+                source_id="camera:terminal",
+                order=0,
+                outcome=CaptureMemberOutcome.TERMINAL,
+            )
+        ],
+        expires_at=start + timedelta(hours=4),
+        settled_at=start + timedelta(hours=1),
+    )
+    await ctx.store.put(
+        repo.CAPTURE_SESSIONS,
+        terminal_session.id,
+        terminal_session.model_dump(mode="json"),
     )
 
     rebuilt = await cartographer.rebuild(ctx, user.id)
@@ -187,10 +242,13 @@ async def test_rebuild_keeps_each_evidence_axis_separate_and_exposes_it():
     assert state.distinct_shoots == 1
     assert state.reproduce_attempts == 3
     assert state.criteria_met_results == 1
+    assert state.reproduce_sessions == 2
+    assert state.evaluable_reproduce_sessions == 1
+    assert state.criteria_met_sessions == 1
     assert state.abstentions == 1
     assert state.positive_keeper_shots == 2
     assert state.supported_condition_coverage == {}
-    assert state.projection_version == "technique-map-3"
+    assert state.projection_version == "technique-map-4"
     assert len(state.input_digest) == 16
     assert "score" not in state.model_dump()
 
@@ -214,6 +272,9 @@ async def test_rebuild_keeps_each_evidence_axis_separate_and_exposes_it():
     assert node["distinct_shoots"] == 1
     assert node["reproduce_attempts"] == 3
     assert node["criteria_met_results"] == 1
+    assert node["reproduce_sessions"] == 2
+    assert node["evaluable_reproduce_sessions"] == 1
+    assert node["criteria_met_sessions"] == 1
     assert node["abstentions"] == 1
     assert node["positive_keeper_shots"] == 2
     assert "score" not in node
@@ -311,10 +372,13 @@ async def test_experiment_history_remains_visible_after_current_sightings_retrac
             "distinct_shoots": 0,
             "reproduce_attempts": 1,
             "criteria_met_results": 0,
+            "reproduce_sessions": 0,
+            "evaluable_reproduce_sessions": 0,
+            "criteria_met_sessions": 0,
             "abstentions": 0,
             "positive_keeper_shots": 0,
             "supported_condition_coverage": {},
-            "projection_version": "technique-map-3",
+            "projection_version": "technique-map-4",
             "input_digest": rebuilt["panning"].input_digest,
             "last_observed": None,
         }

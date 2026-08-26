@@ -21,6 +21,8 @@ Implemented and locally proven:
   `reproduce`, or `silence`, including exact warrants and rejected routes;
 - rebuildable Technique Map evidence axes, Mine/Inspiration correction, and scoped
   Photographer memory;
+- separate natural recurrence from settled, evaluable, and Criteria-met Reproduce
+  session evidence so one successful burst cannot claim repeatability;
 - corrected Explore with immutable per-session Variations, observations, and no
   Criteria or Verdict;
 - evidence-bound Deconstruction preparation, 1080×1350 rendering, photographer-owned
@@ -47,10 +49,10 @@ The current dependency order and acceptance boundaries are recorded in
 | Backend format and lint | Ruff over `app` and `tests` | pass |
 | Backend behavior | complete pytest suite plus continuous Shoot acceptance | pass |
 | Real-agent quality | 11 real Gemini cases, report SHA-256 `5c161d5c760345e900a3b4b8307e4b90ca771c6958d794d1adc81c2b8bb1f4e3`; developer review against the locked hobbyist perspective | pass locally |
-| Web client | 33 integration and domain checks plus production build | pass |
+| Web client | 34 integration and domain checks plus production build | pass |
 | Android debug build | `:app:assembleDebug` | pass |
 | Android static analysis | `:app:lintDebug` | pass |
-| Android instrumentation | 34 emulator tests passed; two hardware-only tests skipped | pass |
+| Android instrumentation | 34 emulator tests passed after a clean emulator reboot; two hardware-only tests skipped. One prior run ended in an emulator system crash during Activity teardown; both interrupted cases and the full suite then passed unchanged | pass |
 | Android release guard | `verifyReleaseConfiguration` rejects blank OAuth, Firebase, HTTPS origin, App Link, and external signing inputs by name without printing values | pass; production values absent |
 | Android/backend integration | authenticated `RefreshSnapshotWorker` produced a real `GET /api/mobile/snapshot` and cached it | pass separately |
 | 390 dp Now | receipt, processing, stale-revision, and Experiment focus tests | pass |

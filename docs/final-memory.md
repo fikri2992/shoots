@@ -26,7 +26,7 @@ personality profile, or a score.
 |---|---|---|
 | Shot | Stable source reference, original, measurements, Analysis, model and prompt provenance | Keep |
 | Run | Durable stage account for one Shot | Keep as the only per-Shot terminal authority |
-| Technique Map | Rebuildable projection with separate sightings, corroborated Shots, Scene/Shoot coverage, Reproduce results, Criteria outcomes, abstentions, and positive Keeper figures | Add supported condition coverage after reliable inputs exist |
+| Technique Map | Rebuildable projection with separate sightings, corroborated Shots, Scene/Shoot coverage, Reproduce result Shots, settled/evaluable/Criteria-met Reproduce sessions, abstentions, and positive Keeper figures | Add supported condition coverage after reliable inputs exist |
 | Tendency Profile | Rebuilt from the complete readable archive under `CALC_VERSION` | Rebuild from authoritative evidence; cache only with an input digest |
 | Keeper | Positive `kept_at`; unmarked means unknown | Keep |
 | Intent | Generic scoped Signal plus one native consequential Ask; answer is an attributable Shoot-scoped Photographer action | Extend to Intent-aware review and later Live use without inferring it |
@@ -199,6 +199,9 @@ distinct_scenes
 distinct_shoots
 reproduce_attempts
 criteria_met_results
+reproduce_sessions
+evaluable_reproduce_sessions
+criteria_met_sessions
 abstentions
 positive_keeper_shots
 supported_condition_coverage
@@ -212,7 +215,9 @@ Scene/Shoot membership, Keepers, and Experiment Records remain sufficient to reb
 it. A Journey or Scout claim freezes the exact ids it used.
 
 Recurrence does not prove control. A declared Reproduce attempt with supported
-Criteria Evidence is stronger, but still does not prove artistic quality.
+Criteria Evidence is stronger. One settled Capture Session is one attempt even when it
+contains several Shots, so the map reports attempted, evaluable, and Criteria-met
+sessions separately. None of those figures proves artistic quality.
 
 ## Photographer memory and Listener migration
 

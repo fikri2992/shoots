@@ -504,6 +504,14 @@ async def test_capture_session_settles_and_notifies_once_after_every_run(tmp_pat
     assert settled.notification_sent_at is not None
     assert len(delivery.messages) == 1
     assert delivery.messages[0]["kind"] == "capture_session"
+    technique = next(
+        state
+        for state in await repo.list_technique_states(ctx.store, user_id)
+        if state.technique_id == "low_key"
+    )
+    assert technique.reproduce_sessions == 1
+    assert technique.evaluable_reproduce_sessions == 1
+    assert technique.criteria_met_sessions == 1
 
     await capture_session_service.on_run_settled(ctx, session.id, members[-1].shot_id)
     assert len(delivery.messages) == 1

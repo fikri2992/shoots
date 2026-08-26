@@ -113,6 +113,13 @@ This ladder answers “was I lucky?” gradually. No single rung settles it. Rep
 corroborated observation plus an explicit comparable reproduction is stronger than one
 successful frame; neither licenses the sentence “you are a better photographer.”
 
+The interface preserves the same distinction. “Recurring” means the decision was
+corroborated in several Shots. It never appears under a heading such as “became
+repeatable.” Reproduce adds a separate session-level line: sessions attempted,
+sessions with an evaluable Criteria outcome, and sessions where the frozen Criteria
+were met. Several successful Shots from one Camera visit still count as one session,
+so a productive burst cannot impersonate repeated control.
+
 ## One Shot teaching receipt
 
 Shot detail is supporting evidence, but it still has to teach clearly when the

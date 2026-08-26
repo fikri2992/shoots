@@ -405,34 +405,45 @@ private fun TechniqueView(snapshot: MobileSnapshotDto) {
                     }
                     Spacer(Modifier.height(6.dp))
                     Text(
-                        "${technique.sightings} sightings · " +
-                            "${technique.corroboratedShots} corroborated Shots",
+                        coverageEvidence(technique),
                         color = MutedWhite,
                         fontSize = 12.sp,
                     )
-                    if (technique.distinctScenes > 0 || technique.distinctShoots > 0) {
-                        Spacer(Modifier.height(4.dp))
-                        Text(
-                            "${technique.distinctScenes} ${counted(technique.distinctScenes, "Scene")} · " +
-                                "${technique.distinctShoots} ${counted(technique.distinctShoots, "Shoot")}",
-                            color = MutedWhite,
-                            fontSize = 12.sp,
-                        )
-                    }
                     if (
                         technique.reproduceAttempts > 0 ||
-                        technique.criteriaMetResults > 0 ||
                         technique.abstentions > 0
                     ) {
                         Spacer(Modifier.height(4.dp))
                         Text(
-                            "${technique.reproduceAttempts} Reproduce results · " +
-                                "${technique.criteriaMetResults} Criteria met · " +
-                                "${technique.abstentions} ${counted(technique.abstentions, "abstention")}",
+                            "${technique.reproduceAttempts} explicit result " +
+                                counted(technique.reproduceAttempts, "Shot") +
+                                if (technique.abstentions > 0) {
+                                    " · ${technique.abstentions} ${counted(technique.abstentions, "abstention")}"
+                                } else {
+                                    ""
+                                },
                             color = MutedWhite,
                             fontSize = 12.sp,
                         )
                     }
+                    Spacer(Modifier.height(8.dp))
+                    Text(
+                        if (technique.reproduceSessions > 0) {
+                            "REPRODUCE EVIDENCE"
+                        } else {
+                            "REPEATABILITY UNKNOWN"
+                        },
+                        color = if (technique.criteriaMetSessions > 0) Amber else MutedWhite,
+                        fontSize = 10.sp,
+                        fontWeight = FontWeight.Bold,
+                    )
+                    Spacer(Modifier.height(3.dp))
+                    Text(
+                        repeatabilityEvidence(technique),
+                        color = MutedWhite,
+                        fontSize = 12.sp,
+                        lineHeight = 17.sp,
+                    )
                     if (technique.positiveKeeperShots > 0) {
                         Spacer(Modifier.height(4.dp))
                         Text(
@@ -447,6 +458,34 @@ private fun TechniqueView(snapshot: MobileSnapshotDto) {
         }
     }
 }
+
+private fun coverageEvidence(technique: com.shoots.app.data.TechniqueNodeDto): String =
+    buildList {
+        add(
+            "${technique.corroboratedShots} corroborated " +
+                counted(technique.corroboratedShots, "Shot"),
+        )
+        if (technique.distinctScenes > 0) {
+            add("${technique.distinctScenes} ${counted(technique.distinctScenes, "Scene")}")
+        }
+        if (technique.distinctShoots > 0) {
+            add("${technique.distinctShoots} ${counted(technique.distinctShoots, "Shoot")}")
+        }
+    }.joinToString(" · ")
+
+private fun repeatabilityEvidence(technique: com.shoots.app.data.TechniqueNodeDto): String =
+    if (technique.reproduceSessions == 0) {
+        if (technique.status == "recurring") {
+            "It recurs in your Shots, but deliberate control has not been tested."
+        } else {
+            "No settled Reproduce session yet."
+        }
+    } else {
+        "${technique.reproduceSessions} settled " +
+            counted(technique.reproduceSessions, "session") + " · " +
+            "${technique.evaluableReproduceSessions} evaluable · " +
+            "${technique.criteriaMetSessions} met Criteria"
+    }
 
 private fun counted(count: Int, noun: String): String = if (count == 1) noun else "${noun}s"
 

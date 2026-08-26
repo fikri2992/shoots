@@ -145,6 +145,14 @@ export default {
         cover,
       )
     },
+    repeatabilityEvidence(technique) {
+      if (!technique.reproduce_sessions) {
+        return 'Recurring does not prove deliberate control. No settled Reproduce session yet.'
+      }
+      return `${technique.reproduce_sessions} settled session${technique.reproduce_sessions === 1 ? '' : 's'} · ` +
+        `${technique.evaluable_reproduce_sessions || 0} evaluable · ` +
+        `${technique.criteria_met_sessions || 0} met Criteria`
+    },
   },
 }
 </script>
@@ -302,13 +310,15 @@ export default {
 
       <aside class="space-y-6 lg:sticky lg:top-7">
         <section class="surface p-5 sm:p-6">
-          <p class="eyebrow">What has become repeatable</p>
+          <p class="eyebrow">What keeps recurring</p>
           <div v-if="recurring.length" class="mt-4 divide-y divide-edge">
             <div v-for="technique in recurring" :key="technique.technique_id" class="py-4 first:pt-0 last:pb-0">
               <p class="text-[17px] font-medium text-paper">{{ technique.name }}</p>
               <p class="mt-1 t-meta">
-                {{ technique.corroborated }} corroborated sightings in {{ technique.attempts }} attempts
+                {{ technique.corroborated_shots }} corroborated Shots across
+                {{ technique.distinct_shoots }} Shoot{{ technique.distinct_shoots === 1 ? '' : 's' }}
               </p>
+              <p class="mt-2 t-meta text-neutral-300">{{ repeatabilityEvidence(technique) }}</p>
             </div>
           </div>
           <p v-else class="mt-4 t-body">No Technique has reached recurring Evidence yet.</p>

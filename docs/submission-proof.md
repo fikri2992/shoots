@@ -52,7 +52,7 @@ that time to explain the three barriers. Do not claim instant feedback.
 |---|---|---|
 | No manual upload | Camera return followed by automatic Phone Source discovery | stable Android source id and import assignment |
 | Every Shot accounted for | processing count reaches terminal coverage | Run outcomes and exact Shoot Record member ids |
-| Personal memory | current receipt differs from a single-Shot critique | Technique Map axes, Tendency Profile, scoped Signals, input digests |
+| Personal memory | Journey separates “keeps recurring” from settled Reproduce Evidence | Technique Map axes, session-level attempt/evaluable/Criteria-met counts, Tendency Profile, scoped Signals, input digests |
 | Agent chooses justified work | one focal route, not a menu of generated suggestions | Scout route, warrant, rejected routes, policy and input versions |
 | Advice is evaluated | entered Experiment later changes or does not change comparable behavior | Intervention attempt state and observable outcome |
 | Photographer retains authority | Keeper, Intent, source role, and cover controls | attributable Photographer Signals and supersession history |
