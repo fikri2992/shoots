@@ -9,6 +9,7 @@ from app.domain.entities import (
     DeconstructionSourceType,
     DeconstructionStatus,
     Experiment,
+    ExperimentStatus,
     ShootRecord,
     Shot,
     now,
@@ -61,6 +62,29 @@ async def prepare_shoot_record(ctx: Context, record: ShootRecord) -> Deconstruct
         record.revision,
         "",
         record,
+        shots,
+    )
+
+
+async def prepare_experiment_record(ctx: Context, experiment: Experiment) -> Deconstruction:
+    """Create one replay-safe needs-cover artifact from a terminal Experiment."""
+    if experiment.status is ExperimentStatus.OPEN:
+        raise DeconstructionConflict("A terminal Experiment Record is required")
+    if not experiment.result_shot_ids:
+        raise DeconstructionConflict("An Experiment result Shot is required")
+    shots = await _shots(
+        ctx,
+        experiment.user_id,
+        [experiment.reference_shot_id, *experiment.result_shot_ids],
+    )
+    return await _prepare_loaded(
+        ctx,
+        experiment.user_id,
+        DeconstructionSourceType.EXPERIMENT,
+        experiment.id,
+        1,
+        "",
+        experiment,
         shots,
     )
 
@@ -200,9 +224,13 @@ async def _source(
             raise repo.UnknownEntity(f"Shoot Record {source_id} revision {source_revision}")
         shot_ids = source.shot_ids
     else:
+        if source_revision != 1:
+            raise DeconstructionConflict("A terminal Experiment revision is required")
         source = await repo.find_experiment(ctx.store, source_id)
         if source is None or source.user_id != user_id:
             raise repo.UnknownEntity(f"Experiment {source_id}")
+        if source.status is ExperimentStatus.OPEN:
+            raise DeconstructionConflict("A terminal Experiment Record is required")
         shot_ids = [source.reference_shot_id, *source.result_shot_ids]
     return source, await _shots(ctx, user_id, shot_ids)
 

@@ -695,13 +695,22 @@ async def on_experiment_closed(ctx: Context, message: dict) -> str:
 
     await cartographer.rebuild(ctx, message["user_id"])
     await check_advice(ctx, message["user_id"])
-    from app.services import interventions
+    from app.services import deconstructions, interventions
 
     await interventions.refresh_for_experiment(ctx, message["experiment_id"])
+    experiment = await repo.get_experiment(ctx.store, message["experiment_id"])
+    if experiment.result_shot_ids:
+        try:
+            await deconstructions.prepare_experiment_record(ctx, experiment)
+        except Exception:  # noqa: BLE001 - Experiment closure remains authoritative
+            logger.exception(
+                "preparing Deconstruction for Experiment %s failed",
+                experiment.id,
+            )
     await journey.maybe_write(ctx, message["user_id"])
     created = await issue(ctx, message["user_id"])
     if created is not None:
-        return f'Scout issued "{created.title}" after the Reproduce result settled.'
+        return f'Scout issued "{created.title}" after the Experiment result settled.'
     return "Scout checked the settled result and stayed silent."
 
 

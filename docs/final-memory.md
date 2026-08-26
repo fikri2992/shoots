@@ -30,7 +30,7 @@ personality profile, or a score.
 | Tendency Profile | Rebuilt from the complete readable archive under `CALC_VERSION` | Rebuild from authoritative evidence; cache only with an input digest |
 | Keeper | Positive `kept_at`; unmarked means unknown | Keep |
 | Intent | Generic scoped Signal plus one native consequential Ask; answer is an attributable Shoot-scoped Photographer action | Extend to Intent-aware review and later Live use without inferring it |
-| Experiment | Baseline, explicit results, Reproduce Criteria and Verdicts, Change, plus a separate Intervention outcome projection | Add Compare preference only when Compare is implemented |
+| Experiment | Baseline, explicit results, Reproduce Criteria and Verdicts, Change, Intervention outcome projection, and terminal evidence-bound Deconstruction attempt | Add Compare preference only when Compare is implemented |
 | Scene | Persisted capture-continuity membership with grouping revisions | Add explicit Photographer correction |
 | Shoot | Persisted natural Camera activity, revisioned terminal Shoot Record, deterministic receipt, typed Scout outcome, and Deconstruction attempt | Add explicit grouping correction and configured-device proof |
 | Constraints | Scoped attributable Signals, correction, bounded recall, literal Listener quote gate, Live announcement, and legacy read-only fallback | Remove the legacy fallback after stored-data migration |

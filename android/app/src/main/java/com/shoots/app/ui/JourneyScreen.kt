@@ -272,13 +272,11 @@ private fun JourneyUpdateView(
                 }
             }
         }
-        snapshot.latestShootRecord?.let { record ->
+        deconstructionSource(snapshot)?.let { source ->
             Spacer(Modifier.height(24.dp))
             DeconstructionCard(
                 snapshot,
-                record.shootId,
-                record.revision,
-                record.receipt.keeperShotIds,
+                source,
                 imageUrl,
                 blobUrl,
                 onPrepareDeconstruction,
@@ -288,28 +286,72 @@ private fun JourneyUpdateView(
     }
 }
 
+private data class DeconstructionSourceUi(
+    val type: String,
+    val id: String,
+    val revision: Int,
+    val label: String,
+    val keeperShotIds: List<String>,
+    val draft: DeconstructionDto?,
+)
+
+private fun deconstructionSource(snapshot: MobileSnapshotDto): DeconstructionSourceUi? {
+    val draft = snapshot.latestDeconstruction
+    if (draft?.sourceType == "experiment") {
+        snapshot.experiments.firstOrNull { it.id == draft.sourceId }?.let { experiment ->
+            val memberIds = setOf(experiment.referenceShotId) + experiment.resultShotIds
+            val keepers = snapshot.recentShots
+                .filter { it.id in memberIds && it.keptAt != null }
+                .map { it.id }
+                .ifEmpty { draft.candidateCoverShotIds }
+            return DeconstructionSourceUi(
+                type = "experiment",
+                id = experiment.id,
+                revision = draft.sourceRevision,
+                label = "Experiment",
+                keeperShotIds = keepers,
+                draft = draft,
+            )
+        }
+    }
+    val record = snapshot.latestShootRecord ?: return null
+    val matchingDraft = draft?.takeIf {
+        it.sourceType == "shoot" &&
+            it.sourceId == record.shootId &&
+            it.sourceRevision == record.revision
+    }
+    return DeconstructionSourceUi(
+        type = "shoot",
+        id = record.shootId,
+        revision = record.revision,
+        label = "Shoot",
+        keeperShotIds = record.receipt.keeperShotIds,
+        draft = matchingDraft,
+    )
+}
+
 @Composable
 private fun DeconstructionCard(
     snapshot: MobileSnapshotDto,
-    shootId: String,
-    revision: Int,
-    keeperShotIds: List<String>,
+    source: DeconstructionSourceUi,
     imageUrl: (ShotDto) -> String,
     blobUrl: (String) -> String,
     onPrepare: (String, String, Int, String) -> Unit,
     onShare: (DeconstructionDto) -> Unit,
 ) {
-    val draft = snapshot.latestDeconstruction
-        ?.takeIf { it.sourceType == "shoot" && it.sourceId == shootId && it.sourceRevision == revision }
-    var selectedCover by rememberSaveable(shootId, revision) {
-        mutableStateOf(draft?.coverShotId.orEmpty().ifBlank { keeperShotIds.firstOrNull().orEmpty() })
+    val draft = source.draft
+    var selectedCover by rememberSaveable(source.type, source.id, source.revision) {
+        mutableStateOf(
+            draft?.coverShotId.orEmpty().ifBlank { source.keeperShotIds.firstOrNull().orEmpty() },
+        )
     }
     Column(Modifier.padding(horizontal = 20.dp)) {
         SectionTitle("Share the work", "DECONSTRUCTION")
         Spacer(Modifier.height(10.dp))
         InkCard {
             Text(
-                "An image-led draft from this settled Shoot. You choose the cover; Shoots only uses stored Evidence.",
+                "An image-led draft from this ${source.label}. You choose the cover; " +
+                    "Shoots only uses stored Evidence.",
                 color = MutedWhite,
                 fontSize = 13.sp,
                 lineHeight = 19.sp,
@@ -332,9 +374,9 @@ private fun DeconstructionCard(
                 }
                 Spacer(Modifier.height(12.dp))
                 PrimaryAction("Share ${draft.pages.size}-page carousel") { onShare(draft) }
-            } else if (keeperShotIds.isEmpty()) {
+            } else if (source.keeperShotIds.isEmpty()) {
                 Text(
-                    "Mark one Shot from this Shoot as a Keeper to choose the cover.",
+                    "Mark one Shot from this ${source.label} as a Keeper to choose the cover.",
                     color = WarmWhite,
                     fontSize = 14.sp,
                     lineHeight = 20.sp,
@@ -343,7 +385,7 @@ private fun DeconstructionCard(
                 Text("CHOOSE YOUR COVER", color = MutedWhite, fontSize = 10.sp, fontWeight = FontWeight.Bold)
                 Spacer(Modifier.height(7.dp))
                 LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    items(keeperShotIds) { id ->
+                    items(source.keeperShotIds) { id ->
                         val shot = snapshot.recentShots.firstOrNull { it.id == id }
                         AsyncImage(
                             model = shot?.let(imageUrl),
@@ -364,7 +406,7 @@ private fun DeconstructionCard(
                 }
                 Spacer(Modifier.height(12.dp))
                 PrimaryAction("Create Deconstruction", selectedCover.isNotBlank()) {
-                    onPrepare("shoot", shootId, revision, selectedCover)
+                    onPrepare(source.type, source.id, source.revision, selectedCover)
                 }
             }
         }

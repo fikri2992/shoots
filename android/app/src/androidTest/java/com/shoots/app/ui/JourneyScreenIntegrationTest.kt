@@ -7,6 +7,7 @@ import androidx.compose.ui.test.performScrollTo
 import com.shoots.app.ShootsTheme
 import com.shoots.app.data.DeconstructionDto
 import com.shoots.app.data.DeconstructionPageDto
+import com.shoots.app.data.ExperimentDto
 import com.shoots.app.data.MobileSnapshotDto
 import com.shoots.app.data.InterventionRecordDto
 import com.shoots.app.data.ProfileDto
@@ -161,6 +162,50 @@ class JourneyScreenIntegrationTest {
 
         compose.onNodeWithText("Share 2-page carousel").performScrollTo().performClick()
         assertEquals("draft-1", shared)
+    }
+
+    @Test
+    fun terminalExperimentDraftUsesItsOwnKeeperAndSource() {
+        var prepared = ""
+        val experiment = ExperimentDto(
+            id = "experiment-1",
+            techniqueId = "negative_space",
+            type = "reproduce",
+            title = "Repeat negative space",
+            referenceShotId = "keeper-1",
+            resultShotIds = listOf("result-1"),
+            status = "completed",
+        )
+        val snapshot = MobileSnapshotDto(
+            user = UserDto(id = "user-1", email = "photographer@example.com"),
+            recentShots = listOf(ShotDto(id = "keeper-1", keptAt = "2026-08-27T00:00:00Z")),
+            experiments = listOf(experiment),
+            latestDeconstruction = DeconstructionDto(
+                id = "experiment-draft",
+                sourceType = "experiment",
+                sourceId = experiment.id,
+                sourceRevision = 1,
+                candidateCoverShotIds = listOf("keeper-1"),
+            ),
+        )
+        compose.setContent {
+            ShootsTheme {
+                JourneyScreen(
+                    snapshot,
+                    imageUrl = { _ -> "" },
+                    onShot = { _ -> },
+                    onPrepareDeconstruction = { type, id, revision, cover ->
+                        prepared = "$type:$id:$revision:$cover"
+                    },
+                )
+            }
+        }
+
+        compose.onNodeWithText("An image-led draft from this Experiment.", substring = true)
+            .performScrollTo()
+            .assertExists()
+        compose.onNodeWithText("Create Deconstruction").performScrollTo().performClick()
+        assertEquals("experiment:experiment-1:1:keeper-1", prepared)
     }
 
     @Test

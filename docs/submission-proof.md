@@ -28,7 +28,7 @@ system does next.
 | 2:15–2:45 | Open one Shot Teaching Receipt | Keep first. Then Notice, one Try, and one Check over one matching image layer. Expand Full Analysis briefly to prove dissent, model version, measured Findings, and cells still exist behind the simple surface. |
 | 2:45–3:10 | Show Scout decision and rejected routes | "Code decides which help is eligible. The model cannot invent a Technique, Criteria, or improvement." Show explain, ask, Explore, Reproduce, or evidenced silence with its warrant. |
 | 3:10–3:35 | Enter one supported Experiment through the normal Camera | Show the frozen Capture Session manifest, every result outcome, and the batch barrier. If Reproduce is used, say the Verdict answers Criteria only. If Explore is used, show Variations and no Verdict. |
-| 3:35–3:50 | Journey and Deconstruction | Show comparable Change or insufficient Evidence, Intervention outcome, and one image-led carousel draft. The Photographer chooses the Keeper cover and posting. |
+| 3:35–3:50 | Journey and Deconstruction | Show comparable Change or insufficient Evidence, Intervention outcome, and the image-led draft automatically left by that Shoot or terminal Experiment. The Photographer chooses the Keeper cover and posting. |
 | 3:50–4:00 | Architecture SVG beside Cloud Run revision | "Shoots learns from every Shot, offers one personal Experiment, and tracks what changes. It never turns the model's taste into mine." |
 
 ## Unedited proof-of-action segment

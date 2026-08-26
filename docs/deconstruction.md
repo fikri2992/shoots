@@ -74,13 +74,13 @@ may save them to MediaStore or, when Drive is connected, write them to
 `Shoots/Deconstructions/`.
 
 Current implementation prepares a replay-safe `needs_cover` record while a Shoot
-settles, then renders four to seven exact 1080×1350 JPEG pages after the Photographer
-chooses an eligible Keeper. Android caches the authenticated page files and opens the
-system multi-image share sheet; web exposes the same durable draft for audit. Export to
-MediaStore, caption editing, automatic Experiment-triggered preparation, and optional
-Drive output remain later work. Composition and Technique pages reuse the stored
-Analyst overlay when it exists; they do not replace visible structure with another
-paragraph.
+settles and after a Reproduce or Explore Experiment becomes terminal with explicit
+results. It renders four to seven exact 1080×1350 JPEG pages only after the
+Photographer chooses an eligible Keeper. Android and web route the newest draft to its
+actual Shoot or Experiment source; Android caches authenticated pages and opens the
+system multi-image share sheet. Export to MediaStore, caption editing, and optional
+Drive output remain later work. Composition and Technique pages reuse stored Evidence;
+they do not replace visible structure with another paragraph.
 
 ## Explicitly out
 

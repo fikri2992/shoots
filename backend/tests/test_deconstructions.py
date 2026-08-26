@@ -11,6 +11,10 @@ from app.api.auth import current_user
 from app.domain.entities import (
     Analysis,
     Composition,
+    Criteria,
+    Experiment,
+    ExperimentStatus,
+    ExperimentType,
     GridSpec,
     Provenance,
     ShootReceipt,
@@ -20,6 +24,9 @@ from app.domain.entities import (
     ShotStatus,
     TechniqueEvidence,
     User,
+    Variation,
+    VariationObservation,
+    Verdict,
     now,
 )
 from app.imaging import canvas
@@ -27,6 +34,7 @@ from app.infra import repository as repo
 from app.infra.bus import InProcessBus
 from app.infra.storage import ORIGINAL, LocalBlobStore, blob_path
 from app.infra.store import InMemoryStore
+from app.services import deconstructions, scout
 from app.services.context import Context
 
 
@@ -185,3 +193,174 @@ async def test_deconstruction_requires_photographer_cover_then_renders_idempoten
             assert snapshot.json()["latest_deconstruction"]["id"] == body["id"]
     finally:
         main.app.dependency_overrides.clear()
+
+
+async def test_terminal_experiment_requires_cover_then_renders_its_record(tmp_path):
+    ctx, user_id = await seed(tmp_path)
+    experiment = Experiment(
+        id="experiment_share",
+        user_id=user_id,
+        technique_id="negative_space",
+        type=ExperimentType.REPRODUCE,
+        title="Repeat negative space",
+        brief="Keep one small subject against a broad quiet field.",
+        why_now="A marked Keeper showed this decision.",
+        criteria=Criteria(vision=["negative_space"]),
+        reference_shot_id="shot_1",
+        result_shot_ids=["shot_2"],
+        verdicts=[Verdict(shot_id="shot_2", criteria_met=True, feedback="Criteria met.")],
+        status=ExperimentStatus.COMPLETED,
+    )
+    await repo.put_experiment(ctx.store, experiment)
+
+    waiting = await deconstructions.prepare_experiment_record(ctx, experiment)
+    assert waiting.status.value == "needs_cover"
+    assert waiting.source_type.value == "experiment"
+    assert waiting.source_revision == 1
+    assert waiting.candidate_cover_shot_ids == ["shot_1"]
+
+    mutable = Experiment(
+        id="experiment_still_open",
+        user_id=user_id,
+        technique_id="negative_space",
+        type=ExperimentType.EXPLORE,
+        title="Still exploring",
+        brief="Keep trying Variations.",
+        why_now="The Experiment is not terminal.",
+        result_shot_ids=["shot_2"],
+    )
+    await repo.put_experiment(ctx.store, mutable)
+
+    main.app.dependency_overrides[deps.get_context] = lambda: ctx
+    main.app.dependency_overrides[current_user] = lambda: {"id": user_id}
+    try:
+        with TestClient(main.app) as client:
+            open_refused = client.post(
+                "/api/deconstructions",
+                json={
+                    "source_type": "experiment",
+                    "source_id": mutable.id,
+                    "source_revision": 1,
+                    "cover_shot_id": "shot_1",
+                },
+            )
+            assert open_refused.status_code == 409
+            wrong_revision = client.post(
+                "/api/deconstructions",
+                json={
+                    "source_type": "experiment",
+                    "source_id": experiment.id,
+                    "source_revision": 0,
+                    "cover_shot_id": "shot_1",
+                },
+            )
+            assert wrong_revision.status_code == 409
+            drafted = client.post(
+                "/api/deconstructions",
+                json={
+                    "source_type": "experiment",
+                    "source_id": experiment.id,
+                    "source_revision": 1,
+                    "cover_shot_id": "shot_1",
+                },
+            )
+            assert drafted.status_code == 200, drafted.text
+            body = drafted.json()
+    finally:
+        main.app.dependency_overrides.clear()
+
+    assert body["status"] == "drafted"
+    assert body["source_type"] == "experiment"
+    assert body["cover_shot_id"] == "shot_1"
+    assert [page["kind"] for page in body["pages"]] == [
+        "cover",
+        "reproduce",
+        "reproduce",
+        "record",
+    ]
+    assert "1 of 1 recorded Verdicts met" in body["pages"][2]["claim"]
+    assert all(page["evidence_refs"] for page in body["pages"])
+    for page in body["pages"]:
+        with Image.open(BytesIO(await ctx.blobs.read(page["blob_path"]))) as rendered:
+            assert rendered.size == (1080, 1350)
+
+
+async def test_closed_experiment_event_prepares_the_needs_cover_artifact(tmp_path):
+    ctx, user_id = await seed(tmp_path)
+    experiment = Experiment(
+        id="experiment_auto_draft",
+        user_id=user_id,
+        technique_id="negative_space",
+        type=ExperimentType.EXPLORE,
+        title="Explore negative space",
+        brief="Try several amounts of open space.",
+        why_now="The Photographer chose this Technique.",
+        result_shot_ids=["shot_2"],
+        status=ExperimentStatus.COMPLETED,
+    )
+    await repo.put_experiment(ctx.store, experiment)
+
+    outcome = await scout.on_experiment_closed(
+        ctx,
+        {"user_id": user_id, "experiment_id": experiment.id, "shot_id": "shot_2"},
+    )
+
+    drafts = await repo.list_deconstructions(ctx.store, user_id)
+    assert outcome == "Scout checked the settled result and stayed silent."
+    assert len(drafts) == 1
+    assert drafts[0].source_id == experiment.id
+    assert drafts[0].source_type.value == "experiment"
+    assert drafts[0].status.value == "needs_cover"
+
+
+async def test_explore_deconstruction_preserves_variations_without_a_grade(tmp_path):
+    ctx, user_id = await seed(tmp_path)
+    keeper = await repo.get_shot(ctx.store, "shot_2")
+    keeper.kept_at = now()
+    await repo.put_shot(ctx.store, keeper)
+    experiment = Experiment(
+        id="experiment_explore_share",
+        user_id=user_id,
+        technique_id="negative_space",
+        type=ExperimentType.EXPLORE,
+        title="Explore negative space",
+        brief="Try clear, restrained, and inverted amounts of open space.",
+        why_now="The Photographer chose this Technique.",
+        variations=[
+            Variation(id="clear", title="Clear", instruction="Use broad open space."),
+            Variation(id="invert", title="Invert", instruction="Fill the frame.", inversion=True),
+        ],
+        result_shot_ids=["shot_1", "shot_2"],
+        variation_observations=[
+            VariationObservation(variation_id="clear", shot_id="shot_1"),
+            VariationObservation(variation_id="invert", shot_id="shot_2"),
+        ],
+        status=ExperimentStatus.COMPLETED,
+    )
+    await repo.put_experiment(ctx.store, experiment)
+    await deconstructions.prepare_experiment_record(ctx, experiment)
+
+    main.app.dependency_overrides[deps.get_context] = lambda: ctx
+    main.app.dependency_overrides[current_user] = lambda: {"id": user_id}
+    try:
+        with TestClient(main.app) as client:
+            rendered = client.post(
+                "/api/deconstructions",
+                json={
+                    "source_type": "experiment",
+                    "source_id": experiment.id,
+                    "source_revision": 1,
+                    "cover_shot_id": "shot_2",
+                },
+            )
+            assert rendered.status_code == 200, rendered.text
+            pages = rendered.json()["pages"]
+    finally:
+        main.app.dependency_overrides.clear()
+
+    assert all(page["kind"] != "reproduce" for page in pages)
+    observation = next(page for page in pages if page["title"] == "Variations observed")
+    assert "2 result observations across 2 Variations" in observation["claim"]
+    assert "No result was graded" in observation["claim"]
+    visible = " ".join(page["claim"] for page in pages).lower()
+    assert "met criteria" not in visible and "winner" not in visible

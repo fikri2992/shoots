@@ -50,4 +50,39 @@ describe('Journey repeatability evidence', () => {
     expect(text).toContain('Recurring does not prove deliberate control')
     expect(text).toContain('2 settled sessions · 2 evaluable · 1 met Criteria')
   })
+
+  it('routes a terminal Experiment draft to its own Keeper source', () => {
+    const store = useShootsStore()
+    store.profile = { shots: 2, keepers: 1, scenes: 1, dimensions: [], blind_spots: [] }
+    store.experiments = [
+      {
+        id: 'experiment-1',
+        type: 'reproduce',
+        title: 'Repeat negative space',
+        status: 'completed',
+        reference_shot_id: 'keeper-1',
+        result_shot_ids: ['result-1'],
+        verdicts: [],
+      },
+    ]
+    store.shots = [
+      { shot: { id: 'keeper-1', kept_at: '2026-08-27T00:00:00Z', blobs: {} }, analysis: null },
+    ]
+    store.mobile = {
+      latest_deconstruction: {
+        id: 'draft-1',
+        source_type: 'experiment',
+        source_id: 'experiment-1',
+        source_revision: 1,
+        status: 'needs_cover',
+        pages: [],
+      },
+    }
+
+    const wrapper = shallowMount(JourneyPage, { global: { plugins: [pinia] } })
+
+    expect(wrapper.text()).toContain('Share how you worked the Experiment')
+    expect(wrapper.text()).toContain('built from this Experiment')
+    expect(wrapper.text()).toContain('Create Deconstruction')
+  })
 })

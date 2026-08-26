@@ -211,6 +211,13 @@ Analyses cannot express.
 | Vector database for memory | Defer. Structured ids, revisions, evidence axes, and provenance answer the current retrieval problem. |
 | Generate a social carousel per Shot | Rejected. Current Deconstruction follows the settled Shoot or Experiment Record, derives every page from stored Evidence, requires a photographer-owned cover, and never auto-posts. |
 
+When a Reproduce or Explore Experiment becomes terminal with explicit results, Scribe
+now prepares the same replay-safe `needs_cover` artifact used by a settled Shoot. It
+does not pick the strongest result. Journey shows the actual source, the Photographer
+marks and chooses the cover, and only then can deterministic rendering create the
+carousel. This turns completed learning work into something shareable without turning
+publication or taste into automation.
+
 ## Current calibration and tests
 
 The available local archive is weak evidence for the exact Shoot inactivity gap: only

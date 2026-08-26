@@ -114,15 +114,45 @@ export default {
     latestShootRecord() {
       return this.mobile?.latest_shoot_record || null
     },
+    latestDraft() {
+      return this.mobile?.latest_deconstruction || null
+    },
+    deconstructionSource() {
+      if (this.latestDraft?.source_type === 'experiment') {
+        const experiment = this.pastExperiments.find((item) => item.id === this.latestDraft.source_id)
+        if (experiment) {
+          return {
+            type: 'experiment',
+            id: experiment.id,
+            revision: this.latestDraft.source_revision,
+            label: 'Experiment',
+            memberIds: [experiment.reference_shot_id, ...(experiment.result_shot_ids || [])].filter(Boolean),
+          }
+        }
+      }
+      if (!this.latestShootRecord) return null
+      return {
+        type: 'shoot',
+        id: this.latestShootRecord.shoot_id,
+        revision: this.latestShootRecord.revision,
+        label: 'Shoot',
+        memberIds: this.latestShootRecord.shot_ids || [],
+      }
+    },
     deconstruction() {
-      const draft = this.mobile?.latest_deconstruction
-      if (!draft || draft.source_type !== 'shoot' || !this.latestShootRecord) return null
-      return draft.source_id === this.latestShootRecord.shoot_id &&
-        draft.source_revision === this.latestShootRecord.revision ? draft : null
+      const draft = this.latestDraft
+      const source = this.deconstructionSource
+      if (!draft || !source) return null
+      return draft.source_type === source.type && draft.source_id === source.id &&
+        draft.source_revision === source.revision ? draft : null
     },
     deconstructionKeepers() {
-      const ids = this.latestShootRecord?.receipt?.keeper_shot_ids || []
-      return ids.map((id) => this.orderedShots.find((item) => item.shot.id === id)?.shot).filter(Boolean)
+      const source = this.deconstructionSource
+      if (!source) return []
+      const allowed = new Set(source.memberIds)
+      return this.orderedShots
+        .map((item) => item.shot)
+        .filter((shot) => allowed.has(shot.id) && shot.kept_at)
     },
   },
   methods: {
@@ -137,11 +167,12 @@ export default {
     },
     createDeconstruction() {
       const cover = this.selectedCover || this.deconstructionKeepers[0]?.id
-      if (!cover || !this.latestShootRecord) return
+      const source = this.deconstructionSource
+      if (!cover || !source) return
       return this.prepareDeconstruction(
-        'shoot',
-        this.latestShootRecord.shoot_id,
-        this.latestShootRecord.revision,
+        source.type,
+        source.id,
+        source.revision,
         cover,
       )
     },
@@ -248,10 +279,10 @@ export default {
           <p class="mt-3 t-meta">Attempt state and observable Change stay separate. No attempt is treated as failed advice.</p>
         </section>
 
-        <section v-if="latestShootRecord" class="surface p-5 sm:p-7">
+        <section v-if="deconstructionSource" class="surface p-5 sm:p-7">
           <p class="eyebrow">Deconstruction</p>
-          <h2 class="mt-2 t-title">Share how you worked the Shoot</h2>
-          <p class="mt-3 t-body">One visual claim per page, built from the settled record. You choose the Keeper cover.</p>
+          <h2 class="mt-2 t-title">Share how you worked the {{ deconstructionSource.type === 'shoot' ? 'Shoot' : 'Experiment' }}</h2>
+          <p class="mt-3 t-body">One visual claim per page, built from this {{ deconstructionSource.label }}. You choose the Keeper cover.</p>
 
           <template v-if="deconstruction?.status === 'drafted'">
             <div class="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-3">
@@ -260,7 +291,7 @@ export default {
                 <figcaption class="mt-2 t-meta">{{ page.title }}</figcaption>
               </figure>
             </div>
-            <p class="mt-4 t-meta">The Android app shares these exact pages as one carousel. Shoots never posts automatically.</p>
+            <p class="mt-4 t-meta">Android shares these exact pages as one carousel. Shoots never posts automatically.</p>
           </template>
 
           <template v-else-if="deconstructionKeepers.length">
@@ -281,7 +312,7 @@ export default {
               {{ busy === 'deconstruction' ? 'Rendering…' : 'Create Deconstruction' }}
             </button>
           </template>
-          <p v-else class="mt-4 t-body">Mark one Shot from this Shoot as a Keeper before choosing a cover.</p>
+          <p v-else class="mt-4 t-body">Mark one Shot from this {{ deconstructionSource.label }} as a Keeper before choosing a cover.</p>
         </section>
 
         <section v-if="tendencies.length" class="surface p-5 sm:p-7">
