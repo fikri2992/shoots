@@ -8,6 +8,7 @@ import com.shoots.app.ShootsTheme
 import com.shoots.app.data.DeconstructionDto
 import com.shoots.app.data.DeconstructionPageDto
 import com.shoots.app.data.MobileSnapshotDto
+import com.shoots.app.data.InterventionRecordDto
 import com.shoots.app.data.ProfileDto
 import com.shoots.app.data.ShootReceiptDto
 import com.shoots.app.data.ShootRecordDto
@@ -141,5 +142,35 @@ class JourneyScreenIntegrationTest {
 
         compose.onNodeWithText("Share 2-page carousel").performScrollTo().performClick()
         assertEquals("draft-1", shared)
+    }
+
+    @Test
+    fun interventionReceiptSeparatesAttemptFromObservableChange() {
+        val snapshot = MobileSnapshotDto(
+            user = UserDto(id = "user-1", email = "photographer@example.com"),
+            recentInterventions = listOf(
+                InterventionRecordDto(
+                    id = "intervention-1",
+                    shootId = "shoot-1",
+                    shootRevision = 1,
+                    route = "reproduce",
+                    attemptState = "completed",
+                    observableOutcome = "unchanged",
+                    resultShotIds = listOf("result-1", "result-2"),
+                    criteriaMetResults = 1,
+                    abstentions = 1,
+                    outcomeReason = "The comparable placement distribution did not change.",
+                )
+            ),
+        )
+        compose.setContent {
+            ShootsTheme {
+                JourneyScreen(snapshot, imageUrl = { _ -> "" }, onShot = { _ -> })
+            }
+        }
+
+        compose.onNodeWithText("What happened to the last suggestion").performScrollTo().assertExists()
+        compose.onNodeWithText("The comparable placement distribution did not change.").assertExists()
+        compose.onNodeWithText("2 explicit results · 1 Criteria met · 1 abstention").assertExists()
     }
 }

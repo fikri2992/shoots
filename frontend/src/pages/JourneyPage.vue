@@ -81,6 +81,9 @@ export default {
         .filter((experiment) => experiment.change)
         .sort((a, b) => (b.closed_at || b.issued_at || '').localeCompare(a.closed_at || a.issued_at || ''))[0] || null
     },
+    latestIntervention() {
+      return this.mobile?.recent_interventions?.[0] || null
+    },
     latestReproduce() {
       return [...this.pastExperiments]
         .filter((experiment) =>
@@ -219,6 +222,22 @@ export default {
           </div>
           <p class="mt-3 t-body text-neutral-200">{{ latestChange.change.outcome }}</p>
           <p class="mt-4 t-meta">Comparable counts before and after. This does not claim the Experiment caused the Change or that the Shots improved.</p>
+        </section>
+
+        <section v-if="latestIntervention" class="surface p-5 sm:p-7">
+          <div class="flex flex-wrap items-center justify-between gap-3">
+            <p class="eyebrow">What happened to the last suggestion</p>
+            <span class="t-meta">{{ latestIntervention.route }} · {{ latestIntervention.attempt_state }}</span>
+          </div>
+          <p class="mt-4 text-[17px] leading-7 text-paper">
+            {{ latestIntervention.outcome_reason || 'No observable outcome is available yet.' }}
+          </p>
+          <p v-if="latestIntervention.result_shot_ids?.length" class="mt-4 t-meta">
+            {{ latestIntervention.result_shot_ids.length }} explicit results ·
+            {{ latestIntervention.criteria_met_results }} Criteria met ·
+            {{ latestIntervention.abstentions }} abstentions
+          </p>
+          <p class="mt-3 t-meta">Attempt state and observable Change stay separate. No attempt is treated as failed advice.</p>
         </section>
 
         <section v-if="latestShootRecord" class="surface p-5 sm:p-7">

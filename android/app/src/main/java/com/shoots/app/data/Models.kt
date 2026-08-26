@@ -414,6 +414,27 @@ data class ScoutAnswerRequest(
 )
 
 @Serializable
+data class InterventionRecordDto(
+    val id: String,
+    @SerialName("shoot_id") val shootId: String,
+    @SerialName("shoot_revision") val shootRevision: Int,
+    val route: String,
+    @SerialName("technique_id") val techniqueId: String = "",
+    @SerialName("question_id") val questionId: String = "",
+    @SerialName("experiment_id") val experimentId: String = "",
+    @SerialName("warrant_shot_ids") val warrantShotIds: List<String> = emptyList(),
+    @SerialName("attempt_state") val attemptState: String = "not_applicable",
+    @SerialName("observable_outcome") val observableOutcome: String = "not_applicable",
+    @SerialName("result_shot_ids") val resultShotIds: List<String> = emptyList(),
+    @SerialName("criteria_met_results") val criteriaMetResults: Int = 0,
+    val abstentions: Int = 0,
+    @SerialName("variation_ids") val variationIds: List<String> = emptyList(),
+    @SerialName("change_state") val changeState: String = "",
+    val comparability: String = "",
+    @SerialName("outcome_reason") val outcomeReason: String = "",
+)
+
+@Serializable
 data class ShootRecordDto(
     @SerialName("shoot_id") val shootId: String,
     val revision: Int = 1,
@@ -543,6 +564,7 @@ data class MobileSnapshotDto(
     val experiments: List<ExperimentDto> = emptyList(),
     @SerialName("latest_deconstruction") val latestDeconstruction: DeconstructionDto? = null,
     @SerialName("recent_scout_answers") val recentScoutAnswers: List<ScoutAnswerDto> = emptyList(),
+    @SerialName("recent_interventions") val recentInterventions: List<InterventionRecordDto> = emptyList(),
 )
 
 @Serializable

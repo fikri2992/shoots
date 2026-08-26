@@ -121,6 +121,9 @@ async def reserve(
         {"device": session.device_label, "variation_id": session.variation_id},
         experiment_id=session.experiment_id,
     )
+    from app.services import interventions
+
+    await interventions.mark_entered(ctx, session.user_id, session.experiment_id)
     return session
 
 

@@ -1035,6 +1035,31 @@ class InterventionOutcome(StrEnum):
     INSUFFICIENT_EVIDENCE = "insufficient_evidence"
 
 
+class InterventionRecord(BaseModel):
+    """Replayable current projection of one immutable Scout decision's outcome."""
+
+    id: str
+    user_id: str
+    shoot_id: str
+    shoot_revision: int
+    route: ScoutRoute
+    technique_id: str = ""
+    question_id: str = ""
+    experiment_id: str = ""
+    warrant_shot_ids: list[str] = Field(default_factory=list)
+    attempt_state: InterventionAttemptState = InterventionAttemptState.NOT_APPLICABLE
+    observable_outcome: InterventionOutcome = InterventionOutcome.NOT_APPLICABLE
+    result_shot_ids: list[str] = Field(default_factory=list)
+    criteria_met_results: int = 0
+    abstentions: int = 0
+    variation_ids: list[str] = Field(default_factory=list)
+    change_state: str = ""
+    comparability: str = ""
+    outcome_reason: str = ""
+    delivered_at: datetime | None = None
+    updated_at: datetime = Field(default_factory=now)
+
+
 class ScoutWarrant(BaseModel):
     """Exact Evidence permitting one Scout route."""
 

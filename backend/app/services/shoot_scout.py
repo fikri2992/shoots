@@ -27,7 +27,7 @@ from app.domain.entities import (
     now,
 )
 from app.infra import repository as repo
-from app.services import photographer_memory
+from app.services import interventions, photographer_memory
 from app.services import scout as experiment_scout
 from app.services.context import Context
 
@@ -78,6 +78,7 @@ async def decide(
             limit=experiment_scout.RECENT_EXPERIMENTS,
         )
     ]
+    deprioritized = await interventions.deprioritized_technique_ids(ctx, shoot.user_id)
     user = await repo.get_user(ctx.store, shoot.user_id)
     constraints = await photographer_memory.constraints_for(
         ctx,
@@ -87,7 +88,7 @@ async def decide(
     )
     technique = route_rules.choose(
         tuple(patterns),
-        recent,
+        [*recent, *sorted(deprioritized)],
         missing_gear=constraints.missing_gear,
     )
     reproduce_rejection = ""
@@ -96,6 +97,11 @@ async def decide(
         technique = None
     elif not patterns:
         reproduce_rejection = "No marked Keeper has corroborated Technique Evidence yet."
+    elif set(patterns) and set(patterns).issubset(deprioritized):
+        reproduce_rejection = (
+            "Automatic Reproduce was deprioritized after two comparable unchanged outcomes "
+            "for the available Keeper-backed Technique."
+        )
     elif technique is None:
         reproduce_rejection = (
             "Every Keeper-backed Technique was offered recently or conflicts with a constraint."
@@ -147,7 +153,11 @@ async def decide(
         and signal.kind is PhotographerSignalKind.INTENT
         for signal in await repo.list_photographer_signals(ctx.store, shoot.user_id)
     )
-    question_techniques = _question_techniques(receipt, constraints.missing_gear)
+    question_techniques = _question_techniques(
+        receipt,
+        constraints.missing_gear,
+        deprioritized,
+    )
     ask_rejection = ""
     if current_open is not None:
         ask_rejection = f'Experiment "{current_open.id}" already owns the open slot.'
@@ -176,6 +186,7 @@ async def decide(
             ctx,
             shoot.user_id,
             experiment_id=experiment_id,
+            exclude_technique_ids=deprioritized,
         )
         if explored is not None:
             decision = _explore_decision(shoot, receipt, explored)
@@ -275,12 +286,14 @@ def _receipt_warrant(shoot: Shoot, receipt: ShootReceipt) -> ScoutWarrant:
 def _question_techniques(
     receipt: ShootReceipt,
     missing_gear: list[str],
+    deprioritized: set[str],
 ) -> list[taxonomy.Technique]:
     supported = []
     for figure in sorted(receipt.techniques, key=lambda item: item.technique_id):
         technique = taxonomy.BY_ID.get(figure.technique_id)
         if (
             technique is not None
+            and technique.id not in deprioritized
             and figure.corroborated_shot_ids
             and route_rules.available(technique, missing_gear=missing_gear)
         ):
@@ -450,3 +463,6 @@ async def _create_reproduce(
 
 async def _record(ctx: Context, shoot: Shoot, decision: ScoutDecision) -> None:
     await repo.record_scout_decision(ctx.store, shoot, decision)
+    from app.services import interventions
+
+    await interventions.record_decision(ctx, shoot, decision)

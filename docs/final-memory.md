@@ -30,7 +30,7 @@ personality profile, or a score.
 | Tendency Profile | Rebuilt from the complete readable archive under `CALC_VERSION` | Rebuild from authoritative evidence; cache only with an input digest |
 | Keeper | Positive `kept_at`; unmarked means unknown | Keep |
 | Intent | Generic scoped Signal plus one native consequential Ask; answer is an attributable Shoot-scoped Photographer action | Extend to Intent-aware review and later Live use without inferring it |
-| Experiment | Baseline, explicit results, Reproduce Criteria and Verdicts, Change; new Shoot route stores exact Keeper warrant ids | Complete intervention outcomes for every Scout route |
+| Experiment | Baseline, explicit results, Reproduce Criteria and Verdicts, Change, plus a separate Intervention outcome projection | Add Compare preference only when Compare is implemented |
 | Scene | Persisted capture-continuity membership with grouping revisions | Add explicit Photographer correction |
 | Shoot | Persisted natural Camera activity, revisioned terminal Shoot Record, deterministic receipt, typed Scout outcome, and Deconstruction attempt | Add explicit grouping correction and configured-device proof |
 | Constraints | Scoped attributable Signals, correction, bounded recall, literal Listener quote gate, Live announcement, and legacy read-only fallback | Remove the legacy fallback after stored-data migration |
@@ -278,8 +278,10 @@ Keeper-backed Reproduce, and Tendency- or Intent-backed Explore without a writer
 choosing the work. Ask retains its exact Technique warrants, immutable answer, and
 attributable Intent Signal. Explore retains the selected Variation, ordered Capture
 Session members, structured observations, abstentions, and terminal media without a
-Verdict. Richer `explain` delivery and longitudinal intervention-outcome adaptation
-remain target work.
+Verdict. Intervention Records now refresh from Capture Session entry, answers,
+Experiment terminal state, exact results, and comparable Change. Two comparable
+unchanged outcomes deprioritize only automatic selection. Richer `explain` delivery
+remains target work.
 
 ## Bounded recall
 

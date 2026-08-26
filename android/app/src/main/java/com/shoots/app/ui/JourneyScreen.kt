@@ -237,6 +237,41 @@ private fun JourneyUpdateView(
             }
             ExperimentHero(snapshot, experiment, imageUrl, onShot)
         }
+        snapshot.recentInterventions.firstOrNull()?.let { intervention ->
+            Spacer(Modifier.height(24.dp))
+            Column(Modifier.padding(horizontal = 20.dp)) {
+                SectionTitle("What happened to the last suggestion", intervention.route.uppercase())
+                Spacer(Modifier.height(10.dp))
+                InkCard {
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                        StatusPill(intervention.attemptState)
+                        if (intervention.observableOutcome != "not_applicable") {
+                            StatusPill(intervention.observableOutcome, amber = true)
+                        }
+                    }
+                    Spacer(Modifier.height(9.dp))
+                    Text(
+                        intervention.outcomeReason.ifBlank {
+                            "No observable outcome is available for this intervention yet."
+                        },
+                        color = WarmWhite,
+                        fontSize = 15.sp,
+                        lineHeight = 22.sp,
+                    )
+                    if (intervention.resultShotIds.isNotEmpty()) {
+                        Spacer(Modifier.height(7.dp))
+                        Text(
+                                "${intervention.resultShotIds.size} explicit results · " +
+                                "${intervention.criteriaMetResults} Criteria met · " +
+                                "${intervention.abstentions} " +
+                                counted(intervention.abstentions, "abstention"),
+                            color = MutedWhite,
+                            fontSize = 11.sp,
+                        )
+                    }
+                }
+            }
+        }
         snapshot.latestShootRecord?.let { record ->
             Spacer(Modifier.height(24.dp))
             DeconstructionCard(

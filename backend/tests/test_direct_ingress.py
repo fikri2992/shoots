@@ -1,6 +1,6 @@
 """The real HTTP to blob to Ingest path for Android Phone Source media."""
 
-from fastapi.testclient import TestClient
+import httpx
 
 from app.api import deps, main
 from app.api.auth import current_user
@@ -38,9 +38,12 @@ async def test_android_ingress_is_idempotent_and_runs_the_real_ingest(tmp_path):
         "data": {"source_id": "external_primary:812:1787712000:18423"},
     }
     try:
-        with TestClient(main.app) as client:
-            first = client.post("/api/ingress/shots", **request)
-            second = client.post("/api/ingress/shots", **request)
+        async with httpx.AsyncClient(
+            transport=httpx.ASGITransport(app=main.app),
+            base_url="http://test",
+        ) as client:
+            first = await client.post("/api/ingress/shots", **request)
+            second = await client.post("/api/ingress/shots", **request)
             await ctx.bus.drain()
 
             async def record_resume(message: dict) -> None:
@@ -54,10 +57,10 @@ async def test_android_ingress_is_idempotent_and_runs_the_real_ingest(tmp_path):
                 )
 
             ctx.bus.subscribe(TOPICS["media.ingested"], record_resume)
-            third = client.post("/api/ingress/shots", **request)
+            third = await client.post("/api/ingress/shots", **request)
             await ctx.bus.drain()
             stored = (await repo.list_shots(ctx.store, user_id))[0]
-            blob_response = client.get(f"/api/blobs/{stored.blobs[ORIGINAL]}")
+            blob_response = await client.get(f"/api/blobs/{stored.blobs[ORIGINAL]}")
     finally:
         main.app.dependency_overrides.clear()
 
@@ -103,13 +106,16 @@ async def test_android_ingress_accepts_exact_limit_and_rejects_one_byte_over(tmp
     data = jpeg_with_exif(width=120, height=80)
     monkeypatch.setattr(settings, "max_upload_bytes", len(data))
     try:
-        with TestClient(main.app) as client:
-            exact = client.post(
+        async with httpx.AsyncClient(
+            transport=httpx.ASGITransport(app=main.app),
+            base_url="http://test",
+        ) as client:
+            exact = await client.post(
                 "/api/ingress/shots",
                 files={"file": ("exact.jpg", data, "image/jpeg")},
                 data={"source_id": "limit:exact"},
             )
-            over = client.post(
+            over = await client.post(
                 "/api/ingress/shots",
                 files={"file": ("over.jpg", data + b"x", "image/jpeg")},
                 data={"source_id": "limit:over"},

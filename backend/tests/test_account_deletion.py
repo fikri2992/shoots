@@ -6,6 +6,8 @@ from app.api import auth, deps, main, pairing
 from app.domain.entities import (
     Deconstruction,
     DeconstructionSourceType,
+    InterventionRecord,
+    ScoutRoute,
     Shot,
     ShotKind,
     ShotSource,
@@ -55,6 +57,16 @@ async def test_delete_account_revokes_devices_records_tokens_and_blobs(tmp_path)
             source_revision=1,
         ),
     )
+    await repo.put_intervention(
+        store,
+        InterventionRecord(
+            id="intervention-delete",
+            user_id=user.id,
+            shoot_id="shoot-delete",
+            shoot_revision=1,
+            route=ScoutRoute.SILENCE,
+        ),
+    )
 
     async def verified_claims(body: auth.AndroidSessionIn) -> dict:
         return {
@@ -86,6 +98,7 @@ async def test_delete_account_revokes_devices_records_tokens_and_blobs(tmp_path)
     assert await repo.find_user(store, user.id) is None
     assert await repo.list_shots(store, user.id) == []
     assert await repo.list_deconstructions(store, user.id) == []
+    assert await repo.list_interventions(store, user.id) == []
     assert await repo.list_devices(store, user.id) == []
     assert await tokens.get(user.id) is None
     assert not await blobs.exists(original)

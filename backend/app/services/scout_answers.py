@@ -112,6 +112,9 @@ async def answer(
     claimed.state = ScoutAnswerState.COMPLETED
     claimed.detail = detail
     await repo.put_scout_answer(ctx.store, claimed)
+    from app.services import interventions
+
+    await interventions.link_answer(ctx, claimed)
     await repo.record(
         ctx.store,
         user_id,

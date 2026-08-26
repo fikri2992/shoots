@@ -475,8 +475,10 @@ authority: no branch is pushed or deployed without explicit approval.
 | 3 | partial | Scoped Photographer memory and Listener migration | Provenance-carrying Intent, constraint, preference, and source-role records behind one signal seam | Signal/recall/correction, Listener migration, and one native consequential Intent answer are built; legacy migration and wider Intent consumers remain |
 | 4 | complete | Corrected Explore | Open Explore Experiment with explicit Variations, immutable per-session choice, ordered results, and structured observations | The Photographer may try alternatives freely; no Criteria, Verdict, or pass/fail language |
 | 5 | complete | Deconstruction | Image-led 4:5 draft from a settled Shoot or Experiment Record plus Android multi-image sharing | Every page cites stored Evidence; Photographer selects the cover; no invented score or automatic post |
-| 6 | complete | Full local acceptance | Backend, web, and emulator workflow covering correction, recall, Explore, and Deconstruction | Full backend suite and Ruff pass; web tests/build pass; Android build/lint and 30 emulator tests pass with two hardware-only skips |
-| 7 | approval-gated | Cloud and physical acceptance | Exact deployed revision and Xiaomi evidence | Requires explicit deployment approval and production credentials |
+| 6 | complete | Consequential Ask | Stored evidenced Question, immutable Answer, Shoot-scoped Intent, and optional corrected Explore | “Just shooting” creates no Experiment; replay is idempotent; conflicting history is refused |
+| 7 | complete | Intervention adaptation | Replayable projection from offer through observable Change | Attempt and outcome stay separate; two comparable unchanged outcomes deprioritize only automatic routing |
+| 8 | complete | Full local re-acceptance | Backend, web, and emulator workflow covering correction, recall, Ask, Explore, intervention adaptation, and Deconstruction | Full backend suite and Ruff pass; web tests/build pass; Android build/lint pass; 32 emulator tests pass with two hardware-only skips |
+| 9 | approval-gated | Cloud and physical acceptance | Exact deployed revision and Xiaomi evidence | Requires explicit deployment approval and production credentials |
 
 The dependency order matters. Correction follows the rebuildable projection so a
 Mine-to-Inspiration change can actually retract claims. Explore follows scoped memory

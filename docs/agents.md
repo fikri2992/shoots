@@ -255,6 +255,10 @@ All `LlmAgent`s run `gemini-3.7-flash` on the Vertex global endpoint.
   Reproduce, or stay silent. The writer receives only that route. The stored record
   includes the warrant, rejected routes, input ids, policy version, and prompt/model
   provenance.
+- **Intervention projection**: code links the immutable decision to Question answers,
+  Capture Session entry, Experiment results, abstentions, and comparable Change. Two
+  comparable unchanged outcomes may deprioritize one automatic Technique route; an
+  explicit Photographer request is never retired.
 - **Scribe**: code selects and orders eligible one-claim layers from stored Evidence;
   deterministic imaging renders the first Deconstruction slice. No writer adds facts.
   The photographer chooses the Keeper cover, share destination, and posting.
@@ -269,7 +273,7 @@ All `LlmAgent`s run `gemini-3.7-flash` on the Vertex global endpoint.
 - Durable server state currently holds `User` (constraints, location, Drive cursor),
   `Shot`, `Analysis` (model and prompt version), `TechniqueState`, `Experiment`,
   `CaptureSession`, `Run`, `Scene`, `Shoot`, `ShootRecord`, `Inspiration`,
-  `Deconstruction`, device sessions, the one-open slot, `JourneyUpdate`, and
+  `Deconstruction`, `InterventionRecord`, device sessions, the one-open slot, `JourneyUpdate`, and
   `ActivityEvent`. Firestore is used in the cloud and one
   `store.json` locally. Android Room caches the read model and owns immutable source
   assignments; it is never a second photographic truth. Every stage is idempotent on

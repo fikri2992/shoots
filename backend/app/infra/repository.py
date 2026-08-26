@@ -25,6 +25,7 @@ from app.domain.entities import (
     ExperimentStatus,
     ExperimentType,
     Inspiration,
+    InterventionRecord,
     JourneyUpdate,
     PhotographerSignal,
     Run,
@@ -69,6 +70,7 @@ ACCOUNT_DELETIONS = "account_deletions"
 PHOTOGRAPHER_SIGNALS = "photographer_signals"
 DECONSTRUCTIONS = "deconstructions"
 SCOUT_ANSWERS = "scout_answers"
+INTERVENTIONS = "interventions"
 
 
 class UnknownEntity(LookupError):
@@ -1239,6 +1241,57 @@ async def list_scout_answers(store: Store, user_id: str, limit: int = 20) -> lis
     return [ScoutAnswer.model_validate(row) for row in rows]
 
 
+async def put_intervention(store: Store, intervention: InterventionRecord) -> None:
+    await store.put(INTERVENTIONS, intervention.id, _dump(intervention))
+
+
+async def put_intervention_once(
+    store: Store,
+    intervention: InterventionRecord,
+) -> InterventionRecord:
+    if await store.create(INTERVENTIONS, intervention.id, _dump(intervention)):
+        return intervention
+    existing = await find_intervention(store, intervention.id)
+    if existing is None:
+        raise UnknownEntity(f"Intervention {intervention.id}")
+    return existing
+
+
+async def find_intervention(store: Store, intervention_id: str) -> InterventionRecord | None:
+    data = await store.get(INTERVENTIONS, intervention_id)
+    return InterventionRecord.model_validate(data) if data else None
+
+
+async def find_intervention_for_experiment(
+    store: Store,
+    user_id: str,
+    experiment_id: str,
+) -> InterventionRecord | None:
+    rows = await store.query(
+        INTERVENTIONS,
+        where={"user_id": user_id, "experiment_id": experiment_id},
+        order_by="updated_at",
+        descending=True,
+        limit=1,
+    )
+    return InterventionRecord.model_validate(rows[0]) if rows else None
+
+
+async def list_interventions(
+    store: Store,
+    user_id: str,
+    limit: int | None = 50,
+) -> list[InterventionRecord]:
+    rows = await store.query(
+        INTERVENTIONS,
+        where={"user_id": user_id},
+        order_by="updated_at",
+        descending=True,
+        limit=limit,
+    )
+    return [InterventionRecord.model_validate(row) for row in rows]
+
+
 async def list_events(store: Store, user_id: str, limit: int = 100) -> list[ActivityEvent]:
     rows = await store.query(
         EVENTS, where={"user_id": user_id}, order_by="at", descending=True, limit=limit
@@ -1429,6 +1482,7 @@ async def delete_user_records(store: Store, user_id: str) -> None:
         (SHOOTS, "id"),
         (DECONSTRUCTIONS, "id"),
         (SCOUT_ANSWERS, "id"),
+        (INTERVENTIONS, "id"),
         (DEVICES, "fingerprint"),
         (PAIRING, "code"),
         ("push", "id"),

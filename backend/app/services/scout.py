@@ -212,6 +212,7 @@ async def issue_explore(
     experiment_id: str = "",
     warrant_shot_ids: list[str] | None = None,
     selection_basis: str = "",
+    exclude_technique_ids: set[str] | None = None,
 ) -> Experiment | None:
     """Offer optional Variations from a Tendency Direction or explicit Technique."""
     opened = await repo.open_experiment(ctx.store, user_id)
@@ -223,6 +224,8 @@ async def issue_explore(
         item.technique_id
         for item in await repo.list_experiments(ctx.store, user_id, limit=RECENT_EXPERIMENTS)
     ]
+    if not technique_id:
+        recent.extend(sorted(exclude_technique_ids or set()))
     constraints = await photographer_memory.constraints_for(ctx, user_id)
     if technique_id:
         requested = taxonomy.BY_ID.get(technique_id)
@@ -621,6 +624,9 @@ async def skip(ctx: Context, user_id: str, experiment_id: str) -> Experiment:
                 {"technique_id": experiment.technique_id},
                 experiment_id=experiment.id,
             )
+            from app.services import interventions
+
+            await interventions.refresh_for_experiment(ctx, experiment.id)
     return experiment
 
 
@@ -643,6 +649,9 @@ async def leave(ctx: Context, user_id: str, experiment_id: str) -> Experiment:
                 {"technique_id": experiment.technique_id},
                 experiment_id=experiment.id,
             )
+            from app.services import interventions
+
+            await interventions.refresh_for_experiment(ctx, experiment.id)
     return experiment
 
 
@@ -671,6 +680,9 @@ async def expire(ctx: Context, user_id: str) -> list[Experiment]:
                 {"technique_id": experiment.technique_id, "title": experiment.title},
                 experiment_id=experiment.id,
             )
+            from app.services import interventions
+
+            await interventions.refresh_for_experiment(ctx, experiment.id)
             expired.append(experiment)
     return expired
 
@@ -683,6 +695,9 @@ async def on_experiment_closed(ctx: Context, message: dict) -> str:
 
     await cartographer.rebuild(ctx, message["user_id"])
     await check_advice(ctx, message["user_id"])
+    from app.services import interventions
+
+    await interventions.refresh_for_experiment(ctx, message["experiment_id"])
     await journey.maybe_write(ctx, message["user_id"])
     created = await issue(ctx, message["user_id"])
     if created is not None:

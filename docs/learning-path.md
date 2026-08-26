@@ -64,6 +64,27 @@ or say that a Change moved toward what they wanted.
    entered, what could be observed afterward, and whether the evidence was sufficient.
    Ignoring an offer is not failed advice; one Criteria miss is not a bad Shot.
 
+### How adaptation works now
+
+The immutable Shoot Record keeps the original Scout route and warrant. A separate
+Intervention Record is the current projection of what happened next:
+
+| Observed event | Attempt state | Outcome claim |
+|---|---|---|
+| Explain or evidenced silence | `not_applicable` | No intervention was offered |
+| Ask or Experiment delivered | `offered` | No result inferred |
+| Photographer answers Ask | `completed` | Intent recorded; Change still separate |
+| Capture Session reserved | `entered` | Participation proven, not success |
+| Experiment left or expired | `left` | No failure claim |
+| Experiment completes without comparable Baseline | `completed` | `not_applicable` |
+| Comparable Change exists | `completed` | `changed`, `unchanged`, or `insufficient_evidence` |
+
+One unchanged comparable outcome changes nothing by itself. After two completed,
+comparable `unchanged` outcomes for the same Technique, automatic Scout selection may
+deprioritize that Technique and records why. This is not a ban: an explicit
+Photographer request may choose it again. Criteria not met, unreadable media, and no
+attempt never count as unchanged behavior.
+
 ## Evidence ladder
 
 Shoots can quantify evidence without pretending to quantify artistic worth:
@@ -154,6 +175,9 @@ Acceptance should use ordinary phone behavior, not curated single images:
 5. one Shoot with no useful repetition so silence is possible;
 6. one repeated decision later attempted through Reproduce;
 7. a process restart and offline read of the same current receipt.
+8. one Ask answer that writes scoped Intent and one “just shooting” answer that opens
+   no Experiment;
+9. two comparable unchanged Intervention Records that alter only automatic routing.
 
 The feature is useful only if the Photographer can answer “what did I keep doing,
 what did I vary, what could Shoots not know, and what is worth trying next?” without

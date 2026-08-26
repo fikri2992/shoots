@@ -17,6 +17,7 @@ from app.domain.entities import (
     Deconstruction,
     Experiment,
     Inspiration,
+    InterventionRecord,
     JourneyUpdate,
     PhotographerSignal,
     Run,
@@ -52,6 +53,7 @@ class MobileSnapshot(BaseModel):
     experiments: list[Experiment]
     latest_deconstruction: Deconstruction | None
     recent_scout_answers: list[ScoutAnswer]
+    recent_interventions: list[InterventionRecord]
 
 
 @router.get("/snapshot", response_model=MobileSnapshot)
@@ -102,6 +104,7 @@ async def snapshot(
         experiments=experiments,
         latest_deconstruction=deconstructions[0] if deconstructions else None,
         recent_scout_answers=await repo.list_scout_answers(ctx.store, user.id, limit=20),
+        recent_interventions=await repo.list_interventions(ctx.store, user.id, limit=20),
     )
     encoded = jsonable_encoder(value)
     # Building the Profile stamps when this read occurred. That timestamp is
