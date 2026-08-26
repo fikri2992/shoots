@@ -19,7 +19,7 @@ from app.domain.entities import (
 from app.infra import repository as repo
 from app.infra.bus import TOPICS
 from app.infra.storage import ORIGINAL, blob_path, extension_for
-from app.services import ingest, runs
+from app.services import ingest, runs, shoots
 from app.services.context import Context
 
 router = APIRouter(prefix="/api/ingress", tags=["ingress"])
@@ -75,6 +75,7 @@ async def receive_shot(
         # the same media as a different result. Resume from durable state in
         # case the previous request committed the Shot but lost its publish.
         await runs.ensure(ctx, existing)
+        await shoots.observe_shot(ctx, existing.id)
         if capture_session_id:
             await repo.accept_capture_session_member(
                 ctx.store, capture_session_id, source_id, existing.id
@@ -126,6 +127,7 @@ async def receive_shot(
     )
     await repo.put_shot(ctx.store, shot)
     await runs.ensure(ctx, shot)
+    await shoots.observe_shot(ctx, shot.id)
     if capture_session_id:
         await repo.accept_capture_session_member(ctx.store, capture_session_id, source_id, shot.id)
     await repo.record(

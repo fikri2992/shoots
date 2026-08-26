@@ -29,6 +29,8 @@ from app.domain.entities import (
     RunStepState,
     Scene,
     Shoot,
+    ShootRecord,
+    ShootStatus,
     Shot,
     ShotStatus,
     TechniqueState,
@@ -49,6 +51,7 @@ EVENTS = "events"
 RUNS = "runs"
 SCENES = "scenes"
 SHOOTS = "shoots"
+SHOOT_RECORDS = "shoot_records"
 JOURNEY = "journey"
 PAIRING = "pairing_codes"
 DEVICES = "devices"
@@ -196,10 +199,12 @@ async def list_scenes_for_shoot(store: Store, shoot_id: str) -> list[Scene]:
 
 async def find_scene_for_shot(store: Store, user_id: str, shot_id: str) -> Scene | None:
     rows = await store.query(SCENES, where={"ordered_shot_ids": shot_id})
-    return next(
-        (scene for row in rows if (scene := Scene.model_validate(row)).user_id == user_id),
-        None,
+    scenes = sorted(
+        (Scene.model_validate(row) for row in rows),
+        key=lambda item: (item.grouping_revision, item.id),
+        reverse=True,
     )
+    return next((scene for scene in scenes if scene.user_id == user_id), None)
 
 
 async def put_shoot(store: Store, shoot: Shoot) -> None:
@@ -218,6 +223,67 @@ async def list_shoots(store: Store, user_id: str) -> list[Shoot]:
         Shoot.model_validate(row) for row in await store.query(SHOOTS, where={"user_id": user_id})
     ]
     return sorted(shoots, key=lambda item: (item.started_at is None, item.started_at, item.id))
+
+
+async def list_all_shoots(store: Store) -> list[Shoot]:
+    return [Shoot.model_validate(row) for row in await store.query(SHOOTS)]
+
+
+async def mark_shoot_closing(store: Store, shoot_id: str) -> tuple[Shoot, bool]:
+    def close(data: dict[str, Any]) -> dict[str, Any] | None:
+        shoot = Shoot.model_validate(data)
+        if shoot.status is ShootStatus.CLOSING:
+            return data
+        if shoot.status is not ShootStatus.OPEN:
+            return None
+        shoot.status = ShootStatus.CLOSING
+        return _dump(shoot)
+
+    data, changed = await store.mutate(SHOOTS, shoot_id, close)
+    if data is None:
+        raise UnknownEntity(f"shoot {shoot_id}")
+    return Shoot.model_validate(data), changed
+
+
+def shoot_record_id(shoot_id: str, revision: int) -> str:
+    return f"{shoot_id}__r{revision}"
+
+
+async def put_shoot_record_once(store: Store, record: ShootRecord) -> ShootRecord:
+    record_id = shoot_record_id(record.shoot_id, record.revision)
+    if await store.create(SHOOT_RECORDS, record_id, _dump(record)):
+        return record
+    data = await store.get(SHOOT_RECORDS, record_id)
+    if data is None:
+        raise UnknownEntity(f"Shoot Record {record_id}")
+    return ShootRecord.model_validate(data)
+
+
+async def find_shoot_record(store: Store, shoot_id: str, revision: int) -> ShootRecord | None:
+    data = await store.get(SHOOT_RECORDS, shoot_record_id(shoot_id, revision))
+    return ShootRecord.model_validate(data) if data else None
+
+
+async def settle_shoot(
+    store: Store, shoot_id: str, revision: int, settled_at: datetime
+) -> tuple[Shoot, bool]:
+    def settle(data: dict[str, Any]) -> dict[str, Any] | None:
+        shoot = Shoot.model_validate(data)
+        if shoot.revision != revision:
+            return None
+        if shoot.status is ShootStatus.SETTLED and shoot.current_record_revision == revision:
+            return data
+        if shoot.status is not ShootStatus.CLOSING:
+            return None
+        shoot.status = ShootStatus.SETTLED
+        shoot.current_record_revision = revision
+        shoot.closed_at = settled_at
+        return _dump(shoot)
+
+    data, changed = await store.mutate(SHOOTS, shoot_id, settle)
+    if data is None:
+        raise UnknownEntity(f"shoot {shoot_id}")
+    return Shoot.model_validate(data), changed
 
 
 # --- runs -----------------------------------------------------------------
@@ -899,6 +965,26 @@ async def record_run_settled(store: Store, run: Run) -> ActivityEvent:
         shot_id=run.shot_id,
         experiment_id=run.experiment_id,
         at=run.completed_at or run.updated_at,
+    )
+    await store.put(EVENTS, event.id, _dump(event))
+    return event
+
+
+async def record_shoot_settled(store: Store, shoot: Shoot, record: ShootRecord) -> ActivityEvent:
+    """Write one replay-safe terminal ActivityEvent for a Shoot revision."""
+    event = ActivityEvent(
+        id=f"evt_{shoot.id}_r{record.revision}_settled",
+        user_id=shoot.user_id,
+        agent="pipeline",
+        stage="shoot_settled",
+        detail={
+            "shoot_id": shoot.id,
+            "revision": record.revision,
+            "scenes": len(record.scene_ids),
+            "shots": len(record.shot_ids),
+            "terminal": len(record.unreadable_shot_ids),
+        },
+        at=record.settled_at,
     )
     await store.put(EVENTS, event.id, _dump(event))
     return event

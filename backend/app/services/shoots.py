@@ -5,7 +5,7 @@ from datetime import timedelta
 
 from app.config import settings
 from app.domain import shoots as rules
-from app.domain.entities import Scene, Shoot, new_id
+from app.domain.entities import RunStatus, Scene, Shoot, ShootRecord, ShootStatus, new_id, now
 from app.infra import repository as repo
 from app.services.context import Context
 
@@ -39,8 +39,15 @@ async def observe_shot(ctx: Context, shot_id: str) -> ShootMembership:
             started_at=at,
             last_capture_at=at,
         )
+    elif shoot.status is ShootStatus.SETTLED:
+        shoot = await _start_revision(ctx, shoot)
 
-    scene = rules.choose_scene(await repo.list_scenes_for_shoot(ctx.store, shoot.id), at)
+    current_scenes = [
+        item
+        for item in await repo.list_scenes_for_shoot(ctx.store, shoot.id)
+        if item.grouping_revision == shoot.revision
+    ]
+    scene = rules.choose_scene(current_scenes, at)
     if scene is None:
         scene = Scene(
             id=new_id("scene"),
@@ -55,7 +62,11 @@ async def observe_shot(ctx: Context, shot_id: str) -> ShootMembership:
     scene.ordered_shot_ids = await _ordered_shot_ids(ctx, scene.ordered_shot_ids)
     await repo.put_scene(ctx.store, scene)
     shoot.ordered_shot_ids = await _ordered_shot_ids(ctx, shoot.ordered_shot_ids)
-    scenes = await repo.list_scenes_for_shoot(ctx.store, shoot.id)
+    scenes = [
+        item
+        for item in await repo.list_scenes_for_shoot(ctx.store, shoot.id)
+        if item.grouping_revision == shoot.revision
+    ]
     shoot.ordered_scene_ids = [
         item.id
         for item in sorted(
@@ -69,6 +80,100 @@ async def observe_shot(ctx: Context, shot_id: str) -> ShootMembership:
     ]
     await repo.put_shoot(ctx.store, shoot)
     return ShootMembership(shoot.id, scene.id, shoot.revision)
+
+
+async def _start_revision(ctx: Context, shoot: Shoot) -> Shoot:
+    """Clone settled Scene membership before accepting late Camera media."""
+    next_revision = shoot.revision + 1
+    cloned_scene_ids: list[str] = []
+    for scene in await repo.list_scenes_for_shoot(ctx.store, shoot.id):
+        if scene.grouping_revision != shoot.revision:
+            continue
+        cloned = scene.model_copy(
+            update={
+                "id": new_id("scene"),
+                "grouping_revision": next_revision,
+            },
+            deep=True,
+        )
+        await repo.put_scene(ctx.store, cloned)
+        cloned_scene_ids.append(cloned.id)
+    revised = shoot.model_copy(deep=True)
+    revised.status = ShootStatus.CLOSING
+    revised.revision = next_revision
+    revised.current_record_revision = next_revision
+    revised.ordered_scene_ids = cloned_scene_ids
+    revised.closed_at = None
+    await repo.put_shoot(ctx.store, revised)
+    return revised
+
+
+async def close_inactive(ctx: Context, at=None) -> list[str]:
+    """Move inactive Shoots to closing and settle any whose Runs already ended."""
+    at = at or now()
+    cutoff = at - timedelta(minutes=settings.shoot_gap_minutes)
+    changed: list[str] = []
+    for shoot in await repo.list_all_shoots(ctx.store):
+        if (
+            shoot.status is not ShootStatus.OPEN
+            or shoot.last_capture_at is None
+            or shoot.last_capture_at > cutoff
+        ):
+            continue
+        closing, closed_now = await repo.mark_shoot_closing(ctx.store, shoot.id)
+        if closed_now:
+            changed.append(closing.id)
+        await _settle_if_ready(ctx, closing)
+    return changed
+
+
+async def on_run_settled(ctx: Context, shot_id: str) -> ShootRecord | None:
+    """Settle the Shot's closing Shoot, or return its existing current record."""
+    shot = await repo.get_shot(ctx.store, shot_id)
+    scene = await repo.find_scene_for_shot(ctx.store, shot.user_id, shot.id)
+    if scene is None:
+        return None
+    shoot = await repo.get_shoot(ctx.store, scene.shoot_id)
+    if shoot.status is ShootStatus.OPEN:
+        return None
+    return await _settle_if_ready(ctx, shoot)
+
+
+async def _settle_if_ready(ctx: Context, shoot: Shoot) -> ShootRecord | None:
+    existing = await repo.find_shoot_record(ctx.store, shoot.id, shoot.revision)
+    if shoot.status is ShootStatus.SETTLED:
+        return existing
+
+    runs = [await repo.find_run_for_shot(ctx.store, shot_id) for shot_id in shoot.ordered_shot_ids]
+    if any(
+        run is None or run.status not in {RunStatus.COMPLETED, RunStatus.TERMINAL} for run in runs
+    ):
+        return None
+
+    run_outcomes = {run.shot_id: run.status.value for run in runs if run is not None}
+    settled_at = max(
+        (run.completed_at or run.updated_at for run in runs if run is not None),
+        default=now(),
+    )
+    record = await repo.put_shoot_record_once(
+        ctx.store,
+        ShootRecord(
+            shoot_id=shoot.id,
+            user_id=shoot.user_id,
+            revision=shoot.revision,
+            scene_ids=list(shoot.ordered_scene_ids),
+            shot_ids=list(shoot.ordered_shot_ids),
+            run_outcomes=run_outcomes,
+            unreadable_shot_ids=[
+                run.shot_id for run in runs if run is not None and run.status is RunStatus.TERMINAL
+            ],
+            settled_at=settled_at,
+        ),
+    )
+    settled, changed = await repo.settle_shoot(ctx.store, shoot.id, shoot.revision, settled_at)
+    if changed:
+        await repo.record_shoot_settled(ctx.store, settled, record)
+    return record
 
 
 async def _ordered_shot_ids(ctx: Context, shot_ids: list[str]) -> list[str]:

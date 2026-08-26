@@ -37,6 +37,9 @@ async def settle(
             from app.services import capture_sessions
 
             await capture_sessions.on_run_settled(ctx, run.capture_session_id, run.shot_id)
+        from app.services import shoots
+
+        await shoots.on_run_settled(ctx, run.shot_id)
     return run
 
 

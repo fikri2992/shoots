@@ -772,6 +772,22 @@ class Shoot(BaseModel):
     grouping_version: str = "shoot-gap-1"
 
 
+class ShootRecord(BaseModel):
+    """The terminal account for one immutable Shoot revision."""
+
+    shoot_id: str
+    user_id: str
+    revision: int = 1
+    scene_ids: list[str] = Field(default_factory=list)
+    shot_ids: list[str] = Field(default_factory=list)
+    run_outcomes: dict[str, str] = Field(default_factory=dict)
+    unreadable_shot_ids: list[str] = Field(default_factory=list)
+    receipt: dict[str, Any] = Field(default_factory=dict)
+    scout: dict[str, Any] = Field(default_factory=dict)
+    provenance: Provenance = Field(default_factory=Provenance)
+    settled_at: datetime = Field(default_factory=now)
+
+
 # --- audit trail ----------------------------------------------------------
 
 
