@@ -218,9 +218,47 @@ private fun span(refs: List<String>, grid: GridSpecDto): CellSpan? {
 
 fun plainCellReferences(text: String, grid: GridSpecDto?): String {
     if (text.isBlank() || grid == null) return text
-    return CELL_RUN.replace(text) { match ->
+    val cellsRewritten = CELL_RUN.replace(text) { match ->
         val refs = CELL.findAll(match.value.uppercase()).map { it.value }.toList()
-        place(refs, grid).ifBlank { match.value }
+        place(refs, grid).ifBlank { "the shown area" }
+    }
+    val columnsRewritten = COLUMN_RUN.replace(cellsRewritten) { match ->
+        val prefix = match.groupValues[1].lowercase().takeIf(String::isNotBlank)
+        val first = match.groupValues[2][0] - 'A'
+        val last = match.groupValues[3].firstOrNull()?.minus('A') ?: first
+        val phrase = horizontalPlace(first, last, grid)
+        listOfNotNull(prefix, phrase).joinToString(" ")
+    }
+    return ROW_RUN.replace(columnsRewritten) { match ->
+        val prefix = match.groupValues[1].lowercase().takeIf(String::isNotBlank)
+        val first = match.groupValues[2].toIntOrNull()?.minus(1) ?: 0
+        val last = match.groupValues[3].toIntOrNull()?.minus(1) ?: first
+        val phrase = verticalPlace(first, last, grid)
+        listOfNotNull(prefix, phrase).joinToString(" ")
+    }
+}
+
+private fun horizontalPlace(first: Int, last: Int, grid: GridSpecDto): String {
+    val left = minOf(first, last).coerceIn(0, grid.cols - 1)
+    val right = maxOf(first, last).coerceIn(0, grid.cols - 1) + 1
+    if ((right - left).toFloat() / grid.cols > 0.6f) return "the width of the frame"
+    val centre = (left + right) / 2f / grid.cols
+    return when {
+        centre < 1f / 3f -> "the left side of the frame"
+        centre > 2f / 3f -> "the right side of the frame"
+        else -> "the centre of the frame"
+    }
+}
+
+private fun verticalPlace(first: Int, last: Int, grid: GridSpecDto): String {
+    val top = minOf(first, last).coerceIn(0, grid.rows - 1)
+    val bottom = maxOf(first, last).coerceIn(0, grid.rows - 1) + 1
+    if ((bottom - top).toFloat() / grid.rows > 0.6f) return "the height of the frame"
+    val centre = (top + bottom) / 2f / grid.rows
+    return when {
+        centre < 1f / 3f -> "the top of the frame"
+        centre > 2f / 3f -> "the bottom of the frame"
+        else -> "the middle of the frame"
     }
 }
 
@@ -263,6 +301,14 @@ fun guideLabel(guide: String): String = when (guide) {
 
 private val CELL = Regex("^([A-Z])(\\d{1,2})$")
 private val CELL_RUN = Regex(
-    "\\b[A-H]\\d{1,2}\\b(?:\\s*(?:[-/,]|to|and)\\s*\\b[A-H]\\d{1,2}\\b)*",
+    "\\b[A-H]\\d{1,2}\\b(?:\\s*(?:[-–—,/:]|to|and|through)\\s*\\b[A-H]\\d{1,2}\\b)*",
+    RegexOption.IGNORE_CASE,
+)
+private val COLUMN_RUN = Regex(
+    "\\b(?:(from|in|across|within|through|at)\\s+)?columns?\\s+([A-H])(?:\\s*(?:[-–—:]|to|through)\\s*([A-H]))?\\b",
+    RegexOption.IGNORE_CASE,
+)
+private val ROW_RUN = Regex(
+    "\\b(?:(from|in|across|within|through|at)\\s+)?rows?\\s+(\\d{1,2})(?:\\s*(?:[-–—:]|to|through)\\s*(\\d{1,2}))?\\b",
     RegexOption.IGNORE_CASE,
 )

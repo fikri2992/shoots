@@ -89,7 +89,10 @@ export function place(refs, grid) {
  * their own ("across the top" must not become "across across the top").
  */
 const RUN =
-  /(\b(?:across|along|at|in|from|through|between|over|spans|spanning|fills|occupies|covers)\s+)?\b[A-H][1-9]\b(?:\s*(?:[-–—,/]|to|and)\s*\b[A-H][1-9]\b)*/g
+  /(\b(?:across|along|at|in|from|through|between|over|spans|spanning|fills|occupies|covers)\s+)?\b[A-H][1-9]\b(?:\s*(?:[-–—,/:]|to|and|through)\s*\b[A-H][1-9]\b)*/g
+
+const COLUMN_RUN = /\b(?:(from|in|across|within|through|at)\s+)?columns?\s+([A-H])(?:\s*(?:[-–—:]|to|through)\s*([A-H]))?\b/gi
+const ROW_RUN = /\b(?:(from|in|across|within|through|at)\s+)?rows?\s+(\d{1,2})(?:\s*(?:[-–—:]|to|through)\s*(\d{1,2}))?\b/gi
 
 /** Words that take a place directly: "spans the top", not "spans across the top". */
 const VERBS = /^(spans|spanning|fills|occupies|covers)\s+$/
@@ -101,16 +104,47 @@ const VERBS = /^(spans|spanning|fills|occupies|covers)\s+$/
  */
 export function plain(text, grid) {
   if (!text || !grid) return text || ''
-  return text
+  const cellsRewritten = text
     .replace(RUN, (run, preposition = '') => {
       const phrase = place(run.match(/[A-H][1-9]/g) || [], grid)
-      if (!phrase) return run
+      if (!phrase) return 'the shown area'
       const lead = preposition || ''
       if (!/^(across|down|most) /.test(phrase)) return `${lead}${phrase}`
       // The phrase brings its own preposition: drop the one in the sentence,
       // unless it was a verb, which needs the place without one.
       return VERBS.test(lead) ? `${lead}${phrase.replace(/^(across|down) /, '')}` : phrase
     })
+  const columnsRewritten = cellsRewritten.replace(
+    COLUMN_RUN,
+    (_, preposition = '', first, last = first) =>
+      `${preposition ? `${preposition.toLowerCase()} ` : ''}${horizontalPlace(first, last, grid)}`,
+  )
+  return columnsRewritten
+    .replace(
+      ROW_RUN,
+      (_, preposition = '', first, last = first) =>
+        `${preposition ? `${preposition.toLowerCase()} ` : ''}${verticalPlace(first, last, grid)}`,
+    )
     .replace(/\s{2,}/g, ' ')
     .replace(/\s+([.,])/g, '$1')
+}
+
+function horizontalPlace(first, last, grid) {
+  const left = Math.max(0, Math.min(first.charCodeAt(0) - 65, last.charCodeAt(0) - 65, grid.cols - 1))
+  const right = Math.min(grid.cols, Math.max(first.charCodeAt(0) - 64, last.charCodeAt(0) - 64, 1))
+  if ((right - left) / grid.cols > 0.6) return 'the width of the frame'
+  const centre = (left + right) / 2 / grid.cols
+  if (centre < 1 / 3) return 'the left side of the frame'
+  if (centre > 2 / 3) return 'the right side of the frame'
+  return 'the centre of the frame'
+}
+
+function verticalPlace(first, last, grid) {
+  const top = Math.max(0, Math.min(Number(first) - 1, Number(last) - 1, grid.rows - 1))
+  const bottom = Math.min(grid.rows, Math.max(Number(first), Number(last), 1))
+  if ((bottom - top) / grid.rows > 0.6) return 'the height of the frame'
+  const centre = (top + bottom) / 2 / grid.rows
+  if (centre < 1 / 3) return 'the top of the frame'
+  if (centre > 2 / 3) return 'the bottom of the frame'
+  return 'the middle of the frame'
 }

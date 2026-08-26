@@ -331,10 +331,13 @@ private fun latestRunOutcome(view: ShotViewDto): String = view.run
 
 private fun compositionInstruction(composition: CompositionDto, grid: GridSpecDto?): String {
     if (composition.suggestedCropCells.isNotEmpty()) {
-        return plainCellReferences(
-            composition.cropReason.ifBlank { "Try the tested crop shown on the Shot." },
-            grid,
-        )
+        val rationale = composition.cropReason.substringAfter(" removes ", "").trim()
+        val plainRationale = plainCellReferences(rationale, grid).trim().trimEnd('.')
+        return if (plainRationale.isBlank()) {
+            "Try the tested crop shown on the Shot."
+        } else {
+            "Try the tested crop shown on the Shot. It removes $plainRationale."
+        }
     }
     val move = composition.moves.firstOrNull() ?: return ""
     val what = plainCellReferences(move.what, grid).trim().trimEnd('.')

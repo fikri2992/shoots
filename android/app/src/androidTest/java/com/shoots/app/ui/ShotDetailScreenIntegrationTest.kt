@@ -34,7 +34,7 @@ class ShotDetailScreenIntegrationTest {
                     TechniqueEvidenceDto(
                         techniqueId = "rule_of_thirds",
                         cells = listOf("A1"),
-                        note = "The subject is visible in A1.",
+                        note = "The subject is visible in A1:H6, away from clutter in columns A-C.",
                         agreement = 1,
                     )
                 ),
@@ -63,6 +63,8 @@ class ShotDetailScreenIntegrationTest {
         compose.onNodeWithContentDescription("Thirds composition guide").assertExists()
         compose.onNodeWithText("1 lens").assertExists()
         compose.onNodeWithText("A1", substring = true).assertDoesNotExist()
+        compose.onNodeWithText("H6", substring = true).assertDoesNotExist()
+        compose.onNodeWithText("columns A-C", substring = true).assertDoesNotExist()
         compose.onNodeWithText("quest_internal_only", substring = true).assertDoesNotExist()
         compose.onNodeWithText("Associated with an Experiment").assertExists()
     }
