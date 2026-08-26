@@ -208,7 +208,7 @@ Recorded because each was stated as settled during the work, and two of them are
 | Fixed decay intervals fail, so learn a half-life per Technique | **Backwards.** The failure documented at Duolingo is of rich per-item learned features, and their fix was to delete them. |
 | NIQE inverts and would downgrade the best frames | **Wrong reason, right conclusion.** The negative correlation was against PSNR on a low-light benchmark. |
 | Ranking beats scoring "on photographs specifically" | **Fabricated precision.** The split is homogeneous versus heterogeneous content. The result itself holds, at +29 to +42 points. |
-| The rule of thirds has no aesthetic effect | **Overstated.** Amirshahi et al. found thirds-conforming photographs *were* rated more aesthetic — 0.59 against 0.54, p < 0.01 — but at Cohen's d = 0.36. Weak, not absent. Keep the guide; soften what `off_guide_subject` claims. |
+| The rule of thirds has no aesthetic effect | **Overstated.** Amirshahi et al. found thirds-conforming photographs *were* rated more aesthetic — 0.59 against 0.54, p < 0.01 — but at Cohen's d = 0.36. Weak, not absent. Keep the optional guide; do not turn distance from it into a deterministic Finding. |
 | 16 Techniques reach `solid` on a median of 2 observations | **My own error.** 2 is the median across all 37 TechniqueStates. The 16 that reached `solid` took a median of 5 attempts, minimum 3. The threshold is not the bug; the score feeding it is. |
 | Weighting hues by chroma flips the top hue on 11 of 12 frames | **My own error.** Re-run over all 16 photographs: 3 of 16. |
 

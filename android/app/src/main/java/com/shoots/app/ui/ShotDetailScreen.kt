@@ -451,6 +451,25 @@ private fun AnalysisDisclosure(
                     )
                 }
 
+                if (analysis.composition.moves.isNotEmpty()) {
+                    Spacer(Modifier.height(17.dp))
+                    LabelValue(
+                        "Stored Moves",
+                        analysis.composition.moves.joinToString("\n") { move ->
+                            val challenge = move.challengesTechniqueIds
+                                .joinToString(", ") { humanLabel(it) }
+                                .takeIf { it.isNotBlank() }
+                            buildString {
+                                append("• ")
+                                append(move.what)
+                                append(" · ")
+                                append(move.warrant.replace('_', ' '))
+                                if (challenge != null) append(" · challenges $challenge")
+                            }
+                        },
+                    )
+                }
+
                 if (analysis.critique.isNotBlank() || analysis.abstained.isNotBlank()) {
                     Spacer(Modifier.height(17.dp))
                     LabelValue(

@@ -135,6 +135,8 @@ data class MoveDto(
     @SerialName("from_cells") val fromCells: List<String> = emptyList(),
     @SerialName("to_cells") val toCells: List<String> = emptyList(),
     val reason: String = "",
+    val warrant: String = "unspecified",
+    @SerialName("challenges_technique_ids") val challengesTechniqueIds: List<String> = emptyList(),
 )
 
 @Serializable

@@ -133,6 +133,20 @@ does not create a Verdict. Only a declared Reproduce Experiment can do that.
 When Evidence supports no Technique, Finding, observation, or Move, the receipt stays
 empty and the image stays clean. Shoots does not manufacture a lesson to fill the card.
 
+Composition coordinates stay neutral. A centred horizon, a subject between common
+guide lines, or a broad subject region may be deliberate, exploratory, or accidental;
+the numbers alone cannot decide. Shoots may show the coordinate under a selected guide
+or Experiment, but new Analysis does not turn it into a Finding. Existing historical
+records remain inspectable. A slow shutter is likewise reported as camera-shake risk,
+not proof that every soft edge came from shake.
+
+The receipt excludes a Move whose only warrant is guide conformity and a Move that
+undoes its strongest corroborated Technique. Those alternatives remain visible in
+full Analysis and may become Explore Variations. `motion_blur` names the neutral
+visible relationship where a stable anchor stays sharp while another region streaks;
+it does not claim the Photographer intended the effect or pretend it knows whether
+the camera was panned, moved through the Scene, or used another method.
+
 ## First Shoot receipt
 
 The deterministic v1 receipt contains:

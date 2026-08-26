@@ -386,13 +386,21 @@ TECHNIQUES: tuple[Technique, ...] = (
         exif={"shutter_max_s": 1 / 500},
     ),
     _t(
+        "motion_blur",
+        "Motion blur",
+        Family.EXPOSURE,
+        1,
+        "A stable anchor stays sharp while another part of the frame streaks from "
+        "relative movement; use when panning, ICM, or zoom burst cannot be settled.",
+    ),
+    _t(
         "panning",
         "Panning",
         Family.EXPOSURE,
         2,
         "Moving subject sharp, background streaked horizontally from following it.",
         exif={"shutter_min_s": 1 / 125, "shutter_max_s": 1 / 8},
-        requires=("freeze_action",),
+        requires=("motion_blur",),
     ),
     _t(
         "long_exposure",
@@ -436,7 +444,7 @@ TECHNIQUES: tuple[Technique, ...] = (
         3,
         "The whole frame is painterly blur from moving the camera during a slow exposure.",
         exif={"shutter_min_s": 1 / 8},
-        requires=("panning",),
+        requires=("motion_blur",),
     ),
     _t(
         "zoom_burst",

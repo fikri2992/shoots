@@ -68,14 +68,14 @@ flowchart LR
 | 5 | complete | Remember whether help mattered | Intervention Record from offer through observable outcome | Offered is not entered, unmet Criteria is not a bad Shot, and repeated comparable unchanged outcomes affect later automatic routing |
 | 6 | complete | Leave something the Photographer can use or share | Shoot receipt, Journey comparison, and evidence-bound Deconstruction | Artifacts cite stored Evidence, label model reads, preserve uncertainty, and never auto-post |
 | 7 | complete | Teach one Shot without an essay | One image-led Shot Teaching Receipt | Keep, Notice, Try, and Check agree with one visible image layer; camera or subject action outranks crop salvage; no raw cells or quality score |
-| 8 | next | Measure real agent quality | Versioned labelled corpus report from real Gemini calls | Useful claims, false positives, unsupported confidence, abstentions, annotation precision, and prompt/model versions are recorded |
+| 8 | complete | Measure real agent quality | Versioned labelled corpus report from real Gemini calls | Eleven cases produced 180 automatic passes, zero failures, 12 explicit review questions, and no errors; developer review accepted each receipt against the locked hobbyist perspective |
 | 9 | approval-gated | Prove the continuous workflow on Google Cloud | Exact deployed revision plus durable Run, Shoot, Scout, Experiment, and Intervention records | One phone-originated workflow completes without manual upload or hidden repair; retries remain idempotent |
 | 10 | approval-gated | Prove daily phone use | Xiaomi acceptance record and signed internal APK | Background import, process death, offline cache, selected-only access, Experiment capture, revoke, and cleanup behave honestly |
 | 11 | pending | Package undeniable proof | Architecture diagram, setup guide, four-minute video, screenshots, and Devpost entry | Starts after phases 9 and 10; a judge can see an unedited action, inspect the state changes, and reproduce setup |
 
 ## Phase 7: finish the Shot Teaching Receipt
 
-This phase passed its complete local gate on 2026-08-27. Phase 8 is next.
+This phase passed its complete local gate on 2026-08-27.
 
 ### Build
 
@@ -117,6 +117,9 @@ This phase passed its complete local gate on 2026-08-27. Phase 8 is next.
 This phase decides whether Shoots teaches well enough to show. It is not a prompt
 beautification exercise.
 
+Status: complete locally on 2026-08-27. Phase 9 is the next gate and requires
+explicit Cloud deployment approval.
+
 ### Corpus
 
 Use a small labelled set that includes:
@@ -155,6 +158,23 @@ class. Do not tune the product around one impressive or embarrassing Shot.
 - The receipt gives a specific action only when its Evidence supports one.
 - Abstention and silence remain valid outcomes.
 - The saved report makes regressions visible across prompt or model versions.
+
+### Accepted result
+
+- 11 still-Shot cases: six ordinary phone Shots and five deliberate-control cases.
+- Real `gemini-3.7-flash` calls on Vertex AI, one prompt digest across the run.
+- 180 automatic checks passed, zero failed, 12 stayed explicit human-review
+  questions, and no case errored.
+- Developer review accepted every receipt against the locked hobbyist perspective.
+- The run exposed and fixed composition-rule Findings, contradictory Moves,
+  guide-only correction, stacked annotations, leaked grid grammar, and a missing
+  neutral Motion blur Technique.
+- Mean pipeline latency was 39.8 seconds and the slowest case was 53.6 seconds.
+  This remains a product limit and is why the workflow runs in the background.
+
+The ignored local report is private because it contains local media paths. Its
+SHA-256 is `5c161d5c760345e900a3b4b8307e4b90ca771c6958d794d1adc81c2b8bb1f4e3`;
+the public example manifest documents the schema without publishing the corpus.
 
 ### Commit boundary
 
@@ -233,7 +253,7 @@ Required artifacts:
 
 ## Parallel work
 
-These may proceed while Phase 8 is running, but they cannot change the core contracts:
+These may proceed before Cloud approval, but they cannot change the core contracts:
 
 - OAuth, Firebase, signing, and Cloud credential setup;
 - architecture diagram and video outline;
@@ -261,11 +281,10 @@ chance of proving the work already built.
 
 ## Commit sequence from the current branch
 
-1. `Unify the Shot teaching receipt`
-2. `Add the real-agent quality gate`
-3. Narrow fixes found by Cloud acceptance, one failure class per commit
-4. Narrow fixes found by Xiaomi acceptance, one failure class per commit
-5. `Prepare the submission proof`
+1. `Add the real-agent quality gate`
+2. Narrow fixes found by Cloud acceptance, one failure class per commit
+3. Narrow fixes found by Xiaomi acceptance, one failure class per commit
+4. `Prepare the submission proof`
 
 No commit, push, deployment, account mutation, or public submission is authorized by
 this document. Each still requires the user's explicit request.

@@ -427,6 +427,16 @@ class MoveKind(StrEnum):
     CAMERA = "camera"  # stand somewhere else: words, no mark on the frame
 
 
+class MoveWarrant(StrEnum):
+    UNSPECIFIED = "unspecified"
+    VISIBLE_CONFLICT = "visible_conflict"
+    SUBJECT_SEPARATION = "subject_separation"
+    FRAME_EDGE = "frame_edge"
+    LIGHT = "light"
+    GUIDE = "guide"
+    VARIATION = "variation"
+
+
 class Move(BaseModel):
     """One concrete change to the frame."""
 
@@ -435,6 +445,8 @@ class Move(BaseModel):
     from_cells: list[str] = Field(default_factory=list)
     to_cells: list[str] = Field(default_factory=list)
     reason: str = ""
+    warrant: MoveWarrant = MoveWarrant.UNSPECIFIED
+    challenges_technique_ids: list[str] = Field(default_factory=list)
 
 
 class Composition(BaseModel):

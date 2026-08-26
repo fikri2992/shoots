@@ -337,7 +337,12 @@ export default {
                 <ul class="space-y-4">
                   <li v-for="(move, i) in otherMoves" :key="i">
                     <p class="t-body text-paper">{{ move.what }}</p>
-                    <p class="mt-1 t-meta">{{ kindLabel(move.kind) }} · {{ reason(move) }}</p>
+                    <p class="mt-1 t-meta">
+                      {{ kindLabel(move.kind) }} · {{ (move.warrant || 'unspecified').replace(/_/g, ' ') }} · {{ reason(move) }}
+                    </p>
+                    <p v-if="move.challenges_technique_ids?.length" class="mt-1 t-meta text-accent">
+                      Alternative challenges {{ move.challenges_technique_ids.map((id) => id.replace(/_/g, ' ')).join(', ') }}
+                    </p>
                   </li>
                 </ul>
               </DisclosureRow>

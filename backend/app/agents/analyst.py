@@ -27,12 +27,23 @@ from app.domain.entities import (
     Exif,
     Move,
     MoveKind,
+    MoveWarrant,
     Shot,
     VideoMeta,
 )
 from app.domain.grid import Grid
 
 logger = logging.getLogger(__name__)
+
+_GUIDE_LANGUAGE = (
+    "third",
+    "phi line",
+    "phi point",
+    "golden spiral",
+    "centre line",
+    "center line",
+    "guide intersection",
+)
 
 ANALYST_PROMPTS = ("technician", "composer", "storyteller", "synthesizer")
 
@@ -54,7 +65,16 @@ class MoveOut(BaseModel):
     kind: Literal["move", "crop", "camera"]
     from_cells: list[str] = Field(default_factory=list)
     to_cells: list[str] = Field(default_factory=list)
-    reason: str = ""
+    reason: str = Field(min_length=12)
+    warrant: Literal[
+        "visible_conflict",
+        "subject_separation",
+        "frame_edge",
+        "light",
+        "guide",
+        "variation",
+    ]
+    challenges_technique_ids: list[str] = Field(default_factory=list)
 
 
 class CompositionOut(BaseModel):
@@ -359,7 +379,7 @@ def lens_read(shot: Shot, lens: str, raw: LensOut) -> panel.LensRead:
                 technique_id=tid,
                 confidence=max(0.0, min(1.0, item.confidence)),
                 cells=tuple(_cells(grid, item.cells)),
-                note=item.note.strip()[:300],
+                note=_clip(item.note, 300),
             )
         )
     elements = {
@@ -367,7 +387,7 @@ def lens_read(shot: Shot, lens: str, raw: LensOut) -> panel.LensRead:
         for k, v in raw.elements.model_dump().items()
         if k in panel.LENS_ELEMENTS.get(lens, ()) and v is not None
     }
-    observations = [" ".join(o.split())[:240] for o in raw.observations if o.strip()][:6]
+    observations = [_clip(o, 240) for o in raw.observations if o.strip()][:6]
     return panel.LensRead(
         lens=lens, sightings=sightings, elements=elements, observations=observations
     )
@@ -451,7 +471,7 @@ def validate(shot: Shot, result: PanelResult) -> Analysis:
         ),
         findings=found,
         observations=consensus.observations,
-        critique=critique[:2000],
+        critique=_clip(critique, 2000),
         panel={lens: round(result.latency.get(lens, 0.0), 1) for lens in result.reads},
         dissent=[
             {"lens": lens, "technique_id": tid, "confidence": round(conf, 2)}
@@ -476,7 +496,7 @@ def _moves(grid: Grid, raw: CompositionOut) -> list[Move]:
     """
     out: list[Move] = []
     for raw_move in raw.moves[:3]:
-        what = raw_move.what.strip()[:80]
+        what = _clip(raw_move.what, 80)
         if not what:
             continue
         kind = MoveKind(raw_move.kind)
@@ -485,7 +505,15 @@ def _moves(grid: Grid, raw: CompositionOut) -> list[Move]:
             kind=kind,
             from_cells=_cells(grid, raw_move.from_cells),
             to_cells=_cells(grid, raw_move.to_cells),
-            reason=raw_move.reason.strip()[:300],
+            reason=_clip(raw_move.reason, 300),
+            warrant=_audited_warrant(raw_move),
+            challenges_technique_ids=list(
+                dict.fromkeys(
+                    technique_id.strip().lower()
+                    for technique_id in raw_move.challenges_technique_ids
+                    if technique_id.strip().lower() in taxonomy.BY_ID
+                )
+            ),
         )
         if kind is MoveKind.CAMERA:
             move.from_cells = []
@@ -516,6 +544,23 @@ def _subject_point(
         and box.top / grid.height <= y <= box.bottom / grid.height
     )
     return (round(x, 4), round(y, 4)) if inside else (None, None)
+
+
+def _clip(text: str, limit: int) -> str:
+    """Bound model copy without cutting the last word into a false instruction."""
+    clean = " ".join(text.split())
+    if len(clean) <= limit:
+        return clean
+    clipped = clean[: limit + 1].rsplit(" ", 1)[0].rstrip(" ,;:")
+    return f"{clipped}..." if clipped else clean[:limit]
+
+
+def _audited_warrant(raw_move: MoveOut) -> MoveWarrant:
+    """Explicit guide language cannot wear a stronger corrective warrant."""
+    copy = f"{raw_move.what} {raw_move.reason}".lower()
+    if any(marker in copy for marker in _GUIDE_LANGUAGE):
+        return MoveWarrant.GUIDE
+    return MoveWarrant(raw_move.warrant)
 
 
 def _cells(grid: Grid, refs: list[str]) -> list[str]:

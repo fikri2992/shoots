@@ -6,12 +6,11 @@ handheld limit, so that softness is shake" teaches something; "technical: 6"
 does not. The rubric asks whether anything pulls against the frame and had no
 vocabulary for the answer. This is that vocabulary.
 
-Nothing here is asserted by a model. Every finding is computed from numbers the
-pipeline already holds — the EXIF the camera wrote, the subject point and the
-horizon row the Composer measured, the cells it named — so each one carries the
-figure that produced it and a photographer can check the claim by looking. A
-finding the arithmetic cannot settle is not raised at all: silence beats a guess
-that the frame disproves.
+Nothing here is asserted by a model. Every active Finding is computed from a
+measurement whose scope reaches the claim. Subject position, horizon position,
+and subject-area share remain useful composition Evidence, but arithmetic cannot
+turn them into proof that a framing decision was accidental or wrong. Silence
+beats a convention wearing the label "measured".
 
 Each finding is also excused by intent. A two-second exposure is not camera shake
 when the frame is a light trail, and a subject filling the frame is not a
@@ -32,21 +31,34 @@ NO_CENTRE_OF_INTEREST = "no_centre_of_interest"
 BLOWN_HIGHLIGHTS = "blown_highlights"
 COLOUR_CAST = "colour_cast"
 
-#: Every finding, with the short name a chip shows. The list is closed, like the
-#: technique catalogue: a finding that is not here cannot be reported.
-FINDINGS: dict[str, str] = {
-    CAMERA_SHAKE: "Camera shake",
-    OFF_GUIDE_SUBJECT: "Subject off every line",
-    SPLIT_HORIZON: "Horizon splits the frame",
-    NO_CENTRE_OF_INTEREST: "No single centre of interest",
+#: Active Findings new Analysis may emit.
+ACTIVE_FINDINGS: dict[str, str] = {
+    CAMERA_SHAKE: "Camera shake risk",
     BLOWN_HIGHLIGHTS: "Highlights blown to white",
-    COLOUR_CAST: "Uncorrected colour cast",
+    COLOUR_CAST: "Strong colour cast",
 }
+#: Kept only so older Analysis remains readable. New detection never emits these.
+LEGACY_FINDINGS: dict[str, str] = {
+    OFF_GUIDE_SUBJECT: "Subject placement",
+    SPLIT_HORIZON: "Centred horizon",
+    NO_CENTRE_OF_INTEREST: "Broad subject area",
+}
+#: Display catalogue across current and historical records.
+FINDINGS: dict[str, str] = {**ACTIVE_FINDINGS, **LEGACY_FINDINGS}
 
 #: Techniques whose whole point is a shutter below the handheld limit. On these
 #: the blur is the photograph, so shake is never reported.
 DELIBERATE_BLUR: frozenset[str] = frozenset(
-    {"long_exposure", "light_trails", "panning", "icm", "zoom_burst", "astro", "light_painting"}
+    {
+        "motion_blur",
+        "long_exposure",
+        "light_trails",
+        "panning",
+        "icm",
+        "zoom_burst",
+        "astro",
+        "light_painting",
+    }
 )
 #: ... and the technique that says the camera was not in the photographer's hands.
 BRACED: frozenset[str] = frozenset({"static_tripod"})
@@ -127,7 +139,7 @@ def _shake(exif: Exif, seen: set[str]) -> Finding | None:
     limit = exposure.shutter_text(derived.handheld_limit_s or 0.0)
     return Finding(
         finding_id=CAMERA_SHAKE,
-        what="Any softness here is camera shake, not missed focus.",
+        what="This shutter speed raises the risk of camera shake.",
         why=f"{exposure.shutter_text(exif.exposure_time_s)} at {focal:g} mm, "
         f"under the handheld limit of {limit}",
     )
@@ -211,8 +223,7 @@ def _cast(tone: Tone, seen: set[str]) -> Finding | None:
         return None
     return Finding(
         finding_id=COLOUR_CAST,
-        what=f"The whole frame is pulled {which}; whites are not white, and no technique "
-        "here makes that the point.",
+        what=f"The whole frame has a strong {which} cast not explained by a Technique here.",
         why=f"{tone.cct_k} K measured against {tone_rules.DAYLIGHT_K} K daylight, "
         f"past the {edge} K edge",
     )
@@ -233,12 +244,8 @@ def detect(
     frame cannot be composed out of — then the framing."""
     seen = set(technique_ids)
     measured = tone if tone is not None else Tone()
-    found = [
-        _blown(measured, seen),
-        _shake(exif, seen),
-        _cast(measured, seen),
-        _no_centre(subject_cells, grid, seen),
-        _split_horizon(horizon_row, grid),
-        _off_guide(subject_x, subject_y),
-    ]
+    # Subject extent, guide distance, and horizon position remain neutral
+    # composition Evidence. They cannot prove a mistake without Intent or an
+    # explicit Experiment, so the legacy helpers above are not called.
+    found = [_blown(measured, seen), _shake(exif, seen), _cast(measured, seen)]
     return [finding for finding in found if finding is not None]

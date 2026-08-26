@@ -1,0 +1,74 @@
+{
+  "name": "Shoots learning quality example",
+  "cases": [
+    {
+      "id": "ordinary_walk",
+      "path": "images/ordinary-walk.jpg",
+      "note": "An ordinary phone Shot with no preselected lesson.",
+      "expectations": {
+        "allow_abstention": true,
+        "human_review": [
+          "Does the receipt name something visible and useful without forcing a problem?"
+        ]
+      }
+    },
+    {
+      "id": "weak_handheld",
+      "path": "images/weak-handheld.jpg",
+      "note": "A slow handheld exposure with a visible learning opportunity.",
+      "expectations": {
+        "required_findings": ["camera_shake"],
+        "acceptable_move_kinds": ["camera", "move"],
+        "acceptable_primary_layers": ["clean", "guide"],
+        "allow_abstention": true,
+        "require_action": true,
+        "human_review": [
+          "Does Try teach the next capture instead of merely proposing a crop?"
+        ]
+      }
+    },
+    {
+      "id": "deliberate_silhouette",
+      "path": "images/deliberate-silhouette.jpg",
+      "note": "A deliberate dark subject against a bright background.",
+      "expectations": {
+        "required_any_techniques": [["silhouette", "backlight"]],
+        "forbidden_findings": ["blown_highlights"],
+        "forbidden_move_kinds": ["crop"],
+        "allow_abstention": false,
+        "human_review": [
+          "Does the read respect the deliberate silhouette instead of correcting it toward average exposure?"
+        ]
+      }
+    },
+    {
+      "id": "strong_portrait",
+      "path": "images/strong-portrait.jpg",
+      "note": "A successful stylized portrait where praise or silence is preferable to generic repair.",
+      "expectations": {
+        "required_any_techniques": [["low_key", "chiaroscuro", "centre_composition"]],
+        "forbidden_findings": ["no_centre_of_interest"],
+        "forbidden_move_phrases": ["replace the low key", "flatten the contrast"],
+        "allow_abstention": false,
+        "expected_subject_box": [0.2, 0.1, 0.85, 0.9],
+        "minimum_subject_iou": 0.2,
+        "human_review": [
+          "Does Keep lead with the portrait's actual strength?",
+          "If Try appears, is it optional refinement rather than a claim that the Shot failed?"
+        ]
+      }
+    },
+    {
+      "id": "ambiguous_frame",
+      "path": "images/ambiguous-frame.jpg",
+      "note": "A frame where independent readers may reasonably disagree.",
+      "expectations": {
+        "allow_abstention": true,
+        "acceptable_primary_layers": ["clean", "guide"],
+        "human_review": [
+          "If the lenses disagree, does Shoots abstain or stay quiet instead of averaging them into certainty?"
+        ]
+      }
+    }
+  ]
+}

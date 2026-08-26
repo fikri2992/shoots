@@ -28,6 +28,7 @@ backend/static/
 eval/output/
 eval/images/**/*
 !eval/images/**/.gitkeep
+eval/*.local.json
 
 # OS
 Thumbs.db

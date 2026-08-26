@@ -58,5 +58,20 @@ def test_the_subject_point_is_drawn_where_the_lens_put_it():
     assert out.getpixel((200, 600)) != frame().getpixel((200, 600))
 
 
+def test_selected_guide_layer_does_not_stack_the_available_crop():
+    composition = Composition(
+        guide="thirds",
+        subject_x=0.5,
+        subject_y=0.5,
+        suggested_crop_cells=["C3", "F6"],
+    )
+    guide_only = render_overlay(frame(), SPEC, composition, layer="guide")
+    action_only = render_overlay(frame(), SPEC, composition, layer="action")
+
+    assert guide_only.getpixel((20, 20)) == frame().getpixel((20, 20))
+    assert action_only.getpixel((20, 20)) != frame().getpixel((20, 20))
+    assert guide_only.getpixel((267, 400)) != frame().getpixel((267, 400))
+
+
 def _lift(pixel: tuple[int, int, int], base: tuple[int, int, int]) -> int:
     return sum(abs(a - b) for a, b in zip(pixel, base, strict=True))

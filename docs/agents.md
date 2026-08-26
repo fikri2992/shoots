@@ -42,6 +42,11 @@ the source for the submission architecture diagram.
    pure code selects the strongest corroborated Technique, one measured Finding or
    labelled observation, one next-capture Move, one observable Check, and one image
    layer. It adds no model call and cannot upgrade opinion into measurement.
+9. **Agent quality is tested against real media and real model calls.** The quality
+   gate records model and prompt versions, input digests, latency, structured output,
+   rendered artifacts, declared checks, and questions that still need a person. A
+   deterministic receipt change may re-project the same saved Analysis, but the report
+   records the source-report digest and never calls that a new model run.
 
 ## Current topology
 
@@ -190,7 +195,7 @@ Not ADK, on purpose:
 | agent | kind | input | returns (`output_key`) | called from | notes |
 |---|---|---|---|---|---|
 | `technician` | lens, `LlmAgent` | EXIF facts + exposure arithmetic + gridded frame | `TechnicianOut` (`technician`) | Analyst panel | owns exposure/lens/video families |
-| `composer` | lens | gridded frame only | `ComposerOut` (`composer`): techniques, moves with `kind`, subject cells + `subject_x/y`, crop | Analyst panel | owns composition family |
+| `composer` | lens | gridded frame only | `ComposerOut` (`composer`): Techniques, Moves with kind, warrant, challenged Technique ids, reason and cells, subject cells + `subject_x/y`, crop | Analyst panel | owns composition family; code rejects guide-only correction and advice that undoes the strongest supported Technique |
 | `storyteller` | lens | clean frame only | `StorytellerOut` (`storyteller`) | Analyst panel | owns light/colour/story families |
 | `synthesizer` | `LlmAgent` | the three readings from state | `SynthesisOut` (`synthesis`): critique | Analyst, after the panel | never sees the image; reader rubric values stay transient |
 | `scrub` | lens, video only | two exact frames pulled by ffmpeg at the Composer's timestamps | `ScrubOut` (`scrub`) | Analyst stage, after the panel | fourth vote on camera-move techniques; rates no elements |

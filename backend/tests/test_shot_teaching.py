@@ -64,6 +64,10 @@ async def test_teaching_receipt_unifies_keep_notice_try_and_visible_check():
                     why="1/15 s is below the handheld limit",
                 )
             ],
+            observations=[
+                "The child occupies cells B4 through E9.",
+                "A horizontal bamboo pole crosses cells A2 through H2 above the child.",
+            ],
             composition=Composition(
                 guide="thirds",
                 moves=[
@@ -122,6 +126,59 @@ async def test_teaching_receipt_unifies_keep_notice_try_and_visible_check():
         )
     )
     assert re.search(r"\b[A-H][1-6]\b", visible) is None
+
+
+async def test_model_notice_aligns_with_the_selected_move_and_hides_grid_language():
+    ctx = Context(store=InMemoryStore(), blobs=None, bus=InProcessBus(), drive=None, tokens=None)
+    user = User(id="aligned_user", email="aligned@example.test")
+    shot = Shot(
+        id="aligned_shot",
+        user_id=user.id,
+        kind=ShotKind.PHOTO,
+        filename="aligned.jpg",
+        mime_type="image/jpeg",
+        grid=GridSpec(cols=8, rows=6, width=800, height=600),
+    )
+    await repo.put_user(ctx.store, user)
+    await repo.put_shot(ctx.store, shot)
+    await repo.put_analysis(
+        ctx.store,
+        Analysis(
+            shot_id=shot.id,
+            user_id=user.id,
+            model="gemini-test",
+            observations=[
+                "The child occupies cells B3 through D6.",
+                "A bamboo pole runs across cells A2 through H2 in the upper third.",
+            ],
+            composition=Composition(
+                moves=[
+                    Move(
+                        what="Lower the camera below the pole",
+                        kind=MoveKind.CAMERA,
+                        reason="Keep the bamboo pole on row 2 from crossing the view.",
+                    )
+                ]
+            ),
+        ),
+    )
+    main.app.dependency_overrides[deps.get_context] = lambda: ctx
+    main.app.dependency_overrides[current_user] = lambda: {"id": user.id}
+    try:
+        with TestClient(main.app) as client:
+            response = client.get(f"/api/shots/{shot.id}")
+    finally:
+        main.app.dependency_overrides.clear()
+
+    receipt = response.json()["teaching"]
+    assert "bamboo pole" in receipt["notice_title"].lower()
+    assert "child occupies" not in receipt["notice_title"].lower()
+    assert "from across" not in receipt["notice_title"].lower()
+    assert "across across" not in receipt["notice_title"].lower()
+    assert "cell" not in receipt["notice_title"].lower()
+    assert re.search(r"\b[A-H][1-6]\b", receipt["notice_title"]) is None
+    assert "row" not in receipt["try_reason"].lower()
+    assert "the top of the frame" in receipt["try_reason"].lower()
 
 
 async def test_located_measured_finding_owns_the_default_visual_layer():
@@ -202,3 +259,64 @@ async def test_uncertain_analysis_does_not_invent_a_lesson_or_image_layer():
     assert receipt["try_text"] == ""
     assert receipt["visible_check"] == ""
     assert receipt["primary_layer"] == "clean"
+
+
+async def test_a_strong_read_does_not_turn_crop_salvage_into_homework():
+    ctx = Context(store=InMemoryStore(), blobs=None, bus=InProcessBus(), drive=None, tokens=None)
+    user = User(id="strong_user", email="strong@example.test")
+    shot = Shot(
+        id="strong_shot",
+        user_id=user.id,
+        kind=ShotKind.PHOTO,
+        filename="strong.jpg",
+        mime_type="image/jpeg",
+        grid=GridSpec(cols=8, rows=6, width=800, height=600),
+    )
+    await repo.put_user(ctx.store, user)
+    await repo.put_shot(ctx.store, shot)
+    await repo.put_analysis(
+        ctx.store,
+        Analysis(
+            shot_id=shot.id,
+            user_id=user.id,
+            model="gemini-test",
+            techniques=[
+                TechniqueEvidence(
+                    technique_id="silhouette",
+                    confidence=0.92,
+                    agreement=2,
+                    note="The subject reads as a clean dark shape against the sky.",
+                )
+            ],
+            composition=Composition(
+                guide="centre",
+                moves=[
+                    Move(
+                        what="Raise exposure until the silhouette becomes a normal portrait",
+                        kind=MoveKind.CAMERA,
+                        reason="Replace the silhouette with visible facial detail.",
+                        challenges_technique_ids=["silhouette"],
+                    ),
+                    Move(
+                        what="Crop the subject off centre",
+                        kind=MoveKind.CROP,
+                        to_cells=["B1", "H6"],
+                        reason="Make the placement follow a common guide.",
+                    )
+                ],
+            ),
+        ),
+    )
+    main.app.dependency_overrides[deps.get_context] = lambda: ctx
+    main.app.dependency_overrides[current_user] = lambda: {"id": user.id}
+    try:
+        with TestClient(main.app) as client:
+            response = client.get(f"/api/shots/{shot.id}")
+    finally:
+        main.app.dependency_overrides.clear()
+
+    receipt = response.json()["teaching"]
+    assert receipt["keep_technique_id"] == "silhouette"
+    assert receipt["try_text"] == ""
+    assert receipt["visible_check"] == ""
+    assert receipt["primary_layer"] == "guide"

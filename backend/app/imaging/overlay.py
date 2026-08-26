@@ -1,6 +1,7 @@
-"""Draw the read on a frame, the way a photographer reads a frame.
+"""Draw one selected read layer on a frame.
 
-Three layers, in this order and in this order of loudness:
+The renderer can draw one layer for the teaching receipt or all layers for a
+legacy audit view:
 
 1. **Guide** — thirds, phi, the diagonal method, a centre axis: thin, dim,
    unlabelled. Chosen by the technique the panel agreed on (``domain/guides``),
@@ -34,34 +35,49 @@ GUIDE_ALPHA = 90
 PHI = 0.382  # 1 : 0.618 : 1, as a fraction of the whole
 
 
-def render_overlay(image: Image.Image, spec: GridSpec, composition: Composition) -> Image.Image:
+def render_overlay(
+    image: Image.Image,
+    spec: GridSpec,
+    composition: Composition,
+    layer: str = "all",
+) -> Image.Image:
     out = image.convert("RGB").copy()
     grid = Grid(cols=spec.cols, rows=spec.rows, width=out.width, height=out.height)
     draw = ImageDraw.Draw(out, "RGBA")
     stroke = max(2, round(min(out.size) / 300))
     font = font_for(max(14, round(min(out.size) / 45)))
 
-    _draw_guide(draw, out.size, composition.guide or guides.FALLBACK, stroke)
-    _draw_subject_point(draw, out.size, composition, stroke)
+    if layer in {"all", "guide"}:
+        _draw_guide(draw, out.size, composition.guide or guides.FALLBACK, stroke)
+        _draw_subject_point(draw, out.size, composition, stroke)
 
-    if composition.horizon_row is not None and 1 <= composition.horizon_row <= grid.rows:
+    if (
+        layer in {"all", "finding"}
+        and composition.horizon_row is not None
+        and 1 <= composition.horizon_row <= grid.rows
+    ):
         y = round((composition.horizon_row - 0.5) * out.height / grid.rows)
         draw.line([(0, y), (out.width, y)], fill=HORIZON + (170,), width=stroke)
 
     # The subject box steps aside for a crop: two rectangles over one frame
     # read as an argument. The subject dot still says where the centre landed.
-    if composition.subject_cells and not composition.suggested_crop_cells:
+    if layer in {"all", "finding"} and composition.subject_cells and not (
+        layer == "all" and composition.suggested_crop_cells
+    ):
         box = grid.span_bounds(composition.subject_cells)
         draw.rectangle(box.as_tuple(), outline=SUBJECT + (200,), width=stroke)
 
     # One instruction, and only one: the crop if there is one, otherwise the
     # first move that is actually a move.
-    if composition.suggested_crop_cells:
+    if layer in {"all", "action"} and composition.suggested_crop_cells:
         box = grid.span_bounds(composition.suggested_crop_cells)
         _dim_outside(out, box)
         draw = ImageDraw.Draw(out, "RGBA")
         draw.rectangle(box.as_tuple(), outline=CROP + (230,), width=stroke)
         draw_outlined_text(draw, (box.left + 8, box.top + 6), "crop to here", font=font)
+        return out
+
+    if layer not in {"all", "action"}:
         return out
 
     move = next((m for m in composition.moves if m.kind is MoveKind.MOVE), None)

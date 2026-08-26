@@ -16,7 +16,7 @@ from app.agents.analyst import (
     state_for,
     validate,
 )
-from app.domain.entities import Exif, GridSpec, MoveKind, Shot, ShotKind, VideoMeta
+from app.domain.entities import Exif, GridSpec, MoveKind, MoveWarrant, Shot, ShotKind, VideoMeta
 
 PHOTO = Shot(
     id="s1",
@@ -56,13 +56,37 @@ def panel_result() -> PanelResult:
             horizon_row=12,
             moves=[
                 MoveOut(
-                    what="subject", kind="move", from_cells=["D4"], to_cells=["C3"], reason="thirds"
+                    what="subject",
+                    kind="move",
+                    from_cells=["D4"],
+                    to_cells=["C3"],
+                    reason="Place the rider on the thirds point.",
+                    warrant="subject_separation",
                 ),
                 MoveOut(
-                    what="nothing", kind="move", from_cells=["Z1"], to_cells=["Z2"], reason="bad"
+                    what="nothing",
+                    kind="move",
+                    from_cells=["Z1"],
+                    to_cells=["Z2"],
+                    reason="These cells fall outside the grid.",
+                    warrant="visible_conflict",
                 ),
-                MoveOut(what="", kind="move", from_cells=["A1"], to_cells=["B1"]),
-                MoveOut(what="4th", kind="move", from_cells=["A1"], to_cells=["B1"]),
+                MoveOut(
+                    what="",
+                    kind="move",
+                    from_cells=["A1"],
+                    to_cells=["B1"],
+                    reason="An empty instruction must be dropped.",
+                    warrant="visible_conflict",
+                ),
+                MoveOut(
+                    what="4th",
+                    kind="move",
+                    from_cells=["A1"],
+                    to_cells=["B1"],
+                    reason="The fourth Move exceeds the stage cap.",
+                    warrant="visible_conflict",
+                ),
             ],
         ),
     )
@@ -93,6 +117,7 @@ def test_vote_cells_and_catalogue_are_enforced():
     assert analysis.composition.subject_cells == ["D4", "E5"]
     assert analysis.composition.horizon_row is None
     assert [m.what for m in analysis.composition.moves] == ["subject"]
+    assert analysis.composition.moves[0].warrant is MoveWarrant.GUIDE
     assert (
         analysis.observations[0] == "The rider at D4 is sharp." and len(analysis.observations) == 4
     )
@@ -112,6 +137,7 @@ def test_a_crop_is_never_drawn_as_an_arrow():
             from_cells=["A1", "H2"],
             to_cells=["A3", "H8"],
             reason="the pole cuts across the top",
+            warrant="visible_conflict",
         ),
         MoveOut(
             what="kneel to her eye level",
@@ -119,6 +145,7 @@ def test_a_crop_is_never_drawn_as_an_arrow():
             from_cells=["D4"],
             to_cells=["D6"],
             reason="a downward angle flattens her",
+            warrant="subject_separation",
         ),
     ]
     analysis = validate(PHOTO, result)

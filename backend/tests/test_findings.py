@@ -30,7 +30,7 @@ def test_shake_is_named_when_the_shutter_is_under_the_handheld_limit():
     (finding,) = detect(exif=exif(1 / 25))
     assert finding.finding_id == findings.CAMERA_SHAKE
     assert "1/25 s at 85 mm" in finding.why and "1/170 s" in finding.why
-    assert "not missed focus" in finding.what
+    assert "risk of camera shake" in finding.what
 
 
 def test_a_shutter_inside_the_limit_is_not_a_fault():
@@ -58,16 +58,11 @@ def test_a_subject_on_any_line_is_not_a_fault(position):
     assert detect(subject_x=position, subject_y=position) == []
 
 
-def test_a_subject_near_no_line_at_all_is_a_fault_with_its_distance():
-    # 0.86 is 0.19 from the nearest line, a third at 0.667. Nothing put it there.
-    (finding,) = detect(subject_x=0.5, subject_y=0.86)
-    assert finding.finding_id == findings.OFF_GUIDE_SUBJECT
-    assert "0.86 down" in finding.why and "a third at 0.67" in finding.why
-
-
-def test_the_worse_axis_is_the_one_reported():
-    (finding,) = detect(subject_x=0.44, subject_y=0.9)
-    assert "0.90 down" in finding.why
+def test_distance_from_a_guide_is_neutral_evidence_not_a_finding():
+    at, label, distance = findings.nearest_line(0.86)
+    assert label == "a third" and at == pytest.approx(2 / 3)
+    assert distance == pytest.approx(0.86 - 2 / 3)
+    assert detect(subject_x=0.5, subject_y=0.86) == []
 
 
 @pytest.mark.parametrize("position", [0.41, 0.44, 0.45, 0.55, 0.58, 0.71])
@@ -89,10 +84,8 @@ def test_the_tolerance_is_half_the_widest_gap_between_lines():
 # --- horizon --------------------------------------------------------------
 
 
-def test_a_horizon_on_the_middle_row_splits_the_frame():
-    (finding,) = detect(horizon_row=5)  # rows 1-9; row 5 spans 0.44 to 0.56
-    assert finding.finding_id == findings.SPLIT_HORIZON
-    assert "row 5 of 9" in finding.why
+def test_a_horizon_in_the_middle_is_neutral_evidence_not_a_finding():
+    assert detect(horizon_row=5) == []
 
 
 @pytest.mark.parametrize("row", [1, 3, 4, 6, 7, 9])
@@ -106,20 +99,17 @@ def test_a_horizon_row_outside_the_grid_says_nothing():
 
 def test_an_even_grid_splits_on_either_row_touching_the_middle():
     even = Grid(cols=8, rows=8, width=800, height=800)
-    assert ids(findings.detect(Exif(), even, [], [], horizon_row=4)) == {findings.SPLIT_HORIZON}
-    assert ids(findings.detect(Exif(), even, [], [], horizon_row=5)) == {findings.SPLIT_HORIZON}
+    assert findings.detect(Exif(), even, [], [], horizon_row=4) == []
+    assert findings.detect(Exif(), even, [], [], horizon_row=5) == []
     assert findings.detect(Exif(), even, [], [], horizon_row=3) == []
 
 
 # --- centre of interest ---------------------------------------------------
 
 
-def test_a_subject_over_a_third_of_the_grid_is_not_a_subject():
+def test_subject_area_share_does_not_claim_there_is_no_centre():
     cells = GRID.all_refs()[:25]  # 25 of 63
-    (finding,) = detect(subject_cells=cells, subject_x=0.5, subject_y=0.5)
-    assert finding.finding_id == findings.NO_CENTRE_OF_INTEREST
-    assert "25 of 63" in finding.why and "40%" in finding.why
-    assert finding.cells == cells
+    assert detect(subject_cells=cells, subject_x=0.5, subject_y=0.5) == []
 
 
 def test_a_third_of_the_grid_exactly_is_still_a_subject():
@@ -145,12 +135,7 @@ def test_findings_come_back_in_the_order_a_photographer_would_fix_them():
         subject_y=0.86,
         horizon_row=5,
     )
-    assert [f.finding_id for f in found] == [
-        findings.CAMERA_SHAKE,
-        findings.NO_CENTRE_OF_INTEREST,
-        findings.SPLIT_HORIZON,
-        findings.OFF_GUIDE_SUBJECT,
-    ]
+    assert [f.finding_id for f in found] == [findings.CAMERA_SHAKE]
 
 
 # --- blown highlights -----------------------------------------------------
@@ -232,8 +217,8 @@ def test_every_fault_carries_a_number_and_a_catalogue_name():
         horizon_row=5,
         tone=Tone(cct_k=8639, clipped_high=8.3),
     )
-    assert len(found) == len(findings.FINDINGS)
+    assert len(found) == len(findings.ACTIVE_FINDINGS)
     for finding in found:
-        assert finding.finding_id in findings.FINDINGS
-        assert findings.FINDINGS[finding.finding_id] and finding.what.endswith(".")
+        assert finding.finding_id in findings.ACTIVE_FINDINGS
+        assert findings.ACTIVE_FINDINGS[finding.finding_id] and finding.what.endswith(".")
         assert any(character.isdigit() for character in finding.why), finding.finding_id

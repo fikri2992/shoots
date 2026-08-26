@@ -21,6 +21,7 @@ from datetime import timedelta
 from app.agents import analyst as agent
 from app.agents import crop as crop_loop
 from app.agents import scrub as scrub_lens
+from app.domain import shot_teaching
 from app.domain.entities import ShotKind, ShotStatus, now
 from app.domain.grid import Grid
 from app.imaging import canvas, video
@@ -89,7 +90,16 @@ async def analyse(ctx: Context, message: dict) -> None:
     # own SVG; this one is for the activity feed, emails and the demo.
     base_key = SHEET if SHEET in shot.blobs else ORIGINAL
     base = canvas.load_bytes(await ctx.blobs.read(shot.blobs[base_key]))
-    annotated = render_overlay(base, shot.grid, analysis.composition)
+    receipt = shot_teaching.build(shot, analysis)
+    if receipt.primary_layer == "finding":
+        annotated = mark_findings(base, analysis.findings)
+    else:
+        annotated = render_overlay(
+            base,
+            shot.grid,
+            analysis.composition,
+            layer=receipt.primary_layer,
+        )
     shot.blobs[ANNOTATED] = await ctx.blobs.write(
         blob_path(shot.user_id, shot.id, ANNOTATED, "jpg"),
         canvas.to_jpeg_bytes(annotated),
