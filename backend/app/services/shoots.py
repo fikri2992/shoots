@@ -237,6 +237,9 @@ async def _settle_if_ready(ctx: Context, shoot: Shoot) -> ShootRecord | None:
         inputs=base_provenance.inputs,
         analysis_versions=base_provenance.analysis_versions,
     )
+    from app.services import cartographer
+
+    await cartographer.rebuild(ctx, shoot.user_id)
     scout_decision = await shoot_scout.decide(ctx, shoot, receipt)
     record = await repo.put_shoot_record_once(
         ctx.store,

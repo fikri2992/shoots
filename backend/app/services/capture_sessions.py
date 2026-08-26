@@ -106,6 +106,9 @@ async def record_judge_outcome(
         },
         experiment_id=session.experiment_id,
     )
+    from app.services import cartographer
+
+    await cartographer.rebuild(ctx, session.user_id)
     if completed_now:
         await repo.release_open_experiment(ctx.store, session.user_id, experiment.id)
         await ctx.bus.publish(

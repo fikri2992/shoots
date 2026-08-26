@@ -258,13 +258,51 @@ private fun TechniqueView(snapshot: MobileSnapshotDto) {
                         StatusPill(technique.status)
                     }
                     Spacer(Modifier.height(6.dp))
-                    Text("${technique.attempts} observed · ${technique.corroborated} corroborated", color = MutedWhite, fontSize = 12.sp)
+                    Text(
+                        "${technique.sightings} sightings · " +
+                            "${technique.corroboratedShots} corroborated Shots",
+                        color = MutedWhite,
+                        fontSize = 12.sp,
+                    )
+                    if (technique.distinctScenes > 0 || technique.distinctShoots > 0) {
+                        Spacer(Modifier.height(4.dp))
+                        Text(
+                            "${technique.distinctScenes} ${counted(technique.distinctScenes, "Scene")} · " +
+                                "${technique.distinctShoots} ${counted(technique.distinctShoots, "Shoot")}",
+                            color = MutedWhite,
+                            fontSize = 12.sp,
+                        )
+                    }
+                    if (
+                        technique.reproduceAttempts > 0 ||
+                        technique.criteriaMetResults > 0 ||
+                        technique.abstentions > 0
+                    ) {
+                        Spacer(Modifier.height(4.dp))
+                        Text(
+                            "${technique.reproduceAttempts} Reproduce results · " +
+                                "${technique.criteriaMetResults} Criteria met · " +
+                                "${technique.abstentions} ${counted(technique.abstentions, "abstention")}",
+                            color = MutedWhite,
+                            fontSize = 12.sp,
+                        )
+                    }
+                    if (technique.positiveKeeperShots > 0) {
+                        Spacer(Modifier.height(4.dp))
+                        Text(
+                            "${technique.positiveKeeperShots} marked Keepers",
+                            color = MutedWhite,
+                            fontSize = 12.sp,
+                        )
+                    }
                 }
                 Spacer(Modifier.height(8.dp))
             }
         }
     }
 }
+
+private fun counted(count: Int, noun: String): String = if (count == 1) noun else "${noun}s"
 
 @Composable
 private fun ExperimentHero(

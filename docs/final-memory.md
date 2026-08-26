@@ -26,7 +26,7 @@ personality profile, or a score.
 |---|---|---|
 | Shot | Stable source reference, original, measurements, Analysis, model and prompt provenance | Keep |
 | Run | Durable stage account for one Shot | Keep as the only per-Shot terminal authority |
-| Technique Map | `TechniqueState` sightings, corroboration, status, recent Shot ids | Add separate Scene, Shoot, Experiment, condition, and positive Keeper figures |
+| Technique Map | Rebuildable projection with separate sightings, corroborated Shots, Scene/Shoot coverage, Reproduce results, Criteria outcomes, abstentions, and positive Keeper figures | Add supported condition coverage after reliable inputs exist |
 | Tendency Profile | Rebuilt from the complete readable archive under `CALC_VERSION` | Rebuild from authoritative evidence; cache only with an input digest |
 | Keeper | Positive `kept_at`; unmarked means unknown | Keep |
 | Intent | No persisted input | Add explicit scoped Intent |

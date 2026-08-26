@@ -390,6 +390,17 @@ data class TechniqueNodeDto(
     val status: String,
     val attempts: Int,
     val corroborated: Int,
+    val sightings: Int = attempts,
+    @SerialName("corroborated_shots") val corroboratedShots: Int = corroborated,
+    @SerialName("distinct_scenes") val distinctScenes: Int = 0,
+    @SerialName("distinct_shoots") val distinctShoots: Int = 0,
+    @SerialName("reproduce_attempts") val reproduceAttempts: Int = 0,
+    @SerialName("criteria_met_results") val criteriaMetResults: Int = 0,
+    val abstentions: Int = 0,
+    @SerialName("positive_keeper_shots") val positiveKeeperShots: Int = 0,
+    @SerialName("supported_condition_coverage") val supportedConditionCoverage: Map<String, Int> = emptyMap(),
+    @SerialName("projection_version") val projectionVersion: String = "",
+    @SerialName("input_digest") val inputDigest: String = "",
     @SerialName("last_observed") val lastObserved: String? = null,
 )
 

@@ -623,7 +623,7 @@ async def find_capture_session(store: Store, session_id: str) -> CaptureSession 
 
 
 async def list_capture_sessions(
-    store: Store, user_id: str, limit: int = 20
+    store: Store, user_id: str, limit: int | None = 20
 ) -> list[CaptureSession]:
     rows = await store.query(
         CAPTURE_SESSIONS,

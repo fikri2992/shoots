@@ -6,7 +6,7 @@ from pydantic import BaseModel
 from app.api.auth import current_user
 from app.api.deps import get_context
 from app.domain import taxonomy
-from app.domain.entities import Experiment, TechniqueStatus
+from app.domain.entities import Experiment, TechniqueState, TechniqueStatus
 from app.infra import repository as repo
 from app.services import scout
 from app.services.context import Context
@@ -22,6 +22,17 @@ class TechniqueNode(BaseModel):
     attempts: int
     #: How many of those more than one lens saw and meant.
     corroborated: int
+    sightings: int
+    corroborated_shots: int
+    distinct_scenes: int
+    distinct_shoots: int
+    reproduce_attempts: int
+    criteria_met_results: int
+    abstentions: int
+    positive_keeper_shots: int
+    supported_condition_coverage: dict[str, int]
+    projection_version: str
+    input_digest: str
     last_observed: str | None
 
 
@@ -41,7 +52,7 @@ async def technique_map(
     }
     nodes = []
     for technique_id, state in sorted(states.items()):
-        if state.status is TechniqueStatus.UNOBSERVED or state.attempts <= 0:
+        if not _has_evidence(state):
             continue
         technique = taxonomy.BY_ID.get(technique_id)
         if technique is None:
@@ -54,10 +65,37 @@ async def technique_map(
                 status=state.status,
                 attempts=state.attempts,
                 corroborated=state.corroborated,
+                sightings=state.sightings,
+                corroborated_shots=state.corroborated_shots,
+                distinct_scenes=state.distinct_scenes,
+                distinct_shoots=state.distinct_shoots,
+                reproduce_attempts=state.reproduce_attempts,
+                criteria_met_results=state.criteria_met_results,
+                abstentions=state.abstentions,
+                positive_keeper_shots=state.positive_keeper_shots,
+                supported_condition_coverage=state.supported_condition_coverage,
+                projection_version=state.projection_version,
+                input_digest=state.input_digest,
                 last_observed=state.last_observed.isoformat() if state.last_observed else None,
             )
         )
     return nodes
+
+
+def _has_evidence(state: TechniqueState) -> bool:
+    """Keep deliberate Experiment history visible even after current sightings retract."""
+    return any(
+        (
+            state.sightings,
+            state.corroborated_shots,
+            state.distinct_scenes,
+            state.distinct_shoots,
+            state.reproduce_attempts,
+            state.criteria_met_results,
+            state.abstentions,
+            state.positive_keeper_shots,
+        )
+    ) or bool(state.supported_condition_coverage)
 
 
 @router.post("/techniques/rebuild")
@@ -70,14 +108,11 @@ async def rebuild_technique_map(
     the model produces evidence, only the rules move the map."""
     from app.services import cartographer
 
-    shots = await repo.list_shots(ctx.store, session_user["id"])
-    applied = 0
-    for shot in shots:
-        if shot.status.value == "analyzed":
-            await cartographer.update(ctx, {"shot_id": shot.id})
-            applied += 1
-    states = await repo.list_technique_states(ctx.store, session_user["id"])
-    return {"shots_applied": applied, "techniques": len(states)}
+    states = await cartographer.rebuild(ctx, session_user["id"])
+    return {
+        "shots_applied": len(await repo.list_analyses(ctx.store, session_user["id"])),
+        "techniques": len(states),
+    }
 
 
 @router.get("/experiments", response_model=list[Experiment])

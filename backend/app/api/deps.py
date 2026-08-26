@@ -174,6 +174,7 @@ def wire(ctx: Context) -> None:
             await runs.completed(ctx, message["shot_id"], RunStage.SCOUT, outcome)
 
     async def on_keeper_changed(message: dict) -> None:
+        await cartographer.rebuild(ctx, message["user_id"])
         if message.get("keeper"):
             await scout.issue(ctx, message["user_id"])
 

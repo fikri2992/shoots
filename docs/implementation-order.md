@@ -457,34 +457,39 @@ Use these boundaries unless a verified dependency requires a smaller commit:
 Each commit keeps existing tests and build gates green. Do not mix Drive work, visual
 polish, or unrelated documentation into these commits.
 
-## Work deliberately deferred
+## Candidate-protected continuation
 
-Do not add these before the submission proof is safe:
+The accepted Shoot candidate remains untouched on `codex/shoot-record`. Further
+product work runs on an isolated continuation branch and may replace the candidate
+only after its own complete acceptance. This changes sequencing, not deployment
+authority: no branch is pushed or deployed without explicit approval.
 
-- Gemini Live or a custom camera;
-- embeddings or a vector database;
-- a model Shoot reader;
-- full Technique Map projection invalidation;
-- Photographer Scene-correction UI;
-- Listener memory migration;
-- Mine/Inspiration migration;
-- corrected Explore and Compare;
-- Deconstruction generation;
+| Order | Work | Finished artifact | Acceptance boundary |
+|---|---|---|---|
+| 1 | Full Technique Map axes and invalidation | Rebuildable per-Technique projection with independent recurrence, Scene/Shoot coverage, Reproduce, Criteria, abstention, and Keeper facts | Corrections retract unsupported current claims; Android shows facts separately; no score |
+| 2 | Photographer correction and Mine/Inspiration authority | Superseding source-role and grouping records plus deterministic invalidation | Inspiration cannot write Photographer memory; correction changes current projections without erasing history |
+| 3 | Scoped Photographer memory and Listener migration | Provenance-carrying Intent, constraint, preference, and source-role records behind one signal seam | Direct statements are attributable; inference needs confirmation; every fact can be superseded or removed |
+| 4 | Corrected Explore | Open Explore Experiment with explicit Variations and no Criteria or Verdict | The Photographer may try alternatives freely; the record shows what changed without pass/fail language |
+| 5 | Deconstruction | Image-led draft from a settled Shoot or Experiment Record | Every page cites stored Evidence; Photographer selects the cover; no invented score or automatic post |
+| 6 | Full local acceptance | One continuous emulator/backend workflow covering correction, recall, Explore, and Deconstruction | Backend, web schema if affected, Android build/lint, and full instrumentation all pass |
+| 7 | Cloud and physical acceptance | Exact deployed revision and Xiaomi evidence | Requires explicit deployment approval and production credentials |
+
+The dependency order matters. Correction follows the rebuildable projection so a
+Mine-to-Inspiration change can actually retract claims. Explore follows scoped memory
+so its Direction cannot borrow inferred Intent. Deconstruction follows settled Shoot
+and Experiment Records so it presents completed work instead of generating a new
+critique.
+
+Still deliberately later:
+
+- evidence-first Shot Move and visible-check refinement;
+- a blind Shoot reader, only if deterministic synthesis leaves measured gaps;
+- Compare and explicit preference memory;
+- a summoned Live Scene Companion;
 - broad Android visual redesign;
-- new context sources such as weather or location facts.
-
-After submission, implement the remaining memory contract in this order:
-
-1. full Technique Map evidence axes and invalidation;
-2. Photographer correction and Mine/Inspiration authority;
-3. scoped Intent and Listener migration;
-4. corrected Explore with Variation evidence;
-5. Deconstruction from Shoot and Experiment Records;
-6. evidence-first Shot Move and visible-check refinements;
-7. blind Shoot reader only if deterministic synthesis leaves measured gaps;
-8. Compare and preference memory;
-9. summoned Live Scene Companion;
-10. embeddings only after structured retrieval shows a measured need.
+- weather or location context;
+- embeddings, only after structured retrieval shows a measured need;
+- Gemini Live or a custom camera.
 
 ## Parallel work that does not block the slice
 

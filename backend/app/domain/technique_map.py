@@ -78,6 +78,8 @@ def apply_analysis(
             continue
         state.attempts += 1
         state.corroborated += corroborated(evidence)
+        state.sightings = state.attempts
+        state.corroborated_shots = state.corroborated
         state.best_confidence = max(state.best_confidence, evidence.confidence)
         state.last_observed = at
         state.shot_ids = [*state.shot_ids, analysis.shot_id][-SHOT_MEMORY:]
@@ -105,8 +107,16 @@ def normalise_state(state: TechniqueState) -> TechniqueState:
     corroboration count. The counts are the authority now: persistence may be
     legacy, but no service or surface may repeat an impossible recurrence.
     """
-    expected = _status_after_attempt(state)
-    return state if state.status is expected else state.model_copy(update={"status": expected})
+    sightings = state.sightings if state.projection_version else state.attempts
+    corroborated_shots = (
+        state.corroborated_shots if state.projection_version else state.corroborated
+    )
+    state.attempts = sightings
+    state.corroborated = corroborated_shots
+    state.sightings = sightings
+    state.corroborated_shots = corroborated_shots
+    state.status = _status_after_attempt(state)
+    return state
 
 
 def observed_ids(states: dict[str, TechniqueState]) -> set[str]:

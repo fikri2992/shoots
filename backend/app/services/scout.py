@@ -511,9 +511,10 @@ async def on_experiment_closed(ctx: Context, message: dict) -> str:
     # Judge and Cartographer consume media.analyzed independently. Judge may
     # close after Cartographer already looked for a closed Experiment, so the
     # close event owns the final check as well as the next plan.
-    await check_advice(ctx, message["user_id"])
-    from app.services import journey
+    from app.services import cartographer, journey
 
+    await cartographer.rebuild(ctx, message["user_id"])
+    await check_advice(ctx, message["user_id"])
     await journey.maybe_write(ctx, message["user_id"])
     created = await issue(ctx, message["user_id"])
     if created is not None:

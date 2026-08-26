@@ -447,6 +447,19 @@ class TechniqueState(BaseModel):
     last_observed: datetime | None = None
     #: Shot ids, newest last, capped by the Cartographer.
     shot_ids: list[str] = Field(default_factory=list)
+    #: Independent evidence axes. ``attempts`` and ``corroborated`` mirror the
+    #: first two until their legacy names finish migrating.
+    sightings: int = 0
+    corroborated_shots: int = 0
+    distinct_scenes: int = 0
+    distinct_shoots: int = 0
+    reproduce_attempts: int = 0
+    criteria_met_results: int = 0
+    abstentions: int = 0
+    positive_keeper_shots: int = 0
+    supported_condition_coverage: dict[str, int] = Field(default_factory=dict)
+    projection_version: str = ""
+    input_digest: str = ""
 
 
 # --- provenance -----------------------------------------------------------
