@@ -27,6 +27,8 @@ from app.domain.entities import (
     RunStage,
     RunStatus,
     RunStepState,
+    Scene,
+    Shoot,
     Shot,
     ShotStatus,
     TechniqueState,
@@ -45,6 +47,8 @@ EXPERIMENTS = "experiments"
 OPEN_EXPERIMENTS = "open_experiments"
 EVENTS = "events"
 RUNS = "runs"
+SCENES = "scenes"
+SHOOTS = "shoots"
 JOURNEY = "journey"
 PAIRING = "pairing_codes"
 DEVICES = "devices"
@@ -167,6 +171,53 @@ def _decode_shot_cursor(value: str) -> dict[str, str]:
     except (ValueError, UnicodeDecodeError) as exc:
         raise ValueError("Shot cursor is invalid") from exc
     return {"ingested_at": at, "id": shot_id}
+
+
+# --- scenes and shoots ----------------------------------------------------
+
+
+async def put_scene(store: Store, scene: Scene) -> None:
+    await store.put(SCENES, scene.id, _dump(scene))
+
+
+async def get_scene(store: Store, scene_id: str) -> Scene:
+    data = await store.get(SCENES, scene_id)
+    if data is None:
+        raise UnknownEntity(f"scene {scene_id}")
+    return Scene.model_validate(data)
+
+
+async def list_scenes_for_shoot(store: Store, shoot_id: str) -> list[Scene]:
+    scenes = [
+        Scene.model_validate(row) for row in await store.query(SCENES, where={"shoot_id": shoot_id})
+    ]
+    return sorted(scenes, key=lambda item: (item.started_at is None, item.started_at, item.id))
+
+
+async def find_scene_for_shot(store: Store, user_id: str, shot_id: str) -> Scene | None:
+    rows = await store.query(SCENES, where={"ordered_shot_ids": shot_id})
+    return next(
+        (scene for row in rows if (scene := Scene.model_validate(row)).user_id == user_id),
+        None,
+    )
+
+
+async def put_shoot(store: Store, shoot: Shoot) -> None:
+    await store.put(SHOOTS, shoot.id, _dump(shoot))
+
+
+async def get_shoot(store: Store, shoot_id: str) -> Shoot:
+    data = await store.get(SHOOTS, shoot_id)
+    if data is None:
+        raise UnknownEntity(f"shoot {shoot_id}")
+    return Shoot.model_validate(data)
+
+
+async def list_shoots(store: Store, user_id: str) -> list[Shoot]:
+    shoots = [
+        Shoot.model_validate(row) for row in await store.query(SHOOTS, where={"user_id": user_id})
+    ]
+    return sorted(shoots, key=lambda item: (item.started_at is None, item.started_at, item.id))
 
 
 # --- runs -----------------------------------------------------------------

@@ -732,6 +732,46 @@ class Experiment(BaseModel):
     closed_at: datetime | None = None
 
 
+# --- scenes and shoots ----------------------------------------------------
+
+
+class ShootStatus(StrEnum):
+    OPEN = "open"
+    CLOSING = "closing"
+    SETTLED = "settled"
+
+
+class Scene(BaseModel):
+    """One capture-continuous photographic situation inside a Shoot."""
+
+    id: str
+    user_id: str
+    shoot_id: str
+    grouping_revision: int = 1
+    ordered_shot_ids: list[str] = Field(default_factory=list)
+    started_at: datetime | None = None
+    ended_at: datetime | None = None
+    grouping_source: str = "capture_continuity"
+    grouping_version: str = "scene-gap-1"
+
+
+class Shoot(BaseModel):
+    """One natural period of Camera activity containing one or more Scenes."""
+
+    id: str
+    user_id: str
+    device_id: str = ""
+    status: ShootStatus = ShootStatus.OPEN
+    revision: int = 1
+    current_record_revision: int = 0
+    ordered_scene_ids: list[str] = Field(default_factory=list)
+    ordered_shot_ids: list[str] = Field(default_factory=list)
+    started_at: datetime | None = None
+    last_capture_at: datetime | None = None
+    closed_at: datetime | None = None
+    grouping_version: str = "shoot-gap-1"
+
+
 # --- audit trail ----------------------------------------------------------
 
 

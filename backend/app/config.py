@@ -65,6 +65,9 @@ class Settings(BaseSettings):
     journey_experiments_back: int = 6
     #: Maximum accepted original. Shared by Drive and direct Phone Source ingress.
     max_upload_bytes: int = 200 * 1024 * 1024
+    #: Camera inactivity that starts another natural Shoot. Scene grouping keeps
+    #: its stricter four-minute domain rule.
+    shoot_gap_minutes: int = 30
 
     # --- Model call resilience --------------------------------------------
     max_model_retries: int = 4
