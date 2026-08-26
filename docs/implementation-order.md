@@ -232,6 +232,10 @@ device, Android version, permission state, and failing stage.
 
 Stop product expansion.
 
+The recording structure, proof ledger, refused claims, redaction checklist, and
+runtime placeholders are prepared in [submission proof](submission-proof.md). They
+remain empty until the approved Cloud and Xiaomi acceptance run supplies real ids.
+
 The four-minute video should show this order:
 
 1. Personal friction: "I shoot often, but I cannot tell deliberate Technique from
