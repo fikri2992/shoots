@@ -3,7 +3,8 @@
 > Active execution order, 2026-08-26. Product authority lives in the
 > [domain model](domain-model.md). Current state lives in the
 > [feature list](feature-list.md). Memory behaviour follows the
-> [memory contract](final-memory.md).
+> [memory contract](final-memory.md). The user-facing evidence sequence lives in the
+> [learning path](learning-path.md).
 
 ## Outcome
 

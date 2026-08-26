@@ -4,7 +4,7 @@
 
 The ubiquitous language. If a word is not here, it is not a thing.
 
-The product language below was locked on 2026-08-25 and corrected from real-phone use and Shoot-level product work on 2026-08-26. Experiment, Finding, Technique Map, Change, Shot, and Run are current across code and UI. Shoot, Shoot Record, Deconstruction, corrected Explore, and persisted Inspiration are target terms that are not implemented yet. Only the legacy `skills` Firestore collection key and the migration-target class name `TechniqueState` remain. Overall and element scores are not stored. The numbered history retains old identifiers only while describing a superseded implementation; decisions 52 through 100 are the current contract wherever history conflicts.
+The product language below was locked on 2026-08-25 and corrected from real-phone use and Shoot-level product work on 2026-08-26. Experiment, Finding, Technique Map, Change, Shot, and Run are current across code and UI. Scene, Shoot, and the deterministic part of Shoot Record now exist in the backend; their client receipt and typed Scout outcome remain incomplete. Deconstruction, corrected Explore, and persisted Inspiration remain target terms. Only the legacy `skills` Firestore collection key and the migration-target class name `TechniqueState` remain. Overall and element scores are not stored. The numbered history retains old identifiers only while describing a superseded implementation; decisions 52 through 100 are the current contract wherever history conflicts.
 
 
 
@@ -28,7 +28,8 @@ Android Phone Source receives a Shot                                 (watch)
 
 capture continuity groups Shots into Scenes and one Shoot             (assemble)
   → every member Run settles or ends terminally
-  → Shoot synthesis records what repeated, varied, and became deliberate
+  → Shoot synthesis records what repeated and varied
+  → Experiment Evidence separately tests what became repeatable
   → Cartographer recomputes Profile, Technique Map, Change, and Journey
   → Scout chooses explain, ask, Explore, Reproduce, or evidenced silence
   → Scribe attempts one Deconstruction draft

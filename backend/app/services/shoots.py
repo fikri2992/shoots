@@ -1,12 +1,23 @@
 """Persist capture-continuous Scene and Shoot membership."""
 
 from dataclasses import dataclass
-from datetime import timedelta
+from datetime import datetime, timedelta
 
 from app.config import settings
+from app.domain import shoot_receipt
 from app.domain import shoots as rules
-from app.domain.entities import RunStatus, Scene, Shoot, ShootRecord, ShootStatus, new_id, now
+from app.domain.entities import (
+    Provenance,
+    RunStatus,
+    Scene,
+    Shoot,
+    ShootRecord,
+    ShootStatus,
+    new_id,
+    now,
+)
 from app.infra import repository as repo
+from app.services import profile as profile_service
 from app.services.context import Context
 
 
@@ -108,12 +119,15 @@ async def _start_revision(ctx: Context, shoot: Shoot) -> Shoot:
     return revised
 
 
-async def close_inactive(ctx: Context, at=None) -> list[str]:
+async def close_inactive(ctx: Context, at: datetime | None = None) -> list[str]:
     """Move inactive Shoots to closing and settle any whose Runs already ended."""
     at = at or now()
     cutoff = at - timedelta(minutes=settings.shoot_gap_minutes)
     changed: list[str] = []
     for shoot in await repo.list_all_shoots(ctx.store):
+        if shoot.status is ShootStatus.CLOSING:
+            await _settle_if_ready(ctx, shoot)
+            continue
         if (
             shoot.status is not ShootStatus.OPEN
             or shoot.last_capture_at is None
@@ -155,6 +169,43 @@ async def _settle_if_ready(ctx: Context, shoot: Shoot) -> ShootRecord | None:
         (run.completed_at or run.updated_at for run in runs if run is not None),
         default=now(),
     )
+    shots = [await repo.get_shot(ctx.store, shot_id) for shot_id in shoot.ordered_shot_ids]
+    member_ids = set(shoot.ordered_shot_ids)
+    analyses = [
+        analysis
+        for analysis in await repo.list_analyses(ctx.store, shoot.user_id)
+        if analysis.shot_id in member_ids
+    ]
+    scenes = [await repo.get_scene(ctx.store, scene_id) for scene_id in shoot.ordered_scene_ids]
+    current_profile = await profile_service.build_for_shots(
+        ctx,
+        shoot.user_id,
+        set(shoot.ordered_shot_ids),
+    )
+    analyzed_shot_ids = {analysis.shot_id for analysis in analyses}
+    unreadable_shot_ids = [
+        run.shot_id
+        for run in runs
+        if run is not None
+        and run.status is RunStatus.TERMINAL
+        and run.shot_id not in analyzed_shot_ids
+    ]
+    receipt = shoot_receipt.synthesize(
+        shot_ids=shoot.ordered_shot_ids,
+        scene_shot_ids=[scene.ordered_shot_ids for scene in scenes],
+        shots=shots,
+        analyses=analyses,
+        profile=current_profile,
+        unreadable_shot_ids=unreadable_shot_ids,
+    )
+    base_provenance = profile_service.provenance(current_profile)
+    provenance = Provenance(
+        shot_ids=list(shoot.ordered_shot_ids),
+        sample_size=len(shoot.ordered_shot_ids),
+        calc_version=receipt.calc_version,
+        inputs=base_provenance.inputs,
+        analysis_versions=base_provenance.analysis_versions,
+    )
     record = await repo.put_shoot_record_once(
         ctx.store,
         ShootRecord(
@@ -164,9 +215,9 @@ async def _settle_if_ready(ctx: Context, shoot: Shoot) -> ShootRecord | None:
             scene_ids=list(shoot.ordered_scene_ids),
             shot_ids=list(shoot.ordered_shot_ids),
             run_outcomes=run_outcomes,
-            unreadable_shot_ids=[
-                run.shot_id for run in runs if run is not None and run.status is RunStatus.TERMINAL
-            ],
+            unreadable_shot_ids=unreadable_shot_ids,
+            receipt=receipt,
+            provenance=provenance,
             settled_at=settled_at,
         ),
     )

@@ -772,6 +772,57 @@ class Shoot(BaseModel):
     grouping_version: str = "shoot-gap-1"
 
 
+class EvidenceAuthority(StrEnum):
+    """Whose evidence a Shoot receipt is allowed to present as fact."""
+
+    MEASURED = "measured"
+    MODEL_READ = "model_read"
+    PHOTOGRAPHER_OWNED = "photographer_owned"
+
+
+class ShootDimensionFigure(BaseModel):
+    """One replayable distribution over a settled Shoot's exact members."""
+
+    dimension_id: str
+    label: str
+    authority: EvidenceAuthority
+    counts: dict[str, int] = Field(default_factory=dict)
+    readable_shots: int = 0
+    unreadable_shots: int = 0
+    dominant: str = ""
+    dominant_count: int = 0
+    exploration: float = 0.0
+    blind_spot: str = ""
+
+
+class ShootTechniqueFigure(BaseModel):
+    """Shot-level model Evidence without promotion to measured truth."""
+
+    technique_id: str
+    name: str
+    authority: EvidenceAuthority = EvidenceAuthority.MODEL_READ
+    observed_shot_ids: list[str] = Field(default_factory=list)
+    corroborated_shot_ids: list[str] = Field(default_factory=list)
+
+
+class ShootReceipt(BaseModel):
+    """Short, deterministic account of how one Shoot was worked."""
+
+    calc_version: str = ""
+    summary: str = ""
+    shot_count: int = 0
+    scene_count: int = 0
+    shots_per_scene: list[int] = Field(default_factory=list)
+    readable_shot_count: int = 0
+    unreadable_shot_ids: list[str] = Field(default_factory=list)
+    keeper_shot_ids: list[str] = Field(default_factory=list)
+    repeated: list[str] = Field(default_factory=list)
+    varied: list[str] = Field(default_factory=list)
+    blind_spots: list[str] = Field(default_factory=list)
+    dimensions: list[ShootDimensionFigure] = Field(default_factory=list)
+    techniques: list[ShootTechniqueFigure] = Field(default_factory=list)
+
+
 class ShootRecord(BaseModel):
     """The terminal account for one immutable Shoot revision."""
 
@@ -782,7 +833,7 @@ class ShootRecord(BaseModel):
     shot_ids: list[str] = Field(default_factory=list)
     run_outcomes: dict[str, str] = Field(default_factory=dict)
     unreadable_shot_ids: list[str] = Field(default_factory=list)
-    receipt: dict[str, Any] = Field(default_factory=dict)
+    receipt: ShootReceipt = Field(default_factory=ShootReceipt)
     scout: dict[str, Any] = Field(default_factory=dict)
     provenance: Provenance = Field(default_factory=Provenance)
     settled_at: datetime = Field(default_factory=now)

@@ -9,14 +9,20 @@ from app.api import deps, main
 from app.api.auth import current_user
 from app.config import settings
 from app.domain.entities import (
+    Analysis,
     CaptureSession,
     CaptureSessionMember,
     CaptureSessionStatus,
+    Composition,
+    GridSpec,
     RunStage,
+    RunStepState,
     ShootStatus,
     Shot,
     ShotKind,
     ShotSource,
+    TechniqueEvidence,
+    Tone,
     User,
     now,
 )
@@ -228,6 +234,32 @@ async def test_frequent_task_closes_inactive_shoots_without_pipeline_buttons(mon
     assert record is not None
 
 
+async def test_frequent_task_recovers_a_closing_shoot_after_interrupted_settlement():
+    ctx = context()
+    start = datetime(2026, 8, 26, 13, 0, tzinfo=UTC)
+    shot = await camera_shot(ctx, "shot_recover_closing", start)
+    membership = await shoots.observe_shot(ctx, shot.id)
+    await runs.ensure(ctx, shot)
+    closing, changed = await repo.mark_shoot_closing(ctx.store, membership.shoot_id)
+    assert changed and closing.status is ShootStatus.CLOSING
+    run = await repo.find_run_for_shot(ctx.store, shot.id)
+    assert run is not None
+    for stage in RunStage:
+        await repo.advance_run(
+            ctx.store,
+            run.id,
+            stage,
+            RunStepState.COMPLETED,
+            f"{stage.value} settled outside callback",
+        )
+
+    await shoots.close_inactive(ctx, start + timedelta(hours=1))
+
+    record = await repo.find_shoot_record(ctx.store, membership.shoot_id, 1)
+    assert record is not None
+    assert (await repo.get_shoot(ctx.store, membership.shoot_id)).status is ShootStatus.SETTLED
+
+
 async def test_late_camera_shot_versions_a_settled_shoot_without_rewriting_history():
     ctx = context()
     start = datetime(2026, 8, 26, 14, 0, tzinfo=UTC)
@@ -320,3 +352,175 @@ async def test_terminal_run_is_counted_as_unreadable_and_does_not_block_shoot():
         unreadable.id: "terminal",
     }
     assert record.unreadable_shot_ids == [unreadable.id]
+
+
+async def test_settled_shoot_receipt_reports_exact_decisions_and_blind_spots():
+    ctx = context()
+    start = datetime(2026, 8, 26, 17, 0, tzinfo=UTC)
+    first = await camera_shot(ctx, "shot_receipt_one", start)
+    second = await camera_shot(ctx, "shot_receipt_two", start + timedelta(minutes=2))
+    third = await camera_shot(ctx, "shot_receipt_three", start + timedelta(minutes=9))
+    for shot, x, width, height, warm, cool in (
+        (first, 0.5, 1200, 1600, 36.0, 10.0),
+        (second, 0.52, 1200, 1600, 30.0, 12.0),
+        (third, 0.52, 1600, 1200, 8.0, 34.0),
+    ):
+        shot.grid = GridSpec(cols=7, rows=7, width=width, height=height)
+        shot.tone = Tone(luma_mean=0.45, warm_share=warm, cool_share=cool)
+        shot.kept_at = start if shot is first else None
+        await repo.put_shot(ctx.store, shot)
+        await repo.put_analysis(
+            ctx.store,
+            Analysis(
+                shot_id=shot.id,
+                user_id=shot.user_id,
+                model="reader-v1",
+                prompt_version="prompt-v1",
+                composition=Composition(
+                    subject_x=x,
+                    subject_y=0.5,
+                    subject_cells=["D4", "D5", "E4", "E5"],
+                ),
+                techniques=[
+                    TechniqueEvidence(
+                        technique_id="backlight",
+                        confidence=0.9,
+                        agreement=2 if shot is not third else 1,
+                    )
+                ],
+            ),
+        )
+        await shoots.observe_shot(ctx, shot.id)
+        await settle_run(ctx, shot)
+
+    membership = await shoots.observe_shot(ctx, first.id)
+    await shoots.close_inactive(ctx, start + timedelta(hours=1))
+
+    record = await repo.find_shoot_record(ctx.store, membership.shoot_id, 1)
+    assert record is not None
+    assert record.provenance.shot_ids == [first.id, second.id, third.id]
+    assert record.provenance.sample_size == 3
+    assert record.provenance.calc_version == "shoot-receipt-1+tendency-2"
+    assert record.receipt.shot_count == 3
+    assert record.receipt.scene_count == 2
+    assert record.receipt.shots_per_scene == [2, 1]
+    assert record.receipt.readable_shot_count == 3
+    assert record.receipt.keeper_shot_ids == [first.id]
+    assert "overall_score" not in record.receipt.model_dump()
+
+    placement = next(item for item in record.receipt.dimensions if item.dimension_id == "placement")
+    assert placement.authority == "model_read"
+    assert placement.counts == {"centred": 3}
+    assert any("3 of 3" in line and "centred" in line for line in record.receipt.repeated)
+    assert any("portrait" in line and "landscape" in line for line in record.receipt.varied)
+    assert any("height" in item.lower() for item in record.receipt.blind_spots)
+
+    technique = next(item for item in record.receipt.techniques if item.technique_id == "backlight")
+    assert technique.observed_shot_ids == [first.id, second.id, third.id]
+    assert technique.corroborated_shot_ids == [first.id, second.id]
+    assert technique.authority == "model_read"
+
+
+async def test_shoot_receipt_preserves_terminal_coverage_and_analysis_versions():
+    ctx = context()
+    start = datetime(2026, 8, 26, 18, 0, tzinfo=UTC)
+    readable = await camera_shot(ctx, "shot_receipt_readable", start)
+    readable.grid = GridSpec(cols=7, rows=7, width=1200, height=1600)
+    readable.tone = Tone(luma_mean=0.3, warm_share=20, cool_share=20)
+    await repo.put_shot(ctx.store, readable)
+    await repo.put_analysis(
+        ctx.store,
+        Analysis(
+            shot_id=readable.id,
+            user_id=readable.user_id,
+            model="reader-v2",
+            prompt_version="prompt-v2",
+            composition=Composition(subject_x=0.5, subject_y=0.5),
+        ),
+    )
+    unreadable = await camera_shot(
+        ctx,
+        "shot_receipt_terminal",
+        start + timedelta(minutes=1),
+    )
+    membership = await shoots.observe_shot(ctx, readable.id)
+    await shoots.observe_shot(ctx, unreadable.id)
+    await settle_run(ctx, readable)
+    await runs.ensure(ctx, unreadable)
+    await shoots.close_inactive(ctx, start + timedelta(hours=1))
+    await runs.terminal(ctx, unreadable.id, RunStage.ANALYST, "unsupported media")
+
+    record = await repo.find_shoot_record(ctx.store, membership.shoot_id, 1)
+    assert record is not None
+    assert record.receipt.shot_count == 2
+    assert record.receipt.readable_shot_count == 1
+    assert record.receipt.unreadable_shot_ids == [unreadable.id]
+    assert record.provenance.analysis_versions.keys() == {readable.id}
+    assert record.provenance.inputs[0].model == "reader-v2"
+
+
+async def test_terminal_external_stage_does_not_erase_a_completed_analysis():
+    ctx = context()
+    start = datetime(2026, 8, 26, 18, 30, tzinfo=UTC)
+    shot = await camera_shot(ctx, "shot_terminal_after_read", start)
+    shot.grid = GridSpec(cols=7, rows=7, width=1200, height=1600)
+    await repo.put_shot(ctx.store, shot)
+    await repo.put_analysis(
+        ctx.store,
+        Analysis(
+            shot_id=shot.id,
+            user_id=shot.user_id,
+            model="reader-v2",
+            prompt_version="prompt-v2",
+            composition=Composition(subject_x=0.5, subject_y=0.5),
+        ),
+    )
+    membership = await shoots.observe_shot(ctx, shot.id)
+    await runs.ensure(ctx, shot)
+    await shoots.close_inactive(ctx, start + timedelta(hours=1))
+
+    await runs.terminal(ctx, shot.id, RunStage.SCRIBE, "Drive unavailable")
+
+    record = await repo.find_shoot_record(ctx.store, membership.shoot_id, 1)
+    assert record is not None
+    assert record.run_outcomes == {shot.id: "terminal"}
+    assert record.unreadable_shot_ids == []
+    assert record.receipt.readable_shot_count == 1
+
+
+async def _settled_record_for_analysis(subject_x: float):
+    ctx = context()
+    start = datetime(2026, 8, 26, 19, 0, tzinfo=UTC)
+    shot = await camera_shot(ctx, "shot_analysis_version", start)
+    shot.grid = GridSpec(cols=7, rows=7, width=1200, height=1600)
+    shot.tone = Tone(luma_mean=0.5, warm_share=20, cool_share=20)
+    await repo.put_shot(ctx.store, shot)
+    await repo.put_analysis(
+        ctx.store,
+        Analysis(
+            shot_id=shot.id,
+            user_id=shot.user_id,
+            model="reader-v1",
+            prompt_version="prompt-v1",
+            composition=Composition(subject_x=subject_x, subject_y=0.5),
+        ),
+    )
+    membership = await shoots.observe_shot(ctx, shot.id)
+    await settle_run(ctx, shot)
+    await shoots.close_inactive(ctx, start + timedelta(hours=1))
+    record = await repo.find_shoot_record(ctx.store, membership.shoot_id, 1)
+    assert record is not None
+    return record
+
+
+async def test_identical_inputs_repeat_receipt_and_analysis_change_updates_provenance():
+    first = await _settled_record_for_analysis(0.5)
+    replay = await _settled_record_for_analysis(0.5)
+    changed = await _settled_record_for_analysis(0.52)
+
+    assert first.receipt == replay.receipt
+    assert first.provenance.model_dump(exclude={"computed_at"}) == replay.provenance.model_dump(
+        exclude={"computed_at"}
+    )
+    assert first.receipt == changed.receipt
+    assert first.provenance.analysis_versions != changed.provenance.analysis_versions
