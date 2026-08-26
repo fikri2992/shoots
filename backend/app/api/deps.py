@@ -5,12 +5,10 @@ switches that one port to its cloud implementation. Tests build their own
 ``Context`` and never touch this module.
 """
 
-from fastapi import Depends, Request
-
-from app.api.auth import current_user
 from app.config import settings
 from app.infra.bus import TOPICS, InProcessBus, PubSubBus
 from app.infra.drive import GoogleDriveClient, LocalDriveClient
+from app.infra.mobile_push import FirebaseMobilePush
 from app.infra.secrets import LocalTokenStore, SecretManagerTokenStore
 from app.infra.storage import GcsBlobStore, LocalBlobStore
 from app.infra.store import FileStore, FirestoreStore
@@ -29,7 +27,19 @@ def build_context() -> Context:
         if settings.drive_local_folder
         else GoogleDriveClient()
     )
-    return Context(store=store, blobs=blobs, bus=bus, drive=drive, tokens=tokens)
+    mobile_push = (
+        FirebaseMobilePush(settings.gcp_project)
+        if settings.cloud_state and settings.gcp_project
+        else None
+    )
+    return Context(
+        store=store,
+        blobs=blobs,
+        bus=bus,
+        drive=drive,
+        tokens=tokens,
+        mobile_push=mobile_push,
+    )
 
 
 def wire(ctx: Context) -> None:
@@ -143,7 +153,14 @@ def wire(ctx: Context) -> None:
             raise
 
         shot = await repository.get_shot(ctx.store, message["shot_id"])
-        if shot.experiment_id and outcome != "Reproduce Criteria met":
+        if shot.capture_session_id:
+            await runs.skipped(
+                ctx,
+                shot.id,
+                RunStage.SCOUT,
+                "Capture Session owns the batch Experiment transition",
+            )
+        elif shot.experiment_id and outcome != "Reproduce Criteria met":
             await runs.skipped(
                 ctx,
                 shot.id,
@@ -159,6 +176,11 @@ def wire(ctx: Context) -> None:
     async def on_keeper_changed(message: dict) -> None:
         if message.get("keeper"):
             await scout.issue(ctx, message["user_id"])
+
+    async def on_account_delete(message: dict) -> None:
+        from app.services import account
+
+        await account.delete(ctx, message["user_id"])
 
     async def on_media_judged(message: dict) -> None:
         try:
@@ -188,6 +210,7 @@ def wire(ctx: Context) -> None:
     ctx.bus.subscribe(TOPICS["media.judged"], on_media_judged, stage="scribe")
     ctx.bus.subscribe(TOPICS["experiment.closed"], on_experiment_closed, stage="scout")
     ctx.bus.subscribe(TOPICS["keeper.changed"], on_keeper_changed, stage="scout-signal")
+    ctx.bus.subscribe(TOPICS["account.delete"], on_account_delete, stage="account-delete")
 
 
 context = build_context()
@@ -196,10 +219,6 @@ wire(context)
 
 def get_context() -> Context:
     return context
-
-
-async def signed_in(request: Request, user: dict = Depends(current_user)) -> dict:
-    return user
 
 
 def describe() -> dict:

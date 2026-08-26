@@ -13,7 +13,7 @@ from pydantic import BaseModel
 from app.api.deps import get_context
 from app.config import settings
 from app.infra import repository as repo
-from app.services import ingest, scout, watch
+from app.services import capture_sessions, ingest, scout, watch
 from app.services.context import Context
 
 logger = logging.getLogger(__name__)
@@ -27,6 +27,7 @@ class DailyReport(BaseModel):
     expired: int
     issued: int
     delivered: int = 0
+    capture_sessions_expired: int = 0
     errors: list[str]
 
 
@@ -52,6 +53,7 @@ async def daily(
         try:
             report.synced += len(await ingest.sync(ctx, user))
             report.expired += len(await scout.expire(ctx, user.id))
+            report.capture_sessions_expired += await capture_sessions.expire_reserved(ctx, user.id)
             if await scout.issue(ctx, user.id):
                 report.issued += 1
             await watch.ensure(ctx, user)
@@ -83,7 +85,13 @@ async def tick(
     braces) and push any experiment whose light window has opened."""
     _authorised(x_tasks_token)
     queued = 0
+    capture_sessions_expired = 0
     for user in await repo.list_users(ctx.store):
         queued += len(await ingest.sync(ctx, user))
+        capture_sessions_expired += await capture_sessions.expire_reserved(ctx, user.id)
     delivered = await scout.deliver_due(ctx)
-    return {"queued": queued, "delivered": delivered}
+    return {
+        "queued": queued,
+        "delivered": delivered,
+        "capture_sessions_expired": capture_sessions_expired,
+    }

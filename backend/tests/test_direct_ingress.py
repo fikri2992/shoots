@@ -4,6 +4,7 @@ from fastapi.testclient import TestClient
 
 from app.api import deps, main
 from app.api.auth import current_user
+from app.config import settings
 from app.domain.entities import RunStatus, ShotSource, ShotStatus, User
 from app.infra import repository as repo
 from app.infra.bus import TOPICS, InProcessBus
@@ -85,3 +86,38 @@ async def test_android_ingress_is_idempotent_and_runs_the_real_ingest(tmp_path):
     assert stages.count("queued") == 1
     assert stages.count("ingested") == 1
     assert stages.count("resumed") == 1
+
+
+async def test_android_ingress_accepts_exact_limit_and_rejects_one_byte_over(tmp_path, monkeypatch):
+    ctx = Context(
+        store=InMemoryStore(),
+        blobs=LocalBlobStore(tmp_path / "blobs"),
+        bus=InProcessBus(),
+        drive=None,
+        tokens=None,
+    )
+    user_id = "dev:limit@example.test"
+    await repo.put_user(ctx.store, User(id=user_id, email="limit@example.test"))
+    main.app.dependency_overrides[deps.get_context] = lambda: ctx
+    main.app.dependency_overrides[current_user] = lambda: {"id": user_id, "device": "Android"}
+    data = jpeg_with_exif(width=120, height=80)
+    monkeypatch.setattr(settings, "max_upload_bytes", len(data))
+    try:
+        with TestClient(main.app) as client:
+            exact = client.post(
+                "/api/ingress/shots",
+                files={"file": ("exact.jpg", data, "image/jpeg")},
+                data={"source_id": "limit:exact"},
+            )
+            over = client.post(
+                "/api/ingress/shots",
+                files={"file": ("over.jpg", data + b"x", "image/jpeg")},
+                data={"source_id": "limit:over"},
+            )
+    finally:
+        main.app.dependency_overrides.clear()
+
+    assert exact.status_code == 200, exact.text
+    assert over.status_code == 413, over.text
+    stored = await repo.get_shot(ctx.store, exact.json()["shot_id"])
+    assert await ctx.blobs.read(stored.blobs[ORIGINAL]) == data

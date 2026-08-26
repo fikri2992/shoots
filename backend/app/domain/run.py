@@ -27,6 +27,7 @@ def for_shot(shot: Shot) -> Run:
         shot_id=shot.id,
         source=shot.source,
         experiment_id=shot.experiment_id,
+        capture_session_id=shot.capture_session_id,
         started_at=shot.ingested_at,
     )
 

@@ -7,12 +7,18 @@ from fastapi.responses import JSONResponse
 from starlette.middleware.sessions import SessionMiddleware
 
 from app.api import (
+    account,
+    app_links,
     auth,
+    capture_sessions,
     deps,
+    devices,
     drive,
+    drive_auth,
     experiments,
     ingress,
     live,
+    mobile,
     pairing,
     pubsub,
     push,
@@ -47,7 +53,12 @@ async def unhandled(request: Request, exc: Exception) -> JSONResponse:
 
 
 app.include_router(auth.router)
+app.include_router(account.router)
+app.include_router(app_links.router)
+app.include_router(capture_sessions.router)
+app.include_router(devices.router)
 app.include_router(drive.router)
+app.include_router(drive_auth.router)
 app.include_router(ingress.router)
 app.include_router(shots.router)
 app.include_router(pairing.router)
@@ -55,6 +66,7 @@ app.include_router(experiments.router)
 app.include_router(tasks.router)
 app.include_router(push.router)
 app.include_router(live.router)
+app.include_router(mobile.router)
 app.include_router(pubsub.router)
 
 

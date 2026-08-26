@@ -240,7 +240,18 @@ async def check_advice(ctx: Context, user_id: str) -> list[Experiment]:
             continue
         if experiment.change is not None and experiment.change.settled:
             continue
-        result = _change_for(experiment.baseline, profile)
+        change_profile = profile
+        explicit_results: int | None = None
+        if experiment.type is ExperimentType.REPRODUCE:
+            selected = set(experiment.baseline.provenance.shot_ids)
+            selected.update(experiment.result_shot_ids)
+            change_profile = await profile_service.build_for_shots(ctx, user_id, selected)
+            explicit_results = len(experiment.result_shot_ids)
+        result = _change_for(
+            experiment.baseline,
+            change_profile,
+            shots_since=explicit_results,
+        )
         result.checked_at = now()
         experiment.change = result
         await repo.put_experiment(ctx.store, experiment)
@@ -264,7 +275,12 @@ async def check_advice(ctx: Context, user_id: str) -> list[Experiment]:
     return checked
 
 
-def _change_for(baseline: Baseline, profile: tendency.Profile) -> Change:
+def _change_for(
+    baseline: Baseline,
+    profile: tendency.Profile,
+    *,
+    shots_since: int | None = None,
+) -> Change:
     """The Change for one frozen Baseline, or why there cannot be one.
 
     Both ways of being incomparable are recorded rather than skipped. A record
@@ -328,7 +344,7 @@ def _change_for(baseline: Baseline, profile: tendency.Profile) -> Change:
         dimension,
         baseline.at_issue,
         _snapshot(profile, baseline.source),
-        shots_since=len(current_ids - baseline_ids),
+        shots_since=(len(current_ids - baseline_ids) if shots_since is None else shots_since),
     )
 
 

@@ -33,8 +33,10 @@ class Store(Protocol):
         collection: str,
         where: Document | None = None,
         order_by: str | None = None,
+        then_by: str | None = None,
         descending: bool = False,
         limit: int | None = None,
+        start_after: Any | None = None,
     ) -> list[Document]: ...
 
     async def delete(self, collection: str, doc_id: str) -> None: ...
@@ -96,8 +98,10 @@ class InMemoryStore:
         collection: str,
         where: Document | None = None,
         order_by: str | None = None,
+        then_by: str | None = None,
         descending: bool = False,
         limit: int | None = None,
+        start_after: Any | None = None,
     ) -> list[Document]:
         results = [
             _clone(document)
@@ -105,7 +109,35 @@ class InMemoryStore:
             if _matches(document, where or {})
         ]
         if order_by:
-            results.sort(key=lambda d: _sort_key(d.get(order_by)), reverse=descending)
+            results.sort(
+                key=lambda d: (
+                    _sort_key(d.get(order_by)),
+                    _sort_key(d.get(then_by)) if then_by else (),
+                ),
+                reverse=descending,
+            )
+            if start_after is not None:
+                boundary = (
+                    _sort_key(start_after.get(order_by)),
+                    _sort_key(start_after.get(then_by)) if then_by else (),
+                )
+                results = [
+                    document
+                    for document in results
+                    if (
+                        (
+                            _sort_key(document.get(order_by)),
+                            _sort_key(document.get(then_by)) if then_by else (),
+                        )
+                        < boundary
+                        if descending
+                        else (
+                            _sort_key(document.get(order_by)),
+                            _sort_key(document.get(then_by)) if then_by else (),
+                        )
+                        > boundary
+                    )
+                ]
         return results[:limit] if limit is not None else results
 
     async def delete(self, collection: str, doc_id: str) -> None:
@@ -290,8 +322,10 @@ class FirestoreStore:
         collection: str,
         where: Document | None = None,
         order_by: str | None = None,
+        then_by: str | None = None,
         descending: bool = False,
         limit: int | None = None,
+        start_after: Any | None = None,
     ) -> list[Document]:
         from google.cloud.firestore import FieldFilter, Query
 
@@ -303,6 +337,10 @@ class FirestoreStore:
         if order_by:
             direction = Query.DESCENDING if descending else Query.ASCENDING
             query = query.order_by(order_by, direction=direction)
+            if then_by:
+                query = query.order_by(then_by, direction=direction)
+            if start_after is not None:
+                query = query.start_after(start_after)
         if limit is not None:
             query = query.limit(limit)
 

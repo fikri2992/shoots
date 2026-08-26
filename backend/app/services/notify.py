@@ -9,8 +9,9 @@ import hashlib
 import logging
 
 from app.config import settings
-from app.domain.entities import Experiment, Verdict
+from app.domain.entities import CaptureSession, Experiment, Verdict
 from app.infra import push
+from app.infra import repository as repo
 from app.infra.store import Store
 from app.services.context import Context
 
@@ -62,17 +63,69 @@ async def notify(
     return delivered
 
 
+async def notify_mobile(
+    ctx: Context,
+    user_id: str,
+    title: str,
+    body: str,
+    *,
+    route: str,
+    tag: str,
+    kind: str,
+) -> int:
+    """Deliver sparse native notifications without making pipeline work fail."""
+    if ctx.mobile_push is None:
+        return 0
+    delivered = 0
+    for device in await repo.list_devices(ctx.store, user_id):
+        target = str(device.get("notification_target", ""))
+        if not target:
+            continue
+        try:
+            alive = await ctx.mobile_push.send(
+                target,
+                {
+                    "kind": kind,
+                    "title": title[:100],
+                    "body": body[:180],
+                    "route": route,
+                    "tag": tag,
+                },
+                tag=tag,
+            )
+        except Exception as error:  # noqa: BLE001 - notification failure is not stage failure
+            logger.warning("mobile push to %s failed: %s", user_id, str(error)[:200])
+            continue
+        if alive:
+            delivered += 1
+        else:
+            await repo.set_device_notification_target(ctx.store, device["fingerprint"], "")
+    return delivered
+
+
 # --- the events that matter ------------------------------------------------
 
 
 async def experiment_issued(ctx: Context, experiment: Experiment) -> None:
+    title = f"Today's experiment: {experiment.title}"
+    body = experiment.why_now or experiment.brief.split("\n", 1)[0]
+    tag = f"experiment-{experiment.id}"
     await notify(
         ctx,
         experiment.user_id,
-        f"Today's experiment: {experiment.title}",
-        experiment.why_now or experiment.brief.split("\n", 1)[0],
+        title,
+        body,
         url="/",
-        tag=f"experiment-{experiment.id}",
+        tag=tag,
+    )
+    await notify_mobile(
+        ctx,
+        experiment.user_id,
+        title,
+        body,
+        route="now",
+        tag=tag,
+        kind="experiment",
     )
 
 
@@ -88,4 +141,24 @@ async def verdict_given(ctx: Context, experiment: Experiment, verdict: Verdict) 
         first_line,
         url=f"/shots/{verdict.shot_id}",
         tag=f"verdict-{verdict.shot_id}",
+    )
+
+
+async def capture_session_settled(ctx: Context, session: CaptureSession) -> int:
+    total = session.summary.get("members", len(session.members))
+    met = session.summary.get("criteria_met", 0)
+    terminal = session.summary.get("terminal", 0)
+    body = f"{total} Shots accounted for"
+    if met:
+        body += f" · {met} met the Reproduce Criteria"
+    if terminal:
+        body += f" · {terminal} unreadable"
+    return await notify_mobile(
+        ctx,
+        session.user_id,
+        "Capture Session ready",
+        body,
+        route="journey",
+        tag=f"capture-session-{session.id}",
+        kind="capture_session",
     )

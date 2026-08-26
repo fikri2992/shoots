@@ -2,7 +2,7 @@
 
 from datetime import datetime
 
-from fastapi import APIRouter, Depends, HTTPException, Response
+from fastapi import APIRouter, Depends, HTTPException, Query, Response
 from pydantic import BaseModel, Field
 
 from app.api.auth import current_user
@@ -75,11 +75,20 @@ class ShotView(BaseModel):
 
 @router.get("/shots", response_model=list[ShotView])
 async def list_shots(
-    limit: int = 100,
+    response: Response,
+    limit: int = Query(default=100, ge=1, le=100),
+    cursor: str = Query(default="", max_length=160),
     session_user: dict[str, str] = Depends(current_user),
     ctx: Context = Depends(get_context),
 ) -> list[ShotView]:
-    shots = await repo.list_shots(ctx.store, session_user["id"], limit=limit)
+    try:
+        shots, next_cursor = await repo.list_shots_page(
+            ctx.store, session_user["id"], limit=limit, cursor=cursor
+        )
+    except ValueError as exc:
+        raise HTTPException(400, str(exc)) from exc
+    if next_cursor:
+        response.headers["X-Next-Cursor"] = next_cursor
     views = []
     for shot in shots:
         analysis = await repo.find_analysis(ctx.store, shot.id) if shot.analyzed_at else None

@@ -9,6 +9,7 @@
 #   media.judged    → scribe       (review written back to Drive)
 #   experiment.closed    → scout
 #   keeper.changed       → scout-signal
+#   account.delete       → account-delete
 #
 # Every subscription dead-letters after MAX_ATTEMPTS to <topic>.dlq so a bad
 # file cannot poison the queue, and the DLQ is replayable for the demo.
@@ -20,7 +21,7 @@ SA="${PUBSUB_PUSH_SA:?set PUBSUB_PUSH_SA to the service account email used for p
 MAX_ATTEMPTS=5
 ACK_DEADLINE=540  # seconds; the Analyst on a 12-frame contact sheet can take a while
 
-TOPICS=(shoots.media.new shoots.media.ingested shoots.media.analyzed shoots.media.judged shoots.experiment.closed shoots.keeper.changed)
+TOPICS=(shoots.media.new shoots.media.ingested shoots.media.analyzed shoots.media.judged shoots.experiment.closed shoots.keeper.changed shoots.account.delete)
 
 ensure_topic() {
   gcloud pubsub topics describe "$1" --project "$PROJECT" >/dev/null 2>&1 \
@@ -57,5 +58,6 @@ ensure_push_sub shoots-judge         shoots.media.analyzed  judge
 ensure_push_sub shoots-scribe        shoots.media.judged    scribe
 ensure_push_sub shoots-scout         shoots.experiment.closed    scout
 ensure_push_sub shoots-scout-signal  shoots.keeper.changed       scout-signal
+ensure_push_sub shoots-account-delete shoots.account.delete      account-delete
 
 echo "topics and subscriptions ready on $PROJECT"

@@ -6,7 +6,7 @@ belongs to the signed-in user by prefix alone.
 """
 
 from pathlib import Path
-from typing import Protocol, runtime_checkable
+from typing import BinaryIO, Protocol, runtime_checkable
 from urllib.parse import quote
 
 from app.config import settings
@@ -121,11 +121,17 @@ def experiment_blob_path(
 class BlobStore(Protocol):
     async def write(self, path: str, data: bytes, content_type: str = "image/png") -> str: ...
 
+    async def write_file(
+        self, path: str, source: BinaryIO, content_type: str = "image/png"
+    ) -> str: ...
+
     async def read(self, path: str) -> bytes: ...
 
     async def exists(self, path: str) -> bool: ...
 
     async def delete(self, path: str) -> None: ...
+
+    async def delete_prefix(self, prefix: str) -> None: ...
 
     def public_url(self, path: str) -> str: ...
 
@@ -145,6 +151,30 @@ class LocalBlobStore:
         target.write_bytes(data)
         return path
 
+    async def write_file(self, path: str, source: BinaryIO, content_type: str = "image/png") -> str:
+        import asyncio
+        import os
+        import shutil
+        import tempfile
+
+        target = self._full(path)
+        target.parent.mkdir(parents=True, exist_ok=True)
+
+        def copy() -> None:
+            source.seek(0)
+            descriptor, temporary_name = tempfile.mkstemp(
+                dir=target.parent, prefix=f".{target.name}.", suffix=".upload"
+            )
+            try:
+                with os.fdopen(descriptor, "wb") as temporary:
+                    shutil.copyfileobj(source, temporary, length=1024 * 1024)
+                os.replace(temporary_name, target)
+            finally:
+                Path(temporary_name).unlink(missing_ok=True)
+
+        await asyncio.to_thread(copy)
+        return path
+
     async def read(self, path: str) -> bytes:
         return self._full(path).read_bytes()
 
@@ -153,6 +183,18 @@ class LocalBlobStore:
 
     async def delete(self, path: str) -> None:
         self._full(path).unlink(missing_ok=True)
+
+    async def delete_prefix(self, prefix: str) -> None:
+        import shutil
+
+        root = self.root.resolve()
+        target = self._full(prefix).resolve()
+        if not prefix or target == root or not target.is_relative_to(root):
+            raise ValueError("refusing to delete an unsafe blob prefix")
+        if target.is_dir():
+            shutil.rmtree(target)
+        elif target.exists():
+            target.unlink()
 
     def public_url(self, path: str) -> str:
         """Served back through the API so the same URL shape works everywhere."""
@@ -175,6 +217,18 @@ class GcsBlobStore:
         await asyncio.to_thread(blob.upload_from_string, data, content_type=content_type)
         return path
 
+    async def write_file(self, path: str, source: BinaryIO, content_type: str = "image/png") -> str:
+        import asyncio
+
+        blob = self._bucket.blob(path)
+        await asyncio.to_thread(
+            blob.upload_from_file,
+            source,
+            content_type=content_type,
+            rewind=True,
+        )
+        return path
+
     async def read(self, path: str) -> bytes:
         import asyncio
 
@@ -193,6 +247,18 @@ class GcsBlobStore:
 
         with contextlib.suppress(NotFound):
             await asyncio.to_thread(self._bucket.blob(path).delete)
+
+    async def delete_prefix(self, prefix: str) -> None:
+        import asyncio
+
+        if not prefix:
+            raise ValueError("refusing to delete an empty GCS prefix")
+
+        def remove() -> None:
+            for blob in self._client.list_blobs(self._bucket, prefix=prefix):
+                blob.delete()
+
+        await asyncio.to_thread(remove)
 
     def public_url(self, path: str) -> str:
         return f"/api/blobs/{path}"

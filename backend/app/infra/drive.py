@@ -291,6 +291,29 @@ class UserDrive:
 
         await asyncio.to_thread(run)
 
+    async def unshare_with(self, folder_id: str, email: str) -> None:
+        """Remove only the reader permission Shoots previously created."""
+
+        def run() -> None:
+            svc = _service(self._credentials)
+            permissions = (
+                svc.permissions()
+                .list(
+                    fileId=folder_id,
+                    fields="permissions(id,emailAddress,type)",
+                )
+                .execute()
+                .get("permissions", [])
+            )
+            for permission in permissions:
+                if permission.get("type") == "user" and permission.get("emailAddress") == email:
+                    svc.permissions().delete(
+                        fileId=folder_id,
+                        permissionId=permission["id"],
+                    ).execute()
+
+        await asyncio.to_thread(run)
+
     async def upload(
         self, folder_id: str, name: str, data: bytes, mime_type: str, description: str = ""
     ) -> str:

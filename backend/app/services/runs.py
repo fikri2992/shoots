@@ -33,6 +33,10 @@ async def settle(
     )
     if run.status in {RunStatus.COMPLETED, RunStatus.TERMINAL}:
         await repo.record_run_settled(ctx.store, run)
+        if run.capture_session_id:
+            from app.services import capture_sessions
+
+            await capture_sessions.on_run_settled(ctx, run.capture_session_id, run.shot_id)
     return run
 
 

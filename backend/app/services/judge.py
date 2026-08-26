@@ -23,6 +23,7 @@ from app.domain.entities import (
 from app.infra import repository as repo
 from app.infra.bus import TOPICS
 from app.infra.storage import GRIDDED
+from app.services import capture_sessions as capture_session_service
 from app.services import notify
 from app.services.context import Context
 
@@ -55,7 +56,7 @@ async def _judge(ctx: Context, message: dict) -> str:
     ):
         logger.info("judge: %s already recorded for %s", shot.id, experiment.id)
         return "Reproduce result already recorded"
-    if experiment.status is not ExperimentStatus.OPEN:
+    if not shot.capture_session_id and experiment.status is not ExperimentStatus.OPEN:
         return "Experiment settled before this result was read"
 
     analysis = await repo.find_analysis(ctx.store, shot.id)
@@ -70,11 +71,20 @@ async def _judge(ctx: Context, message: dict) -> str:
         settings.judge_min_confidence,
     )
     if abstained:
-        _, recorded = await repo.record_reproduce_result_if_open(
-            ctx.store, experiment.id, shot.id, None, now()
-        )
-        if not recorded:
-            return "Experiment settled before abstention was recorded"
+        if shot.capture_session_id:
+            await capture_session_service.record_judge_outcome(
+                ctx,
+                shot.capture_session_id,
+                shot.id,
+                None,
+                abstained=True,
+            )
+        else:
+            _, recorded = await repo.record_reproduce_result_if_open(
+                ctx.store, experiment.id, shot.id, None, now()
+            )
+            if not recorded:
+                return "Experiment settled before abstention was recorded"
         await repo.record(
             ctx.store,
             shot.user_id,
@@ -115,14 +125,19 @@ async def _judge(ctx: Context, message: dict) -> str:
         feedback=text[:2000],
         compared_with=previous[0].id if previous else "",
     )
-    experiment, recorded = await repo.record_reproduce_result_if_open(
-        ctx.store, experiment.id, shot.id, verdict, now()
-    )
-    if not recorded:
-        logger.info("judge: %s lost the Experiment transition", shot.id)
-        return "Experiment settled before Verdict was recorded"
-    if met:
-        await repo.release_open_experiment(ctx.store, shot.user_id, experiment.id)
+    if shot.capture_session_id:
+        await capture_session_service.record_judge_outcome(
+            ctx, shot.capture_session_id, shot.id, verdict
+        )
+    else:
+        experiment, recorded = await repo.record_reproduce_result_if_open(
+            ctx.store, experiment.id, shot.id, verdict, now()
+        )
+        if not recorded:
+            logger.info("judge: %s lost the Experiment transition", shot.id)
+            return "Experiment settled before Verdict was recorded"
+        if met:
+            await repo.release_open_experiment(ctx.store, shot.user_id, experiment.id)
 
     await repo.record(
         ctx.store,
@@ -138,8 +153,9 @@ async def _judge(ctx: Context, message: dict) -> str:
         shot_id=shot.id,
         experiment_id=experiment.id,
     )
-    await notify.verdict_given(ctx, experiment, verdict)
-    if met:
+    if not shot.capture_session_id:
+        await notify.verdict_given(ctx, experiment, verdict)
+    if met and not shot.capture_session_id:
         await ctx.bus.publish(
             TOPICS["experiment.closed"],
             {

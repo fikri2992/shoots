@@ -260,6 +260,9 @@ class Shot(BaseModel):
     blobs: dict[str, str] = Field(default_factory=dict)
     #: Set when the user shot this for a specific experiment.
     experiment_id: str = ""
+    #: The explicit system-camera batch that froze this association. Empty for
+    #: free Shots and legacy/manual Experiment submissions.
+    capture_session_id: str = ""
     #: When the photographer marked this Shot as one they value, or None.
     #:
     #: Positive only, and the distinction is the whole point (decision 45).
@@ -756,6 +759,52 @@ class RunStatus(StrEnum):
     TERMINAL = "terminal"
 
 
+class CaptureSessionStatus(StrEnum):
+    RESERVED = "reserved"
+    COMMITTED = "committed"
+    PROCESSING = "processing"
+    SETTLED = "settled"
+    CANCELLED = "cancelled"
+    EXPIRED = "expired"
+
+
+class CaptureMemberOutcome(StrEnum):
+    PENDING = "pending"
+    CRITERIA_MET = "criteria_met"
+    CRITERIA_NOT_MET = "criteria_not_met"
+    ABSTAINED = "abstained"
+    TERMINAL = "terminal"
+
+
+class CaptureSessionMember(BaseModel):
+    """One Camera source reference explicitly frozen into a Capture Session."""
+
+    source_id: str
+    order: int = Field(ge=0)
+    shot_id: str = ""
+    outcome: CaptureMemberOutcome = CaptureMemberOutcome.PENDING
+
+
+class CaptureSession(BaseModel):
+    """Explicit participation around one handoff to Android's system camera."""
+
+    id: str
+    user_id: str
+    experiment_id: str
+    device_id: str
+    device_label: str = "Android"
+    status: CaptureSessionStatus = CaptureSessionStatus.RESERVED
+    members: list[CaptureSessionMember] = Field(default_factory=list)
+    representative_result_shot_id: str = ""
+    summary: dict[str, int] = Field(default_factory=dict)
+    reserved_at: datetime = Field(default_factory=now)
+    expires_at: datetime
+    committed_at: datetime | None = None
+    evaluated_at: datetime | None = None
+    settled_at: datetime | None = None
+    notification_sent_at: datetime | None = None
+
+
 class RunStep(BaseModel):
     state: RunStepState = RunStepState.PENDING
     outcome: str = ""
@@ -771,6 +820,7 @@ class Run(BaseModel):
     shot_id: str
     source: ShotSource
     experiment_id: str = ""
+    capture_session_id: str = ""
     status: RunStatus = RunStatus.RUNNING
     steps: dict[str, RunStep] = Field(
         default_factory=lambda: {stage.value: RunStep() for stage in RunStage}

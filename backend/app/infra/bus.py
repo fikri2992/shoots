@@ -110,4 +110,5 @@ TOPICS = {
     "media.judged": settings.topic_media_judged,
     "experiment.closed": settings.topic_experiment_closed,
     "keeper.changed": settings.topic_keeper_changed,
+    "account.delete": settings.topic_account_delete,
 }

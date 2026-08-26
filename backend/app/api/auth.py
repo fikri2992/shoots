@@ -1,13 +1,18 @@
-"""Google OAuth — the only sign-in path (domain-model.md decision 8)."""
+"""Google identity for web sessions and native Android device sessions."""
+
+import asyncio
+from datetime import datetime
 
 from authlib.integrations.starlette_client import OAuth, OAuthError
-from fastapi import APIRouter, HTTPException, Request
+from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import JSONResponse, RedirectResponse
 from pydantic import BaseModel
 
+from app.api.deps import get_context
 from app.config import settings
-from app.domain.entities import User
+from app.domain.entities import User, now
 from app.infra import repository as repo
+from app.services.context import Context
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
@@ -135,15 +140,67 @@ async def auth_config():
     }
 
 
-async def current_user(request: Request) -> dict:
+class AndroidSessionIn(BaseModel):
+    id_token: str
+    nonce: str
+    device: str = "Android"
+
+
+class AndroidSessionOut(BaseModel):
+    token: str
+    expires_at: datetime
+    user: User
+
+
+async def verify_android_token(body: AndroidSessionIn) -> dict:
+    """Verify Google's signed ID token and the nonce supplied to Credential Manager."""
+    if not settings.google_client_id:
+        raise HTTPException(500, "GOOGLE_CLIENT_ID is not configured")
+
+    try:
+        claims = await asyncio.to_thread(
+            verify_google_id_token, body.id_token, settings.google_client_id
+        )
+    except ValueError as exc:
+        raise HTTPException(401, "Google ID token is invalid") from exc
+    validate_android_claims(claims, body)
+    return claims
+
+
+def verify_google_id_token(encoded: str, audience: str, request=None) -> dict:
+    """Google's real signature, issuer, audience, and expiry verifier.
+
+    ``request`` is injectable only so the cryptographic contract can run with
+    a local certificate response instead of depending on Google's network.
+    Production always uses Google's transport.
+    """
+    from google.auth.exceptions import GoogleAuthError
+    from google.auth.transport.requests import Request as GoogleRequest
+    from google.oauth2 import id_token
+
+    try:
+        return id_token.verify_oauth2_token(encoded, request or GoogleRequest(), audience)
+    except GoogleAuthError as exc:
+        raise ValueError("Google ID token issuer is invalid") from exc
+
+
+def validate_android_claims(claims: dict, body: AndroidSessionIn) -> None:
+    if claims.get("nonce") != body.nonce:
+        raise HTTPException(401, "Google ID token nonce does not match")
+    if not claims.get("email") or claims.get("email_verified") is not True:
+        raise HTTPException(401, "Google account email is not verified")
+
+
+async def current_user(
+    request: Request,
+    ctx: Context = Depends(get_context),
+) -> dict:
     """FastAPI dependency — 401s unauthenticated callers.
 
-    Two ways in, and only two. A browser carries the session cookie Google's
-    sign-in put there. The native camera carries a device token it was handed
-    by a browser that had already signed in (``api/pairing.py``), because a
-    phone cannot run the OAuth flow without shipping a client secret to a
-    device. Everything downstream sees the same dict either way, so no endpoint
-    has to know which door the caller came through.
+    A browser carries its signed-in session cookie. Android carries a revocable
+    device token issued after native Google ID-token verification. Older APKs
+    may still hold the same token shape from pairing. Everything downstream
+    sees one Photographer dict and does not need to know which door was used.
     """
     user = request.session.get(SESSION_USER_KEY)
     if user:
@@ -152,12 +209,22 @@ async def current_user(request: Request) -> dict:
     header = request.headers.get("authorization", "")
     scheme, _, token = header.partition(" ")
     if scheme.lower() == "bearer" and token:
-        from app.api import deps, pairing
+        from app.api import pairing
 
-        device = await repo.find_device(
-            deps.get_context().store, pairing.token_fingerprint(token.strip())
-        )
+        device = await repo.find_device(ctx.store, pairing.token_fingerprint(token.strip()))
         if device:
-            return {"id": device["user_id"], "device": device.get("label", "camera")}
+            expires = device.get("expires_at")
+            if expires and datetime.fromisoformat(expires) <= datetime.now(now().tzinfo):
+                await repo.delete_device(ctx.store, device["fingerprint"])
+                raise HTTPException(401, "device session expired")
+            user = await repo.find_user(ctx.store, device["user_id"])
+            return {
+                "id": device["user_id"],
+                "email": user.email if user else "",
+                "name": user.name if user else "",
+                "picture": user.picture if user else "",
+                "device": device.get("label", "camera"),
+                "device_id": device.get("fingerprint", ""),
+            }
 
     raise HTTPException(401, "not signed in")

@@ -4,6 +4,7 @@ One function per read or write the services need, pydantic in and out. The
 collection names and document ids are decided here and nowhere else.
 """
 
+import base64
 import hashlib
 from datetime import datetime, timedelta
 from typing import Any
@@ -15,6 +16,10 @@ from app.domain import technique_map
 from app.domain.entities import (
     ActivityEvent,
     Analysis,
+    CaptureMemberOutcome,
+    CaptureSession,
+    CaptureSessionMember,
+    CaptureSessionStatus,
     Experiment,
     ExperimentStatus,
     JourneyUpdate,
@@ -43,6 +48,9 @@ RUNS = "runs"
 JOURNEY = "journey"
 PAIRING = "pairing_codes"
 DEVICES = "devices"
+CAPTURE_SESSIONS = "capture_sessions"
+ACTIVE_CAPTURE_SESSIONS = "active_capture_sessions"
+ACCOUNT_DELETIONS = "account_deletions"
 
 
 class UnknownEntity(LookupError):
@@ -116,6 +124,49 @@ async def list_shots(store: Store, user_id: str, limit: int | None = None) -> li
         SHOTS, where={"user_id": user_id}, order_by="ingested_at", descending=True, limit=limit
     )
     return [Shot.model_validate(d) for d in rows]
+
+
+async def list_shots_page(
+    store: Store,
+    user_id: str,
+    limit: int,
+    cursor: str = "",
+) -> tuple[list[Shot], str]:
+    """A stable, opaque-enough cursor without changing the legacy list body."""
+    start_after = _decode_shot_cursor(cursor) if cursor else None
+    rows = await store.query(
+        SHOTS,
+        where={"user_id": user_id},
+        order_by="ingested_at",
+        then_by="id",
+        descending=True,
+        limit=limit + 1,
+        start_after=start_after,
+    )
+    has_more = len(rows) > limit
+    shots = [Shot.model_validate(row) for row in rows[:limit]]
+    next_cursor = ""
+    if has_more and shots:
+        next_cursor = _encode_shot_cursor(shots[-1].ingested_at.isoformat(), shots[-1].id)
+    return shots, next_cursor
+
+
+def _encode_shot_cursor(at: str, shot_id: str) -> str:
+    return base64.urlsafe_b64encode(f"{at}\0{shot_id}".encode()).decode().rstrip("=")
+
+
+def _decode_shot_cursor(value: str) -> dict[str, str]:
+    if len(value) > 160:
+        raise ValueError("Shot cursor is invalid")
+    try:
+        decoded = base64.urlsafe_b64decode(value + "=" * (-len(value) % 4)).decode()
+        at, shot_id = decoded.split("\0", 1)
+        datetime.fromisoformat(at)
+        if not shot_id:
+            raise ValueError
+    except (ValueError, UnicodeDecodeError) as exc:
+        raise ValueError("Shot cursor is invalid") from exc
+    return {"ingested_at": at, "id": shot_id}
 
 
 # --- runs -----------------------------------------------------------------
@@ -403,6 +454,326 @@ async def release_open_experiment(store: Store, user_id: str, experiment_id: str
     return await store.delete_if(OPEN_EXPERIMENTS, user_id, {"experiment_id": experiment_id})
 
 
+# --- Capture Sessions ------------------------------------------------------
+
+
+async def create_capture_session(store: Store, session: CaptureSession) -> bool:
+    """Reserve one nonterminal Capture Session for an Experiment atomically."""
+    if session.status is not CaptureSessionStatus.RESERVED:
+        raise ValueError("only a reserved Capture Session may claim an Experiment")
+    claim = {
+        "capture_session_id": session.id,
+        "user_id": session.user_id,
+        "experiment_id": session.experiment_id,
+        "expires_at": session.expires_at.isoformat(),
+    }
+    return await store.create_claimed(
+        ACTIVE_CAPTURE_SESSIONS,
+        session.experiment_id,
+        claim,
+        CAPTURE_SESSIONS,
+        session.id,
+        _dump(session),
+    )
+
+
+async def get_capture_session(store: Store, session_id: str) -> CaptureSession:
+    data = await store.get(CAPTURE_SESSIONS, session_id)
+    if data is None:
+        raise UnknownEntity(f"Capture Session {session_id}")
+    return CaptureSession.model_validate(data)
+
+
+async def find_capture_session(store: Store, session_id: str) -> CaptureSession | None:
+    data = await store.get(CAPTURE_SESSIONS, session_id)
+    return CaptureSession.model_validate(data) if data else None
+
+
+async def list_capture_sessions(
+    store: Store, user_id: str, limit: int = 20
+) -> list[CaptureSession]:
+    rows = await store.query(
+        CAPTURE_SESSIONS,
+        where={"user_id": user_id},
+        order_by="reserved_at",
+        descending=True,
+        limit=limit,
+    )
+    return [CaptureSession.model_validate(row) for row in rows]
+
+
+async def active_capture_session(store: Store, experiment_id: str) -> CaptureSession | None:
+    claim = await store.get(ACTIVE_CAPTURE_SESSIONS, experiment_id)
+    session_id = str(claim.get("capture_session_id", "")) if claim else ""
+    return await find_capture_session(store, session_id) if session_id else None
+
+
+async def commit_capture_session(
+    store: Store,
+    session_id: str,
+    members: list[CaptureSessionMember],
+    committed_at: datetime,
+) -> tuple[CaptureSession, bool]:
+    """Freeze an ordered manifest once. An identical retry is a no-op."""
+
+    def commit(data: dict[str, Any]) -> dict[str, Any] | None:
+        session = CaptureSession.model_validate(data)
+        if session.status is CaptureSessionStatus.RESERVED:
+            session.members = members
+            session.status = CaptureSessionStatus.COMMITTED
+            session.committed_at = committed_at
+            return _dump(session)
+        if (
+            session.status
+            in {
+                CaptureSessionStatus.COMMITTED,
+                CaptureSessionStatus.PROCESSING,
+                CaptureSessionStatus.SETTLED,
+            }
+            and session.members == members
+        ):
+            return None
+        return None
+
+    data, changed = await store.mutate(CAPTURE_SESSIONS, session_id, commit)
+    if data is None:
+        raise UnknownEntity(f"Capture Session {session_id}")
+    session = CaptureSession.model_validate(data)
+    if not changed and not (
+        session.status
+        in {
+            CaptureSessionStatus.COMMITTED,
+            CaptureSessionStatus.PROCESSING,
+            CaptureSessionStatus.SETTLED,
+        }
+        and session.members == members
+    ):
+        raise UnknownEntity(f"Capture Session {session_id} manifest differs")
+    return session, changed
+
+
+async def accept_capture_session_member(
+    store: Store, session_id: str, source_id: str, shot_id: str
+) -> CaptureSession:
+    """Attach the accepted Shot id without changing the frozen membership."""
+
+    def accept(data: dict[str, Any]) -> dict[str, Any] | None:
+        session = CaptureSession.model_validate(data)
+        if session.status not in {
+            CaptureSessionStatus.COMMITTED,
+            CaptureSessionStatus.PROCESSING,
+        }:
+            return None
+        member = next((item for item in session.members if item.source_id == source_id), None)
+        if member is None:
+            return None
+        if member.shot_id and member.shot_id != shot_id:
+            return None
+        member.shot_id = shot_id
+        session.status = CaptureSessionStatus.PROCESSING
+        return _dump(session)
+
+    data, changed = await store.mutate(CAPTURE_SESSIONS, session_id, accept)
+    if data is None:
+        raise UnknownEntity(f"Capture Session {session_id}")
+    session = CaptureSession.model_validate(data)
+    member = next((item for item in session.members if item.source_id == source_id), None)
+    if not changed and (
+        session.status not in {CaptureSessionStatus.COMMITTED, CaptureSessionStatus.PROCESSING}
+        or member is None
+        or member.shot_id != shot_id
+    ):
+        raise UnknownEntity(f"Capture Session {session_id} does not accept {source_id}")
+    return session
+
+
+async def record_capture_session_outcome(
+    store: Store,
+    session_id: str,
+    shot_id: str,
+    outcome: CaptureMemberOutcome,
+) -> CaptureSession:
+    """Set one member's Judge or terminal-media outcome exactly once."""
+
+    def record_outcome(data: dict[str, Any]) -> dict[str, Any] | None:
+        session = CaptureSession.model_validate(data)
+        member = next((item for item in session.members if item.shot_id == shot_id), None)
+        if member is None:
+            return None
+        if member.outcome is not CaptureMemberOutcome.PENDING:
+            return data if member.outcome is outcome else None
+        member.outcome = outcome
+        session.status = CaptureSessionStatus.PROCESSING
+        return _dump(session)
+
+    data, changed = await store.mutate(CAPTURE_SESSIONS, session_id, record_outcome)
+    if data is None:
+        raise UnknownEntity(f"Capture Session {session_id}")
+    session = CaptureSession.model_validate(data)
+    member = next((item for item in session.members if item.shot_id == shot_id), None)
+    if not changed and (member is None or member.outcome is not outcome):
+        raise UnknownEntity(f"Capture Session {session_id} has a different outcome")
+    return session
+
+
+async def record_reproduce_batch_result(
+    store: Store,
+    experiment_id: str,
+    shot_id: str,
+    verdict: Verdict | None,
+) -> Experiment:
+    """Append a session result without allowing one member to close the batch."""
+
+    def append(data: dict[str, Any]) -> dict[str, Any]:
+        experiment = Experiment.model_validate(data)
+        if shot_id not in experiment.result_shot_ids:
+            experiment.result_shot_ids.append(shot_id)
+        if verdict is not None and not any(item.shot_id == shot_id for item in experiment.verdicts):
+            experiment.verdicts.append(verdict)
+        return _dump(experiment)
+
+    data, _ = await store.mutate(EXPERIMENTS, experiment_id, append)
+    if data is None:
+        raise UnknownEntity(f"experiment {experiment_id}")
+    return Experiment.model_validate(data)
+
+
+async def finalize_reproduce_batch(
+    store: Store,
+    experiment_id: str,
+    ordered_shot_ids: list[str],
+    complete: bool,
+    closed_at: datetime,
+) -> tuple[Experiment, bool]:
+    """Order the batch results and optionally complete Reproduce once."""
+    completed_now = False
+
+    def finalize(data: dict[str, Any]) -> dict[str, Any]:
+        nonlocal completed_now
+        experiment = Experiment.model_validate(data)
+        batch = set(ordered_shot_ids)
+        prior = [shot_id for shot_id in experiment.result_shot_ids if shot_id not in batch]
+        experiment.result_shot_ids = prior + ordered_shot_ids
+        verdict_by_shot = {verdict.shot_id: verdict for verdict in experiment.verdicts}
+        prior_verdicts = [
+            verdict for verdict in experiment.verdicts if verdict.shot_id not in batch
+        ]
+        experiment.verdicts = prior_verdicts + [
+            verdict_by_shot[shot_id] for shot_id in ordered_shot_ids if shot_id in verdict_by_shot
+        ]
+        if complete and experiment.status is ExperimentStatus.OPEN:
+            experiment.status = ExperimentStatus.COMPLETED
+            experiment.closed_at = closed_at
+            completed_now = True
+        return _dump(experiment)
+
+    data, _ = await store.mutate(EXPERIMENTS, experiment_id, finalize)
+    if data is None:
+        raise UnknownEntity(f"experiment {experiment_id}")
+    return Experiment.model_validate(data), completed_now
+
+
+async def mark_capture_session_evaluated(
+    store: Store,
+    session_id: str,
+    representative_shot_id: str,
+    evaluated_at: datetime,
+) -> CaptureSession:
+    def evaluate(data: dict[str, Any]) -> dict[str, Any]:
+        session = CaptureSession.model_validate(data)
+        if session.evaluated_at is None:
+            session.representative_result_shot_id = representative_shot_id
+            session.evaluated_at = evaluated_at
+        return _dump(session)
+
+    data, _ = await store.mutate(CAPTURE_SESSIONS, session_id, evaluate)
+    if data is None:
+        raise UnknownEntity(f"Capture Session {session_id}")
+    return CaptureSession.model_validate(data)
+
+
+async def settle_capture_session(
+    store: Store,
+    session_id: str,
+    summary: dict[str, int],
+    settled_at: datetime,
+) -> tuple[CaptureSession, bool]:
+    settled_now = False
+
+    def settle(data: dict[str, Any]) -> dict[str, Any] | None:
+        nonlocal settled_now
+        session = CaptureSession.model_validate(data)
+        if session.status is CaptureSessionStatus.SETTLED:
+            return data
+        if session.status is not CaptureSessionStatus.PROCESSING or session.evaluated_at is None:
+            return None
+        session.status = CaptureSessionStatus.SETTLED
+        session.summary = summary
+        session.settled_at = settled_at
+        settled_now = True
+        return _dump(session)
+
+    data, _ = await store.mutate(CAPTURE_SESSIONS, session_id, settle)
+    if data is None:
+        raise UnknownEntity(f"Capture Session {session_id}")
+    return CaptureSession.model_validate(data), settled_now
+
+
+async def mark_capture_session_notification_attempted(
+    store: Store, session_id: str, attempted_at: datetime
+) -> CaptureSession:
+    def mark(data: dict[str, Any]) -> dict[str, Any]:
+        session = CaptureSession.model_validate(data)
+        if session.notification_sent_at is None:
+            session.notification_sent_at = attempted_at
+        return _dump(session)
+
+    data, _ = await store.mutate(CAPTURE_SESSIONS, session_id, mark)
+    if data is None:
+        raise UnknownEntity(f"Capture Session {session_id}")
+    return CaptureSession.model_validate(data)
+
+
+async def cancel_capture_session(
+    store: Store,
+    session_id: str,
+    at: datetime,
+    *,
+    expired: bool = False,
+) -> tuple[CaptureSession, bool]:
+    changed_now = False
+
+    def cancel(data: dict[str, Any]) -> dict[str, Any] | None:
+        nonlocal changed_now
+        session = CaptureSession.model_validate(data)
+        wanted = CaptureSessionStatus.EXPIRED if expired else CaptureSessionStatus.CANCELLED
+        if session.status is wanted:
+            return data
+        if session.status is not CaptureSessionStatus.RESERVED or session.members:
+            return None
+        session.status = wanted
+        session.settled_at = at
+        changed_now = True
+        return _dump(session)
+
+    data, _ = await store.mutate(CAPTURE_SESSIONS, session_id, cancel)
+    if data is None:
+        raise UnknownEntity(f"Capture Session {session_id}")
+    session = CaptureSession.model_validate(data)
+    wanted = CaptureSessionStatus.EXPIRED if expired else CaptureSessionStatus.CANCELLED
+    if not changed_now and session.status is not wanted:
+        raise UnknownEntity(f"Capture Session {session_id} cannot be cancelled")
+    return session, changed_now
+
+
+async def release_capture_session_claim(store: Store, experiment_id: str, session_id: str) -> bool:
+    return await store.delete_if(
+        ACTIVE_CAPTURE_SESSIONS,
+        experiment_id,
+        {"capture_session_id": session_id},
+    )
+
+
 async def attach_reference_clip_if_open(store: Store, experiment_id: str, path: str) -> bool:
     """Optional Director write that cannot overwrite or revive a closed record."""
     return await store.patch_if(
@@ -467,16 +838,12 @@ async def record_run_settled(store: Store, run: Run) -> ActivityEvent:
         id=f"evt_{run.id}_settled",
         user_id=run.user_id,
         agent="pipeline",
-        stage=(
-            "run_completed" if run.status is RunStatus.COMPLETED else "run_terminal"
-        ),
+        stage=("run_completed" if run.status is RunStatus.COMPLETED else "run_terminal"),
         detail={
             "status": run.status.value,
             "source": run.source.value,
             "external_write": external_write,
-            "stages": {
-                stage: step.state.value for stage, step in run.steps.items()
-            },
+            "stages": {stage: step.state.value for stage, step in run.steps.items()},
         },
         shot_id=run.shot_id,
         experiment_id=run.experiment_id,
@@ -539,7 +906,15 @@ async def spend_pairing_code(store: Store, code: str, at: datetime) -> str | Non
     return data["user_id"]
 
 
-async def put_device(store: Store, fingerprint: str, user_id: str, label: str) -> None:
+async def put_device(
+    store: Store,
+    fingerprint: str,
+    user_id: str,
+    label: str,
+    *,
+    expires_at: datetime | None = None,
+    auth_method: str = "pairing",
+) -> None:
     """Devices are keyed by the hash of their token: the store never holds a
     credential that would work if it leaked."""
     await store.put(
@@ -550,9 +925,76 @@ async def put_device(store: Store, fingerprint: str, user_id: str, label: str) -
             "user_id": user_id,
             "label": label,
             "paired_at": now().isoformat(),
+            "expires_at": expires_at.isoformat() if expires_at else None,
+            "auth_method": auth_method,
+            "notification_target": "",
         },
     )
 
 
 async def find_device(store: Store, fingerprint: str) -> dict[str, Any] | None:
     return await store.get(DEVICES, fingerprint)
+
+
+async def list_devices(store: Store, user_id: str) -> list[dict[str, Any]]:
+    return await store.query(DEVICES, where={"user_id": user_id})
+
+
+async def delete_device(store: Store, fingerprint: str) -> None:
+    await store.delete(DEVICES, fingerprint)
+
+
+async def set_device_notification_target(store: Store, fingerprint: str, target: str) -> bool:
+    data, changed = await store.mutate(
+        DEVICES,
+        fingerprint,
+        lambda current: {**current, "notification_target": target},
+    )
+    return data is not None and changed
+
+
+# --- account deletion ------------------------------------------------------
+
+
+async def request_account_deletion(store: Store, user_id: str) -> None:
+    await store.put(
+        ACCOUNT_DELETIONS,
+        user_id,
+        {
+            "id": user_id,
+            "user_id": user_id,
+            "status": "requested",
+            "requested_at": now().isoformat(),
+        },
+    )
+
+
+async def delete_user_records(store: Store, user_id: str) -> None:
+    """Delete every user-scoped document. External data is handled by the service."""
+    collections: list[tuple[str, str | None]] = [
+        (SHOTS, "id"),
+        (ANALYSES, "shot_id"),
+        (EXPERIMENTS, "id"),
+        (EVENTS, "id"),
+        (RUNS, "id"),
+        (JOURNEY, "id"),
+        (CAPTURE_SESSIONS, "id"),
+        (DEVICES, "fingerprint"),
+        (PAIRING, "code"),
+        ("push", "id"),
+    ]
+    for collection, key in collections:
+        for row in await store.query(collection, where={"user_id": user_id}):
+            if key and row.get(key):
+                await store.delete(collection, str(row[key]))
+    for row in await store.query(TECHNIQUE_STATES, where={"user_id": user_id}):
+        await store.delete(
+            TECHNIQUE_STATES,
+            technique_state_id_for(user_id, str(row.get("technique_id", ""))),
+        )
+    for row in await store.query(ACTIVE_CAPTURE_SESSIONS, where={"user_id": user_id}):
+        if row.get("experiment_id"):
+            await store.delete(ACTIVE_CAPTURE_SESSIONS, str(row["experiment_id"]))
+    await store.delete(OPEN_EXPERIMENTS, user_id)
+    await store.delete(USERS, user_id)
+    await store.delete(ACCOUNT_DELETIONS, user_id)

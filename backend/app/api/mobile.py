@@ -1,0 +1,90 @@
+"""Compact read model for the offline-capable Android client."""
+
+import hashlib
+import json
+
+from fastapi import APIRouter, Depends, Header, Response
+from fastapi.encoders import jsonable_encoder
+from fastapi.responses import JSONResponse
+from pydantic import BaseModel
+
+from app.api import experiments as experiment_api
+from app.api import shots as shot_api
+from app.api.auth import current_user
+from app.api.deps import get_context
+from app.domain.entities import CaptureSession, Experiment, JourneyUpdate, Run, Shot, User
+from app.infra import repository as repo
+from app.services.context import Context
+
+router = APIRouter(prefix="/api/mobile", tags=["mobile"])
+
+
+class MobileSnapshot(BaseModel):
+    user: User
+    drive_connected: bool
+    drive_folder_url: str
+    open_experiment: Experiment | None
+    latest_capture_session: CaptureSession | None
+    latest_run: Run | None
+    recent_shots: list[Shot]
+    journey: list[JourneyUpdate]
+    profile: shot_api.ProfileView
+    techniques: list[experiment_api.TechniqueNode]
+    experiments: list[Experiment]
+
+
+@router.get("/snapshot", response_model=MobileSnapshot)
+async def snapshot(
+    if_none_match: str | None = Header(default=None, alias="If-None-Match"),
+    session_user: dict = Depends(current_user),
+    ctx: Context = Depends(get_context),
+) -> Response:
+    user = await repo.get_user(ctx.store, session_user["id"])
+    sessions = await repo.list_capture_sessions(ctx.store, user.id, limit=1)
+    runs = await repo.list_runs(ctx.store, user.id, limit=1)
+    experiments = await repo.list_experiments(ctx.store, user.id, limit=20)
+    shots = await repo.list_shots(ctx.store, user.id, limit=30)
+    included = {shot.id for shot in shots}
+    required = {
+        shot_id
+        for experiment in experiments
+        for shot_id in [experiment.reference_shot_id, *experiment.result_shot_ids]
+        if shot_id
+    }
+    if sessions and sessions[0].representative_result_shot_id:
+        required.add(sessions[0].representative_result_shot_id)
+    for shot_id in sorted(required - included):
+        shot = await repo.find_shot(ctx.store, shot_id)
+        if shot is not None and shot.user_id == user.id:
+            shots.append(shot)
+    value = MobileSnapshot(
+        user=user,
+        drive_connected=bool(user.drive_folder_id),
+        drive_folder_url=(
+            f"https://drive.google.com/drive/folders/{user.drive_folder_id}"
+            if user.drive_folder_id and user.drive_folder_id != "local"
+            else ""
+        ),
+        open_experiment=await repo.open_experiment(ctx.store, user.id),
+        latest_capture_session=sessions[0] if sessions else None,
+        latest_run=runs[0] if runs else None,
+        recent_shots=shots,
+        journey=await repo.list_journey_updates(ctx.store, user.id, limit=10),
+        profile=await shot_api.profile(session_user, ctx),
+        techniques=await experiment_api.technique_map(session_user, ctx),
+        experiments=experiments,
+    )
+    encoded = jsonable_encoder(value)
+    # Building the Profile stamps when this read occurred. That timestamp is
+    # not a data change and must not defeat an otherwise useful mobile cache.
+    etag_value = dict(encoded)
+    etag_value["profile"] = dict(encoded["profile"])
+    etag_value["profile"]["provenance"] = dict(encoded["profile"]["provenance"])
+    etag_value["profile"]["provenance"].pop("computed_at", None)
+    digest = hashlib.sha256(
+        json.dumps(etag_value, sort_keys=True, separators=(",", ":")).encode()
+    ).hexdigest()[:24]
+    etag = f'"{digest}"'
+    if if_none_match == etag:
+        return Response(status_code=304, headers={"ETag": etag})
+    return JSONResponse(encoded, headers={"ETag": etag})

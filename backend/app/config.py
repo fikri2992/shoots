@@ -95,6 +95,8 @@ class Settings(BaseSettings):
     topic_media_judged: str = "shoots.media.judged"
     topic_experiment_closed: str = "shoots.experiment.closed"
     topic_keeper_changed: str = "shoots.keeper.changed"
+    topic_account_delete: str = "shoots.account.delete"
+    android_app_link_sha256: str = ""
     #: Empty = run stages in-process (local dev). Set to the public base URL of
     #: this service on Cloud Run so push subscriptions can reach /pubsub/*.
     pubsub_push_base_url: str = ""
