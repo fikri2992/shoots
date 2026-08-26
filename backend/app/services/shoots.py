@@ -1,7 +1,7 @@
 """Persist capture-continuous Scene and Shoot membership."""
 
 from dataclasses import dataclass
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 
 from app.config import settings
 from app.domain import shoot_receipt
@@ -27,6 +27,26 @@ class ShootMembership:
     shoot_id: str
     scene_id: str
     shoot_revision: int
+
+
+async def latest(ctx: Context, user_id: str) -> Shoot | None:
+    """Newest natural Shoot for one Photographer."""
+    items = await repo.list_shoots(ctx.store, user_id)
+    return max(
+        items,
+        key=lambda item: (
+            item.last_capture_at is not None,
+            item.last_capture_at or item.started_at or datetime.min.replace(tzinfo=UTC),
+            item.id,
+        ),
+        default=None,
+    )
+
+
+async def latest_record(ctx: Context, user_id: str) -> ShootRecord | None:
+    """Newest immutable Shoot Record, including an earlier settled Shoot."""
+    records = await repo.list_shoot_records(ctx.store, user_id, limit=1)
+    return records[0] if records else None
 
 
 async def observe_shot(ctx: Context, shot_id: str) -> ShootMembership:

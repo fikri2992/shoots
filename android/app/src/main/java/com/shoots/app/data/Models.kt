@@ -240,6 +240,106 @@ data class RunDto(
 )
 
 @Serializable
+data class ShootDto(
+    val id: String,
+    @SerialName("user_id") val userId: String = "",
+    val status: String = "open",
+    val revision: Int = 1,
+    @SerialName("current_record_revision") val currentRecordRevision: Int = 0,
+    @SerialName("ordered_scene_ids") val orderedSceneIds: List<String> = emptyList(),
+    @SerialName("ordered_shot_ids") val orderedShotIds: List<String> = emptyList(),
+    @SerialName("started_at") val startedAt: String? = null,
+    @SerialName("last_capture_at") val lastCaptureAt: String? = null,
+    @SerialName("closed_at") val closedAt: String? = null,
+)
+
+@Serializable
+data class ShootDimensionFigureDto(
+    @SerialName("dimension_id") val dimensionId: String,
+    val label: String,
+    val authority: String,
+    val counts: Map<String, Int> = emptyMap(),
+    @SerialName("readable_shots") val readableShots: Int = 0,
+    @SerialName("unreadable_shots") val unreadableShots: Int = 0,
+    val dominant: String = "",
+    @SerialName("dominant_count") val dominantCount: Int = 0,
+    val exploration: Double = 0.0,
+    @SerialName("blind_spot") val blindSpot: String = "",
+)
+
+@Serializable
+data class ShootTechniqueFigureDto(
+    @SerialName("technique_id") val techniqueId: String,
+    val name: String,
+    val authority: String = "model_read",
+    @SerialName("observed_shot_ids") val observedShotIds: List<String> = emptyList(),
+    @SerialName("corroborated_shot_ids") val corroboratedShotIds: List<String> = emptyList(),
+)
+
+@Serializable
+data class ShootReceiptDto(
+    @SerialName("calc_version") val calcVersion: String = "",
+    val summary: String = "",
+    @SerialName("shot_count") val shotCount: Int = 0,
+    @SerialName("scene_count") val sceneCount: Int = 0,
+    @SerialName("shots_per_scene") val shotsPerScene: List<Int> = emptyList(),
+    @SerialName("readable_shot_count") val readableShotCount: Int = 0,
+    @SerialName("unreadable_shot_ids") val unreadableShotIds: List<String> = emptyList(),
+    @SerialName("keeper_shot_ids") val keeperShotIds: List<String> = emptyList(),
+    val repeated: List<String> = emptyList(),
+    val varied: List<String> = emptyList(),
+    @SerialName("blind_spots") val blindSpots: List<String> = emptyList(),
+    val dimensions: List<ShootDimensionFigureDto> = emptyList(),
+    val techniques: List<ShootTechniqueFigureDto> = emptyList(),
+)
+
+@Serializable
+data class ScoutWarrantDto(
+    val kind: String,
+    @SerialName("shoot_id") val shootId: String,
+    @SerialName("shoot_revision") val shootRevision: Int,
+    @SerialName("shot_ids") val shotIds: List<String> = emptyList(),
+    @SerialName("technique_id") val techniqueId: String = "",
+    @SerialName("reference_shot_id") val referenceShotId: String = "",
+    val detail: String = "",
+)
+
+@Serializable
+data class ScoutRejectedRouteDto(
+    val route: String,
+    val reason: String,
+)
+
+@Serializable
+data class ScoutDecisionDto(
+    val route: String = "silence",
+    val reason: String = "",
+    val warrant: List<ScoutWarrantDto> = emptyList(),
+    @SerialName("rejected_routes") val rejectedRoutes: List<ScoutRejectedRouteDto> = emptyList(),
+    @SerialName("input_shot_ids") val inputShotIds: List<String> = emptyList(),
+    @SerialName("projection_versions") val projectionVersions: Map<String, String> = emptyMap(),
+    @SerialName("policy_version") val policyVersion: String = "",
+    @SerialName("experiment_id") val experimentId: String = "",
+    @SerialName("execution_state") val executionState: String = "completed",
+    @SerialName("execution_detail") val executionDetail: String = "",
+    @SerialName("attempt_state") val attemptState: String = "not_applicable",
+    @SerialName("observable_outcome") val observableOutcome: String = "not_applicable",
+)
+
+@Serializable
+data class ShootRecordDto(
+    @SerialName("shoot_id") val shootId: String,
+    val revision: Int = 1,
+    @SerialName("scene_ids") val sceneIds: List<String> = emptyList(),
+    @SerialName("shot_ids") val shotIds: List<String> = emptyList(),
+    @SerialName("run_outcomes") val runOutcomes: Map<String, String> = emptyMap(),
+    @SerialName("unreadable_shot_ids") val unreadableShotIds: List<String> = emptyList(),
+    val receipt: ShootReceiptDto = ShootReceiptDto(),
+    val scout: ScoutDecisionDto = ScoutDecisionDto(),
+    @SerialName("settled_at") val settledAt: String = "",
+)
+
+@Serializable
 data class JourneyUpdateDto(
     val id: String,
     val body: String,
@@ -301,6 +401,8 @@ data class MobileSnapshotDto(
     @SerialName("open_experiment") val openExperiment: ExperimentDto? = null,
     @SerialName("latest_capture_session") val latestCaptureSession: CaptureSessionDto? = null,
     @SerialName("latest_run") val latestRun: RunDto? = null,
+    @SerialName("latest_shoot") val latestShoot: ShootDto? = null,
+    @SerialName("latest_shoot_record") val latestShootRecord: ShootRecordDto? = null,
     @SerialName("latest_shot") val latestShot: ShotViewDto? = null,
     @SerialName("recent_shots") val recentShots: List<ShotDto> = emptyList(),
     val journey: List<JourneyUpdateDto> = emptyList(),

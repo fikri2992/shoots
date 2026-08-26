@@ -1,6 +1,7 @@
 package com.shoots.app.ui
 
 import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -27,6 +28,10 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -51,6 +56,8 @@ import com.shoots.app.WarmWhite
 import com.shoots.app.data.LocalCaptureSessionEntity
 import com.shoots.app.data.LocalCaptureState
 import com.shoots.app.data.MobileSnapshotDto
+import com.shoots.app.data.ShootDto
+import com.shoots.app.data.ShootRecordDto
 import com.shoots.app.data.ShotDto
 import com.shoots.app.data.ShotViewDto
 import com.shoots.app.data.SourceStateEntity
@@ -74,15 +81,26 @@ fun NowScreen(
     onCancelSession: (String) -> Unit,
     onImportSessionAsFree: (String) -> Unit,
     onOpenShot: (String) -> Unit,
+    onOpenShots: () -> Unit,
     onOpenExperiments: () -> Unit,
     onOpenSettings: () -> Unit,
 ) {
     val active = localSession?.takeIf { it.state in ACTIVE_SESSION_STATES }
     val latest = snapshot?.recentShots?.firstOrNull()
     val latestView = snapshot?.latestShot
+    val latestShoot = snapshot?.latestShoot
+    val latestRecord = snapshot?.latestShootRecord?.takeIf { record ->
+        latestShoot == null || (
+            latestShoot.status == "settled" &&
+                record.shootId == latestShoot.id &&
+                record.revision == latestShoot.currentRecordRevision
+            )
+    }
     val focus = when {
         active != null -> "session"
-        latestView?.analysis != null -> "insight"
+        latestShoot?.status in setOf("open", "closing") -> "shoot-processing"
+        latestRecord != null -> "shoot-receipt"
+        latestView?.analysis != null -> "legacy-insight"
         else -> "camera"
     }
     Column(
@@ -112,7 +130,19 @@ fun NowScreen(
                     onCancel = onCancelSession,
                     onImportAsFree = onImportSessionAsFree,
                 )
-                "insight" -> LatestInsightHero(
+                "shoot-processing" -> ShootProcessingHero(
+                    shoot = requireNotNull(latestShoot),
+                    lastSyncedAt = source?.lastSuccessfulSyncAt.orEmpty(),
+                    onOpenCamera = onOpenFreeCamera,
+                    onOpenShots = onOpenShots,
+                )
+                "shoot-receipt" -> ShootReceiptHero(
+                    record = requireNotNull(latestRecord),
+                    lastSyncedAt = source?.lastSuccessfulSyncAt.orEmpty(),
+                    onOpenShots = onOpenShots,
+                    onOpenExperiments = onOpenExperiments,
+                )
+                "legacy-insight" -> LatestInsightHero(
                     view = requireNotNull(latestView),
                     imageUrl = imageUrl,
                     access = mediaAccess,
@@ -190,6 +220,167 @@ fun NowScreen(
         }
     }
 }
+
+@Composable
+private fun ShootProcessingHero(
+    shoot: ShootDto,
+    lastSyncedAt: String,
+    onOpenCamera: () -> Unit,
+    onOpenShots: () -> Unit,
+) {
+    val shots = shoot.orderedShotIds.size
+    val scenes = shoot.orderedSceneIds.size
+    Column(
+        Modifier
+            .fillMaxWidth()
+            .background(InkRaised, RoundedCornerShape(24.dp))
+            .border(1.dp, Hairline, RoundedCornerShape(24.dp))
+            .padding(20.dp),
+    ) {
+        Text("THIS SHOOT", color = MutedWhite, fontSize = 10.sp, fontWeight = FontWeight.Bold)
+        Spacer(Modifier.height(9.dp))
+        Text(
+            if (shoot.status == "closing") "Accounting for every Shot."
+            else "Still watching this Shoot.",
+            color = WarmWhite,
+            fontSize = 24.sp,
+            lineHeight = 29.sp,
+            fontWeight = FontWeight.Bold,
+        )
+        Spacer(Modifier.height(9.dp))
+        Text(
+            "$shots ${countLabel(shots, "Shot")} across $scenes ${countLabel(scenes, "Scene")}. " +
+                if (shoot.status == "closing") {
+                    "The receipt settles after every member is accounted for."
+                } else {
+                    "New Camera media may still join it."
+                },
+            color = MutedWhite,
+            fontSize = 14.sp,
+            lineHeight = 20.sp,
+        )
+        Spacer(Modifier.height(19.dp))
+        if (shoot.status == "open") {
+            PrimaryAction("Keep shooting", onClick = onOpenCamera)
+            Spacer(Modifier.height(8.dp))
+        }
+        SecondaryAction("Open Shots", onClick = onOpenShots)
+        SyncedLabel(lastSyncedAt)
+    }
+}
+
+@Composable
+private fun ShootReceiptHero(
+    record: ShootRecordDto,
+    lastSyncedAt: String,
+    onOpenShots: () -> Unit,
+    onOpenExperiments: () -> Unit,
+) {
+    var expanded by rememberSaveable(record.shootId, record.revision) { mutableStateOf(false) }
+    val receipt = record.receipt
+    val lead = receipt.repeated.firstOrNull()
+        ?: receipt.varied.firstOrNull()
+        ?: "Every member Shot is accounted for."
+    Column(
+        Modifier
+            .fillMaxWidth()
+            .background(InkRaised, RoundedCornerShape(24.dp))
+            .border(1.dp, Hairline, RoundedCornerShape(24.dp))
+            .padding(20.dp),
+    ) {
+        Row(
+            Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text("YOUR SHOOT", color = MutedWhite, fontSize = 10.sp, fontWeight = FontWeight.Bold)
+            Text(
+                "${receipt.sceneCount} ${countLabel(receipt.sceneCount, "Scene")} · " +
+                    "${receipt.shotCount} ${countLabel(receipt.shotCount, "Shot")}",
+                color = MutedWhite,
+                fontSize = 11.sp,
+            )
+        }
+        Spacer(Modifier.height(10.dp))
+        Text(
+            lead,
+            color = WarmWhite,
+            fontSize = 23.sp,
+            lineHeight = 29.sp,
+            fontWeight = FontWeight.Bold,
+        )
+        val secondary = receipt.varied.firstOrNull { it != lead }
+            ?: receipt.repeated.drop(1).firstOrNull()
+        if (!secondary.isNullOrBlank()) {
+            Spacer(Modifier.height(9.dp))
+            Text(secondary, color = MutedWhite, fontSize = 14.sp, lineHeight = 20.sp)
+        }
+        Spacer(Modifier.height(16.dp))
+        when (record.scout.route) {
+            "reproduce" -> {
+                Text(
+                    "EXPERIMENT OFFERED FROM YOUR KEEPER",
+                    color = Amber,
+                    fontSize = 10.sp,
+                    fontWeight = FontWeight.Bold,
+                )
+                Spacer(Modifier.height(8.dp))
+                PrimaryAction("Open Experiment", onClick = onOpenExperiments)
+                Spacer(Modifier.height(8.dp))
+                SecondaryAction("Open Shots", onClick = onOpenShots)
+            }
+            "explain" -> PrimaryAction("Open Shots", onClick = onOpenShots)
+            else -> SecondaryAction("Open Shots", onClick = onOpenShots)
+        }
+        val hasDetails = receipt.repeated.size + receipt.varied.size > 1 ||
+            receipt.blindSpots.isNotEmpty() || receipt.techniques.isNotEmpty()
+        if (hasDetails) {
+            Spacer(Modifier.height(12.dp))
+            Text(
+                if (expanded) "Hide evidence" else "Show evidence",
+                color = Amber,
+                fontSize = 13.sp,
+                fontWeight = FontWeight.SemiBold,
+                modifier = Modifier
+                    .semantics { contentDescription = if (expanded) "Hide Shoot evidence" else "Show Shoot evidence" }
+                    .clickable(role = Role.Button) { expanded = !expanded }
+                    .padding(vertical = 6.dp),
+            )
+            AnimatedVisibility(visible = expanded) {
+                Column {
+                    receipt.repeated.drop(1).forEach { EvidenceLine("Repeated", it) }
+                    receipt.varied.filter { it != secondary }.forEach { EvidenceLine("Varied", it) }
+                    receipt.techniques.filter { it.corroboratedShotIds.isNotEmpty() }.forEach {
+                        EvidenceLine(
+                            "Technique · model read",
+                            "${it.name} was corroborated in ${it.corroboratedShotIds.size} " +
+                                countLabel(it.corroboratedShotIds.size, "Shot") + ".",
+                        )
+                    }
+                    receipt.blindSpots.forEach { EvidenceLine("Could not read", it) }
+                }
+            }
+        }
+        SyncedLabel(lastSyncedAt)
+    }
+}
+
+@Composable
+private fun EvidenceLine(label: String, value: String) {
+    Spacer(Modifier.height(13.dp))
+    Text(label.uppercase(), color = MutedWhite, fontSize = 9.sp, fontWeight = FontWeight.Bold)
+    Spacer(Modifier.height(3.dp))
+    Text(value, color = WarmWhite, fontSize = 13.sp, lineHeight = 18.sp)
+}
+
+@Composable
+private fun SyncedLabel(value: String) {
+    if (value.isBlank()) return
+    Spacer(Modifier.height(14.dp))
+    Text("Last synced ${displayTime(value)}", color = MutedWhite, fontSize = 10.sp)
+}
+
+private fun countLabel(count: Int, noun: String): String = if (count == 1) noun else "${noun}s"
 
 @Composable
 private fun LatestInsightHero(

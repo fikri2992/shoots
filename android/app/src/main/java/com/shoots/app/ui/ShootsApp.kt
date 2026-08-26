@@ -151,6 +151,7 @@ fun ShootsApp(
                     onCancelSession = actions.cancelSession,
                     onImportSessionAsFree = actions.importSessionAsFree,
                     onOpenShot = { nav.navigate("shot/$it") },
+                    onOpenShots = { nav.navigate("shots") },
                     onOpenExperiments = { nav.navigate("experiments") },
                     onOpenSettings = { nav.navigate("settings") },
                 )

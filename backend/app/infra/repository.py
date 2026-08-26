@@ -265,6 +265,21 @@ async def find_shoot_record(store: Store, shoot_id: str, revision: int) -> Shoot
     return ShootRecord.model_validate(data) if data else None
 
 
+async def list_shoot_records(
+    store: Store,
+    user_id: str,
+    limit: int | None = None,
+) -> list[ShootRecord]:
+    rows = await store.query(
+        SHOOT_RECORDS,
+        where={"user_id": user_id},
+        order_by="settled_at",
+        descending=True,
+        limit=limit,
+    )
+    return [ShootRecord.model_validate(row) for row in rows]
+
+
 async def settle_shoot(
     store: Store, shoot_id: str, revision: int, settled_at: datetime
 ) -> tuple[Shoot, bool]:

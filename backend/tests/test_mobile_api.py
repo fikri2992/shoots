@@ -6,7 +6,21 @@ from fastapi.testclient import TestClient
 
 from app.api import deps, main
 from app.api.auth import current_user
-from app.domain.entities import GridSpec, Shot, ShotKind, ShotStatus, User, now
+from app.domain.entities import (
+    GridSpec,
+    Scene,
+    ScoutDecision,
+    ScoutRoute,
+    Shoot,
+    ShootReceipt,
+    ShootRecord,
+    ShootStatus,
+    Shot,
+    ShotKind,
+    ShotStatus,
+    User,
+    now,
+)
 from app.infra import repository as repo
 from app.infra.bus import InProcessBus
 from app.infra.storage import LocalBlobStore
@@ -124,3 +138,88 @@ async def test_shot_detail_exposes_its_run_and_resumes_a_legacy_ingest(tmp_path)
     assert terminal.json()["detail"] == "This Shot is terminally unreadable"
     events = await repo.list_events(ctx.store, user_id)
     assert [event.stage for event in events].count("resume_requested") == 1
+
+
+async def test_mobile_snapshot_exposes_current_shoot_and_newest_record_in_etag(tmp_path):
+    ctx = Context(
+        store=InMemoryStore(),
+        blobs=LocalBlobStore(tmp_path / "blobs"),
+        bus=InProcessBus(),
+        drive=None,
+        tokens=None,
+    )
+    user_id = "shoot-mobile-reader"
+    await repo.put_user(ctx.store, User(id=user_id, email="shoot-reader@example.test"))
+    at = now()
+    scene = Scene(
+        id="scene_mobile",
+        user_id=user_id,
+        shoot_id="shoot_mobile",
+        ordered_shot_ids=["shoot-shot-1", "shoot-shot-2"],
+        started_at=at,
+        ended_at=at + timedelta(minutes=2),
+    )
+    shoot = Shoot(
+        id="shoot_mobile",
+        user_id=user_id,
+        status=ShootStatus.CLOSING,
+        ordered_scene_ids=[scene.id],
+        ordered_shot_ids=list(scene.ordered_shot_ids),
+        started_at=at,
+        last_capture_at=scene.ended_at,
+    )
+    await repo.put_scene(ctx.store, scene)
+    await repo.put_shoot(ctx.store, shoot)
+
+    main.app.dependency_overrides[deps.get_context] = lambda: ctx
+    main.app.dependency_overrides[current_user] = lambda: {"id": user_id}
+    try:
+        with TestClient(main.app) as client:
+            processing = client.get("/api/mobile/snapshot")
+            assert processing.status_code == 200, processing.text
+            assert processing.json()["latest_shoot"]["id"] == shoot.id
+            assert processing.json()["latest_shoot"]["status"] == "closing"
+            assert processing.json()["latest_shoot_record"] is None
+            processing_etag = processing.headers["ETag"]
+
+            record = ShootRecord(
+                shoot_id=shoot.id,
+                user_id=user_id,
+                scene_ids=[scene.id],
+                shot_ids=list(scene.ordered_shot_ids),
+                receipt=ShootReceipt(
+                    calc_version="shoot-receipt-1+tendency-2",
+                    summary="2 Shots across 1 Scene.",
+                    shot_count=2,
+                    scene_count=1,
+                    shots_per_scene=[2],
+                    repeated=["2 of 2 readable Shots used portrait orientation (measured)."],
+                ),
+                scout=ScoutDecision(
+                    route=ScoutRoute.EXPLAIN,
+                    reason="The receipt has a supported pattern.",
+                    input_shot_ids=list(scene.ordered_shot_ids),
+                    policy_version="shoot-scout-1",
+                ),
+                settled_at=at + timedelta(minutes=5),
+            )
+            await repo.put_shoot_record_once(ctx.store, record)
+            shoot.status = ShootStatus.SETTLED
+            shoot.current_record_revision = 1
+            shoot.closed_at = record.settled_at
+            await repo.put_shoot(ctx.store, shoot)
+
+            settled = client.get(
+                "/api/mobile/snapshot",
+                headers={"If-None-Match": processing_etag},
+            )
+            assert settled.status_code == 200, settled.text
+            assert settled.headers["ETag"] != processing_etag
+            body = settled.json()
+            assert body["latest_shoot"]["status"] == "settled"
+            assert body["latest_shoot_record"]["shoot_id"] == shoot.id
+            assert body["latest_shoot_record"]["receipt"]["shot_count"] == 2
+            assert body["latest_shoot_record"]["scout"]["route"] == "explain"
+            assert "overall_score" not in body["latest_shoot_record"]["receipt"]
+    finally:
+        main.app.dependency_overrides.clear()
