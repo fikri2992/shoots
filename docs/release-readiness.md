@@ -6,7 +6,7 @@
 ## Candidate
 
 The protected Shoot workflow remains available at `6ea693f` on
-`codex/shoot-record`. The candidate-protected continuation through `71eee57` on
+`codex/shoot-record`. The candidate-protected continuation through `d22abe6` on
 `codex/learning-memory` passed the complete local gate. Neither branch exists on the
 remote yet.
 
@@ -28,6 +28,9 @@ Implemented and locally proven:
   automatic route adaptation after repeated comparable unchanged outcomes;
 - one deterministic Shot Teaching Receipt that keeps Keep, Notice, Try, Check, and a
   single matching image layer together on Android and web;
+- one 11-case real-agent report under prompt digest `1c738851cdfb`: 180 automatic
+  checks passed, zero failed, 12 remained explicit human-review questions, and no
+  case errored;
 - cached mobile snapshot and Now focal order;
 - offline receipt recovery after Room database reopen;
 - one real emulator WorkManager request through adb reverse, bearer authentication,
@@ -42,6 +45,7 @@ The current dependency order and acceptance boundaries are recorded in
 |---|---|---|
 | Backend format and lint | Ruff over `app` and `tests` | pass |
 | Backend behavior | complete pytest suite plus continuous Shoot acceptance | pass |
+| Real-agent quality | 11 real Gemini cases, report SHA-256 `5c161d5c760345e900a3b4b8307e4b90ca771c6958d794d1adc81c2b8bb1f4e3`; developer review against the locked hobbyist perspective | pass locally |
 | Web client | 33 integration and domain checks plus production build | pass |
 | Android debug build | `:app:assembleDebug` | pass |
 | Android static analysis | `:app:lintDebug` | pass |
@@ -57,7 +61,7 @@ The current dependency order and acceptance boundaries are recorded in
 Deployment requires explicit Photographer/developer approval. A push is not a
 deployment. After approval:
 
-1. select the exact clean candidate SHA;
+1. select the exact clean candidate SHA, currently `d22abe6`;
 2. load the existing backend environment without copying secrets into the worktree;
 3. run the complete local gates once more;
 4. deploy that exact source to Cloud Run;

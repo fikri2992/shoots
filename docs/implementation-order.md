@@ -281,10 +281,9 @@ chance of proving the work already built.
 
 ## Commit sequence from the current branch
 
-1. `Add the real-agent quality gate`
-2. Narrow fixes found by Cloud acceptance, one failure class per commit
-3. Narrow fixes found by Xiaomi acceptance, one failure class per commit
-4. `Prepare the submission proof`
+1. Narrow fixes found by Cloud acceptance, one failure class per commit
+2. Narrow fixes found by Xiaomi acceptance, one failure class per commit
+3. `Prepare the submission proof`
 
 No commit, push, deployment, account mutation, or public submission is authorized by
 this document. Each still requires the user's explicit request.
