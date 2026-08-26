@@ -5,10 +5,11 @@ from pydantic import BaseModel
 
 from app.api.auth import current_user
 from app.api.deps import get_context
+from app.domain import scout as scout_rules
 from app.domain import taxonomy
 from app.domain.entities import Experiment, TechniqueState, TechniqueStatus
 from app.infra import repository as repo
-from app.services import scout
+from app.services import photographer_memory, scout
 from app.services.context import Context
 
 router = APIRouter(prefix="/api", tags=["experiments"])
@@ -34,6 +35,16 @@ class TechniqueNode(BaseModel):
     projection_version: str
     input_digest: str
     last_observed: str | None
+
+
+class TechniqueChoice(BaseModel):
+    technique_id: str
+    name: str
+    family: str
+    description: str
+    observed: bool
+    recurring: bool
+    corroborated_shots: int
 
 
 @router.get("/techniques", response_model=list[TechniqueNode])
@@ -96,6 +107,39 @@ def _has_evidence(state: TechniqueState) -> bool:
             state.positive_keeper_shots,
         )
     ) or bool(state.supported_condition_coverage)
+
+
+@router.get("/techniques/catalogue", response_model=list[TechniqueChoice])
+async def technique_catalogue(
+    session_user: dict[str, str] = Depends(current_user),
+    ctx: Context = Depends(get_context),
+) -> list[TechniqueChoice]:
+    """Still Techniques the Photographer may explicitly choose for Explore."""
+    states = {
+        state.technique_id: state
+        for state in await repo.list_technique_states(ctx.store, session_user["id"])
+    }
+    constraints = await photographer_memory.constraints_for(ctx, session_user["id"])
+    choices = []
+    for technique in taxonomy.TECHNIQUES:
+        if not scout_rules.available(
+            technique,
+            missing_gear=constraints.missing_gear,
+        ):
+            continue
+        state = states.get(technique.id)
+        choices.append(
+            TechniqueChoice(
+                technique_id=technique.id,
+                name=technique.name,
+                family=technique.family.value,
+                description=technique.cue,
+                observed=state is not None and _has_evidence(state),
+                recurring=state is not None and state.status is TechniqueStatus.RECURRING,
+                corroborated_shots=state.corroborated_shots if state is not None else 0,
+            )
+        )
+    return choices
 
 
 @router.post("/techniques/rebuild")

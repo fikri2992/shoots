@@ -64,7 +64,7 @@ flowchart LR
 | 1 | complete | Turn Camera activity into finished work | Revisioned Shoot Record over exact Scene and Shot membership | Every current member Run settles or ends terminally; replay and late media create no duplicate current record |
 | 2 | complete | Build longitudinal evidence | Rebuildable Technique Map, Tendency Profile, Change, and Journey projections | Recurrence, distinct Shoot coverage, Reproduce outcomes, abstentions, and Keeper signals stay separate; no skill score |
 | 3 | partial | Make memory honest and correctable | Mine/Inspiration authority plus scoped Photographer Signals | Inspiration cannot affect the Photographer record; facts carry source, scope, provenance, confirmation, expiry, and supersession. Legacy migration and wider Intent consumers remain later work |
-| 4 | complete | Make help optional and typed | Scout decision plus Ask, Explore, Reproduce, or evidenced silence | Code determines route eligibility; the model cannot invent eligibility, Criteria, Technique ids, or improvement |
+| 4 | complete | Make help optional and typed | Scout decision plus Ask, Explore, Reproduce, or evidenced silence | Code determines route eligibility; Android separates “Use my Tendencies” from explicit Technique curiosity; the model cannot invent eligibility, Criteria, Technique ids, Baseline, or improvement |
 | 5 | complete | Remember whether help mattered | Intervention Record from offer through observable outcome | Offered is not entered, unmet Criteria is not a bad Shot, and repeated comparable unchanged outcomes affect later automatic routing |
 | 6 | complete | Leave something the Photographer can use or share | Shoot receipt, Journey comparison, and evidence-bound Deconstruction | Artifacts cite stored Evidence, label model reads, preserve uncertainty, and never auto-post |
 | 7 | complete | Teach one Shot without an essay | One image-led Shot Teaching Receipt | Keep, Notice, Try, and Check agree with one visible image layer; camera or subject action outranks crop salvage; no raw cells or quality score |
@@ -179,6 +179,23 @@ the public example manifest documents the schema without publishing the corpus.
 ### Commit boundary
 
 `Add the real-agent quality gate`
+
+## Phase 8a: close the on-demand Explore entrance
+
+This locally complete slice closes a product gap before Cloud acceptance without
+changing the learning contract.
+
+- “Use my Tendencies” asks Scout to choose from the Photographer record and may freeze
+  a comparable Baseline.
+- “Choose a Technique” exposes a searchable still-Technique catalogue filtered by
+  explicit missing-gear Signals.
+- Observed, recurring, and new-to-record labels describe Evidence state, not ability.
+- Explicit curiosity creates no invented Baseline or Change claim against unrelated
+  old Shots.
+- Both entrances preserve one open Experiment and explicit Capture Session membership.
+
+Backend integration and Android emulator coverage must pass before this joins the
+Cloud candidate. Physical readability remains part of phase 10.
 
 ## Phase 9: Cloud continuous proof
 

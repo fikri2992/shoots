@@ -325,8 +325,8 @@ class ShootsRepository(
         return experiment
     }
 
-    suspend fun requestExplore(force: Boolean): ExperimentDto? {
-        val experiment = api.issueExplore(force)
+    suspend fun requestExplore(force: Boolean, techniqueId: String = ""): ExperimentDto? {
+        val experiment = api.issueExplore(force, techniqueId)
         refreshSnapshot()
         return experiment
     }

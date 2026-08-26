@@ -53,9 +53,9 @@ async def issue(
     requested_reason: str = "",
 ) -> Experiment | None:
     """Issue one experiment for the user if none is open. Returns it, or None.
-    ``technique_id`` names the Technique (the Coach, by voice); otherwise the
-    supported Direction chooses. With ``force`` the existing Experiment is
-    skipped only after a replacement candidate is ready."""
+    ``technique_id`` names an explicitly requested Technique; otherwise a supported
+    Direction chooses. With ``force`` the existing Experiment is skipped only after
+    a replacement candidate is ready."""
     open_experiment = await repo.open_experiment(ctx.store, user_id)
     if open_experiment and not force:
         logger.info("scout: %s already has open experiment %s", user_id, open_experiment.id)

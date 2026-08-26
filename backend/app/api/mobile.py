@@ -50,6 +50,7 @@ class MobileSnapshot(BaseModel):
     journey: list[JourneyUpdate]
     profile: shot_api.ProfileView
     techniques: list[experiment_api.TechniqueNode]
+    technique_catalogue: list[experiment_api.TechniqueChoice]
     experiments: list[Experiment]
     latest_deconstruction: Deconstruction | None
     recent_scout_answers: list[ScoutAnswer]
@@ -101,6 +102,7 @@ async def snapshot(
         journey=await repo.list_journey_updates(ctx.store, user.id, limit=10),
         profile=await shot_api.profile(session_user, ctx),
         techniques=await experiment_api.technique_map(session_user, ctx),
+        technique_catalogue=await experiment_api.technique_catalogue(session_user, ctx),
         experiments=experiments,
         latest_deconstruction=deconstructions[0] if deconstructions else None,
         recent_scout_answers=await repo.list_scout_answers(ctx.store, user.id, limit=20),

@@ -64,6 +64,12 @@ or say that a Change moved toward what they wanted.
    entered, what could be observed afterward, and whether the evidence was sufficient.
    Ignoring an offer is not failed advice; one Criteria miss is not a bad Shot.
 
+Explore has two honest entrances. "Use my Tendencies" lets Scout choose from the
+Photographer's current record and may freeze a comparable Baseline. "Choose a
+Technique" starts from explicit curiosity, including a Technique not seen before. It
+has no invented Baseline and cannot claim longitudinal Change against unrelated old
+Shots. New to the record means unobserved, not missing or behind.
+
 ### How adaptation works now
 
 The immutable Shoot Record keeps the original Scout route and warrant. A separate

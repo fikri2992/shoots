@@ -570,6 +570,17 @@ data class TechniqueNodeDto(
 )
 
 @Serializable
+data class TechniqueChoiceDto(
+    @SerialName("technique_id") val techniqueId: String,
+    val name: String,
+    val family: String,
+    val description: String,
+    val observed: Boolean = false,
+    val recurring: Boolean = false,
+    @SerialName("corroborated_shots") val corroboratedShots: Int = 0,
+)
+
+@Serializable
 data class MobileSnapshotDto(
     val user: UserDto,
     @SerialName("drive_connected") val driveConnected: Boolean = false,
@@ -586,6 +597,7 @@ data class MobileSnapshotDto(
     val journey: List<JourneyUpdateDto> = emptyList(),
     val profile: ProfileDto = ProfileDto(),
     val techniques: List<TechniqueNodeDto> = emptyList(),
+    @SerialName("technique_catalogue") val techniqueCatalogue: List<TechniqueChoiceDto> = emptyList(),
     val experiments: List<ExperimentDto> = emptyList(),
     @SerialName("latest_deconstruction") val latestDeconstruction: DeconstructionDto? = null,
     @SerialName("recent_scout_answers") val recentScoutAnswers: List<ScoutAnswerDto> = emptyList(),

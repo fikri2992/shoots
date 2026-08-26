@@ -172,8 +172,8 @@ class MainActivity : ComponentActivity() {
                         requestExperiment = { force ->
                             scope.launch { viewModel.requestExperiment(force) }
                         },
-                        requestExplore = { force ->
-                            scope.launch { viewModel.requestExplore(force) }
+                        requestExplore = { force, techniqueId ->
+                            scope.launch { viewModel.requestExplore(force, techniqueId) }
                         },
                         startExperiment = { experimentId, variationId ->
                             scope.launch {

@@ -57,7 +57,7 @@ data class AppActions(
     val openFreeCamera: () -> Unit,
     val chooseFreeShots: () -> Unit,
     val requestExperiment: (Boolean) -> Unit,
-    val requestExplore: (Boolean) -> Unit,
+    val requestExplore: (Boolean, String) -> Unit,
     val startExperiment: (String, String) -> Unit,
     val completeExplore: (String) -> Unit,
     val prepareDeconstruction: (String, String, Int, String) -> Unit,

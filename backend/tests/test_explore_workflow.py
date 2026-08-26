@@ -8,6 +8,7 @@ from app.api import deps, main
 from app.api.auth import current_user
 from app.domain.entities import (
     Analysis,
+    Constraints,
     ExperimentStatus,
     RunStage,
     Shot,
@@ -36,7 +37,11 @@ def explore_context() -> Context:
 
 async def test_explore_records_variations_without_criteria_or_verdicts():
     ctx = explore_context()
-    user = User(id="explorer", email="explorer@example.test")
+    user = User(
+        id="explorer",
+        email="explorer@example.test",
+        constraints=Constraints(missing_gear=["tripod"]),
+    )
     await repo.put_user(ctx.store, user)
     main.app.dependency_overrides[deps.get_context] = lambda: ctx
     main.app.dependency_overrides[current_user] = lambda: {
@@ -46,6 +51,14 @@ async def test_explore_records_variations_without_criteria_or_verdicts():
     }
     try:
         with TestClient(main.app) as client:
+            catalogue_response = client.get("/api/techniques/catalogue")
+            assert catalogue_response.status_code == 200
+            catalogue = catalogue_response.json()
+            by_id = {item["technique_id"]: item for item in catalogue}
+            assert by_id["negative_space"]["observed"] is False
+            assert by_id["negative_space"]["description"].startswith("A small subject")
+            assert "long_exposure" not in by_id
+            assert all(item["family"] != "video" for item in catalogue)
             issued = client.post(
                 "/api/experiments/explore?technique_id=negative_space"
             )

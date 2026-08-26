@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBarsPadding
@@ -20,6 +21,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -49,6 +51,7 @@ import com.shoots.app.data.LocalCaptureSessionEntity
 import com.shoots.app.data.LocalCaptureState
 import com.shoots.app.data.MobileSnapshotDto
 import com.shoots.app.data.ShotDto
+import com.shoots.app.data.TechniqueChoiceDto
 import com.shoots.app.data.canStartReproduce
 import com.shoots.app.data.canStartExplore
 
@@ -59,7 +62,7 @@ fun ExperimentsScreen(
     busy: Boolean,
     imageUrl: (ShotDto) -> String,
     onRequestExperiment: (Boolean) -> Unit,
-    onRequestExplore: (Boolean) -> Unit,
+    onRequestExplore: (Boolean, String) -> Unit,
     onStartExperiment: (String, String) -> Unit,
     onCompleteExplore: (String) -> Unit,
     onContinueSession: (String) -> Unit,
@@ -71,6 +74,7 @@ fun ExperimentsScreen(
     val open = snapshot?.openExperiment
     val active = localSession?.takeIf { it.state in EXPERIMENT_SESSION_STATES }
     var replaceConfirm by remember { mutableStateOf(false) }
+    var explorePickerForce by remember { mutableStateOf<Boolean?>(null) }
     Column(
         Modifier
             .fillMaxSize()
@@ -111,7 +115,7 @@ fun ExperimentsScreen(
                 busy = busy,
                 onStart = { variationId -> onStartExperiment(open.id, variationId) },
                 onComplete = { onCompleteExplore(open.id) },
-                onAnother = { onRequestExplore(true) },
+                onAnother = { explorePickerForce = true },
             )
             open != null -> OlderExperimentCard(
                 experiment = open,
@@ -120,7 +124,7 @@ fun ExperimentsScreen(
             )
             else -> NoExperimentCard(
                 busy = busy,
-                onExplore = { onRequestExplore(false) },
+                onExplore = { explorePickerForce = false },
                 onReproduce = { onRequestExperiment(false) },
             )
         }
@@ -170,6 +174,21 @@ fun ExperimentsScreen(
                 TextButton(onClick = { replaceConfirm = false }) { Text("Cancel", color = WarmWhite) }
             },
             containerColor = InkRaised,
+        )
+    }
+
+    explorePickerForce?.let { force ->
+        TechniquePickerDialog(
+            catalogue = snapshot?.techniqueCatalogue.orEmpty(),
+            onDismiss = { explorePickerForce = null },
+            onScout = {
+                explorePickerForce = null
+                onRequestExplore(force, "")
+            },
+            onTechnique = { techniqueId ->
+                explorePickerForce = null
+                onRequestExplore(force, techniqueId)
+            },
         )
     }
 }
@@ -349,10 +368,129 @@ private fun NoExperimentCard(
             lineHeight = 20.sp,
         )
         Spacer(Modifier.height(18.dp))
-        PrimaryAction("Explore a Tendency", enabled = !busy, onClick = onExplore)
+        PrimaryAction("Explore something", enabled = !busy, onClick = onExplore)
         Spacer(Modifier.height(8.dp))
         SecondaryAction("Reproduce a Keeper", enabled = !busy, onClick = onReproduce)
     }
+}
+
+@Composable
+private fun TechniquePickerDialog(
+    catalogue: List<TechniqueChoiceDto>,
+    onDismiss: () -> Unit,
+    onScout: () -> Unit,
+    onTechnique: (String) -> Unit,
+) {
+    var query by remember { mutableStateOf("") }
+    val choices = catalogue
+        .filter {
+            query.isBlank() ||
+                it.name.contains(query, ignoreCase = true) ||
+                it.family.contains(query, ignoreCase = true) ||
+                it.description.contains(query, ignoreCase = true)
+        }
+        .sortedWith(
+            compareByDescending<TechniqueChoiceDto> { it.recurring }
+                .thenByDescending { it.observed }
+                .thenBy { it.name },
+        )
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("What do you want to explore?", color = WarmWhite) },
+        text = {
+            Column(Modifier.heightIn(max = 470.dp).verticalScroll(rememberScrollState())) {
+                TextButton(onClick = onScout, modifier = Modifier.fillMaxWidth()) {
+                    Column(Modifier.fillMaxWidth()) {
+                        Text(
+                            "Use my Tendencies",
+                            color = Amber,
+                            fontSize = 15.sp,
+                            fontWeight = FontWeight.SemiBold,
+                        )
+                        Spacer(Modifier.height(3.dp))
+                        Text(
+                            "Let Scout choose from decisions already repeating in my Shots.",
+                            color = MutedWhite,
+                            fontSize = 12.sp,
+                            lineHeight = 17.sp,
+                        )
+                    }
+                }
+                Spacer(Modifier.height(10.dp))
+                Text(
+                    "CHOOSE A TECHNIQUE",
+                    color = MutedWhite,
+                    fontSize = 10.sp,
+                    fontWeight = FontWeight.Bold,
+                )
+                Spacer(Modifier.height(8.dp))
+                OutlinedTextField(
+                    value = query,
+                    onValueChange = { query = it },
+                    label = { Text("Search Techniques") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                Spacer(Modifier.height(8.dp))
+                choices.forEach { technique ->
+                    TextButton(
+                        onClick = { onTechnique(technique.techniqueId) },
+                        modifier = Modifier.fillMaxWidth(),
+                    ) {
+                        Column(Modifier.fillMaxWidth()) {
+                            Row(
+                                Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                            ) {
+                                Text(
+                                    technique.name,
+                                    color = WarmWhite,
+                                    fontSize = 14.sp,
+                                    fontWeight = FontWeight.SemiBold,
+                                )
+                                Text(
+                                    technique.family.uppercase(),
+                                    color = MutedWhite,
+                                    fontSize = 9.sp,
+                                    fontWeight = FontWeight.Bold,
+                                )
+                            }
+                            Spacer(Modifier.height(2.dp))
+                            Text(
+                                when {
+                                    technique.recurring -> "Recurring in your record"
+                                    technique.observed -> "Observed in your Shoots"
+                                    else -> "New to your record"
+                                },
+                                color = if (technique.observed) Amber else MutedWhite,
+                                fontSize = 11.sp,
+                            )
+                            Spacer(Modifier.height(3.dp))
+                            Text(
+                                technique.description,
+                                color = MutedWhite,
+                                fontSize = 11.sp,
+                                lineHeight = 15.sp,
+                                maxLines = 2,
+                                overflow = TextOverflow.Ellipsis,
+                            )
+                        }
+                    }
+                }
+                if (choices.isEmpty()) {
+                    Text(
+                        "No available Techniques match that search.",
+                        color = MutedWhite,
+                        fontSize = 13.sp,
+                    )
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = onDismiss) { Text("Cancel", color = WarmWhite) }
+        },
+        containerColor = InkRaised,
+    )
 }
 
 @Composable

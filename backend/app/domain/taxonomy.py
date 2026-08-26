@@ -109,7 +109,8 @@ TECHNIQUES: tuple[Technique, ...] = (
         "Horizon placement",
         Family.COMPOSITION,
         1,
-        "A level horizon placed on the upper or lower third, never cutting the frame in half.",
+        "A level horizon placed deliberately high, low, or through the centre to control how "
+        "much sky and ground the frame holds.",
     ),
     _t(
         "leading_lines",
@@ -390,8 +391,8 @@ TECHNIQUES: tuple[Technique, ...] = (
         "Motion blur",
         Family.EXPOSURE,
         1,
-        "A stable anchor stays sharp while another part of the frame streaks from "
-        "relative movement; use when panning, ICM, or zoom burst cannot be settled.",
+        "A stable anchor stays sharp while another part of the frame streaks from relative "
+        "movement.",
     ),
     _t(
         "panning",

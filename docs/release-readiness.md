@@ -49,7 +49,7 @@ The current dependency order and acceptance boundaries are recorded in
 | Web client | 33 integration and domain checks plus production build | pass |
 | Android debug build | `:app:assembleDebug` | pass |
 | Android static analysis | `:app:lintDebug` | pass |
-| Android instrumentation | 33 emulator tests passed; two hardware-only tests skipped | pass |
+| Android instrumentation | 34 emulator tests passed; two hardware-only tests skipped | pass |
 | Android release guard | `verifyReleaseConfiguration` rejects blank OAuth, Firebase, HTTPS origin, App Link, and external signing inputs by name without printing values | pass; production values absent |
 | Android/backend integration | authenticated `RefreshSnapshotWorker` produced a real `GET /api/mobile/snapshot` and cached it | pass separately |
 | 390 dp Now | receipt, processing, stale-revision, and Experiment focus tests | pass |

@@ -243,14 +243,23 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         return completed && offered
     }
 
-    suspend fun requestExplore(force: Boolean = false): Boolean {
+    suspend fun requestExplore(force: Boolean = false, techniqueId: String = ""): Boolean {
         var offered = false
         val completed = operate {
-            offered = repository.requestExplore(force) != null
+            val experiment = repository.requestExplore(force, techniqueId)
+            offered = experiment != null
             notice.value = if (offered) {
-                "Optional Variations are ready"
+                if (techniqueId.isBlank()) {
+                    "Optional Variations from your Tendencies are ready"
+                } else {
+                    "${experiment?.title ?: "Explore"} is ready"
+                }
             } else {
-                "No supported Tendency Direction is ready for Explore."
+                if (techniqueId.isBlank()) {
+                    "No supported Tendency Direction is ready for Explore."
+                } else {
+                    "That Technique is not available with your current constraints."
+                }
             }
         }
         return completed && offered

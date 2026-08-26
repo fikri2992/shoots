@@ -2,13 +2,16 @@ package com.shoots.app.ui
 
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.test.performClick
 import com.shoots.app.ShootsTheme
 import com.shoots.app.data.CriteriaDto
 import com.shoots.app.data.ExperimentDto
 import com.shoots.app.data.MobileSnapshotDto
 import com.shoots.app.data.ShotDto
+import com.shoots.app.data.TechniqueChoiceDto
 import com.shoots.app.data.UserDto
 import com.shoots.app.data.VariationDto
+import org.junit.Assert.assertEquals
 import org.junit.Rule
 import org.junit.Test
 
@@ -80,8 +83,40 @@ class ExperimentsScreenIntegrationTest {
         compose.onNodeWithText("OLDER EXPERIMENT").assertDoesNotExist()
     }
 
+    @Test
+    fun photographerCanExploreAnExplicitNewTechnique() {
+        var requested: Pair<Boolean, String>? = null
+        val snapshot = snapshotWith(
+            experiment = null,
+            techniqueCatalogue = listOf(
+                TechniqueChoiceDto(
+                    techniqueId = "motion_blur",
+                    name = "Motion blur",
+                    family = "exposure",
+                    description = "Keep one anchor sharp while another region streaks.",
+                    observed = false,
+                )
+            ),
+        )
+
+        compose.setContent {
+            ExperimentsTestContent(snapshot) { force, techniqueId ->
+                requested = force to techniqueId
+            }
+        }
+
+        compose.onNodeWithText("Explore something").performClick()
+        compose.onNodeWithText("What do you want to explore?").assertExists()
+        compose.onNodeWithText("New to your record").assertExists()
+        compose.onNodeWithText("Motion blur").performClick()
+        compose.runOnIdle { assertEquals(false to "motion_blur", requested) }
+    }
+
     @androidx.compose.runtime.Composable
-    private fun ExperimentsTestContent(snapshot: MobileSnapshotDto) {
+    private fun ExperimentsTestContent(
+        snapshot: MobileSnapshotDto,
+        onRequestExplore: (Boolean, String) -> Unit = { _, _ -> },
+    ) {
         ShootsTheme {
             ExperimentsScreen(
                 snapshot = snapshot,
@@ -89,7 +124,7 @@ class ExperimentsScreenIntegrationTest {
                 busy = false,
                 imageUrl = { _ -> "" },
                 onRequestExperiment = { _ -> },
-                onRequestExplore = { _ -> },
+                onRequestExplore = onRequestExplore,
                 onStartExperiment = { _, _ -> },
                 onCompleteExplore = { _ -> },
                 onContinueSession = { _ -> },
@@ -102,12 +137,14 @@ class ExperimentsScreenIntegrationTest {
     }
 
     private fun snapshotWith(
-        experiment: ExperimentDto,
+        experiment: ExperimentDto?,
         shots: List<ShotDto> = emptyList(),
+        techniqueCatalogue: List<TechniqueChoiceDto> = emptyList(),
     ) = MobileSnapshotDto(
         user = UserDto(id = "user-1", email = "photographer@example.com"),
         openExperiment = experiment,
         recentShots = shots,
-        experiments = listOf(experiment),
+        experiments = listOfNotNull(experiment),
+        techniqueCatalogue = techniqueCatalogue,
     )
 }
