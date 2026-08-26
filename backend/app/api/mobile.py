@@ -17,6 +17,7 @@ from app.domain.entities import (
     Experiment,
     Inspiration,
     JourneyUpdate,
+    PhotographerSignal,
     Run,
     Shoot,
     ShootRecord,
@@ -42,6 +43,7 @@ class MobileSnapshot(BaseModel):
     latest_shot: shot_api.ShotView | None
     recent_shots: list[Shot]
     recent_inspirations: list[Inspiration]
+    photographer_signals: list[PhotographerSignal]
     journey: list[JourneyUpdate]
     profile: shot_api.ProfileView
     techniques: list[experiment_api.TechniqueNode]
@@ -92,6 +94,7 @@ async def snapshot(
         latest_shot=await shot_api._shot_view(ctx, shots[0]) if shots else None,
         recent_shots=shots,
         recent_inspirations=await repo.list_inspirations(ctx.store, user.id, limit=30),
+        photographer_signals=await repo.list_photographer_signals(ctx.store, user.id),
         journey=await repo.list_journey_updates(ctx.store, user.id, limit=10),
         profile=await shot_api.profile(session_user, ctx),
         techniques=await experiment_api.technique_map(session_user, ctx),

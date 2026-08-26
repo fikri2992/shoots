@@ -26,7 +26,7 @@ from app.domain.entities import (
     now,
 )
 from app.infra import repository as repo
-from app.services import notify
+from app.services import notify, photographer_memory
 from app.services import profile as profile_service
 from app.services.context import Context
 
@@ -69,6 +69,7 @@ async def issue(
         for q in await repo.list_experiments(ctx.store, user_id, limit=RECENT_EXPERIMENTS)
     ]
     user = await repo.get_user(ctx.store, user_id)
+    constraints = await photographer_memory.constraints_for(ctx, user_id)
     patterns = await keeper_patterns(ctx, user_id)
     if technique_id:
         requested = taxonomy.BY_ID.get(technique_id)
@@ -76,14 +77,14 @@ async def issue(
             requested
             if requested
             and technique_id in patterns
-            and rules.available(requested, missing_gear=user.constraints.missing_gear)
+            and rules.available(requested, missing_gear=constraints.missing_gear)
             else None
         )
     else:
         technique = rules.choose(
             tuple(patterns),
             recent,
-            missing_gear=user.constraints.missing_gear,
+            missing_gear=constraints.missing_gear,
         )
     if technique is None:
         reason = (
@@ -118,7 +119,7 @@ async def issue(
         critiques,
         research,
         states,
-        user.constraints,
+        constraints,
         ExperimentType.REPRODUCE,
     )
 

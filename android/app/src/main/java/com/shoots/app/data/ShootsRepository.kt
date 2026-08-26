@@ -307,6 +307,11 @@ class ShootsRepository(
         loadShotPage(reset = true)
     }
 
+    suspend fun forgetPhotographerSignal(id: String) {
+        api.removePhotographerSignal(id)
+        refreshSnapshot()
+    }
+
     suspend fun requestExperiment(force: Boolean): ExperimentDto? {
         val experiment = api.issueExperiment(force)
         refreshSnapshot()

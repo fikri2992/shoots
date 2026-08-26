@@ -19,6 +19,7 @@ from app.api import (
     ingress,
     inspirations,
     live,
+    memory,
     mobile,
     pairing,
     pubsub,
@@ -68,6 +69,7 @@ app.include_router(experiments.router)
 app.include_router(tasks.router)
 app.include_router(push.router)
 app.include_router(live.router)
+app.include_router(memory.router)
 app.include_router(mobile.router)
 app.include_router(pubsub.router)
 

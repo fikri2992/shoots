@@ -21,9 +21,11 @@ from app.agents import coach as agent
 from app.api.auth import SESSION_USER_KEY
 from app.api.deps import get_context
 from app.config import settings
+from app.domain.entities import SignalScope
 from app.infra import repository as repo
 from app.infra.storage import GRIDDED, ORIGINAL, SHEET, content_type_for
 from app.services import coach as coach_memory
+from app.services import photographer_memory
 
 logger = logging.getLogger(__name__)
 
@@ -59,7 +61,12 @@ async def live(websocket: WebSocket, shot_id: str):
         return
     image = await ctx.blobs.read(shot.blobs[key])
     mime = content_type_for(shot.blobs[key], image)
-    owner = await repo.get_user(ctx.store, shot.user_id)
+    constraints = await photographer_memory.constraints_for(
+        ctx,
+        shot.user_id,
+        scope=SignalScope.SHOT,
+        scope_id=shot.id,
+    )
 
     await websocket.accept()
     started = time.monotonic()
@@ -70,7 +77,7 @@ async def live(websocket: WebSocket, shot_id: str):
         async with agent.connect() as session:
             await session.send_client_content(
                 turns=agent.opening_turn(
-                    image, mime, agent.briefing(shot, analysis, experiment, owner.constraints)
+                    image, mime, agent.briefing(shot, analysis, experiment, constraints)
                 ),
                 turn_complete=True,
             )
@@ -112,7 +119,11 @@ async def live(websocket: WebSocket, shot_id: str):
                                 responses = []
                                 for call in event.calls:
                                     result = await coach_memory.run_tool(
-                                        ctx, shot.user_id, call.name, dict(call.args or {})
+                                        ctx,
+                                        shot.user_id,
+                                        call.name,
+                                        dict(call.args or {}),
+                                        transcript=transcript,
                                     )
                                     line = coach_memory.summarise_tool(call.name, result)
                                     _append(transcript, "tool", line)

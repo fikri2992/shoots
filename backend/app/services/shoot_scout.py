@@ -19,10 +19,12 @@ from app.domain.entities import (
     ScoutWarrant,
     Shoot,
     ShootReceipt,
+    SignalScope,
     User,
     now,
 )
 from app.infra import repository as repo
+from app.services import photographer_memory
 from app.services import scout as experiment_scout
 from app.services.context import Context
 
@@ -71,10 +73,16 @@ async def decide(
         )
     ]
     user = await repo.get_user(ctx.store, shoot.user_id)
+    constraints = await photographer_memory.constraints_for(
+        ctx,
+        shoot.user_id,
+        scope=SignalScope.SHOOT,
+        scope_id=shoot.id,
+    )
     technique = route_rules.choose(
         tuple(patterns),
         recent,
-        missing_gear=user.constraints.missing_gear,
+        missing_gear=constraints.missing_gear,
     )
     reproduce_rejection = ""
     if open_experiment is not None:

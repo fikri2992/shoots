@@ -64,6 +64,7 @@ fun SettingsScreen(
     onConnectDrive: () -> Unit,
     onDisconnectDrive: () -> Unit,
     onOpenDrive: (String) -> Unit,
+    onForgetSignal: (String) -> Unit,
     onReauthenticate: () -> Unit,
     onRevoke: () -> Unit,
     onDelete: () -> Unit,
@@ -71,6 +72,8 @@ fun SettingsScreen(
     var expanded by remember { mutableStateOf<String?>(null) }
     var confirmRevoke by remember { mutableStateOf(false) }
     var confirmDelete by remember { mutableStateOf(false) }
+    val rememberedSignals = snapshot?.photographerSignals.orEmpty()
+        .filterNot { it.kind == "source_role" }
     Column(
         Modifier
             .fillMaxSize()
@@ -133,6 +136,45 @@ fun SettingsScreen(
                     mediaAccess != MediaAccess.FULL -> SecondaryAction("Change media access", onClick = onRequestMedia)
                     source?.enabled == true -> SecondaryAction("Stop automatic future import", onClick = onDisableSource)
                     else -> PrimaryAction("Start automatic future import", enabled = !busy, onClick = onEnableSource)
+                }
+            }
+            HorizontalDivider(color = Hairline)
+
+            SettingsDisclosure(
+                title = "What Shoots remembers",
+                summary = when (val count = rememberedSignals.size) {
+                    0 -> "Nothing explicitly stored"
+                    1 -> "1 Photographer statement"
+                    else -> "$count Photographer statements"
+                },
+                expanded = expanded == "memory",
+                onToggle = { expanded = expanded.toggle("memory") },
+            ) {
+                Text(
+                    "Only your direct statements and actions belong here. You can remove any one without deleting your Shots.",
+                    color = MutedWhite,
+                    fontSize = 13.sp,
+                    lineHeight = 19.sp,
+                )
+                rememberedSignals.forEach { signal ->
+                    Spacer(Modifier.height(12.dp))
+                    Row(
+                        Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Column(Modifier.weight(1f)) {
+                            Text(signal.value, color = WarmWhite, fontSize = 13.sp)
+                            Text(
+                                "${signal.kind.replace('_', ' ')} · ${signal.scope.replace('_', ' ')}",
+                                color = MutedWhite,
+                                fontSize = 10.sp,
+                            )
+                        }
+                        TextButton(onClick = { onForgetSignal(signal.id) }) {
+                            Text("Forget", color = Amber)
+                        }
+                    }
                 }
             }
             HorizontalDivider(color = Hairline)

@@ -227,6 +227,9 @@ fun ShootsApp(
                     onConnectDrive = actions.connectDrive,
                     onDisconnectDrive = actions.disconnectDrive,
                     onOpenDrive = actions.openUrl,
+                    onForgetSignal = { signalId ->
+                        scope.launch { viewModel.forgetPhotographerSignal(signalId) }
+                    },
                     onReauthenticate = actions.signIn,
                     onRevoke = actions.revoke,
                     onDelete = actions.deleteAccount,

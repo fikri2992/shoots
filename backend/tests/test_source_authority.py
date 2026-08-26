@@ -82,6 +82,10 @@ async def test_explicit_inspiration_ingress_never_creates_photographer_work(tmp_
     assert snapshot.json()["recent_shots"] == []
     assert snapshot.json()["recent_inspirations"][0]["id"] == first.json()["inspiration_id"]
     assert await ctx.blobs.exists(inspirations[0].blobs[ORIGINAL])
+    source_signals = await repo.list_photographer_signals(ctx.store, user_id)
+    assert [(signal.scope.value, signal.value) for signal in source_signals] == [
+        ("inspiration", "inspiration")
+    ]
     events = await repo.list_events(ctx.store, user_id)
     assert [event.stage for event in events].count("inspiration_accepted") == 1
 
@@ -175,6 +179,16 @@ async def test_free_manual_shot_correction_rebuilds_memory_and_can_be_restored(t
     }
     assert current["panning"].sightings == 1
     assert await repo.list_inspirations(ctx.store, user_id) == []
+    current_source = await repo.list_photographer_signals(ctx.store, user_id)
+    assert [(signal.scope.value, signal.value) for signal in current_source] == [
+        ("shot", "mine")
+    ]
+    source_history = await repo.list_photographer_signals(
+        ctx.store,
+        user_id,
+        include_superseded=True,
+    )
+    assert len(source_history) == 2
 
 
 async def test_experiment_cited_shot_refuses_source_role_reclassification(tmp_path):

@@ -29,11 +29,11 @@ personality profile, or a score.
 | Technique Map | Rebuildable projection with separate sightings, corroborated Shots, Scene/Shoot coverage, Reproduce results, Criteria outcomes, abstentions, and positive Keeper figures | Add supported condition coverage after reliable inputs exist |
 | Tendency Profile | Rebuilt from the complete readable archive under `CALC_VERSION` | Rebuild from authoritative evidence; cache only with an input digest |
 | Keeper | Positive `kept_at`; unmarked means unknown | Keep |
-| Intent | No persisted input | Add explicit scoped Intent |
+| Intent | Generic scoped Photographer Signal and API exist; no native creation flow yet | Add the smallest contextual client action before using Intent in selection |
 | Experiment | Baseline, explicit results, Reproduce Criteria and Verdicts, Change; new Shoot route stores exact Keeper warrant ids | Complete intervention outcomes for every Scout route |
 | Scene | Persisted capture-continuity membership with grouping revisions | Add explicit Photographer correction |
 | Shoot | Persisted natural Camera activity, revisioned terminal Shoot Record, deterministic receipt, and typed Scout outcome | Add client delivery, correction, full projections, and Deconstruction outcome |
-| Constraints | Listener and Live `remember` merge model-extracted strings into `User.constraints` | Store direct Photographer statements with provenance and correction; confirm inference |
+| Constraints | Scoped attributable Signals, correction, bounded recall, literal Listener quote gate, Live announcement, and legacy read-only fallback | Remove the legacy fallback after stored-data migration |
 | Inspiration | Explicit Android/web manual role, separate current record, projection-safe free-Shot correction, and client archive section | Add bounded study and correction for Experiment-cited history without weakening immutable records |
 | Android | Room cache and outbox; device token ciphertext uses Android Keystore | Keep Room as a non-authoritative cache; do not claim Room encryption |
 
@@ -220,7 +220,7 @@ A remembered Photographer fact carries:
 
 ```text
 user_id
-scope: photographer | shoot | scene | shot | experiment
+scope: photographer | inspiration | shoot | scene | shot | experiment
 scope_id
 kind: intent | constraint | preference | source_role
 value
@@ -241,9 +241,10 @@ Rules:
 - Every stored fact has a correction and removal path.
 - Scout receives only facts relevant to its current decision.
 
-Current behaviour does not meet this contract. `services/coach.remember` and the Live
-tool merge model-extracted values into `User.constraints` without per-fact provenance
-or correction. Keep this visible as a migration, not a built claim.
+`services/coach.remember` and the Live tool now write per-fact Signals rather than
+mutating `User.constraints`. Listener candidates survive only when their literal quote
+appears in a Photographer turn, and the Live tool reports exactly what it stored.
+Legacy `User.constraints` remains a read-only fallback until existing records migrate.
 
 ## Intervention memory
 
@@ -383,7 +384,7 @@ After submission:
 
 1. Add the full Technique Map evidence axes and projection invalidation.
 2. Complete Scene grouping and Experiment-cited source-role correction.
-3. Migrate Listener facts to scoped, provenance-carrying records.
+3. Add native Intent authoring and remove the legacy `User.constraints` fallback after migration.
 4. Add the blind bounded Shoot reader only if deterministic synthesis leaves useful
    ambiguity.
 5. Add Deconstruction from the settled Shoot Record.

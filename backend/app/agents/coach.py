@@ -20,7 +20,7 @@ from app.agents.analyst import facts_text
 from app.agents.runtime import run_agent
 from app.config import settings
 from app.domain import taxonomy
-from app.domain.entities import Analysis, Constraints, Experiment, Shot
+from app.domain.entities import Analysis, Constraints, Experiment, PhotographerSignalKind, Shot
 
 #: What the browser sends us and what Live expects: 16 kHz mono PCM16.
 INPUT_MIME = "audio/pcm;rate=16000"
@@ -108,9 +108,14 @@ def briefing(
 # --- after the session: what to remember --------------------------------------
 
 
+class ListenerFactOut(BaseModel):
+    kind: PhotographerSignalKind = PhotographerSignalKind.CONSTRAINT
+    value: str
+    quote: str
+
+
 class NotesOut(BaseModel):
-    missing_gear: list[str] = Field(default_factory=list)
-    notes: list[str] = Field(default_factory=list)
+    facts: list[ListenerFactOut] = Field(default_factory=list)
 
 
 def listener_agent() -> LlmAgent:
@@ -176,7 +181,12 @@ TOOLS = types.Tool(
                     "notes": types.Schema(
                         type=types.Type.ARRAY, items=types.Schema(type=types.Type.STRING)
                     ),
+                    "statement": types.Schema(
+                        type=types.Type.STRING,
+                        description="The photographer's exact words supporting these facts.",
+                    ),
                 },
+                required=["statement"],
             ),
         ),
         types.FunctionDeclaration(

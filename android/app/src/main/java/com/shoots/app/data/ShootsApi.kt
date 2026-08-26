@@ -95,6 +95,9 @@ interface ShootsApi {
         @Body body: SourceRoleRequest,
     ): SourceRoleResult
 
+    @DELETE("api/memory/signals/{id}")
+    suspend fun removePhotographerSignal(@Path("id") id: String): Response<Unit>
+
     @POST("api/drive/authorization-code")
     suspend fun connectDrive(@Body body: DriveAuthorizationRequest): DriveConnectResponse
 

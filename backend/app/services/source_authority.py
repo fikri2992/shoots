@@ -1,9 +1,20 @@
 """Apply explicit Mine/Inspiration corrections without blending authorities."""
 
-from app.domain.entities import Inspiration, RunStatus, Shot, ShotKind, ShotStatus, now
+from app.domain.entities import (
+    Inspiration,
+    PhotographerSignal,
+    PhotographerSignalKind,
+    RunStatus,
+    Shot,
+    ShotKind,
+    ShotStatus,
+    SignalScope,
+    SignalSource,
+    now,
+)
 from app.infra import repository as repo
 from app.infra.bus import TOPICS
-from app.services import cartographer, ingest, runs, shoots
+from app.services import cartographer, ingest, photographer_memory, runs, shoots
 from app.services.context import Context
 
 
@@ -37,6 +48,14 @@ async def shot_to_inspiration(ctx: Context, user_id: str, shot_id: str) -> Inspi
     shot.superseded_at = now()
     shot.superseded_by_inspiration_id = inspiration.id
     await repo.put_shot(ctx.store, shot)
+    await record_source_role(
+        ctx,
+        user_id,
+        SignalScope.INSPIRATION,
+        inspiration.id,
+        "inspiration",
+        related_scope_ids={shot.id, inspiration.id},
+    )
     superseded_journey = await repo.supersede_journey_for_shot(
         ctx.store,
         user_id,
@@ -93,6 +112,14 @@ async def inspiration_to_shot(ctx: Context, user_id: str, inspiration_id: str) -
     shot.superseded_at = None
     shot.superseded_by_inspiration_id = ""
     await repo.put_shot(ctx.store, shot)
+    await record_source_role(
+        ctx,
+        user_id,
+        SignalScope.SHOT,
+        shot.id,
+        "mine",
+        related_scope_ids={shot.id, inspiration.id},
+    )
     inspiration.superseded_at = now()
     inspiration.restored_shot_id = shot.id
     await repo.put_inspiration(ctx.store, inspiration)
@@ -141,3 +168,47 @@ async def _require_free(ctx: Context, shot: Shot) -> None:
 
 def _kind_for(mime_type: str) -> ShotKind:
     return ShotKind.VIDEO if mime_type.startswith("video/") else ShotKind.PHOTO
+
+
+async def record_source_role(
+    ctx: Context,
+    user_id: str,
+    scope: SignalScope,
+    scope_id: str,
+    value: str,
+    *,
+    related_scope_ids: set[str] | None = None,
+) -> PhotographerSignal:
+    related_scope_ids = related_scope_ids or {scope_id}
+    current = next(
+        (
+            signal
+            for signal in await repo.list_photographer_signals(ctx.store, user_id)
+            if signal.scope_id in related_scope_ids
+            and signal.kind is PhotographerSignalKind.SOURCE_ROLE
+        ),
+        None,
+    )
+    provenance = f"source-role:{current.id if current else 'initial'}:{value}"
+    signal_id = photographer_memory.stable_signal_id(
+        user_id,
+        scope,
+        scope_id,
+        PhotographerSignalKind.SOURCE_ROLE,
+        value,
+        provenance,
+    )
+    return await photographer_memory.apply_photographer_signal(
+        ctx,
+        PhotographerSignal(
+            id=signal_id,
+            user_id=user_id,
+            scope=scope,
+            scope_id=scope_id,
+            kind=PhotographerSignalKind.SOURCE_ROLE,
+            value=value,
+            source=SignalSource.PHOTOGRAPHER_ACTION,
+            source_event_id=f"evt_{signal_id}_signal_stored",
+            supersedes_signal_id=current.id if current else "",
+        ),
+    )

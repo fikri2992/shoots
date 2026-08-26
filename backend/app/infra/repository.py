@@ -24,6 +24,7 @@ from app.domain.entities import (
     ExperimentStatus,
     Inspiration,
     JourneyUpdate,
+    PhotographerSignal,
     Run,
     RunStage,
     RunStatus,
@@ -61,6 +62,7 @@ DEVICES = "devices"
 CAPTURE_SESSIONS = "capture_sessions"
 ACTIVE_CAPTURE_SESSIONS = "active_capture_sessions"
 ACCOUNT_DELETIONS = "account_deletions"
+PHOTOGRAPHER_SIGNALS = "photographer_signals"
 
 
 class UnknownEntity(LookupError):
@@ -92,6 +94,54 @@ async def find_user(store: Store, user_id: str) -> User | None:
 
 async def list_users(store: Store) -> list[User]:
     return [User.model_validate(d) for d in await store.query(USERS)]
+
+
+# --- photographer signals ------------------------------------------------
+
+
+async def put_photographer_signal_once(
+    store: Store,
+    signal: PhotographerSignal,
+) -> PhotographerSignal:
+    if await store.create(PHOTOGRAPHER_SIGNALS, signal.id, _dump(signal)):
+        return signal
+    existing = await find_photographer_signal(store, signal.id)
+    if existing is None:
+        raise UnknownEntity(f"Photographer Signal {signal.id}")
+    stable_fields = {"created_at", "superseded_at"}
+    if existing.model_dump(exclude=stable_fields) != signal.model_dump(exclude=stable_fields):
+        raise ValueError(f"Photographer Signal id {signal.id} was reused with different content")
+    return existing
+
+
+async def put_photographer_signal(store: Store, signal: PhotographerSignal) -> None:
+    await store.put(PHOTOGRAPHER_SIGNALS, signal.id, _dump(signal))
+
+
+async def find_photographer_signal(
+    store: Store,
+    signal_id: str,
+) -> PhotographerSignal | None:
+    data = await store.get(PHOTOGRAPHER_SIGNALS, signal_id)
+    return PhotographerSignal.model_validate(data) if data else None
+
+
+async def list_photographer_signals(
+    store: Store,
+    user_id: str,
+    *,
+    include_superseded: bool = False,
+) -> list[PhotographerSignal]:
+    rows = await store.query(
+        PHOTOGRAPHER_SIGNALS,
+        where={"user_id": user_id},
+        order_by="created_at",
+        descending=True,
+    )
+    signals = [PhotographerSignal.model_validate(row) for row in rows]
+    if not include_superseded:
+        signals = [signal for signal in signals if signal.superseded_at is None]
+    return signals
 
 
 # --- shots ----------------------------------------------------------------
@@ -1013,6 +1063,30 @@ async def record(
     return event
 
 
+async def record_photographer_signal(
+    store: Store,
+    signal: PhotographerSignal,
+    stage: str,
+) -> ActivityEvent:
+    event = ActivityEvent(
+        id=f"evt_{signal.id}_{stage}",
+        user_id=signal.user_id,
+        agent="photographer",
+        stage=stage,
+        detail={
+            "signal_id": signal.id,
+            "scope": signal.scope.value,
+            "scope_id": signal.scope_id,
+            "kind": signal.kind.value,
+            "source": signal.source.value,
+        },
+        shot_id=signal.scope_id if signal.scope.value == "shot" else "",
+        experiment_id=signal.scope_id if signal.scope.value == "experiment" else "",
+    )
+    await store.put(EVENTS, event.id, _dump(event))
+    return event
+
+
 async def record_run_settled(store: Store, run: Run) -> ActivityEvent:
     """Write one replay-safe terminal ActivityEvent for a Run."""
     external_write = bool(run.steps[RunStage.SCRIBE.value].detail.get("external_write"))
@@ -1234,6 +1308,7 @@ async def delete_user_records(store: Store, user_id: str) -> None:
     collections: list[tuple[str, str | None]] = [
         (SHOTS, "id"),
         (INSPIRATIONS, "id"),
+        (PHOTOGRAPHER_SIGNALS, "id"),
         (ANALYSES, "shot_id"),
         (EXPERIMENTS, "id"),
         (EVENTS, "id"),

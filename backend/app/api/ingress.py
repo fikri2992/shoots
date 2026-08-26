@@ -16,12 +16,13 @@ from app.domain.entities import (
     Shot,
     ShotKind,
     ShotSource,
+    SignalScope,
     SourceRole,
 )
 from app.infra import repository as repo
 from app.infra.bus import TOPICS
 from app.infra.storage import ORIGINAL, blob_path, extension_for
-from app.services import ingest, runs, shoots
+from app.services import ingest, runs, shoots, source_authority
 from app.services.context import Context
 
 router = APIRouter(prefix="/api/ingress", tags=["ingress"])
@@ -168,6 +169,13 @@ async def receive_shot(
             blobs={ORIGINAL: original},
         )
         await repo.put_inspiration(ctx.store, inspiration)
+        await source_authority.record_source_role(
+            ctx,
+            user_id,
+            SignalScope.INSPIRATION,
+            inspiration.id,
+            SourceRole.INSPIRATION.value,
+        )
         await repo.record(
             ctx.store,
             user_id,
@@ -196,6 +204,14 @@ async def receive_shot(
         capture_session_id=capture_session_id,
     )
     await repo.put_shot(ctx.store, shot)
+    if source_role is not None and not automatic_camera and not capture_session_id:
+        await source_authority.record_source_role(
+            ctx,
+            user_id,
+            SignalScope.SHOT,
+            shot.id,
+            SourceRole.MINE.value,
+        )
     await runs.ensure(ctx, shot)
     await shoots.observe_shot(ctx, shot.id)
     if capture_session_id:

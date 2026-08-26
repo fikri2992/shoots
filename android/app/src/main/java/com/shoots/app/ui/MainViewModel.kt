@@ -217,6 +217,11 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         notice.value = "Restored as your Shot. Shoots will rebuild your record."
     }
 
+    suspend fun forgetPhotographerSignal(id: String): Boolean = operate {
+        repository.forgetPhotographerSignal(id)
+        notice.value = "Shoots forgot that statement."
+    }
+
     suspend fun requestExperiment(force: Boolean = false): Boolean {
         var offered = false
         val completed = operate {

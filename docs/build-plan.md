@@ -124,7 +124,7 @@ sequence is [implementation order](implementation-order.md).
 - Re-centred on "redefining interaction": the agent lives in the user's Drive and notifications, the app is the audit trail. Four moves, all shipped and checked on the real stack:
   - **Scribe**: after Judge, the review is written into `Shoots/Reviewed/`: overlay, critique, Moves, Findings, and Verdict. The filename describes what was found and carries no score.
   - **Timing**: techniques carry a light window (`taxonomy.LIGHT`), the user's location is the GPS of their newest frame (`Exif.latitude/longitude`, `User.last_*`), `domain/sun.py` + `domain/timing.py` pick `deliver_at` and a reason; the push waits for the five-minute tick (`/tasks/tick`). Location picked up from a Xiaomi phone frame on the first sync.
-  - **Coach memory**: the Listener extracts `missing_gear` and notes from the transcript; Scout ranking and brief respect them; Coach is briefed with them. Real-model check: "only have my phone" → no tripod/telephoto/macro/flash.
+  - **Coach memory**: the Listener proposes constraint values with literal Photographer quotes; code verifies the quote before storing a scoped Signal. Scout ranking and brief respect current Signals, while legacy `User.constraints` is read-only fallback. “Only have my phone” no longer implies missing gear.
   - **Today**: the home tab is the experiment with why-now and why-then; verdicts link to "Ask the Coach why".
 - Cut Lyria: Veo 3.1 generates its own ambient audio (`generate_audio=True`); the mux step and the music model are gone.
 - Judge now publishes `media.judged` on every shot so the Scribe runs after it; stage order is deterministic, no fan-out race for the verdict.

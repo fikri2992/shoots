@@ -34,9 +34,8 @@ TRANSCRIPT = [
 
 async def main() -> None:
     heard = await coach.listen(TRANSCRIPT, "check")
-    print("missing_gear:", heard.missing_gear)
-    for note in heard.notes:
-        print(" -", note)
+    for fact in heard.facts:
+        print(f"{fact.kind.value}: {fact.value} <- {fact.quote}")
 
 
 if __name__ == "__main__":

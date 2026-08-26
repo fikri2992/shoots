@@ -98,6 +98,18 @@ data class InspirationDto(
 )
 
 @Serializable
+data class PhotographerSignalDto(
+    val id: String,
+    val scope: String = "photographer",
+    @SerialName("scope_id") val scopeId: String = "",
+    val kind: String,
+    val value: String,
+    val source: String,
+    @SerialName("created_at") val createdAt: String = "",
+    @SerialName("expires_at") val expiresAt: String? = null,
+)
+
+@Serializable
 data class TechniqueEvidenceDto(
     @SerialName("technique_id") val techniqueId: String,
     val confidence: Double = 0.0,
@@ -430,6 +442,7 @@ data class MobileSnapshotDto(
     @SerialName("latest_shot") val latestShot: ShotViewDto? = null,
     @SerialName("recent_shots") val recentShots: List<ShotDto> = emptyList(),
     @SerialName("recent_inspirations") val recentInspirations: List<InspirationDto> = emptyList(),
+    @SerialName("photographer_signals") val photographerSignals: List<PhotographerSignalDto> = emptyList(),
     val journey: List<JourneyUpdateDto> = emptyList(),
     val profile: ProfileDto = ProfileDto(),
     val techniques: List<TechniqueNodeDto> = emptyList(),

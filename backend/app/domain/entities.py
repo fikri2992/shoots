@@ -57,6 +57,60 @@ class Constraints(BaseModel):
     updated_at: datetime | None = None
 
 
+class SignalScope(StrEnum):
+    PHOTOGRAPHER = "photographer"
+    INSPIRATION = "inspiration"
+    SHOOT = "shoot"
+    SCENE = "scene"
+    SHOT = "shot"
+    EXPERIMENT = "experiment"
+
+
+class PhotographerSignalKind(StrEnum):
+    INTENT = "intent"
+    CONSTRAINT = "constraint"
+    PREFERENCE = "preference"
+    SOURCE_ROLE = "source_role"
+
+
+class SignalSource(StrEnum):
+    DIRECT_STATEMENT = "direct_statement"
+    CONFIRMED_SUGGESTION = "confirmed_suggestion"
+    PHOTOGRAPHER_ACTION = "photographer_action"
+
+
+class PhotographerSignal(BaseModel):
+    """One attributable, correctable statement owned by the Photographer."""
+
+    id: str
+    user_id: str
+    scope: SignalScope = SignalScope.PHOTOGRAPHER
+    scope_id: str = ""
+    kind: PhotographerSignalKind
+    value: str
+    source: SignalSource
+    source_event_id: str = ""
+    transcript_digest: str = ""
+    created_at: datetime = Field(default_factory=now)
+    confirmed_at: datetime | None = None
+    supersedes_signal_id: str = ""
+    superseded_at: datetime | None = None
+    expires_at: datetime | None = None
+
+
+class MemoryRecall(BaseModel):
+    """Bounded Photographer memory assembled for one agent purpose."""
+
+    role: str
+    purpose: str
+    scope: SignalScope = SignalScope.PHOTOGRAPHER
+    scope_id: str = ""
+    signals: list[PhotographerSignal] = Field(default_factory=list)
+    input_signal_ids: list[str] = Field(default_factory=list)
+    blind_spots: list[str] = Field(default_factory=list)
+    memory_version: str = "photographer-memory-1"
+
+
 class User(BaseModel):
     id: str
     email: str

@@ -1,20 +1,19 @@
-"""What the Coach remembers: constraints the photographer said out loud.
-
-A voice session is the one place the photographer talks *to* the planner.
-After each session the Listener pulls out standing facts (no tripod, shoots
-at lunch, walks everywhere) and they are merged into ``User.constraints``,
-which the Scout's selection and brief respect from the next Experiment on. Merge is
-pure and tested; extraction is a model call checked by
-``scripts/check_listener.py``.
-"""
+"""Attributable constraints the Photographer said out loud."""
 
 import logging
 
 from app.agents import coach as agent
 from app.domain import taxonomy
-from app.domain.entities import Constraints, now
+from app.domain.entities import (
+    Constraints,
+    PhotographerSignal,
+    PhotographerSignalKind,
+    SignalScope,
+    SignalSource,
+    now,
+)
 from app.infra import repository as repo
-from app.services import scout
+from app.services import photographer_memory, scout
 from app.services.context import Context
 
 logger = logging.getLogger(__name__)
@@ -41,38 +40,43 @@ def merge(existing: Constraints, missing_gear: list[str], notes: list[str]) -> C
     return Constraints(missing_gear=gear, notes=kept[-MAX_NOTES:], updated_at=now())
 
 
-async def remember(ctx: Context, user_id: str, transcript: list[dict]) -> Constraints | None:
-    """Listen to a finished session; returns the merged constraints if anything changed."""
+async def remember(
+    ctx: Context,
+    user_id: str,
+    transcript: list[dict],
+) -> list[PhotographerSignal]:
+    """Store only Listener candidates backed by literal Photographer words."""
     if not any(line["role"] == "user" and line["text"].strip() for line in transcript):
-        return None
-    user = await repo.get_user(ctx.store, user_id)
+        return []
     try:
         heard = await agent.listen(transcript, user_id)
     except Exception:  # a missed note must never fail the session
         logger.exception("listener failed for %s", user_id)
-        return None
-    merged = merge(user.constraints, heard.missing_gear, heard.notes)
-    if (
-        merged.missing_gear == user.constraints.missing_gear
-        and merged.notes == user.constraints.notes
-    ):
-        return None
-    user.constraints = merged
-    await repo.put_user(ctx.store, user)
-    await repo.record(
-        ctx.store,
+        return []
+    candidates = [
+        (fact.value, fact.quote)
+        for fact in heard.facts
+        if fact.kind is PhotographerSignalKind.CONSTRAINT
+    ]
+    return await _store_direct_constraints(
+        ctx,
         user_id,
-        AGENT,
-        "noted",
-        {"missing_gear": merged.missing_gear, "notes": merged.notes},
+        transcript,
+        candidates,
     )
-    return merged
 
 
 # --- the Coach's tools (Gemini Live function calls) -------------------------------
 
 
-async def run_tool(ctx: Context, user_id: str, name: str, args: dict) -> dict:
+async def run_tool(
+    ctx: Context,
+    user_id: str,
+    name: str,
+    args: dict,
+    *,
+    transcript: list[dict] | None = None,
+) -> dict:
     """Dispatch one Live function call. Returns what the model reads back."""
     if name == "issue_experiment":
         technique_id = str(args.get("technique_id", "") or "").strip().lower()
@@ -105,22 +109,36 @@ async def run_tool(ctx: Context, user_id: str, name: str, args: dict) -> dict:
             "lands_at": experiment.deliver_at.isoformat() if experiment.deliver_at else "now",
         }
     if name == "remember":
-        user = await repo.get_user(ctx.store, user_id)
-        merged = merge(
-            user.constraints,
-            [str(g) for g in args.get("missing_gear", []) or []],
-            [str(n) for n in args.get("notes", []) or []],
-        )
-        user.constraints = merged
-        await repo.put_user(ctx.store, user)
-        await repo.record(
-            ctx.store,
+        statement = str(args.get("statement", "") or "").strip()
+        if transcript is None or not photographer_memory.quote_is_direct(statement, transcript):
+            return {
+                "ok": False,
+                "error": "The memory was not stored because its Photographer quote was missing.",
+            }
+        values = [
+            str(value).strip().lower()
+            for value in args.get("missing_gear", []) or []
+            if str(value).strip().lower() in GEAR
+            and _gear_is_direct(str(value).strip().lower(), statement)
+        ]
+        values += [
+            " ".join(str(value).split()).strip().rstrip(".")
+            for value in args.get("notes", []) or []
+            if str(value).strip()
+        ]
+        stored = await _store_direct_constraints(
+            ctx,
             user_id,
-            AGENT,
-            "noted",
-            {"missing_gear": merged.missing_gear, "notes": merged.notes},
+            transcript,
+            [(value, statement) for value in values],
         )
-        return {"ok": True, "missing_gear": merged.missing_gear, "notes": merged.notes}
+        if not stored:
+            return {"ok": False, "error": "No new direct Photographer fact was stored."}
+        return {
+            "ok": True,
+            "remembered": [signal.value for signal in stored],
+            "signal_ids": [signal.id for signal in stored],
+        }
     if name == "technique_map":
         states = await repo.list_technique_states(ctx.store, user_id)
         by_status: dict[str, list[str]] = {}
@@ -147,12 +165,65 @@ def summarise_tool(name: str, result: dict) -> str:
     if name == "issue_experiment":
         return f"issued an experiment: {result['title']}"
     if name == "remember":
-        bits = []
-        if result.get("missing_gear"):
-            bits.append("no " + ", ".join(result["missing_gear"]))
-        bits += result.get("notes", [])[-2:]
-        return "remembered: " + " · ".join(bits)
+        return "remembered: " + " · ".join(result.get("remembered", [])[-3:])
     if name == "technique_map":
         count = sum(len(v) for v in result.get("by_status", {}).values())
         return f"read the technique map ({count} techniques observed)"
     return name
+
+
+async def _store_direct_constraints(
+    ctx: Context,
+    user_id: str,
+    transcript: list[dict],
+    candidates: list[tuple[str, str]],
+) -> list[PhotographerSignal]:
+    digest = photographer_memory.transcript_digest(transcript)
+    current = await repo.list_photographer_signals(ctx.store, user_id)
+    existing_values = {
+        signal.value.casefold()
+        for signal in current
+        if signal.kind is PhotographerSignalKind.CONSTRAINT
+        and signal.scope is SignalScope.PHOTOGRAPHER
+    }
+    stored: list[PhotographerSignal] = []
+    for raw_value, quote in candidates:
+        if not photographer_memory.quote_is_direct(quote, transcript):
+            continue
+        value = " ".join(raw_value.split()).strip().rstrip(".")
+        gear = value.casefold()
+        if gear in GEAR:
+            value = gear
+        if not value or value.casefold() in existing_values:
+            continue
+        signal_id = photographer_memory.stable_signal_id(
+            user_id,
+            SignalScope.PHOTOGRAPHER,
+            "",
+            PhotographerSignalKind.CONSTRAINT,
+            value,
+            f"{digest}:{quote}",
+        )
+        signal = await photographer_memory.apply_photographer_signal(
+            ctx,
+            PhotographerSignal(
+                id=signal_id,
+                user_id=user_id,
+                kind=PhotographerSignalKind.CONSTRAINT,
+                value=value,
+                source=SignalSource.DIRECT_STATEMENT,
+                transcript_digest=digest,
+            ),
+        )
+        stored.append(signal)
+        existing_values.add(value.casefold())
+    return stored
+
+
+def _gear_is_direct(gear: str, statement: str) -> bool:
+    words = statement.casefold()
+    denied = any(
+        phrase in words
+        for phrase in ("no ", "don't have", "do not have", "without", "lack")
+    )
+    return gear in words and denied
