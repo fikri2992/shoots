@@ -10,6 +10,7 @@ import com.google.firebase.installations.FirebaseInstallations
 import com.google.firebase.messaging.FirebaseMessaging
 import com.shoots.app.data.LocalCaptureSessionEntity
 import com.shoots.app.data.ImportEntity
+import com.shoots.app.data.InspirationDto
 import com.shoots.app.data.MobileSnapshotDto
 import com.shoots.app.data.ShotDto
 import com.shoots.app.data.ShotViewDto
@@ -124,7 +125,11 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         return members
     }
 
-    suspend fun stageSelected(uris: List<Uri>, sessionId: String = ""): Boolean = operate {
+    suspend fun stageSelected(
+        uris: List<Uri>,
+        sessionId: String = "",
+        sourceRole: String = "mine",
+    ): Boolean = operate {
         uris.forEach { uri ->
             runCatching {
                 app.contentResolver.takePersistableUriPermission(
@@ -133,8 +138,9 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 )
             }
         }
-        val inserted = repository.stageSelected(uris, sessionId)
-        notice.value = if (inserted == 1) "1 Shot staged" else "$inserted Shots staged"
+        val inserted = repository.stageSelected(uris, sessionId, sourceRole)
+        val noun = if (sourceRole == "inspiration") "Inspiration" else "Shot"
+        notice.value = if (inserted == 1) "1 $noun staged" else "$inserted ${noun}s staged"
         PhoneSourceScheduler.enqueueSync(app)
     }
 
@@ -201,6 +207,16 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         repository.refreshSnapshot()
     }
 
+    suspend fun moveShotToInspiration(id: String): Boolean = operate {
+        repository.moveShotToInspiration(id)
+        notice.value = "Moved to Inspiration. It no longer changes your record."
+    }
+
+    suspend fun moveInspirationToMine(id: String): Boolean = operate {
+        repository.moveInspirationToMine(id)
+        notice.value = "Restored as your Shot. Shoots will rebuild your record."
+    }
+
     suspend fun requestExperiment(force: Boolean = false): Boolean {
         var offered = false
         val completed = operate {
@@ -219,6 +235,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     fun imageUrl(shot: ShotDto, original: Boolean = false): String =
         repository.imageUrl(shot, original)
+
+    fun imageUrl(inspiration: InspirationDto): String = repository.imageUrl(inspiration)
 
     fun blobUrl(path: String): String = repository.blobUrl(path)
 

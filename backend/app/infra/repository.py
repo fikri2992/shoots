@@ -22,6 +22,7 @@ from app.domain.entities import (
     CaptureSessionStatus,
     Experiment,
     ExperimentStatus,
+    Inspiration,
     JourneyUpdate,
     Run,
     RunStage,
@@ -44,6 +45,7 @@ from app.infra.store import Store
 
 USERS = "users"
 SHOTS = "shots"
+INSPIRATIONS = "inspirations"
 ANALYSES = "analyses"
 TECHNIQUE_STATES = "skills"  # legacy Firestore collection key; decision 62
 EXPERIMENTS = "experiments"
@@ -111,6 +113,11 @@ def source_shot_id_for(user_id: str, source: str, source_id: str) -> str:
     return f"shot_{user_id[-8:]}_{source}_{digest}"
 
 
+def source_inspiration_id_for(user_id: str, source: str, source_id: str) -> str:
+    digest = hashlib.sha256(f"{source}:{source_id}".encode()).hexdigest()[:24]
+    return f"inspiration_{user_id[-8:]}_{source}_{digest}"
+
+
 async def put_shot(store: Store, shot: Shot) -> None:
     await store.put(SHOTS, shot.id, _dump(shot))
 
@@ -129,9 +136,10 @@ async def find_shot(store: Store, shot_id: str) -> Shot | None:
 
 async def list_shots(store: Store, user_id: str, limit: int | None = None) -> list[Shot]:
     rows = await store.query(
-        SHOTS, where={"user_id": user_id}, order_by="ingested_at", descending=True, limit=limit
+        SHOTS, where={"user_id": user_id}, order_by="ingested_at", descending=True
     )
-    return [Shot.model_validate(d) for d in rows]
+    shots = [shot for row in rows if _active_shot(shot := Shot.model_validate(row))]
+    return shots[:limit] if limit is not None else shots
 
 
 async def list_shots_page(
@@ -148,15 +156,56 @@ async def list_shots_page(
         order_by="ingested_at",
         then_by="id",
         descending=True,
-        limit=limit + 1,
-        start_after=start_after,
     )
-    has_more = len(rows) > limit
-    shots = [Shot.model_validate(row) for row in rows[:limit]]
+    shots = [shot for row in rows if _active_shot(shot := Shot.model_validate(row))]
+    if start_after is not None:
+        cursor_key = (start_after["ingested_at"], start_after["id"])
+        shots = [
+            shot
+            for shot in shots
+            if (shot.ingested_at.isoformat(), shot.id) < cursor_key
+        ]
+    has_more = len(shots) > limit
+    shots = shots[:limit]
     next_cursor = ""
     if has_more and shots:
         next_cursor = _encode_shot_cursor(shots[-1].ingested_at.isoformat(), shots[-1].id)
     return shots, next_cursor
+
+
+def _active_shot(shot: Shot) -> bool:
+    return not shot.superseded_by_inspiration_id
+
+
+# --- inspirations --------------------------------------------------------
+
+
+async def put_inspiration(store: Store, inspiration: Inspiration) -> None:
+    await store.put(INSPIRATIONS, inspiration.id, _dump(inspiration))
+
+
+async def find_inspiration(store: Store, inspiration_id: str) -> Inspiration | None:
+    data = await store.get(INSPIRATIONS, inspiration_id)
+    return Inspiration.model_validate(data) if data else None
+
+
+async def list_inspirations(
+    store: Store,
+    user_id: str,
+    limit: int | None = None,
+) -> list[Inspiration]:
+    rows = await store.query(
+        INSPIRATIONS,
+        where={"user_id": user_id},
+        order_by="created_at",
+        descending=True,
+    )
+    items = [
+        item
+        for row in rows
+        if not (item := Inspiration.model_validate(row)).superseded_at
+    ]
+    return items[:limit] if limit is not None else items
 
 
 def _encode_shot_cursor(at: str, shot_id: str) -> str:
@@ -1047,13 +1096,44 @@ async def put_journey_update(store: Store, update: JourneyUpdate) -> None:
     await store.put(JOURNEY, update.id, _dump(update))
 
 
-async def list_journey_updates(store: Store, user_id: str, limit: int = 20) -> list[JourneyUpdate]:
+async def list_journey_updates(
+    store: Store,
+    user_id: str,
+    limit: int = 20,
+    *,
+    include_superseded: bool = False,
+) -> list[JourneyUpdate]:
     """Newest first: the photographer reads the current conclusion, and the
     older ones are the record of how it changed."""
     rows = await store.query(
-        JOURNEY, where={"user_id": user_id}, order_by="created_at", descending=True, limit=limit
+        JOURNEY, where={"user_id": user_id}, order_by="created_at", descending=True
     )
-    return [JourneyUpdate.model_validate(d) for d in rows]
+    updates = [JourneyUpdate.model_validate(d) for d in rows]
+    if not include_superseded:
+        updates = [item for item in updates if item.superseded_at is None]
+    return updates[:limit]
+
+
+async def supersede_journey_for_shot(
+    store: Store,
+    user_id: str,
+    shot_id: str,
+    at: datetime,
+) -> int:
+    changed = 0
+    for update in await list_journey_updates(
+        store,
+        user_id,
+        limit=10_000,
+        include_superseded=True,
+    ):
+        if update.superseded_at is not None or shot_id not in update.provenance.shot_ids:
+            continue
+        update.superseded_at = at
+        update.superseded_reason = "A cited Shot was corrected to Inspiration."
+        await put_journey_update(store, update)
+        changed += 1
+    return changed
 
 
 async def latest_journey_update(store: Store, user_id: str) -> JourneyUpdate | None:
@@ -1153,6 +1233,7 @@ async def delete_user_records(store: Store, user_id: str) -> None:
     """Delete every user-scoped document. External data is handled by the service."""
     collections: list[tuple[str, str | None]] = [
         (SHOTS, "id"),
+        (INSPIRATIONS, "id"),
         (ANALYSES, "shot_id"),
         (EXPERIMENTS, "id"),
         (EVENTS, "id"),

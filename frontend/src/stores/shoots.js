@@ -16,6 +16,7 @@ export const useShootsStore = defineStore('shoots', {
     experiments: [],
     techniques: [],
     shots: [], // [{ shot, analysis }]
+    inspirations: [], // explicit references; never Photographer work
     events: [],
     runs: [], // durable per-Shot stage accounts; events only explain them
     loading: false,
@@ -80,12 +81,13 @@ export const useShootsStore = defineStore('shoots', {
       this.loading = true
       this.error = ''
       try {
-        const [me, experiment, experiments, techniques, shots, events, runs, profile, journey] = await Promise.all([
+        const [me, experiment, experiments, techniques, shots, inspirations, events, runs, profile, journey] = await Promise.all([
           api.get('/api/me'),
           api.get('/api/experiments/open'),
           api.get('/api/experiments?limit=20'),
           api.get('/api/techniques'),
           api.get('/api/shots?limit=100'),
+          api.get('/api/inspirations?limit=100'),
           api.get('/api/events?limit=100'),
           api.get('/api/runs?limit=20'),
           api.get('/api/profile'),
@@ -96,6 +98,7 @@ export const useShootsStore = defineStore('shoots', {
         this.experiments = experiments
         this.techniques = techniques
         this.shots = shots
+        this.inspirations = inspirations
         this.events = events
         this.runs = runs
         this.profile = profile
@@ -116,11 +119,12 @@ export const useShootsStore = defineStore('shoots', {
         if (newest !== this.lastEventAt) {
           this.events = events
           this.lastEventAt = newest
-          const [experiment, experiments, techniques, shots, runs, profile, journey] = await Promise.all([
+          const [experiment, experiments, techniques, shots, inspirations, runs, profile, journey] = await Promise.all([
             api.get('/api/experiments/open'),
             api.get('/api/experiments?limit=20'),
             api.get('/api/techniques'),
             api.get('/api/shots?limit=100'),
+            api.get('/api/inspirations?limit=100'),
             api.get('/api/runs?limit=20'),
             api.get('/api/profile'),
             api.get('/api/journey?limit=10'),
@@ -129,6 +133,7 @@ export const useShootsStore = defineStore('shoots', {
           this.experiments = experiments
           this.techniques = techniques
           this.shots = shots
+          this.inspirations = inspirations
           this.runs = runs
           this.profile = profile
           this.journey = journey
@@ -216,6 +221,7 @@ export const useShootsStore = defineStore('shoots', {
         const form = new FormData()
         form.append('file', file, file.name)
         form.append('source_id', webSourceId(file))
+        form.append('source_role', 'mine')
         if (experimentId) form.append('experiment_id', experimentId)
         const result = await api.postForm('/api/ingress/shots', form)
         await this.poll()
@@ -228,7 +234,7 @@ export const useShootsStore = defineStore('shoots', {
      * read before it is asked for an opinion. Sequential on purpose — each one
      * enters the same idempotent direct-ingress path as the Phone Source.
      */
-    async seed(files) {
+    async seed(files, sourceRole = 'mine') {
       this.error = ''
       this.seeding = { done: 0, total: files.length, name: files[0]?.name || '' }
       try {
@@ -237,6 +243,7 @@ export const useShootsStore = defineStore('shoots', {
           const form = new FormData()
           form.append('file', file, file.name)
           form.append('source_id', webSourceId(file))
+          form.append('source_role', sourceRole)
           await api.postForm('/api/ingress/shots', form)
           this.seeding.done += 1
         }
@@ -299,6 +306,16 @@ export const useShootsStore = defineStore('shoots', {
       if (index >= 0) this.shots.splice(index, 1, { ...this.shots[index], shot })
       this.profile = await api.get('/api/profile')
       return shot
+    },
+
+    async moveShotToInspiration(id) {
+      await api.put(`/api/shots/${id}/source-role`, { source_role: 'inspiration' })
+      await this.fetchAll()
+    },
+
+    async restoreInspiration(id) {
+      await api.put(`/api/inspirations/${id}/source-role`, { source_role: 'mine' })
+      await this.fetchAll()
     },
 
     /** A code to type into the native camera, so it can be handed this account. */

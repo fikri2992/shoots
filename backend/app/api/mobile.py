@@ -15,6 +15,7 @@ from app.api.deps import get_context
 from app.domain.entities import (
     CaptureSession,
     Experiment,
+    Inspiration,
     JourneyUpdate,
     Run,
     Shoot,
@@ -40,6 +41,7 @@ class MobileSnapshot(BaseModel):
     latest_shoot_record: ShootRecord | None
     latest_shot: shot_api.ShotView | None
     recent_shots: list[Shot]
+    recent_inspirations: list[Inspiration]
     journey: list[JourneyUpdate]
     profile: shot_api.ProfileView
     techniques: list[experiment_api.TechniqueNode]
@@ -68,7 +70,11 @@ async def snapshot(
         required.add(sessions[0].representative_result_shot_id)
     for shot_id in sorted(required - included):
         shot = await repo.find_shot(ctx.store, shot_id)
-        if shot is not None and shot.user_id == user.id:
+        if (
+            shot is not None
+            and shot.user_id == user.id
+            and not shot.superseded_by_inspiration_id
+        ):
             shots.append(shot)
     value = MobileSnapshot(
         user=user,
@@ -85,6 +91,7 @@ async def snapshot(
         latest_shoot_record=await shoots.latest_record(ctx, user.id),
         latest_shot=await shot_api._shot_view(ctx, shots[0]) if shots else None,
         recent_shots=shots,
+        recent_inspirations=await repo.list_inspirations(ctx.store, user.id, limit=30),
         journey=await repo.list_journey_updates(ctx.store, user.id, limit=10),
         profile=await shot_api.profile(session_user, ctx),
         techniques=await experiment_api.technique_map(session_user, ctx),

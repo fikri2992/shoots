@@ -59,6 +59,7 @@ interface ShootsApi {
         @Part file: MultipartBody.Part,
         @Part("source_id") sourceId: RequestBody,
         @Part("capture_session_id") captureSessionId: RequestBody?,
+        @Part("source_role") sourceRole: RequestBody,
     ): ImportResponse
 
     @GET("api/mobile/snapshot")
@@ -81,6 +82,18 @@ interface ShootsApi {
 
     @PUT("api/shots/{id}/keeper")
     suspend fun setKeeper(@Path("id") id: String, @Body body: KeeperRequest): ShotDto
+
+    @PUT("api/shots/{id}/source-role")
+    suspend fun setShotSourceRole(
+        @Path("id") id: String,
+        @Body body: SourceRoleRequest,
+    ): SourceRoleResult
+
+    @PUT("api/inspirations/{id}/source-role")
+    suspend fun setInspirationSourceRole(
+        @Path("id") id: String,
+        @Body body: SourceRoleRequest,
+    ): SourceRoleResult
 
     @POST("api/drive/authorization-code")
     suspend fun connectDrive(@Body body: DriveAuthorizationRequest): DriveConnectResponse

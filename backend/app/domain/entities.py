@@ -100,6 +100,13 @@ class ShotSource(StrEnum):
     ANDROID = "android"
 
 
+class SourceRole(StrEnum):
+    """Whether an ambiguous manual source depicts the Photographer's own work."""
+
+    MINE = "mine"
+    INSPIRATION = "inspiration"
+
+
 class ShotStatus(StrEnum):
     NEW = "new"
     #: Ingest owns this Shot until ``ingesting_at`` expires. This prevents two
@@ -294,7 +301,27 @@ class Shot(BaseModel):
     #: When the panel claimed this shot. Read only while the status is
     #: ANALYSING, to tell an attempt in flight from one that died.
     analysing_at: datetime | None = None
+    #: A manual source-role correction preserves this historical record while
+    #: removing it from every current Photographer projection.
+    superseded_at: datetime | None = None
+    superseded_by_inspiration_id: str = ""
     analyzed_at: datetime | None = None
+
+
+class Inspiration(BaseModel):
+    """Reference material explicitly kept outside Photographer-derived memory."""
+
+    id: str
+    user_id: str
+    source: ShotSource
+    source_id: str
+    filename: str
+    mime_type: str
+    blobs: dict[str, str] = Field(default_factory=dict)
+    source_shot_id: str = ""
+    created_at: datetime = Field(default_factory=now)
+    superseded_at: datetime | None = None
+    restored_shot_id: str = ""
 
 
 # --- analysis -------------------------------------------------------------
@@ -1063,6 +1090,8 @@ class JourneyUpdate(BaseModel):
     #: Which Shots, how many, which arithmetic, which model and prompt.
     provenance: Provenance = Field(default_factory=Provenance)
     created_at: datetime = Field(default_factory=now)
+    superseded_at: datetime | None = None
+    superseded_reason: str = ""
 
 
 class ActivityEvent(BaseModel):

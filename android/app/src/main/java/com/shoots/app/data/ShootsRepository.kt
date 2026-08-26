@@ -114,8 +114,12 @@ class ShootsRepository(
         return members.size
     }
 
-    suspend fun stageSelected(uris: List<Uri>, sessionId: String = ""): Int {
-        val inserted = phoneSource.stageSelected(uris, sessionId)
+    suspend fun stageSelected(
+        uris: List<Uri>,
+        sessionId: String = "",
+        sourceRole: String = "mine",
+    ): Int {
+        val inserted = phoneSource.stageSelected(uris, sessionId, sourceRole)
         if (sessionId.isNotBlank() && inserted > 0) {
             val session = dao.captureSession(sessionId) ?: error("Capture Session is not stored")
             dao.putCaptureSession(session.copy(state = LocalCaptureState.MANIFEST_PENDING, error = ""))
@@ -174,11 +178,12 @@ class ShootsRepository(
                     file,
                     item.sourceId.toRequestBody(text),
                     item.captureSessionId.takeIf(String::isNotBlank)?.toRequestBody(text),
+                    item.sourceRole.toRequestBody(text),
                 )
                 dao.updateImport(
                     item.copy(
                         state = ImportState.UPLOADED,
-                        shotId = response.shotId,
+                        shotId = response.shotId.ifBlank { response.inspirationId },
                         error = "",
                         attemptCount = item.attemptCount + 1,
                     )
@@ -289,6 +294,19 @@ class ShootsRepository(
         refreshShot(id)
     }
 
+    suspend fun moveShotToInspiration(id: String) {
+        api.setShotSourceRole(id, SourceRoleRequest("inspiration"))
+        dao.deleteShot(id)
+        dao.putResource(CachedResourceEntity("shot:$id", "", updatedAt = Instant.now().toString()))
+        refreshSnapshot()
+    }
+
+    suspend fun moveInspirationToMine(id: String) {
+        api.setInspirationSourceRole(id, SourceRoleRequest("mine"))
+        refreshSnapshot()
+        loadShotPage(reset = true)
+    }
+
     suspend fun requestExperiment(force: Boolean): ExperimentDto? {
         val experiment = api.issueExperiment(force)
         refreshSnapshot()
@@ -336,6 +354,12 @@ class ShootsRepository(
 
     fun blobUrl(path: String): String {
         if (path.isBlank()) return ""
+        return BuildConfig.SERVICE_ORIGIN.trimEnd('/') + "/api/blobs/" + path
+    }
+
+    fun imageUrl(inspiration: InspirationDto): String {
+        val path = inspiration.blobs["thumb"] ?: inspiration.blobs["original"]
+        if (path.isNullOrBlank()) return ""
         return BuildConfig.SERVICE_ORIGIN.trimEnd('/') + "/api/blobs/" + path
     }
 

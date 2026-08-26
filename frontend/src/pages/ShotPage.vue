@@ -38,7 +38,15 @@ export default {
   components: { DisclosureRow, ShotCanvas, MeasuredStrip },
   props: { shotId: { type: String, required: true } },
   data() {
-    return { showRead: true, picked: '', guides: PICKABLE, labels: GUIDE_LABELS, keeping: false }
+    return {
+      showRead: true,
+      picked: '',
+      guides: PICKABLE,
+      labels: GUIDE_LABELS,
+      keeping: false,
+      correctingSource: false,
+      confirmSource: false,
+    }
   },
   computed: {
     ...mapState(useShootsStore, ['shotById', 'experimentById', 'runs']),
@@ -185,7 +193,7 @@ export default {
     if (this.$route.hash === '#coach') this.openFor(this.shotId, {})
   },
   methods: {
-    ...mapActions(useShootsStore, ['fetchShot', 'setKeeper']),
+    ...mapActions(useShootsStore, ['fetchShot', 'setKeeper', 'moveShotToInspiration']),
     ...mapActions(useCoachStore, ['openFor']),
     talk(opener) {
       this.openFor(this.shotId, { opener })
@@ -201,6 +209,15 @@ export default {
         await this.setKeeper(this.shotId, !this.shot.kept_at)
       } finally {
         this.keeping = false
+      }
+    },
+    async moveToInspiration() {
+      this.correctingSource = true
+      try {
+        await this.moveShotToInspiration(this.shotId)
+        await this.$router.push({ name: 'shots' })
+      } finally {
+        this.correctingSource = false
       }
     },
   },
@@ -385,7 +402,21 @@ export default {
               Sent for “{{ experiment.title }}” ▸
             </RouterLink>
             <p>{{ shot.filename }}</p>
+            <button type="button" class="block text-left hover:text-neutral-200" @click="confirmSource = true">
+              This is Inspiration, not my Shot
+            </button>
           </div>
+
+            <section v-if="confirmSource" class="mt-4 rounded-xl border border-accent/35 bg-accent/5 p-4">
+              <p class="t-body text-paper">Move this to Inspiration?</p>
+              <p class="mt-1 t-meta">It stays available as a reference but stops changing your Technique Map, Tendencies, Keepers, and Journey.</p>
+              <div class="mt-4 flex gap-2">
+                <button type="button" class="btn-quiet px-4" :disabled="correctingSource" @click="moveToInspiration">
+                  {{ correctingSource ? 'Moving…' : 'Move' }}
+                </button>
+                <button type="button" class="btn-quiet px-4" @click="confirmSource = false">Keep as Shot</button>
+              </div>
+            </section>
           </template>
 
           <p v-else-if="shot.error" class="rounded-xl border border-bad/40 bg-bad/10 px-4 py-3 t-body text-bad">

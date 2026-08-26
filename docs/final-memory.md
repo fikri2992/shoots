@@ -34,7 +34,7 @@ personality profile, or a score.
 | Scene | Persisted capture-continuity membership with grouping revisions | Add explicit Photographer correction |
 | Shoot | Persisted natural Camera activity, revisioned terminal Shoot Record, deterministic receipt, and typed Scout outcome | Add client delivery, correction, full projections, and Deconstruction outcome |
 | Constraints | Listener and Live `remember` merge model-extracted strings into `User.constraints` | Store direct Photographer statements with provenance and correction; confirm inference |
-| Inspiration | Not separated at ingress | Keep outside Photographer-derived memory |
+| Inspiration | Explicit Android/web manual role, separate current record, projection-safe free-Shot correction, and client archive section | Add bounded study and correction for Experiment-cited history without weakening immutable records |
 | Android | Room cache and outbox; device token ciphertext uses Android Keystore | Keep Room as a non-authoritative cache; do not claim Room encryption |
 
 ## Rules that do not move
@@ -382,7 +382,7 @@ honest fallback. Do not weaken the Run or Capture Session guarantees to force it
 After submission:
 
 1. Add the full Technique Map evidence axes and projection invalidation.
-2. Add Photographer correction UI and Mine/Inspiration migration.
+2. Complete Scene grouping and Experiment-cited source-role correction.
 3. Migrate Listener facts to scoped, provenance-carrying records.
 4. Add the blind bounded Shoot reader only if deterministic synthesis leaves useful
    ambiguity.

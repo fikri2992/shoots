@@ -17,6 +17,7 @@ from app.api import (
     drive_auth,
     experiments,
     ingress,
+    inspirations,
     live,
     mobile,
     pairing,
@@ -60,6 +61,7 @@ app.include_router(devices.router)
 app.include_router(drive.router)
 app.include_router(drive_auth.router)
 app.include_router(ingress.router)
+app.include_router(inspirations.router)
 app.include_router(shots.router)
 app.include_router(pairing.router)
 app.include_router(experiments.router)

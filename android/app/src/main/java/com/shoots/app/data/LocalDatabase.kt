@@ -10,6 +10,8 @@ import androidx.room.OnConflictStrategy
 import androidx.room.Query
 import androidx.room.Room
 import androidx.room.RoomDatabase
+import androidx.room.migration.Migration
+import androidx.sqlite.db.SupportSQLiteDatabase
 import androidx.room.Transaction
 import androidx.room.Update
 import kotlinx.coroutines.flow.Flow
@@ -36,6 +38,7 @@ data class ImportEntity(
     val size: Long,
     val displayName: String,
     val mimeType: String,
+    val sourceRole: String = "mine",
     val captureSessionId: String = "",
     val experimentId: String = "",
     val manifestOrder: Int = -1,
@@ -228,6 +231,9 @@ abstract class ShootsDao {
     @Query("SELECT * FROM cached_shots WHERE id = :id")
     abstract fun observeShot(id: String): Flow<CachedShotEntity?>
 
+    @Query("DELETE FROM cached_shots WHERE id = :id")
+    abstract suspend fun deleteShot(id: String)
+
     @Transaction
     open suspend fun cacheSnapshot(
         resource: CachedResourceEntity,
@@ -248,7 +254,7 @@ abstract class ShootsDao {
         CachedResourceEntity::class,
         CachedShotEntity::class,
     ],
-    version = 1,
+    version = 2,
     // Version 1 is checked in under app/schemas. Room 2.8.4 cannot re-read its
     // own exported JSON with its current serialization ABI; re-enable export
     // when the upstream compiler fix lands, before introducing version 2.
@@ -262,6 +268,14 @@ abstract class ShootsDatabase : RoomDatabase() {
             context.applicationContext,
             ShootsDatabase::class.java,
             "shoots.db",
-        ).setJournalMode(JournalMode.WRITE_AHEAD_LOGGING).build()
+        ).addMigrations(MIGRATION_1_2)
+            .setJournalMode(JournalMode.WRITE_AHEAD_LOGGING)
+            .build()
+
+        private val MIGRATION_1_2 = object : Migration(1, 2) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE imports ADD COLUMN sourceRole TEXT NOT NULL DEFAULT 'mine'")
+            }
+        }
     }
 }

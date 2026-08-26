@@ -98,9 +98,15 @@ class PhoneMediaStore(
         }
     }
 
-    suspend fun stageSelected(uris: List<Uri>, sessionId: String = ""): Int {
+    suspend fun stageSelected(
+        uris: List<Uri>,
+        sessionId: String = "",
+        sourceRole: String = "mine",
+    ): Int {
         val localSession = sessionId.takeIf(String::isNotBlank)?.let { dao.captureSession(it) }
-        val imports = uris.mapNotNull { uri -> describe(uri)?.let(::selectedImport) }
+        val imports = uris.mapNotNull { uri ->
+            describe(uri)?.let { selectedImport(it, sourceRole) }
+        }
         return dao.insertSelectedImports(
             imports,
             localSession?.id.orEmpty(),
@@ -134,12 +140,12 @@ class PhoneMediaStore(
         return item.toImport(source)
     }
 
-    private fun selectedImport(item: CameraItem): ImportEntity {
+    private fun selectedImport(item: CameraItem, sourceRole: String): ImportEntity {
         val digest = MessageDigest.getInstance("SHA-256")
             .digest("${item.uri}:${item.size}:${item.dateAdded}".toByteArray())
             .take(12)
             .joinToString("") { "%02x".format(it) }
-        return item.toImport("${sessions.deviceId()}:selected:$digest")
+        return item.toImport("${sessions.deviceId()}:selected:$digest").copy(sourceRole = sourceRole)
     }
 
     private fun CameraItem.toImport(source: String) = ImportEntity(

@@ -85,6 +85,19 @@ data class ShotDto(
 }
 
 @Serializable
+data class InspirationDto(
+    val id: String,
+    @SerialName("user_id") val userId: String = "",
+    val source: String = "android",
+    @SerialName("source_id") val sourceId: String = "",
+    val filename: String = "Inspiration",
+    @SerialName("mime_type") val mimeType: String = "image/jpeg",
+    val blobs: Map<String, String> = emptyMap(),
+    @SerialName("source_shot_id") val sourceShotId: String = "",
+    @SerialName("created_at") val createdAt: String = "",
+)
+
+@Serializable
 data class TechniqueEvidenceDto(
     @SerialName("technique_id") val techniqueId: String,
     val confidence: Double = 0.0,
@@ -416,6 +429,7 @@ data class MobileSnapshotDto(
     @SerialName("latest_shoot_record") val latestShootRecord: ShootRecordDto? = null,
     @SerialName("latest_shot") val latestShot: ShotViewDto? = null,
     @SerialName("recent_shots") val recentShots: List<ShotDto> = emptyList(),
+    @SerialName("recent_inspirations") val recentInspirations: List<InspirationDto> = emptyList(),
     val journey: List<JourneyUpdateDto> = emptyList(),
     val profile: ProfileDto = ProfileDto(),
     val techniques: List<TechniqueNodeDto> = emptyList(),
@@ -424,13 +438,25 @@ data class MobileSnapshotDto(
 
 @Serializable
 data class ImportResponse(
-    @SerialName("shot_id") val shotId: String,
+    @SerialName("shot_id") val shotId: String = "",
+    @SerialName("inspiration_id") val inspirationId: String = "",
+    @SerialName("source_role") val sourceRole: String = "mine",
     val created: Boolean,
     @SerialName("capture_session_id") val captureSessionId: String = "",
 )
 
 @Serializable
 data class KeeperRequest(val keeper: Boolean)
+
+@Serializable
+data class SourceRoleRequest(@SerialName("source_role") val sourceRole: String)
+
+@Serializable
+data class SourceRoleResult(
+    @SerialName("source_role") val sourceRole: String,
+    @SerialName("shot_id") val shotId: String = "",
+    @SerialName("inspiration_id") val inspirationId: String = "",
+)
 
 @Serializable
 data class NotificationTargetRequest(val target: String)

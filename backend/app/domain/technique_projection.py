@@ -42,6 +42,8 @@ def build(inputs: ProjectionInputs) -> dict[str, TechniqueState]:
     """Return the complete current projection, including honest retractions."""
     evidence_by_technique: dict[str, dict[str, tuple[Analysis, TechniqueEvidence]]] = {}
     for analysis in inputs.analyses:
+        if analysis.shot_id not in inputs.shots:
+            continue
         for evidence in analysis.techniques:
             if (
                 evidence.technique_id not in taxonomy.BY_ID

@@ -28,6 +28,8 @@ import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Text
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -66,6 +68,7 @@ fun ShotDetailScreen(
     blobUrl: (String) -> String,
     onBack: () -> Unit,
     onKeeper: (Boolean) -> Unit,
+    onMoveToInspiration: () -> Unit = {},
     onRetry: () -> Unit,
     onOpenDrive: (String) -> Unit,
 ) {
@@ -101,6 +104,7 @@ fun ShotDetailScreen(
         }
         var fullAnalysis by rememberSaveable(shot.id) { mutableStateOf(false) }
         var provenance by rememberSaveable(shot.id) { mutableStateOf(false) }
+        var confirmInspiration by rememberSaveable(shot.id) { mutableStateOf(false) }
         LaunchedEffect(analysis?.shotId) {
             if (analysis != null && reviewLayer == ReviewLayer.CLEAN) {
                 reviewLayer = defaultReviewLayer(analysis)
@@ -220,6 +224,35 @@ fun ShotDetailScreen(
                 Spacer(Modifier.height(20.dp))
                 SecondaryAction("Open reviewed copy in Drive") { onOpenDrive(shot.driveReviewUrl) }
             }
+            Spacer(Modifier.height(20.dp))
+            SecondaryAction("This is Inspiration, not my Shot") {
+                confirmInspiration = true
+            }
+        }
+        if (confirmInspiration) {
+            AlertDialog(
+                onDismissRequest = { confirmInspiration = false },
+                title = { Text("Move to Inspiration?") },
+                text = {
+                    Text(
+                        "Shoots will keep the reference but stop using it in your Technique Map, " +
+                            "Tendencies, Keepers, and Journey."
+                    )
+                },
+                confirmButton = {
+                    TextButton(
+                        onClick = {
+                            confirmInspiration = false
+                            onMoveToInspiration()
+                        }
+                    ) { Text("Move") }
+                },
+                dismissButton = {
+                    TextButton(onClick = { confirmInspiration = false }) {
+                        Text("Keep as Shot")
+                    }
+                },
+            )
         }
     }
 }

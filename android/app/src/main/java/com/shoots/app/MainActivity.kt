@@ -20,6 +20,9 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.shoots.app.identity.DriveAuthorization
@@ -45,6 +48,8 @@ class MainActivity : ComponentActivity() {
                 val access by viewModel.mediaAccess.collectAsStateWithLifecycle()
                 var cameraSessionId by remember { mutableStateOf("") }
                 var pickerSessionId by remember { mutableStateOf("") }
+                var pickerSourceRole by remember { mutableStateOf("mine") }
+                var chooseSourceRole by remember { mutableStateOf(false) }
                 var notificationsGranted by remember { mutableStateOf(hasNotificationPermission()) }
                 val drive = remember { DriveAuthorization(this) }
 
@@ -52,8 +57,12 @@ class MainActivity : ComponentActivity() {
                     ActivityResultContracts.PickMultipleVisualMedia(50)
                 ) { uris ->
                     val session = pickerSessionId
+                    val sourceRole = pickerSourceRole
                     pickerSessionId = ""
-                    if (uris.isNotEmpty()) scope.launch { viewModel.stageSelected(uris, session) }
+                    pickerSourceRole = "mine"
+                    if (uris.isNotEmpty()) {
+                        scope.launch { viewModel.stageSelected(uris, session, sourceRole) }
+                    }
                 }
                 val camera = rememberLauncherForActivityResult(
                     ActivityResultContracts.StartActivityForResult()
@@ -65,11 +74,13 @@ class MainActivity : ComponentActivity() {
                             viewModel.finishCameraVisit(session)
                             if (access == MediaAccess.SELECTED) {
                                 pickerSessionId = session
+                                pickerSourceRole = "mine"
                                 picker.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
                             }
                         }
                     } else if (access == MediaAccess.SELECTED) {
                         pickerSessionId = ""
+                        pickerSourceRole = "mine"
                         picker.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
                     } else {
                         viewModel.sync()
@@ -106,6 +117,47 @@ class MainActivity : ComponentActivity() {
                     }
                 }
 
+                if (chooseSourceRole) {
+                    AlertDialog(
+                        onDismissRequest = { chooseSourceRole = false },
+                        title = { Text("What are you adding?") },
+                        text = {
+                            Text(
+                                "My Shots change your learning record. Inspiration stays separate " +
+                                    "and is only a reference."
+                            )
+                        },
+                        confirmButton = {
+                            TextButton(
+                                onClick = {
+                                    chooseSourceRole = false
+                                    pickerSessionId = ""
+                                    pickerSourceRole = "mine"
+                                    picker.launch(
+                                        PickVisualMediaRequest(
+                                            ActivityResultContracts.PickVisualMedia.ImageOnly
+                                        )
+                                    )
+                                }
+                            ) { Text("My Shots") }
+                        },
+                        dismissButton = {
+                            TextButton(
+                                onClick = {
+                                    chooseSourceRole = false
+                                    pickerSessionId = ""
+                                    pickerSourceRole = "inspiration"
+                                    picker.launch(
+                                        PickVisualMediaRequest(
+                                            ActivityResultContracts.PickVisualMedia.ImageOnly
+                                        )
+                                    )
+                                }
+                            ) { Text("Inspiration") }
+                        },
+                    )
+                }
+
                 ShootsApp(
                     viewModel,
                     AppActions(
@@ -114,10 +166,7 @@ class MainActivity : ComponentActivity() {
                         enableSource = { scope.launch { viewModel.enableFutureShots() } },
                         disableSource = { scope.launch { viewModel.disableFutureShots() } },
                         openFreeCamera = { launchCamera() },
-                        chooseFreeShots = {
-                            pickerSessionId = ""
-                            picker.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
-                        },
+                        chooseFreeShots = { chooseSourceRole = true },
                         requestExperiment = { force ->
                             scope.launch { viewModel.requestExperiment(force) }
                         },
@@ -132,6 +181,7 @@ class MainActivity : ComponentActivity() {
                                 viewModel.finishCameraVisit(sessionId)
                                 if (access == MediaAccess.SELECTED) {
                                     pickerSessionId = sessionId
+                                    pickerSourceRole = "mine"
                                     picker.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
                                 }
                             }

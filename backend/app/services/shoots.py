@@ -31,7 +31,10 @@ class ShootMembership:
 
 async def latest(ctx: Context, user_id: str) -> Shoot | None:
     """Newest natural Shoot for one Photographer."""
-    items = await repo.list_shoots(ctx.store, user_id)
+    items = []
+    for item in await repo.list_shoots(ctx.store, user_id):
+        if not await _has_superseded_member(ctx, item.ordered_shot_ids):
+            items.append(item)
     return max(
         items,
         key=lambda item: (
@@ -45,8 +48,19 @@ async def latest(ctx: Context, user_id: str) -> Shoot | None:
 
 async def latest_record(ctx: Context, user_id: str) -> ShootRecord | None:
     """Newest immutable Shoot Record, including an earlier settled Shoot."""
-    records = await repo.list_shoot_records(ctx.store, user_id, limit=1)
-    return records[0] if records else None
+    records = await repo.list_shoot_records(ctx.store, user_id)
+    for record in records:
+        if not await _has_superseded_member(ctx, record.shot_ids):
+            return record
+    return None
+
+
+async def _has_superseded_member(ctx: Context, shot_ids: list[str]) -> bool:
+    for shot_id in shot_ids:
+        shot = await repo.find_shot(ctx.store, shot_id)
+        if shot is not None and shot.superseded_by_inspiration_id:
+            return True
+    return False
 
 
 async def observe_shot(ctx: Context, shot_id: str) -> ShootMembership:

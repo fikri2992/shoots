@@ -44,26 +44,30 @@ import com.shoots.app.InkRaised
 import com.shoots.app.MutedWhite
 import com.shoots.app.WarmWhite
 import com.shoots.app.data.ShotDto
+import com.shoots.app.data.InspirationDto
 import com.shoots.app.data.ImportEntity
 import com.shoots.app.data.ImportState
 
 @Composable
 fun ShotsScreen(
     shots: List<ShotDto>,
+    inspirations: List<InspirationDto>,
     pendingImports: List<ImportEntity>,
     canLoadMore: Boolean,
     busy: Boolean,
     imageUrl: (ShotDto) -> String,
+    inspirationUrl: (InspirationDto) -> String,
     onShot: (String) -> Unit,
     onLoadMore: () -> Unit,
     onRetryImport: (String) -> Unit,
+    onRestoreInspiration: (String) -> Unit,
     onReauthenticate: () -> Unit,
 ) {
     Column(Modifier.fillMaxSize().background(Ink).statusBarsPadding()) {
         Column(Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 22.dp)) {
-            ScreenTitle("Archive", "Shots", "Every readable Shot becomes part of your record.")
+            ScreenTitle("Archive", "Shots", "Your work and Inspiration stay separate.")
         }
-        if (shots.isEmpty() && pendingImports.isEmpty()) {
+        if (shots.isEmpty() && inspirations.isEmpty() && pendingImports.isEmpty()) {
             Column(Modifier.fillMaxSize().padding(20.dp), verticalArrangement = Arrangement.Center) {
                 InkCard {
                     Text("No Shots cached yet.", color = WarmWhite, fontSize = 18.sp, fontWeight = FontWeight.SemiBold)
@@ -91,6 +95,29 @@ fun ShotsScreen(
                 items(shots, key = { it.id }) { shot ->
                     ShotTile(shot, imageUrl(shot)) { onShot(shot.id) }
                 }
+                if (inspirations.isNotEmpty()) {
+                    item(span = { GridItemSpan(maxLineSpan) }) {
+                        Column(Modifier.fillMaxWidth().padding(top = 22.dp, bottom = 4.dp)) {
+                            Text(
+                                "INSPIRATION",
+                                color = Amber,
+                                fontSize = 10.sp,
+                                fontWeight = FontWeight.Bold,
+                            )
+                            Spacer(Modifier.height(4.dp))
+                            Text(
+                                "References Shoots does not count as your work.",
+                                color = MutedWhite,
+                                fontSize = 12.sp,
+                            )
+                        }
+                    }
+                    items(inspirations, key = { "inspiration:${it.id}" }) { inspiration ->
+                        InspirationTile(inspiration, inspirationUrl(inspiration)) {
+                            onRestoreInspiration(inspiration.id)
+                        }
+                    }
+                }
                 if (canLoadMore) {
                     item(span = { GridItemSpan(maxLineSpan) }) {
                         Column(Modifier.fillMaxWidth().padding(vertical = 14.dp)) {
@@ -104,6 +131,50 @@ fun ShotsScreen(
                 }
             }
         }
+    }
+}
+
+@Composable
+private fun InspirationTile(
+    inspiration: InspirationDto,
+    url: String,
+    onRestore: () -> Unit,
+) {
+    Box(
+        Modifier
+            .fillMaxWidth()
+            .aspectRatio(1f)
+            .clip(RoundedCornerShape(14.dp))
+            .background(InkRaised)
+            .clickable(role = Role.Button, onClick = onRestore),
+    ) {
+        AsyncImage(
+            model = url,
+            contentDescription = inspiration.filename,
+            modifier = Modifier.fillMaxSize(),
+            contentScale = ContentScale.Crop,
+        )
+        Text(
+            "INSPIRATION",
+            color = Amber,
+            fontSize = 9.sp,
+            fontWeight = FontWeight.Bold,
+            modifier = Modifier
+                .align(Alignment.TopStart)
+                .padding(7.dp)
+                .background(Ink.copy(alpha = 0.82f), RoundedCornerShape(8.dp))
+                .padding(horizontal = 6.dp, vertical = 4.dp),
+        )
+        Text(
+            "Tap only if this is your Shot",
+            color = WarmWhite,
+            fontSize = 10.sp,
+            modifier = Modifier
+                .align(Alignment.BottomStart)
+                .fillMaxWidth()
+                .background(Ink.copy(alpha = 0.82f))
+                .padding(8.dp),
+        )
     }
 }
 

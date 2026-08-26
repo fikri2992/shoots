@@ -35,7 +35,7 @@ function dayLabel(key) {
 export default {
   name: 'ShotsPage',
   computed: {
-    ...mapState(useShootsStore, ['orderedShots', 'seeding']),
+    ...mapState(useShootsStore, ['orderedShots', 'inspirations', 'seeding']),
     rows() {
       return this.orderedShots.map((v) => ({
         id: v.shot.id,
@@ -69,11 +69,15 @@ export default {
     },
   },
   methods: {
-    ...mapActions(useShootsStore, ['seed']),
-    onPick(event) {
+    ...mapActions(useShootsStore, ['seed', 'restoreInspiration']),
+    onPick(event, sourceRole) {
       const files = [...(event.target.files || [])]
       event.target.value = ''
-      if (files.length) this.seed(files)
+      if (files.length) this.seed(files, sourceRole)
+    },
+    inspirationThumb(item) {
+      if (item.blobs?.thumb) return `/api/blobs/${item.blobs.thumb}`
+      return item.blobs?.original ? `/api/blobs/${item.blobs.original}` : ''
     },
   },
 }
@@ -89,10 +93,16 @@ export default {
           {{ summary.total }} made · {{ summary.read }} readable · {{ summary.kept }} marked Keeper
         </p>
       </div>
-      <label class="btn-quiet cursor-pointer px-4">
-        {{ seeding ? `Uploading ${seeding.done + 1}/${seeding.total}…` : 'Add Shots' }}
-        <input type="file" accept="image/*,video/*" multiple class="hidden" :disabled="Boolean(seeding)" @change="onPick" />
-      </label>
+      <div class="flex gap-2">
+        <label class="btn-quiet cursor-pointer px-4">
+          {{ seeding ? `Adding ${seeding.done + 1}/${seeding.total}…` : 'Add my Shots' }}
+          <input type="file" accept="image/*,video/*" multiple class="hidden" :disabled="Boolean(seeding)" @change="onPick($event, 'mine')" />
+        </label>
+        <label class="btn-quiet cursor-pointer px-4">
+          Add Inspiration
+          <input type="file" accept="image/*,video/*" multiple class="hidden" :disabled="Boolean(seeding)" @change="onPick($event, 'inspiration')" />
+        </label>
+      </div>
     </header>
 
     <div v-if="groups.length" class="mt-9 space-y-10">
@@ -127,7 +137,26 @@ export default {
       </section>
     </div>
 
-    <section v-else class="surface mt-10 p-7 text-center sm:p-10">
+    <section v-if="inspirations.length" class="mt-12 border-t border-edge pt-7">
+      <p class="eyebrow text-accent">Inspiration</p>
+      <h2 class="mt-2 t-title">References, not your record</h2>
+      <p class="mt-2 t-meta">Shoots may help you study these, but never counts them as your work.</p>
+      <div class="mt-5 grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4 lg:gap-3">
+        <article v-for="item in inspirations" :key="item.id" class="overflow-hidden rounded-xl border border-edge bg-panel">
+          <div class="aspect-[4/5] bg-panel-2">
+            <img v-if="inspirationThumb(item)" :src="inspirationThumb(item)" :alt="item.filename" class="h-full w-full object-cover" />
+          </div>
+          <div class="p-3">
+            <p class="truncate t-meta">{{ item.filename }}</p>
+            <button type="button" class="mt-2 text-[11px] font-medium text-accent" @click="restoreInspiration(item.id)">
+              This is my Shot
+            </button>
+          </div>
+        </article>
+      </div>
+    </section>
+
+    <section v-if="!groups.length && !inspirations.length" class="surface mt-10 p-7 text-center sm:p-10">
       <p class="eyebrow text-accent">No archive yet</p>
       <h2 class="mt-3 text-2xl font-semibold text-paper">Your first pattern needs more than a prompt.</h2>
       <p class="mx-auto mt-3 max-w-md t-body">Add a few Shots. Shoots will preserve what it can read and say nothing about what it cannot.</p>

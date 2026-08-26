@@ -160,13 +160,16 @@ fun ShootsApp(
                 LaunchedEffect(Unit) { viewModel.loadMoreShots(reset = true) }
                 ShotsScreen(
                     shots,
+                    snapshot?.recentInspirations.orEmpty(),
                     pendingImports,
                     canLoadMoreShots,
                     busy,
                     { viewModel.imageUrl(it) },
+                    { viewModel.imageUrl(it) },
                     { nav.navigate("shot/$it") },
                     { viewModel.loadMoreShots() },
                     viewModel::retryImport,
+                    { id -> scope.launch { viewModel.moveInspirationToMine(id) } },
                     actions.signIn,
                 )
             }
@@ -181,6 +184,11 @@ fun ShootsApp(
                     onBack = nav::popBackStack,
                     onKeeper = { keeper ->
                         scope.launch { viewModel.setKeeper(id, keeper) }
+                    },
+                    onMoveToInspiration = {
+                        scope.launch {
+                            if (viewModel.moveShotToInspiration(id)) nav.popBackStack()
+                        }
                     },
                     onRetry = { scope.launch { viewModel.retryShot(id) } },
                     onOpenDrive = actions.openUrl,

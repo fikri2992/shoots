@@ -113,7 +113,11 @@ async def get_shot(
     ctx: Context = Depends(get_context),
 ) -> ShotView:
     shot = await repo.find_shot(ctx.store, shot_id)
-    if shot is None or shot.user_id != session_user["id"]:
+    if (
+        shot is None
+        or shot.user_id != session_user["id"]
+        or shot.superseded_by_inspiration_id
+    ):
         raise HTTPException(404, "shot not found")
     return await _shot_view(ctx, shot)
 
@@ -131,7 +135,11 @@ async def retry_shot(
     status decides which idempotent stage receives the replay.
     """
     shot = await repo.find_shot(ctx.store, shot_id)
-    if shot is None or shot.user_id != session_user["id"]:
+    if (
+        shot is None
+        or shot.user_id != session_user["id"]
+        or shot.superseded_by_inspiration_id
+    ):
         raise HTTPException(404, "shot not found")
     analysis = await repo.find_analysis(ctx.store, shot.id)
     run = await repo.find_run_for_shot(ctx.store, shot.id)
@@ -200,7 +208,11 @@ async def set_keeper(
     not disliked the other hundred and ninety-six.
     """
     shot = await repo.find_shot(ctx.store, shot_id)
-    if shot is None or shot.user_id != session_user["id"]:
+    if (
+        shot is None
+        or shot.user_id != session_user["id"]
+        or shot.superseded_by_inspiration_id
+    ):
         raise HTTPException(404, "shot not found")
     if bool(shot.kept_at) != body.keeper:
         shot.kept_at = now() if body.keeper else None
