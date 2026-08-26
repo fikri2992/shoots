@@ -12,6 +12,7 @@ import com.shoots.app.data.GridSpecDto
 import com.shoots.app.data.FindingDto
 import com.shoots.app.data.MoveDto
 import com.shoots.app.data.ShotDto
+import com.shoots.app.data.ShotTeachingReceiptDto
 import com.shoots.app.data.ShotViewDto
 import com.shoots.app.data.TechniqueEvidenceDto
 import org.junit.Rule
@@ -159,5 +160,59 @@ class ShotDetailScreenIntegrationTest {
         compose.onNodeWithContentDescription("Composition action").assertExists()
         compose.onNodeWithText("Clean").performClick()
         compose.onNodeWithContentDescription("Clean Shot").assertExists()
+    }
+
+    @Test
+    fun teachingReceiptKeepsOneDecisionOneMoveAndOneCheckTogether() {
+        val view = ShotViewDto(
+            shot = ShotDto(
+                id = "teaching-shot",
+                filename = "IMG_teaching.jpg",
+                status = "analyzed",
+                grid = GridSpecDto(cols = 8, rows = 6, width = 800, height = 600),
+            ),
+            analysis = AnalysisDto(
+                shotId = "teaching-shot",
+                composition = CompositionDto(guide = "thirds"),
+            ),
+            teaching = ShotTeachingReceiptDto(
+                keepTitle = "Negative space",
+                keepProof = "Two Analyst lenses corroborated this Technique.",
+                keepAuthority = "model_read",
+                noticeTitle = "Fine edges are soft across the frame.",
+                noticeProof = "1/15 s is below the handheld limit.",
+                noticeFindingId = "camera_shake",
+                noticeAuthority = "measured",
+                tryText = "Lower the camera below the beam.",
+                tryReason = "Keep the beam from crossing the subject.",
+                tryKind = "camera",
+                visibleCheck = "Zoom into one fine edge after capture; it should stay single.",
+                primaryLayer = "guide",
+                guide = "thirds",
+            ),
+        )
+
+        compose.setContent {
+            ShootsTheme {
+                ShotDetailScreen(
+                    view = view,
+                    imageUrl = { _, _ -> "" },
+                    blobUrl = { "" },
+                    onBack = {},
+                    onKeeper = {},
+                    onRetry = {},
+                    onOpenDrive = {},
+                )
+            }
+        }
+
+        compose.onNodeWithContentDescription("Thirds composition guide").assertExists()
+        compose.onNodeWithText("KEEP · MODEL READ").performScrollTo().assertExists()
+        compose.onNodeWithText("NOTICE · MEASURED").assertExists()
+        compose.onNodeWithText("TRY · MOVE CAMERA").assertExists()
+        compose.onNodeWithText("CHECK ON THE NEXT SHOT").assertExists()
+        compose.onNodeWithText("What worked").assertDoesNotExist()
+        compose.onNodeWithText("What got in the way").assertDoesNotExist()
+        compose.onNodeWithText("One thing to try").assertDoesNotExist()
     }
 }

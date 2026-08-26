@@ -168,6 +168,29 @@ data class ShotViewDto(
     val shot: ShotDto,
     val analysis: AnalysisDto? = null,
     val run: RunDto? = null,
+    val teaching: ShotTeachingReceiptDto? = null,
+)
+
+@Serializable
+data class ShotTeachingReceiptDto(
+    @SerialName("keep_title") val keepTitle: String = "",
+    @SerialName("keep_proof") val keepProof: String = "",
+    @SerialName("keep_technique_id") val keepTechniqueId: String = "",
+    @SerialName("keep_authority") val keepAuthority: String? = null,
+    @SerialName("keep_cells") val keepCells: List<String> = emptyList(),
+    @SerialName("notice_title") val noticeTitle: String = "",
+    @SerialName("notice_proof") val noticeProof: String = "",
+    @SerialName("notice_finding_id") val noticeFindingId: String = "",
+    @SerialName("notice_authority") val noticeAuthority: String? = null,
+    @SerialName("notice_cells") val noticeCells: List<String> = emptyList(),
+    @SerialName("try_text") val tryText: String = "",
+    @SerialName("try_reason") val tryReason: String = "",
+    @SerialName("try_kind") val tryKind: String? = null,
+    @SerialName("try_from_cells") val tryFromCells: List<String> = emptyList(),
+    @SerialName("try_to_cells") val tryToCells: List<String> = emptyList(),
+    @SerialName("visible_check") val visibleCheck: String = "",
+    @SerialName("primary_layer") val primaryLayer: String = "clean",
+    val guide: String = "",
 )
 
 @Serializable

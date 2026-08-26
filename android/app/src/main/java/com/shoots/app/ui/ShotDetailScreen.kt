@@ -59,6 +59,7 @@ import com.shoots.app.data.CompositionDto
 import com.shoots.app.data.FindingDto
 import com.shoots.app.data.GridSpecDto
 import com.shoots.app.data.ShotDto
+import com.shoots.app.data.ShotTeachingReceiptDto
 import com.shoots.app.data.ShotViewDto
 
 @Composable
@@ -100,14 +101,14 @@ fun ShotDetailScreen(
         val analysis = view.analysis
         var selectedFinding by rememberSaveable(shot.id) { mutableIntStateOf(0) }
         var reviewLayer by rememberSaveable(shot.id) {
-            mutableStateOf(defaultReviewLayer(analysis))
+            mutableStateOf(defaultReviewLayer(view.teaching, analysis))
         }
         var fullAnalysis by rememberSaveable(shot.id) { mutableStateOf(false) }
         var provenance by rememberSaveable(shot.id) { mutableStateOf(false) }
         var confirmInspiration by rememberSaveable(shot.id) { mutableStateOf(false) }
         LaunchedEffect(analysis?.shotId) {
             if (analysis != null && reviewLayer == ReviewLayer.CLEAN) {
-                reviewLayer = defaultReviewLayer(analysis)
+                reviewLayer = defaultReviewLayer(view.teaching, analysis)
             }
             selectedFinding = selectedFinding.coerceIn(0, maxOf(0, analysis?.findings?.lastIndex ?: 0))
         }
@@ -143,52 +144,19 @@ fun ShotDetailScreen(
                 val corroborated = analysis.techniques
                     .filter(::isCorroborated)
                     .sortedWith(compareByDescending<com.shoots.app.data.TechniqueEvidenceDto> { it.agreement }.thenByDescending { it.confidence })
-                val instruction = compositionInstruction(analysis.composition, shot.grid)
-
-                if (corroborated.isNotEmpty()) {
-                    SectionTitle("What worked", "CORROBORATED")
-                    Spacer(Modifier.height(10.dp))
-                    TechniqueEvidenceCard(corroborated.first(), shot.grid)
-                    Spacer(Modifier.height(22.dp))
-                }
-
-                analysis.findings.firstOrNull()?.let { finding ->
-                    SectionTitle("What got in the way", "MEASURED")
-                    Spacer(Modifier.height(10.dp))
-                    InkCard(onClick = { selectedFinding = 0; reviewLayer = ReviewLayer.FINDING }) {
-                        Text(
-                            plainCellReferences(finding.what, shot.grid),
-                            color = FindingRed,
-                            fontSize = 15.sp,
-                            lineHeight = 21.sp,
-                            fontWeight = FontWeight.SemiBold,
-                        )
-                        if (finding.why.isNotBlank()) {
-                            Spacer(Modifier.height(6.dp))
-                            Text(
-                                plainCellReferences(finding.why, shot.grid),
-                                color = MutedWhite,
-                                fontSize = 13.sp,
-                                lineHeight = 18.sp,
-                            )
-                        }
-                        Spacer(Modifier.height(8.dp))
-                        Text(findingLocationCopy(finding), color = MutedWhite, fontSize = 10.sp, fontWeight = FontWeight.Bold)
-                    }
-                    Spacer(Modifier.height(22.dp))
-                }
-
-                if (instruction.isNotBlank()) {
-                    SectionTitle("One thing to try", "COMPANION")
-                    Spacer(Modifier.height(10.dp))
-                    InkCard(onClick = { reviewLayer = ReviewLayer.ACTION }) {
-                        Text(instruction, color = WarmWhite, fontSize = 14.sp, lineHeight = 21.sp)
-                        Spacer(Modifier.height(7.dp))
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Text("Show on Shot", color = Amber, fontSize = 11.sp, fontWeight = FontWeight.Bold)
-                            ForwardChevron(Amber)
-                        }
-                    }
+                view.teaching?.let { teaching ->
+                    TeachingReceiptCard(
+                        teaching,
+                        onNotice = {
+                            if (teaching.noticeFindingId.isNotBlank()) {
+                                selectedFinding = 0
+                                reviewLayer = ReviewLayer.FINDING
+                            }
+                        },
+                        onTry = {
+                            if (teaching.tryKind != "camera") reviewLayer = ReviewLayer.ACTION
+                        },
+                    )
                     Spacer(Modifier.height(22.dp))
                 }
 
@@ -254,6 +222,102 @@ fun ShotDetailScreen(
                 },
             )
         }
+    }
+}
+
+@Composable
+private fun TeachingReceiptCard(
+    teaching: ShotTeachingReceiptDto,
+    onNotice: () -> Unit,
+    onTry: () -> Unit,
+) {
+    SectionTitle("This Shot", "ONE READ")
+    Spacer(Modifier.height(10.dp))
+    InkCard {
+        if (teaching.keepTitle.isNotBlank()) {
+            TeachingLine(
+                label = "KEEP · MODEL READ",
+                title = teaching.keepTitle,
+                proof = teaching.keepProof,
+            )
+        }
+        if (teaching.noticeTitle.isNotBlank()) {
+            if (teaching.keepTitle.isNotBlank()) Spacer(Modifier.height(16.dp))
+            Column(
+                Modifier
+                    .fillMaxWidth()
+                    .clickable(
+                        enabled = teaching.noticeFindingId.isNotBlank(),
+                        role = Role.Button,
+                        onClick = onNotice,
+                    )
+            ) {
+                TeachingLine(
+                    label = if (teaching.noticeAuthority == "measured") {
+                        "NOTICE · MEASURED"
+                    } else {
+                        "NOTICE · MODEL READ"
+                    },
+                    title = teaching.noticeTitle,
+                    proof = teaching.noticeProof,
+                    finding = teaching.noticeAuthority == "measured",
+                )
+            }
+        }
+        if (teaching.tryText.isNotBlank()) {
+            Spacer(Modifier.height(16.dp))
+            Column(
+                Modifier
+                    .fillMaxWidth()
+                    .clickable(
+                        enabled = teaching.tryKind != "camera",
+                        role = Role.Button,
+                        onClick = onTry,
+                    )
+            ) {
+                TeachingLine(
+                    label = if (teaching.tryKind == "camera") "TRY · MOVE CAMERA" else "TRY NEXT",
+                    title = teaching.tryText,
+                    proof = teaching.tryReason,
+                )
+            }
+        }
+        if (teaching.visibleCheck.isNotBlank()) {
+            Spacer(Modifier.height(17.dp))
+            Column(
+                Modifier
+                    .fillMaxWidth()
+                    .background(Amber.copy(alpha = 0.1f), RoundedCornerShape(13.dp))
+                    .border(1.dp, Amber.copy(alpha = 0.35f), RoundedCornerShape(13.dp))
+                    .padding(13.dp)
+            ) {
+                Text("CHECK ON THE NEXT SHOT", color = Amber, fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                Spacer(Modifier.height(5.dp))
+                Text(teaching.visibleCheck, color = WarmWhite, fontSize = 13.sp, lineHeight = 19.sp)
+            }
+        }
+    }
+}
+
+@Composable
+private fun TeachingLine(
+    label: String,
+    title: String,
+    proof: String,
+    finding: Boolean = false,
+) {
+    Text(label, color = if (finding) FindingRed else Amber, fontSize = 10.sp, fontWeight = FontWeight.Bold)
+    Spacer(Modifier.height(5.dp))
+    Text(
+        title,
+        color = if (finding) FindingRed else WarmWhite,
+        fontSize = 16.sp,
+        lineHeight = 22.sp,
+        fontWeight = FontWeight.SemiBold,
+    )
+    if (proof.isNotBlank()) {
+        Spacer(Modifier.height(5.dp))
+        Text(proof, color = MutedWhite, fontSize = 12.sp, lineHeight = 18.sp)
     }
 }
 
@@ -682,11 +746,20 @@ fun compositionInstruction(composition: CompositionDto, grid: GridSpecDto?): Str
     }
 }
 
-private fun defaultReviewLayer(analysis: AnalysisDto?): ReviewLayer = when {
+private fun defaultReviewLayer(
+    teaching: ShotTeachingReceiptDto?,
+    analysis: AnalysisDto?,
+): ReviewLayer = when (teaching?.primaryLayer) {
+    "finding" -> ReviewLayer.FINDING
+    "action" -> ReviewLayer.ACTION
+    "guide" -> ReviewLayer.GUIDE
+    "clean" -> ReviewLayer.CLEAN
+    else -> when {
     analysis == null -> ReviewLayer.CLEAN
     analysis.findings.isNotEmpty() -> ReviewLayer.FINDING
     hasCompositionAction(analysis.composition) -> ReviewLayer.ACTION
     else -> ReviewLayer.GUIDE
+    }
 }
 
 private fun hasCompositionAction(composition: CompositionDto): Boolean =

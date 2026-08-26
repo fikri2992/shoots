@@ -20,6 +20,7 @@ export default {
     composition: { type: Object, default: null },
     guide: { type: String, default: 'none' },
     showFindings: { type: Boolean, default: true },
+    layer: { type: String, default: 'all' },
   },
   computed: {
     viewBox() {
@@ -35,8 +36,18 @@ export default {
     fontSize() {
       return this.stroke * 5
     },
+    showGuide() {
+      return this.showFindings && (this.layer === 'all' || this.layer === 'guide')
+    },
+    showPanel() {
+      return this.showFindings && (this.layer === 'all' || this.layer === 'finding')
+    },
+    showAction() {
+      return this.showFindings && (this.layer === 'all' || this.layer === 'action')
+    },
     /** Guide geometry, frame units scaled into the cell viewBox. */
     guideLines() {
+      if (!this.showGuide) return []
       const { lines } = geometry(this.guide, this.grid.width / this.grid.height)
       return lines.map((l) => ({
         x1: l.x1 * this.grid.cols,
@@ -46,18 +57,17 @@ export default {
       }))
     },
     guidePoints() {
+      if (!this.showGuide) return []
       const { points } = geometry(this.guide, this.grid.width / this.grid.height)
       return points.map((p) => ({ x: p.x * this.grid.cols, y: p.y * this.grid.rows }))
     },
     subject() {
-      // Steps aside for a crop: two rectangles over one frame read as an
-      // argument, and the crop is the instruction.
-      if (!this.showFindings || !this.composition || this.crop) return null
+      if (!this.showPanel || !this.composition) return null
       return spanBox(this.composition.subject_cells)
     },
     /** Where the subject's centre actually landed: the guide's whole point. */
     subjectPoint() {
-      if (!this.showFindings || !this.composition) return null
+      if (!this.showPanel || !this.composition) return null
       const { subject_x: x, subject_y: y } = this.composition
       if (typeof x === 'number' && typeof y === 'number') {
         return { x: x * this.grid.cols, y: y * this.grid.rows }
@@ -66,11 +76,13 @@ export default {
       return box ? center(box) : null
     },
     horizonY() {
-      const row = this.showFindings ? this.composition?.horizon_row : null
+      const row = this.showPanel ? this.composition?.horizon_row : null
       return row ? row - 0.5 : null
     },
     crop() {
-      return this.composition ? spanBox(this.composition.suggested_crop_cells) : null
+      return this.showAction && this.composition
+        ? spanBox(this.composition.suggested_crop_cells)
+        : null
     },
     cropMask() {
       if (!this.crop) return null
@@ -101,7 +113,11 @@ export default {
 </script>
 
 <template>
-  <div class="relative w-full overflow-hidden bg-black md:rounded-xl" :style="{ aspectRatio: aspect }">
+  <div
+    class="relative w-full overflow-hidden bg-black md:rounded-xl"
+    :data-layer="showFindings ? layer : 'clean'"
+    :style="{ aspectRatio: aspect }"
+  >
     <img :src="src" alt="" class="absolute inset-0 h-full w-full object-fill" />
     <svg :viewBox="viewBox" preserveAspectRatio="none" class="absolute inset-0 h-full w-full" aria-hidden="true">
       <!-- 1. the photographer's guide: thin, dim, unlabelled -->

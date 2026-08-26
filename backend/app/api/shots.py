@@ -7,7 +7,7 @@ from pydantic import BaseModel, Field
 
 from app.api.auth import current_user
 from app.api.deps import get_context
-from app.domain import tendency
+from app.domain import shot_teaching, tendency
 from app.domain.entities import (
     ActivityEvent,
     Analysis,
@@ -20,6 +20,7 @@ from app.domain.entities import (
     RunStatus,
     Shot,
     ShotStatus,
+    ShotTeachingReceipt,
     TechniqueEvidence,
     User,
     now,
@@ -76,12 +77,18 @@ class ShotView(BaseModel):
     shot: Shot
     analysis: AnalysisView | None = None
     run: Run | None = None
+    teaching: ShotTeachingReceipt | None = None
 
 
 async def _shot_view(ctx: Context, shot: Shot, *, analysis_hint: bool = True) -> ShotView:
     analysis = await repo.find_analysis(ctx.store, shot.id) if analysis_hint else None
     run = await repo.find_run_for_shot(ctx.store, shot.id)
-    return ShotView(shot=shot, analysis=AnalysisView.of(analysis), run=run)
+    return ShotView(
+        shot=shot,
+        analysis=AnalysisView.of(analysis),
+        run=run,
+        teaching=shot_teaching.build(shot, analysis) if analysis is not None else None,
+    )
 
 
 @router.get("/shots", response_model=list[ShotView])
@@ -113,11 +120,7 @@ async def get_shot(
     ctx: Context = Depends(get_context),
 ) -> ShotView:
     shot = await repo.find_shot(ctx.store, shot_id)
-    if (
-        shot is None
-        or shot.user_id != session_user["id"]
-        or shot.superseded_by_inspiration_id
-    ):
+    if shot is None or shot.user_id != session_user["id"] or shot.superseded_by_inspiration_id:
         raise HTTPException(404, "shot not found")
     return await _shot_view(ctx, shot)
 
@@ -135,16 +138,17 @@ async def retry_shot(
     status decides which idempotent stage receives the replay.
     """
     shot = await repo.find_shot(ctx.store, shot_id)
-    if (
-        shot is None
-        or shot.user_id != session_user["id"]
-        or shot.superseded_by_inspiration_id
-    ):
+    if shot is None or shot.user_id != session_user["id"] or shot.superseded_by_inspiration_id:
         raise HTTPException(404, "shot not found")
     analysis = await repo.find_analysis(ctx.store, shot.id)
     run = await repo.find_run_for_shot(ctx.store, shot.id)
     if analysis is not None:
-        return ShotView(shot=shot, analysis=AnalysisView.of(analysis), run=run)
+        return ShotView(
+            shot=shot,
+            analysis=AnalysisView.of(analysis),
+            run=run,
+            teaching=shot_teaching.build(shot, analysis),
+        )
     if shot.status is ShotStatus.FAILED or (run and run.status is RunStatus.TERMINAL):
         raise HTTPException(409, "This Shot is terminally unreadable")
     if run and run.status is RunStatus.COMPLETED:
@@ -208,11 +212,7 @@ async def set_keeper(
     not disliked the other hundred and ninety-six.
     """
     shot = await repo.find_shot(ctx.store, shot_id)
-    if (
-        shot is None
-        or shot.user_id != session_user["id"]
-        or shot.superseded_by_inspiration_id
-    ):
+    if shot is None or shot.user_id != session_user["id"] or shot.superseded_by_inspiration_id:
         raise HTTPException(404, "shot not found")
     if bool(shot.kept_at) != body.keeper:
         shot.kept_at = now() if body.keeper else None

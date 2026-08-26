@@ -59,10 +59,22 @@ export default {
     analysis() {
       return this.view?.analysis
     },
+    teaching() {
+      return this.view?.teaching
+    },
     src() {
       const blobs = this.shot?.blobs || {}
       const key = blobs.sheet ? 'sheet' : 'original'
       return blobs[key] ? `/api/blobs/${blobs[key]}` : ''
+    },
+    canvasLayer() {
+      if (!this.showRead) return 'clean'
+      if (this.picked) return 'guide'
+      return this.teaching?.primary_layer || 'all'
+    },
+    canvasSrc() {
+      const marked = this.shot?.blobs?.finding_marked
+      return this.canvasLayer === 'finding' && marked ? `/api/blobs/${marked}` : this.src
     },
     /** The guide the frame's own technique implies, until the user picks one. */
     guide() {
@@ -247,11 +259,12 @@ export default {
           <div class="relative overflow-hidden rounded-2xl border border-edge bg-panel">
           <ShotCanvas
             v-if="src && shot.grid"
-            :src="src"
+            :src="canvasSrc"
             :grid="shot.grid"
             :composition="analysis?.composition"
             :guide="guide"
             :show-findings="showRead"
+            :layer="canvasLayer"
           />
           <button
             type="button"
@@ -284,47 +297,36 @@ export default {
             <p class="eyebrow">Shot read</p>
             <p class="mt-2 t-meta">{{ camera.slice(-2).join(' · ') || shot.filename }}</p>
 
-            <section class="surface mt-5 p-5 sm:p-6">
-              <p class="eyebrow">What held</p>
-              <template v-if="strongestTechnique">
-                <h1 class="mt-3 text-[28px] leading-8 font-semibold tracking-[-0.035em] text-paper capitalize">
-                  {{ strongestTechnique.name }}
-                </h1>
-                <p class="mt-3 t-body text-neutral-300">{{ strongestTechnique.proof }}</p>
-                <p class="mt-3 t-meta">
-                  {{ strongestTechnique.agreement }} readers · {{ strongestTechnique.confidence }}% confidence
-                </p>
-              </template>
-              <p v-else class="mt-3 t-body text-neutral-300">
-                No Technique had enough independent agreement to lead with one.
-              </p>
+            <section v-if="teaching" class="surface mt-5 p-5 sm:p-6">
+              <p class="eyebrow">This Shot · one read</p>
+              <div class="mt-4 divide-y divide-edge">
+                <div v-if="teaching.keep_title" class="pb-4">
+                  <p class="eyebrow text-accent">Keep · model read</p>
+                  <h1 class="mt-2 text-[24px] leading-8 font-semibold tracking-[-0.025em] text-paper">
+                    {{ teaching.keep_title }}
+                  </h1>
+                  <p v-if="teaching.keep_proof" class="mt-2 t-body text-neutral-300">{{ teaching.keep_proof }}</p>
+                </div>
+                <div v-if="teaching.notice_title" class="py-4">
+                  <p class="eyebrow" :class="teaching.notice_authority === 'measured' ? 'text-bad' : 'text-accent'">
+                    Notice · {{ teaching.notice_authority === 'measured' ? 'measured' : 'model read' }}
+                  </p>
+                  <p class="mt-2 text-[17px] leading-6 font-medium text-paper">{{ teaching.notice_title }}</p>
+                  <p v-if="teaching.notice_proof" class="mt-2 t-meta">{{ teaching.notice_proof }}</p>
+                </div>
+                <div v-if="teaching.try_text" class="py-4">
+                  <p class="eyebrow text-accent">{{ teaching.try_kind === 'camera' ? 'Try · move camera' : 'Try next' }}</p>
+                  <p class="mt-2 text-[18px] leading-6 font-medium text-paper">{{ teaching.try_text }}</p>
+                  <p v-if="teaching.try_reason" class="mt-2 t-body">{{ teaching.try_reason }}</p>
+                </div>
+                <div v-if="teaching.visible_check" class="rounded-xl border border-accent/35 bg-accent/5 p-4" :class="teaching.keep_title || teaching.notice_title || teaching.try_text ? 'mt-4' : ''">
+                  <p class="eyebrow text-accent">Check on the next Shot</p>
+                  <p class="mt-2 t-body text-paper">{{ teaching.visible_check }}</p>
+                </div>
+              </div>
             </section>
 
             <MeasuredStrip class="mt-4" :tone="shot.tone" :motion="shot.motion" />
-
-            <section v-if="critique" class="mt-5 border-l border-edge pl-4">
-              <p class="eyebrow">Panel read · model opinion</p>
-              <p class="mt-2 t-body text-neutral-200">{{ critique }}</p>
-            </section>
-
-            <section v-if="primaryMove" class="surface-active mt-6 p-5">
-              <div class="flex items-center justify-between gap-3">
-                <p class="eyebrow text-accent">One move to try</p>
-                <span class="t-meta">{{ kindLabel(primaryMove.kind) }}</span>
-              </div>
-              <p class="mt-3 text-[18px] leading-6 font-medium text-paper">{{ primaryMove.what }}</p>
-              <p v-if="reason(primaryMove)" class="mt-2 t-body">{{ reason(primaryMove) }}</p>
-            </section>
-
-            <section v-if="findings.length" class="mt-6 rounded-2xl border border-bad/45 bg-bad/8 p-5">
-              <p class="eyebrow text-bad">Finding{{ findings.length === 1 ? '' : 's' }}</p>
-              <ul class="mt-3 space-y-4">
-                <li v-for="f in findings" :key="f.finding_id">
-                  <p class="t-body text-paper">{{ f.what }}</p>
-                  <p class="mt-1 t-num text-[11px] leading-4 text-muted">{{ f.why }}</p>
-                </li>
-              </ul>
-            </section>
 
             <button type="button" class="btn mt-6 w-full" @click="talk('Talk me through this Shot.')">
               Ask about this Shot
@@ -347,6 +349,10 @@ export default {
                   <span>{{ o }}</span>
                 </li>
               </ul>
+            </DisclosureRow>
+
+            <DisclosureRow v-if="critique" label="Panel read · model opinion">
+              <p class="t-body text-neutral-300">{{ critique }}</p>
             </DisclosureRow>
 
             <DisclosureRow label="Techniques it agreed on" :count="analysis.techniques.length">

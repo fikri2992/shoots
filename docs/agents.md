@@ -38,6 +38,10 @@ the source for the submission architecture diagram.
    Change remains available where a Tendency actually selected an Experiment. It does
    not claim causation. No model adjudicates either result.
 7. **One Shot is Evidence; one Shoot is completed learning work.** The Shot Run remains the atomic stage account. The backend groups capture-continuous Shots into Scenes and a Shoot, waits for every member Run, synthesizes what repeated and varied, stores Scout's warranted action or silence, and prepares one evidence-bound Deconstruction attempt. A Capture Session stays separate explicit Experiment membership.
+8. **The teaching receipt is a code projection, not another critic.** After Analysis,
+   pure code selects the strongest corroborated Technique, one measured Finding or
+   labelled observation, one next-capture Move, one observable Check, and one image
+   layer. It adds no model call and cannot upgrade opinion into measurement.
 
 ## Current topology
 
@@ -57,6 +61,9 @@ flowchart LR
   ING --> INGD[media.ingested]
   INGD --> AN[Analyst<br/>ADK panel + crop loop + scrub]
   AN --> ANZ[media.analyzed]
+  ANZ --> TEACH[Shot Teaching Receipt<br/>deterministic projection]
+  TEACH --> WEB
+  TEACH --> PHONE
   ANZ --> CART[Cartographer<br/>code]
   CART --> LONG[Technique Map + Profile + Journey]
   ANZ --> JUD[Judge<br/>explicit Reproduce only]

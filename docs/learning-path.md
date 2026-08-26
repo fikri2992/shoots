@@ -107,6 +107,32 @@ This ladder answers “was I lucky?” gradually. No single rung settles it. Rep
 corroborated observation plus an explicit comparable reproduction is stronger than one
 successful frame; neither licenses the sentence “you are a better photographer.”
 
+## One Shot teaching receipt
+
+Shot detail is supporting evidence, but it still has to teach clearly when the
+Photographer opens it. Shoots projects the stored Analysis into one short receipt:
+
+| Part | What it says | Authority |
+|---|---|---|
+| Keep | The strongest corroborated Technique worth noticing again | Labelled model read with multi-lens proof |
+| Notice | One measured Finding, or one explicitly labelled observation when no Finding exists | Measured or model read, never blended |
+| Try | One next-capture camera or subject Move; a tested crop is secondary | Stored Move with its reason |
+| Check | The visible condition that would show whether the Move changed the next Shot | Deterministic wording from the Finding or Move type |
+
+The four parts are one read, not four independent critiques. Copy is bounded to one
+useful sentence per field; the complete Analysis remains behind disclosure. The image
+opens on exactly one matching layer: a located Finding, a drawable Move, the relevant
+guide, or clean. A camera-position Move stays textual because drawing it as an arrow
+inside the old frame would be false precision.
+
+`Check` matters because advice without an observable result cannot teach control. “Try
+a lower viewpoint” becomes learnable only when the Photographer also knows what to
+inspect afterward, such as whether a background beam still crosses the subject. This
+does not create a Verdict. Only a declared Reproduce Experiment can do that.
+
+When Evidence supports no Technique, Finding, observation, or Move, the receipt stays
+empty and the image stays clean. Shoots does not manufacture a lesson to fill the card.
+
 ## First Shoot receipt
 
 The deterministic v1 receipt contains:
@@ -178,6 +204,9 @@ Acceptance should use ordinary phone behavior, not curated single images:
 8. one Ask answer that writes scoped Intent and one “just shooting” answer that opens
    no Experiment;
 9. two comparable unchanged Intervention Records that alter only automatic routing.
+10. one Shot Teaching Receipt whose Keep, Notice, Try, Check, and default image layer
+    describe the same stored Analysis, plus one abstained Analysis that invents no
+    lesson.
 
 The feature is useful only if the Photographer can answer “what did I keep doing,
 what did I vary, what could Shoots not know, and what is worth trying next?” without

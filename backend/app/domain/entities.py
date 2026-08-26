@@ -485,6 +485,34 @@ class Analysis(BaseModel):
     created_at: datetime = Field(default_factory=now)
 
 
+class TeachingAuthority(StrEnum):
+    MEASURED = "measured"
+    MODEL_READ = "model_read"
+
+
+class ShotTeachingReceipt(BaseModel):
+    """One compact, evidence-labelled teaching action for a Shot read."""
+
+    keep_title: str = ""
+    keep_proof: str = ""
+    keep_technique_id: str = ""
+    keep_authority: TeachingAuthority | None = None
+    keep_cells: list[str] = Field(default_factory=list)
+    notice_title: str = ""
+    notice_proof: str = ""
+    notice_finding_id: str = ""
+    notice_authority: TeachingAuthority | None = None
+    notice_cells: list[str] = Field(default_factory=list)
+    try_text: str = ""
+    try_reason: str = ""
+    try_kind: MoveKind | None = None
+    try_from_cells: list[str] = Field(default_factory=list)
+    try_to_cells: list[str] = Field(default_factory=list)
+    visible_check: str = ""
+    primary_layer: str = "clean"
+    guide: str = ""
+
+
 # --- technique map --------------------------------------------------------
 
 
