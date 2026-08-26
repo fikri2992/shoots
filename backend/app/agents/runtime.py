@@ -121,30 +121,45 @@ async def run_workflow(
     """
     parts: list[types.Part] = [types.Part(text=prompt), *(images or [])]
     message = types.Content(role="user", parts=parts)
-    runner = InMemoryRunner(agent=agent, app_name=APP_NAME)
-    session = await runner.session_service.create_session(
-        app_name=APP_NAME, user_id=user_id, state=dict(state or {})
-    )
 
-    started = time.monotonic()
-    last_seen: dict[str, float] = {}
-
-    async def drive() -> None:
+    async def execute() -> tuple[dict[str, Any], dict[str, float]]:
+        runner = InMemoryRunner(agent=agent, app_name=APP_NAME)
+        session = await runner.session_service.create_session(
+            app_name=APP_NAME, user_id=user_id, state=dict(state or {})
+        )
+        started = time.monotonic()
+        last_seen: dict[str, float] = {}
         async for event in runner.run_async(
             user_id=user_id, session_id=session.id, new_message=message
         ):
             if event.author:
                 last_seen[event.author] = time.monotonic() - started
+        stored = await runner.session_service.get_session(
+            app_name=APP_NAME, user_id=user_id, session_id=session.id
+        )
+        return (dict(stored.state) if stored else {}), last_seen
 
     if timeout:
-        await asyncio.wait_for(drive(), timeout)
-    else:
-        await drive()
+        def run_isolated() -> tuple[dict[str, Any], dict[str, float]]:
+            return asyncio.run(execute())
 
-    stored = await runner.session_service.get_session(
-        app_name=APP_NAME, user_id=user_id, session_id=session.id
-    )
-    state_out = dict(stored.state) if stored else {}
+        task = asyncio.create_task(
+            asyncio.to_thread(run_isolated),
+            name=f"{agent.name}-workflow",
+        )
+        try:
+            done, _ = await asyncio.wait({task}, timeout=timeout)
+        except BaseException:
+            task.cancel()
+            task.add_done_callback(_consume_background_task)
+            raise
+        if task not in done:
+            task.cancel()
+            task.add_done_callback(_consume_background_task)
+            raise TimeoutError(f"{agent.name} exceeded its {timeout:g}s workflow budget")
+        state_out, last_seen = await task
+    else:
+        state_out, last_seen = await execute()
 
     result = WorkflowResult(latency=last_seen)
     for key, schema in outputs.items():
@@ -158,6 +173,16 @@ async def run_workflow(
         except Exception as error:  # noqa: BLE001 — reported, quorum decides
             result.errors[key] = f"{type(error).__name__}: {str(error)[:160]}"
     return result
+
+
+def _consume_background_task(task: asyncio.Task) -> None:
+    """Retrieve a timed-out ADK task once its cancellation eventually settles."""
+    try:
+        task.result()
+    except asyncio.CancelledError:
+        return
+    except Exception:
+        logger.exception("timed-out ADK workflow failed during background cleanup")
 
 
 def _loads(text: str) -> dict:
