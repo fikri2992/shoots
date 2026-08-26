@@ -1,10 +1,21 @@
 # Build diary
 
 Historical implementation notes below preserve what was tried, including features
-later removed. They are not current behavior. As of 2026-08-26, decisions 52–81 in
+later removed. They are not current behavior. As of 2026-08-26, decisions 52–90 in
 [the domain model](domain-model.md) supersede score storage, Keeper-rate arithmetic,
 curriculum selection, capped longitudinal corpora, and automatic Director/Veo work.
 Current status is in [the feature list](feature-list.md).
+
+## Day 14 notes (2026-08-26), decision-led Android redesign
+
+- Replaced the pipeline-shaped tab bar with Now, Shots, Experiments, and Journey. Settings moved behind the account control and now reveals Phone Source, notifications, Drive, and destructive account actions one section at a time.
+- Now leads with the newest corroborated Shot insight or measured Finding; one-reader observations no longer wear the corroborated Evidence label. The normal-camera action remains immediately available without becoming the product's claimed value.
+- Added a dedicated Experiments surface. It owns the exact Keeper reference, Criteria disclosure, Capture Session recovery, earlier Experiment Records, an on-demand Scout check, and an explicit confirmed request for a different supported direction. Daily and on-demand requests share the same Evidence gate.
+- Rebuilt Shot review as selectable Clean, Finding, Try, and Guide layers. Findings draw only the scope they can locate; camera shake and colour cast mark the whole frame instead of inventing a hotspot, while subject placement, horizon, regions, Moves, and tested crops use their recorded geometry. New blown-highlight Analyses persist a deterministic pixel-marked layer.
+- Split Journey into Update, Tendencies, and Techniques so the latest longitudinal claim is the focal read and Experiment history is not duplicated. Long prose and provenance use animated disclosure.
+- Replaced mismatched text glyphs with one 24 dp stroke-icon set and selectable tab semantics. Root destinations now use short directional transitions; Shot layers crossfade; cards show press feedback; disclosure chevrons rotate; Settings uses one grouped list instead of four oversized cards.
+- Prevented an older Explore or incomplete Experiment from appearing as a runnable Reproduce. Automatic Phone Source Shots now prefer the MediaStore instant frozen in their source reference, removing the observed seven-hour display shift without pretending selected or Drive timezone ambiguity is solved.
+- Physical Xiaomi review exercised the focused Now, collapsed Settings, Shot Finding and tested-crop layers, and four-destination navigation. The final icon, motion, hierarchy, legacy-Experiment, and capture-time pass ran on a disposable Android 16 emulator because MIUI blocked USB test installation. All 18 emulator tests pass with two expected hardware-only skips; populated screenshots cover Now, Shots, Experiments, Journey, grouped Settings, and Shot Finding/Try layers; recorded intermediate frames prove the 220 ms route slide and fade. Backend Ruff and all 565 checks, Android assemble, and Android lint pass. The disposable emulator device session was revoked and its browser pairing material cleared. No Cloud deployment occurred.
 
 ## Day 13 notes (2026-08-26), release-grade Android client
 

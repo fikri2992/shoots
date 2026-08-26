@@ -289,6 +289,12 @@ class ShootsRepository(
         refreshShot(id)
     }
 
+    suspend fun requestExperiment(force: Boolean): ExperimentDto? {
+        val experiment = api.issueExperiment(force)
+        refreshSnapshot()
+        return experiment
+    }
+
     suspend fun registerNotificationTarget(target: String) {
         if (isSignedIn()) api.setNotificationTarget(NotificationTargetRequest(target))
     }
@@ -325,6 +331,11 @@ class ShootsRepository(
         val path = if (original) shot.blobs["original"] else
             shot.blobs["thumb"] ?: shot.blobs["gridded"] ?: shot.blobs["original"]
         if (path.isNullOrBlank()) return ""
+        return BuildConfig.SERVICE_ORIGIN.trimEnd('/') + "/api/blobs/" + path
+    }
+
+    fun blobUrl(path: String): String {
+        if (path.isBlank()) return ""
         return BuildConfig.SERVICE_ORIGIN.trimEnd('/') + "/api/blobs/" + path
     }
 

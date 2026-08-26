@@ -17,12 +17,31 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.selection.selectable
+import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.animation.togetherWith
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -44,6 +63,7 @@ fun JourneyScreen(
     imageUrl: (ShotDto) -> String,
     onShot: (String) -> Unit,
 ) {
+    var section by rememberSaveable { mutableStateOf(JourneySection.UPDATE) }
     Column(
         Modifier
             .fillMaxSize()
@@ -53,100 +73,192 @@ fun JourneyScreen(
             .padding(bottom = 92.dp),
     ) {
         Column(Modifier.padding(horizontal = 20.dp, vertical = 22.dp)) {
-            ScreenTitle("Journey", "What is becoming repeatable?", "Your own Keepers, Experiments, and measured Change. No universal score.")
+            ScreenTitle("Journey", "Your changing eye", "What repeats, what changed, and what remains unknown.")
         }
         if (snapshot == null) {
             Column(Modifier.padding(20.dp)) { Text("Loading your cached Journey…", color = MutedWhite) }
             return@Column
         }
-        val experiment = snapshot.experiments.firstOrNull { it.resultShotIds.isNotEmpty() }
-        if (experiment != null) {
-            ExperimentHero(snapshot, experiment, imageUrl, onShot)
-        } else {
-            Column(Modifier.padding(horizontal = 20.dp)) {
-                InkCard {
-                    Text("No completed Reproduce yet.", color = WarmWhite, fontSize = 18.sp, fontWeight = FontWeight.SemiBold)
-                    Spacer(Modifier.height(6.dp))
-                    Text("When you try an Experiment, its Keeper reference and every explicit result will stay here.", color = MutedWhite, fontSize = 14.sp, lineHeight = 20.sp)
+        JourneySections(section, onSelect = { section = it })
+        Spacer(Modifier.height(18.dp))
+        AnimatedContent(
+            targetState = section,
+            transitionSpec = {
+                val forward = targetState.ordinal >= initialState.ordinal
+                val enter = fadeIn(tween(160)) + slideInHorizontally(tween(200)) { width ->
+                    if (forward) width / 12 else -width / 12
                 }
+                val exit = fadeOut(tween(120)) + slideOutHorizontally(tween(170)) { width ->
+                    if (forward) -width / 16 else width / 16
+                }
+                enter togetherWith exit
+            },
+            label = "Journey section",
+        ) { selected ->
+            when (selected) {
+                JourneySection.UPDATE -> JourneyUpdateView(snapshot, imageUrl, onShot)
+                JourneySection.TENDENCIES -> TendencyView(snapshot)
+                JourneySection.TECHNIQUES -> TechniqueView(snapshot)
             }
         }
+    }
+}
 
-        snapshot.journey.firstOrNull()?.let { update ->
-            Spacer(Modifier.height(24.dp))
+private enum class JourneySection { UPDATE, TENDENCIES, TECHNIQUES }
+
+@Composable
+private fun JourneySections(selected: JourneySection, onSelect: (JourneySection) -> Unit) {
+    Row(
+        Modifier.fillMaxWidth().padding(horizontal = 20.dp).selectableGroup(),
+        horizontalArrangement = Arrangement.spacedBy(7.dp),
+    ) {
+        listOf(
+            JourneySection.UPDATE to "Update",
+            JourneySection.TENDENCIES to "Tendencies",
+            JourneySection.TECHNIQUES to "Techniques",
+        ).forEach { (section, label) ->
+            val active = selected == section
+            val background by animateColorAsState(
+                if (active) Amber.copy(alpha = 0.15f) else InkSoft,
+                animationSpec = tween(160),
+                label = "$label section",
+            )
+            Text(
+                label,
+                color = if (active) Amber else MutedWhite,
+                fontSize = 11.sp,
+                fontWeight = if (active) FontWeight.Bold else FontWeight.Medium,
+                modifier = Modifier
+                    .weight(1f)
+                    .background(background, androidx.compose.foundation.shape.RoundedCornerShape(99.dp))
+                    .selectable(
+                        selected = active,
+                        role = Role.Tab,
+                        onClick = { onSelect(section) },
+                    )
+                    .padding(vertical = 9.dp),
+                textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+            )
+        }
+    }
+}
+
+@Composable
+private fun JourneyUpdateView(
+    snapshot: MobileSnapshotDto,
+    imageUrl: (ShotDto) -> String,
+    onShot: (String) -> Unit,
+) {
+    Column(Modifier.fillMaxWidth()) {
+        val update = snapshot.journey.firstOrNull()
+        if (update == null) {
             Column(Modifier.padding(horizontal = 20.dp)) {
-                SectionTitle("Latest Journey Update", "${update.shots} SHOTS")
+                InkCard {
+                    Text("No Journey Update yet.", color = WarmWhite, fontSize = 18.sp, fontWeight = FontWeight.SemiBold)
+                    Spacer(Modifier.height(6.dp))
+                    Text("Shoots writes one only when the record supports a meaningful longitudinal claim.", color = MutedWhite, fontSize = 14.sp, lineHeight = 20.sp)
+                }
+            }
+        } else {
+            var expanded by rememberSaveable(update.id) { mutableStateOf(false) }
+            var evidence by rememberSaveable(update.id) { mutableStateOf(false) }
+            val fullUpdate = update.body.trim()
+            val preview = journeyPreview(fullUpdate)
+            Column(Modifier.padding(horizontal = 20.dp)) {
+                SectionTitle("Latest Update", "${update.shots} SHOTS")
                 Spacer(Modifier.height(10.dp))
                 InkCard {
-                    Text(update.body, color = WarmWhite, fontSize = 17.sp, lineHeight = 25.sp, fontWeight = FontWeight.Medium)
-                    if (update.evidence.isNotEmpty()) {
-                        Spacer(Modifier.height(13.dp))
-                        Text("READ FROM", color = MutedWhite, fontSize = 10.sp, fontWeight = FontWeight.Bold)
-                        Spacer(Modifier.height(5.dp))
-                        update.evidence.take(5).forEach {
-                            Text("• $it", color = MutedWhite, fontSize = 12.sp, lineHeight = 18.sp)
-                        }
-                    }
-                }
-            }
-        }
-
-        Spacer(Modifier.height(24.dp))
-        Column(Modifier.padding(horizontal = 20.dp)) {
-            SectionTitle("Tendency Profile", "${snapshot.profile.shots} SHOTS READ")
-            Spacer(Modifier.height(6.dp))
-            Text("Counts describe what keeps appearing. They do not say it is good or bad.", color = MutedWhite, fontSize = 12.sp, lineHeight = 17.sp)
-            Spacer(Modifier.height(12.dp))
-            snapshot.profile.dimensions.forEach { dimension ->
-                DimensionCard(dimension)
-                Spacer(Modifier.height(8.dp))
-            }
-            if (snapshot.profile.blindSpots.isNotEmpty()) {
-                Spacer(Modifier.height(6.dp))
-                LabelValue("Still unknown", snapshot.profile.blindSpots.joinToString(" · "))
-            }
-        }
-
-        Spacer(Modifier.height(24.dp))
-        Column(Modifier.padding(horizontal = 20.dp)) {
-            SectionTitle("Technique Map", "EVIDENCE, NOT LEVELS")
-            Spacer(Modifier.height(10.dp))
-            if (snapshot.techniques.isEmpty()) {
-                Text("No corroborated Technique Evidence cached yet.", color = MutedWhite, fontSize = 14.sp)
-            } else {
-                snapshot.techniques.forEach { technique ->
-                    InkCard {
-                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                            Text(technique.name, color = WarmWhite, fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
-                            StatusPill(technique.status)
-                        }
-                        Spacer(Modifier.height(6.dp))
+                    Text(
+                        if (expanded) fullUpdate else preview,
+                        color = WarmWhite,
+                        fontSize = 17.sp,
+                        lineHeight = 25.sp,
+                        fontWeight = FontWeight.Medium,
+                    )
+                    if (preview != fullUpdate) {
                         Text(
-                            "${technique.attempts} observed · ${technique.corroborated} corroborated",
-                            color = MutedWhite,
+                            if (expanded) "Show less" else "Read full update",
+                            color = Amber,
                             fontSize = 12.sp,
+                            fontWeight = FontWeight.Bold,
+                            modifier = Modifier
+                                .clickable(role = Role.Button) { expanded = !expanded }
+                                .padding(top = 12.dp, bottom = 4.dp),
                         )
                     }
-                    Spacer(Modifier.height(8.dp))
+                    if (update.evidence.isNotEmpty()) {
+                        Row(
+                            Modifier
+                                .fillMaxWidth()
+                                .clickable(role = Role.Button) { evidence = !evidence }
+                                .semantics(mergeDescendants = true) {
+                                    stateDescription = if (evidence) "Expanded" else "Collapsed"
+                                }
+                                .padding(top = 9.dp, bottom = 2.dp),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Text("What this was read from", color = MutedWhite, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                            DisclosureChevron(evidence)
+                        }
+                        AnimatedVisibility(evidence) {
+                            Column(Modifier.fillMaxWidth().padding(top = 7.dp)) {
+                                update.evidence.take(8).forEach {
+                                    Text("• $it", color = MutedWhite, fontSize = 12.sp, lineHeight = 18.sp)
+                                }
+                            }
+                        }
+                    }
                 }
             }
         }
 
-        Spacer(Modifier.height(24.dp))
-        Column(Modifier.padding(horizontal = 20.dp)) {
-            SectionTitle("Previous Experiments")
-            Spacer(Modifier.height(10.dp))
-            snapshot.experiments.forEach { previous ->
+        val experiment = snapshot.experiments.firstOrNull { it.resultShotIds.isNotEmpty() }
+        if (experiment != null) {
+            Spacer(Modifier.height(24.dp))
+            Column(Modifier.padding(horizontal = 20.dp)) {
+                SectionTitle("Latest Experiment Record")
+                Spacer(Modifier.height(10.dp))
+            }
+            ExperimentHero(snapshot, experiment, imageUrl, onShot)
+        }
+    }
+}
+
+@Composable
+private fun TendencyView(snapshot: MobileSnapshotDto) {
+    Column(Modifier.padding(horizontal = 20.dp)) {
+        SectionTitle("Tendency Profile", "${snapshot.profile.shots} SHOTS READ")
+        Spacer(Modifier.height(6.dp))
+        Text("Counts describe what keeps appearing. They do not say it is good or bad.", color = MutedWhite, fontSize = 12.sp, lineHeight = 17.sp)
+        Spacer(Modifier.height(12.dp))
+        snapshot.profile.dimensions.forEach { dimension ->
+            DimensionCard(dimension)
+            Spacer(Modifier.height(8.dp))
+        }
+        if (snapshot.profile.blindSpots.isNotEmpty()) {
+            Spacer(Modifier.height(6.dp))
+            LabelValue("Still unknown", snapshot.profile.blindSpots.joinToString(" · "))
+        }
+    }
+}
+
+@Composable
+private fun TechniqueView(snapshot: MobileSnapshotDto) {
+    Column(Modifier.padding(horizontal = 20.dp)) {
+        SectionTitle("Technique Map", "EVIDENCE, NOT LEVELS")
+        Spacer(Modifier.height(10.dp))
+        if (snapshot.techniques.isEmpty()) {
+            Text("No corroborated Technique Evidence cached yet.", color = MutedWhite, fontSize = 14.sp)
+        } else {
+            snapshot.techniques.forEach { technique ->
                 InkCard {
                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                        Text(previous.title, color = WarmWhite, fontSize = 14.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1f))
-                        Spacer(Modifier.width(8.dp))
-                        StatusPill(previous.status, amber = previous.status == "open")
+                        Text(technique.name, color = WarmWhite, fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
+                        StatusPill(technique.status)
                     }
-                    previous.change?.let { change ->
-                        Spacer(Modifier.height(6.dp))
-                        Text(change.outcome.ifBlank { change.state }, color = MutedWhite, fontSize = 12.sp, lineHeight = 17.sp)
-                    }
+                    Spacer(Modifier.height(6.dp))
+                    Text("${technique.attempts} observed · ${technique.corroborated} corroborated", color = MutedWhite, fontSize = 12.sp)
                 }
                 Spacer(Modifier.height(8.dp))
             }
@@ -172,7 +284,7 @@ private fun ExperimentHero(
     Column(Modifier.padding(horizontal = 20.dp)) {
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
             StatusPill(experiment.type, amber = true)
-            StatusPill(experiment.status)
+            StatusPill(if (experiment.status == "skipped") "left" else experiment.status)
         }
         Spacer(Modifier.height(10.dp))
         Text(experiment.title, color = WarmWhite, fontSize = 21.sp, lineHeight = 26.sp, fontWeight = FontWeight.Bold)
@@ -269,3 +381,9 @@ private fun DimensionCard(dimension: ProfileDimensionDto) {
 
 private fun Modifier.clickableShot(shot: ShotDto?, onShot: (String) -> Unit): Modifier =
     if (shot == null) this else clickable { onShot(shot.id) }
+
+private fun journeyPreview(body: String): String {
+    val clean = body.trim()
+    val sentenceEnd = Regex("[.!?](?=\\s|$)").find(clean)?.range?.last ?: return clean
+    return clean.take(sentenceEnd + 1)
+}

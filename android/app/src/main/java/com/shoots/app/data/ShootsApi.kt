@@ -64,6 +64,9 @@ interface ShootsApi {
     @GET("api/mobile/snapshot")
     suspend fun mobileSnapshot(@Header("If-None-Match") etag: String?): Response<MobileSnapshotDto>
 
+    @POST("api/experiments/issue")
+    suspend fun issueExperiment(@Query("force") force: Boolean = false): ExperimentDto?
+
     @GET("api/shots")
     suspend fun shots(
         @Query("limit") limit: Int,

@@ -1,36 +1,60 @@
 package com.shoots.app.ui
 
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import com.shoots.app.Amber
+import com.shoots.app.Hairline
 import com.shoots.app.Ink
+import com.shoots.app.InkRaised
+import com.shoots.app.InkSoft
 import com.shoots.app.MutedWhite
+import com.shoots.app.R
 import com.shoots.app.WarmWhite
 import com.shoots.app.data.LocalCaptureSessionEntity
 import com.shoots.app.data.LocalCaptureState
 import com.shoots.app.data.MobileSnapshotDto
+import com.shoots.app.data.ShotDto
+import com.shoots.app.data.ShotViewDto
 import com.shoots.app.data.SourceStateEntity
+import com.shoots.app.data.canStartReproduce
 import com.shoots.app.phone.MediaAccess
 
 @Composable
@@ -40,18 +64,27 @@ fun NowScreen(
     localSession: LocalCaptureSessionEntity?,
     mediaAccess: MediaAccess,
     busy: Boolean,
-    imageUrl: (com.shoots.app.data.ShotDto) -> String,
+    imageUrl: (ShotDto) -> String,
     onRequestMedia: () -> Unit,
     onEnableSource: () -> Unit,
     onOpenFreeCamera: () -> Unit,
     onChooseFreeShots: () -> Unit,
-    onStartExperiment: (String) -> Unit,
     onContinueSession: (String) -> Unit,
     onFinishSession: (String) -> Unit,
     onCancelSession: (String) -> Unit,
     onImportSessionAsFree: (String) -> Unit,
-    onSync: () -> Unit,
+    onOpenShot: (String) -> Unit,
+    onOpenExperiments: () -> Unit,
+    onOpenSettings: () -> Unit,
 ) {
+    val active = localSession?.takeIf { it.state in ACTIVE_SESSION_STATES }
+    val latest = snapshot?.recentShots?.firstOrNull()
+    val latestView = snapshot?.latestShot
+    val focus = when {
+        active != null -> "session"
+        latestView?.analysis != null -> "insight"
+        else -> "camera"
+    }
     Column(
         Modifier
             .fillMaxSize()
@@ -59,226 +92,315 @@ fun NowScreen(
             .statusBarsPadding()
             .navigationBarsPadding()
             .verticalScroll(rememberScrollState())
-            .padding(horizontal = 20.dp, vertical = 24.dp),
+            .padding(horizontal = 20.dp)
+            .padding(top = 18.dp, bottom = 92.dp),
     ) {
-        ScreenTitle("Now", greeting(snapshot), "One Experiment when it is supported. Silence when it is not.")
-        Spacer(Modifier.height(24.dp))
+        NowHeader(snapshot, onOpenSettings)
+        Spacer(Modifier.height(26.dp))
 
-        val experiment = snapshot?.openExperiment
-        val active = localSession?.takeIf {
-            it.state in setOf(
-                LocalCaptureState.RESERVED,
-                LocalCaptureState.AWAITING_SELECTION,
-                LocalCaptureState.MANIFEST_PENDING,
-                LocalCaptureState.COMMITTED,
-                LocalCaptureState.PROCESSING,
-                LocalCaptureState.CONFLICT,
-            )
+        AnimatedContent(
+            targetState = focus,
+            transitionSpec = { fadeIn(tween(180)) togetherWith fadeOut(tween(120)) },
+            label = "Now focus",
+        ) { state ->
+            when (state) {
+                "session" -> CaptureSessionCard(
+                    session = requireNotNull(active),
+                    busy = busy,
+                    onContinue = onContinueSession,
+                    onFinish = onFinishSession,
+                    onCancel = onCancelSession,
+                    onImportAsFree = onImportSessionAsFree,
+                )
+                "insight" -> LatestInsightHero(
+                    view = requireNotNull(latestView),
+                    imageUrl = imageUrl,
+                    access = mediaAccess,
+                    source = source,
+                    onOpenShot = onOpenShot,
+                    onOpenCamera = onOpenFreeCamera,
+                    onRequestMedia = onRequestMedia,
+                    onEnableSource = onEnableSource,
+                    onChoose = onChooseFreeShots,
+                )
+                else -> CameraHero(
+                    source = source,
+                    access = mediaAccess,
+                    busy = busy,
+                    onRequestMedia = onRequestMedia,
+                    onEnableSource = onEnableSource,
+                    onOpenCamera = onOpenFreeCamera,
+                    onChoose = onChooseFreeShots,
+                )
+            }
         }
-        if (active != null) {
-            ActiveSessionCard(
-                active,
-                busy,
-                onContinueSession,
-                onFinishSession,
-                onCancelSession,
-                onImportSessionAsFree,
-            )
-            Spacer(Modifier.height(18.dp))
-        } else if (experiment?.type == "reproduce") {
-            val keeper = snapshot.recentShots.firstOrNull { it.id == experiment.referenceShotId }
-            InkCard {
+
+        snapshot?.openExperiment?.takeIf { it.canStartReproduce }?.let { experiment ->
+            Spacer(Modifier.height(16.dp))
+            InkCard(onClick = onOpenExperiments) {
                 Row(
                     Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    StatusPill("Reproduce", amber = true)
-                    Text("OPTIONAL", color = MutedWhite, fontSize = 10.sp, fontWeight = FontWeight.Bold)
-                }
-                Spacer(Modifier.height(13.dp))
-                Text(experiment.title, color = WarmWhite, fontSize = 22.sp, lineHeight = 27.sp, fontWeight = FontWeight.Bold)
-                if (experiment.whyNow.isNotBlank()) {
-                    Spacer(Modifier.height(8.dp))
-                    Text(experiment.whyNow, color = MutedWhite, fontSize = 14.sp, lineHeight = 20.sp)
-                }
-                if (keeper != null) {
-                    Spacer(Modifier.height(15.dp))
-                    AsyncImage(
-                        model = imageUrl(keeper),
-                        contentDescription = "Keeper reference",
-                        modifier = Modifier.fillMaxWidth().aspectRatio(4f / 3f),
-                        contentScale = ContentScale.Crop,
-                    )
-                    Spacer(Modifier.height(8.dp))
-                    Text("YOUR KEEPER IS THE REFERENCE", color = Amber, fontSize = 10.sp, fontWeight = FontWeight.Bold)
-                }
-                if (experiment.criteria.text.isNotEmpty()) {
-                    Spacer(Modifier.height(16.dp))
-                    Text("WHAT SHOOTS WILL CHECK", color = MutedWhite, fontSize = 10.sp, fontWeight = FontWeight.Bold)
-                    Spacer(Modifier.height(6.dp))
-                    experiment.criteria.text.forEach { criterion ->
-                        Text("• $criterion", color = WarmWhite, fontSize = 14.sp, lineHeight = 20.sp)
+                    Column(Modifier.weight(1f)) {
+                        Text(
+                            "OPEN EXPERIMENT",
+                            color = Amber,
+                            fontSize = 10.sp,
+                            fontWeight = FontWeight.Bold,
+                        )
+                        Spacer(Modifier.height(6.dp))
+                        Text(
+                            experiment.title,
+                            color = WarmWhite,
+                            fontSize = 17.sp,
+                            lineHeight = 22.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            maxLines = 2,
+                            overflow = TextOverflow.Ellipsis,
+                        )
+                    }
+                    Row(
+                        Modifier.padding(start = 14.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Text("Open", color = Amber, fontSize = 13.sp)
+                        Spacer(Modifier.size(3.dp))
+                        ForwardChevron(Amber)
                     }
                 }
-                Spacer(Modifier.height(18.dp))
-                PrimaryAction("Try with normal camera", enabled = !busy) {
-                    onStartExperiment(experiment.id)
-                }
             }
-            Spacer(Modifier.height(18.dp))
-        } else {
-            InkCard {
-                StatusPill("Quiet")
-                Spacer(Modifier.height(12.dp))
-                Text("No supported Experiment right now.", color = WarmWhite, fontSize = 18.sp, fontWeight = FontWeight.SemiBold)
-                Spacer(Modifier.height(6.dp))
-                Text("Keep shooting. Shoots will offer one when your own Evidence gives it a reason.", color = MutedWhite, fontSize = 14.sp, lineHeight = 20.sp)
-            }
-            Spacer(Modifier.height(18.dp))
         }
 
-        SectionTitle("Phone Source")
-        Spacer(Modifier.height(10.dp))
-        PhoneSourceCard(
-            source,
-            mediaAccess,
-            busy,
-            onRequestMedia,
-            onEnableSource,
-            onOpenFreeCamera,
-            onChooseFreeShots,
-        )
-        Spacer(Modifier.height(18.dp))
-
-        snapshot?.latestRun?.let { run ->
-            SectionTitle("Latest Run", displayTime(run.updatedAt))
+        if (latestView?.analysis == null) {
+            Spacer(Modifier.height(26.dp))
+            SectionTitle("From your last Shot")
             Spacer(Modifier.height(10.dp))
-            InkCard {
-                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                    StatusPill(run.status, amber = run.status in listOf("running", "retrying"), red = run.status == "terminal")
-                    Text(run.shotId.takeLast(8), color = MutedWhite, fontSize = 11.sp)
-                }
-                val current = run.steps.entries.lastOrNull { it.value.state != "pending" }
-                if (current != null) {
-                    Spacer(Modifier.height(10.dp))
-                    Text(current.key.replaceFirstChar(Char::uppercase), color = WarmWhite, fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
-                    if (current.value.outcome.isNotBlank()) {
-                        Spacer(Modifier.height(4.dp))
-                        Text(current.value.outcome, color = MutedWhite, fontSize = 13.sp, lineHeight = 18.sp)
-                    }
-                }
+            if (latest == null) {
+                Text(
+                    "Your newest Camera Shot will appear here while Shoots works in the background.",
+                    color = MutedWhite,
+                    fontSize = 14.sp,
+                    lineHeight = 20.sp,
+                )
+            } else {
+                LatestShotReceipt(latest, imageUrl(latest)) { onOpenShot(latest.id) }
             }
-            Spacer(Modifier.height(18.dp))
         }
-
-        SecondaryAction("Sync now", onClick = onSync)
-        source?.lastSuccessfulSyncAt?.takeIf(String::isNotBlank)?.let {
-            Spacer(Modifier.height(7.dp))
-            Text("Last synced ${displayTime(it)}", color = MutedWhite, fontSize = 11.sp)
-        }
-        Spacer(Modifier.height(74.dp))
     }
 }
 
 @Composable
-private fun ActiveSessionCard(
-    session: LocalCaptureSessionEntity,
-    busy: Boolean,
-    onContinue: (String) -> Unit,
-    onFinish: (String) -> Unit,
-    onCancel: (String) -> Unit,
-    onImportAsFree: (String) -> Unit,
+private fun LatestInsightHero(
+    view: ShotViewDto,
+    imageUrl: (ShotDto) -> String,
+    access: MediaAccess,
+    source: SourceStateEntity?,
+    onOpenShot: (String) -> Unit,
+    onOpenCamera: () -> Unit,
+    onRequestMedia: () -> Unit,
+    onEnableSource: () -> Unit,
+    onChoose: () -> Unit,
 ) {
-    InkCard {
-        StatusPill(session.state, amber = session.state != LocalCaptureState.CONFLICT, red = session.state == LocalCaptureState.CONFLICT)
-        Spacer(Modifier.height(12.dp))
-        Text(
-            when (session.state) {
-                LocalCaptureState.RESERVED -> "Your Capture Session is still open."
-                LocalCaptureState.AWAITING_SELECTION -> "Choose the exact Shots that belong to this Experiment."
-                LocalCaptureState.MANIFEST_PENDING -> "Freezing the batch before upload."
-                LocalCaptureState.COMMITTED -> "The batch is frozen and ready to upload."
-                LocalCaptureState.PROCESSING -> "Shoots is reading every member."
-                LocalCaptureState.CONFLICT -> "This local batch does not match the committed manifest."
-                else -> "Capture Session in progress."
-            },
-            color = WarmWhite,
-            fontSize = 18.sp,
-            lineHeight = 24.sp,
-            fontWeight = FontWeight.SemiBold,
-        )
-        if (session.error.isNotBlank()) {
-            Spacer(Modifier.height(7.dp))
-            Text(session.error, color = com.shoots.app.FindingRed, fontSize = 13.sp, lineHeight = 18.sp)
+    val shot = view.shot
+    val analysis = requireNotNull(view.analysis)
+    val strongest = analysis.techniques.filter(::isCorroborated).maxWithOrNull(
+        compareBy<com.shoots.app.data.TechniqueEvidenceDto> { it.agreement }.thenBy { it.confidence }
+    )
+    val finding = analysis.findings.firstOrNull()
+    Column(
+        Modifier
+            .fillMaxWidth()
+            .background(InkRaised, RoundedCornerShape(24.dp))
+            .border(1.dp, Hairline, RoundedCornerShape(24.dp))
+            .clip(RoundedCornerShape(24.dp)),
+    ) {
+        Box(Modifier.fillMaxWidth().height(220.dp).clickable { onOpenShot(shot.id) }) {
+            AsyncImage(
+                model = imageUrl(shot),
+                contentDescription = shot.filename,
+                modifier = Modifier.fillMaxSize(),
+                contentScale = ContentScale.Crop,
+            )
+            Text(
+                "FROM YOUR LAST SHOT",
+                color = WarmWhite,
+                fontSize = 10.sp,
+                fontWeight = FontWeight.Bold,
+                modifier = Modifier.align(Alignment.TopStart).background(Ink.copy(alpha = 0.78f)).padding(horizontal = 9.dp, vertical = 7.dp),
+            )
         }
-        if (session.state == LocalCaptureState.RESERVED) {
-            Spacer(Modifier.height(16.dp))
-            PrimaryAction("Continue with normal camera", enabled = !busy) { onContinue(session.id) }
+        Column(Modifier.padding(19.dp)) {
+            Text(
+                when {
+                    strongest != null -> "${lensCountLabel(strongest.agreement)} found ${humanLabel(strongest.techniqueId)}."
+                    finding != null -> findingLabel(finding.findingId)
+                    else -> "Shoots finished reading this Shot."
+                },
+                color = WarmWhite,
+                fontSize = 21.sp,
+                lineHeight = 26.sp,
+                fontWeight = FontWeight.Bold,
+            )
+            val support = when {
+                strongest != null -> plainCellReferences(strongest.note, shot.grid)
+                finding != null -> plainCellReferences(finding.what, shot.grid)
+                else -> compositionInstruction(analysis.composition, shot.grid)
+            }
+            if (support.isNotBlank()) {
+                Spacer(Modifier.height(7.dp))
+                Text(support, color = MutedWhite, fontSize = 13.sp, lineHeight = 19.sp, maxLines = 3, overflow = TextOverflow.Ellipsis)
+            }
+            Spacer(Modifier.height(17.dp))
+            PrimaryAction("See the marked Shot") { onOpenShot(shot.id) }
             Spacer(Modifier.height(8.dp))
-            SecondaryAction("Finish this Camera visit") { onFinish(session.id) }
-            Spacer(Modifier.height(8.dp))
-            SecondaryAction("Cancel empty session") { onCancel(session.id) }
-        } else if (session.state == LocalCaptureState.CONFLICT) {
-            Spacer(Modifier.height(14.dp))
-            SecondaryAction("Import these as free Shots") { onImportAsFree(session.id) }
+            when {
+                access == MediaAccess.FULL && source?.enabled == true -> SecondaryAction("Make another Shot", onClick = onOpenCamera)
+                access == MediaAccess.FULL -> SecondaryAction("Start future import", onClick = onEnableSource)
+                access == MediaAccess.SELECTED -> SecondaryAction("Choose Camera Shots", onClick = onChoose)
+                else -> SecondaryAction("Allow Camera media", onClick = onRequestMedia)
+            }
         }
     }
 }
 
 @Composable
-private fun PhoneSourceCard(
+private fun NowHeader(snapshot: MobileSnapshotDto?, onOpenSettings: () -> Unit) {
+    val name = snapshot?.user?.name.orEmpty().trim().substringBefore(' ').ifBlank { "there" }
+    Row(
+        Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Column {
+            Text("SHOOTS", color = Amber, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+            Spacer(Modifier.height(4.dp))
+            Text("Ready when you are, $name.", color = WarmWhite, fontSize = 23.sp, lineHeight = 28.sp, fontWeight = FontWeight.Bold)
+        }
+        Box(
+            Modifier
+                .size(42.dp)
+                .clip(CircleShape)
+                .background(InkSoft)
+                .border(1.dp, Hairline, CircleShape)
+                .semantics { contentDescription = "Open settings" }
+                .clickable(role = Role.Button, onClick = onOpenSettings),
+            contentAlignment = Alignment.Center,
+        ) {
+            Icon(
+                painter = painterResource(R.drawable.ic_settings),
+                contentDescription = null,
+                tint = WarmWhite,
+                modifier = Modifier.size(20.dp),
+            )
+        }
+    }
+}
+
+@Composable
+private fun CameraHero(
     source: SourceStateEntity?,
     access: MediaAccess,
     busy: Boolean,
     onRequestMedia: () -> Unit,
-    onEnable: () -> Unit,
+    onEnableSource: () -> Unit,
     onOpenCamera: () -> Unit,
     onChoose: () -> Unit,
 ) {
-    InkCard {
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-            Text("Normal camera stays in control", color = WarmWhite, fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
-            StatusPill(
-                when {
-                    access == MediaAccess.FULL && source?.enabled == true -> "automatic"
-                    access == MediaAccess.SELECTED -> "selected"
-                    else -> "off"
-                },
-                amber = access == MediaAccess.FULL && source?.enabled == true,
-            )
-        }
-        Spacer(Modifier.height(8.dp))
+    Column(
+        Modifier
+            .fillMaxWidth()
+            .background(InkRaised, RoundedCornerShape(24.dp))
+            .border(1.dp, Amber.copy(alpha = 0.34f), RoundedCornerShape(24.dp))
+            .padding(20.dp),
+    ) {
+        Text("MAKE A SHOT", color = Amber, fontSize = 10.sp, fontWeight = FontWeight.Bold)
+        Spacer(Modifier.height(9.dp))
+        Text("Shoot first. Shoots remembers the rest.", color = WarmWhite, fontSize = 24.sp, lineHeight = 29.sp, fontWeight = FontWeight.Bold)
+        Spacer(Modifier.height(9.dp))
         Text(
-            when (access) {
-                MediaAccess.FULL -> "Only future still Shots in DCIM/Camera are observed. Your archive is not imported."
-                MediaAccess.SELECTED -> "Android only lets Shoots read items you choose. Automatic future import is off."
-                MediaAccess.NONE -> "Allow Camera media to observe future Shots, or keep access selected-only."
+            when {
+                access == MediaAccess.FULL && source?.enabled == true -> "Future Camera Shots arrive automatically."
+                access == MediaAccess.SELECTED -> "You choose which Camera Shots Shoots may read."
+                else -> "Allow Camera media once so a new Shot can enter your record."
             },
             color = MutedWhite,
-            fontSize = 13.sp,
-            lineHeight = 19.sp,
+            fontSize = 14.sp,
+            lineHeight = 20.sp,
         )
-        Spacer(Modifier.height(15.dp))
+        Spacer(Modifier.height(20.dp))
         when {
-            access == MediaAccess.NONE -> PrimaryAction("Choose media access", enabled = !busy, onClick = onRequestMedia)
-            access == MediaAccess.FULL && source?.enabled != true -> PrimaryAction("Observe future Camera Shots", enabled = !busy, onClick = onEnable)
-            else -> {
+            access == MediaAccess.FULL && source?.enabled == true -> {
                 PrimaryAction("Open normal camera", enabled = !busy, onClick = onOpenCamera)
-                if (access == MediaAccess.SELECTED) {
-                    Spacer(Modifier.height(8.dp))
-                    SecondaryAction("Choose existing Shots", onClick = onChoose)
-                }
             }
+            access == MediaAccess.FULL -> {
+                PrimaryAction("Start future import", enabled = !busy, onClick = onEnableSource)
+            }
+            access == MediaAccess.SELECTED -> {
+                PrimaryAction("Choose Camera Shots", enabled = !busy, onClick = onChoose)
+                Spacer(Modifier.height(8.dp))
+                SecondaryAction("Change media access", onClick = onRequestMedia)
+            }
+            else -> PrimaryAction("Allow Camera media", enabled = !busy, onClick = onRequestMedia)
         }
-        if (!source?.lastError.isNullOrBlank()) {
-            Spacer(Modifier.height(9.dp))
-            Text(source?.lastError.orEmpty(), color = com.shoots.app.FindingRed, fontSize = 12.sp)
+        if (access == MediaAccess.FULL && source?.enabled == true) {
+            Spacer(Modifier.height(12.dp))
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                Text("Phone Source", color = MutedWhite, fontSize = 12.sp)
+                Text("AUTOMATIC", color = Amber, fontSize = 10.sp, fontWeight = FontWeight.Bold)
+            }
         }
     }
 }
 
-private fun greeting(snapshot: MobileSnapshotDto?): String {
-    val name = snapshot?.user?.name?.trim()?.split(" ")?.firstOrNull().orEmpty()
-    return if (name.isBlank()) "What are you seeing?" else "What are you seeing, $name?"
+@Composable
+private fun LatestShotReceipt(shot: ShotDto, url: String, onClick: () -> Unit) {
+    InkCard(onClick = onClick) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            AsyncImage(
+                model = url,
+                contentDescription = shot.filename,
+                modifier = Modifier.size(88.dp).clip(RoundedCornerShape(12.dp)).background(InkSoft),
+                contentScale = ContentScale.Crop,
+            )
+            Column(Modifier.weight(1f).padding(start = 14.dp)) {
+                StatusPill(shotReceiptStatus(shot), amber = shot.status in setOf("analysing", "ingested", "new"), red = shot.status == "failed")
+                Spacer(Modifier.height(9.dp))
+                Text(
+                    when (shot.status) {
+                        "analyzed" -> "See what Shoots noticed"
+                        "failed" -> "See why this Shot was unreadable"
+                        else -> "Shoots is reading this in the background"
+                    },
+                    color = WarmWhite,
+                    fontSize = 15.sp,
+                    lineHeight = 20.sp,
+                    fontWeight = FontWeight.SemiBold,
+                )
+                Spacer(Modifier.height(4.dp))
+                Text(displayTime(shot.displayTime), color = MutedWhite, fontSize = 11.sp)
+            }
+            Box(Modifier.padding(start = 8.dp)) { ForwardChevron() }
+        }
+    }
 }
+
+private fun shotReceiptStatus(shot: ShotDto): String = when (shot.status) {
+    "analyzed" -> "read"
+    "failed" -> "unreadable"
+    "analysing" -> "reading"
+    "ingested" -> "waiting"
+    else -> "preparing"
+}
+
+private fun lensCountLabel(count: Int): String = if (count == 1) "One lens" else "$count lenses"
+
+private val ACTIVE_SESSION_STATES = setOf(
+    LocalCaptureState.RESERVED,
+    LocalCaptureState.AWAITING_SELECTION,
+    LocalCaptureState.MANIFEST_PENDING,
+    LocalCaptureState.COMMITTED,
+    LocalCaptureState.PROCESSING,
+    LocalCaptureState.CONFLICT,
+)

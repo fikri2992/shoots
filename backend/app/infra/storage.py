@@ -53,6 +53,7 @@ GRIDDED = "gridded"
 SHEET = "sheet"
 THUMB = "thumb"
 ANNOTATED = "annotated"
+FINDING_MARKED = "finding_marked"
 CROP = "crop"  # the crop that won the crop loop, as a finished frame
 CLIP = "clip"
 

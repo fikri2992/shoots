@@ -201,8 +201,26 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         repository.refreshSnapshot()
     }
 
+    suspend fun requestExperiment(force: Boolean = false): Boolean {
+        var offered = false
+        val completed = operate {
+            val experiment = repository.requestExperiment(force)
+            offered = experiment != null
+            notice.value = if (experiment == null) {
+                "No supported Experiment yet. Mark a Keeper with corroborated Evidence first."
+            } else if (force) {
+                "A different supported Experiment is ready"
+            } else {
+                "Your Experiment is ready"
+            }
+        }
+        return completed && offered
+    }
+
     fun imageUrl(shot: ShotDto, original: Boolean = false): String =
         repository.imageUrl(shot, original)
+
+    fun blobUrl(path: String): String = repository.blobUrl(path)
 
     suspend fun connectDrive(code: String): Boolean = operate {
         check(code.isNotBlank()) { "Google returned no Drive authorization code" }

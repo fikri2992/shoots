@@ -1,17 +1,27 @@
 package com.shoots.app.ui
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.animateContentSize
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -19,12 +29,20 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.shoots.app.Amber
 import com.shoots.app.FindingRed
+import com.shoots.app.Hairline
 import com.shoots.app.Ink
+import com.shoots.app.InkRaised
 import com.shoots.app.MutedWhite
 import com.shoots.app.WarmWhite
 import com.shoots.app.data.MobileSnapshotDto
@@ -38,6 +56,7 @@ fun SettingsScreen(
     mediaAccess: MediaAccess,
     notificationsGranted: Boolean,
     busy: Boolean,
+    onBack: () -> Unit,
     onRequestMedia: () -> Unit,
     onEnableSource: () -> Unit,
     onDisableSource: () -> Unit,
@@ -49,120 +68,136 @@ fun SettingsScreen(
     onRevoke: () -> Unit,
     onDelete: () -> Unit,
 ) {
+    var expanded by remember { mutableStateOf<String?>(null) }
     var confirmRevoke by remember { mutableStateOf(false) }
     var confirmDelete by remember { mutableStateOf(false) }
     Column(
-        Modifier.fillMaxSize().background(Ink).statusBarsPadding().verticalScroll(rememberScrollState()).padding(horizontal = 20.dp, vertical = 22.dp),
+        Modifier
+            .fillMaxSize()
+            .background(Ink)
+            .statusBarsPadding()
+            .navigationBarsPadding()
+            .verticalScroll(rememberScrollState())
+            .padding(horizontal = 20.dp)
+            .padding(top = 14.dp, bottom = 34.dp),
     ) {
-        ScreenTitle("Settings", "Your account and sources.", "Permissions describe what Shoots can observe. You can remove each one.")
+        Row(
+            Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            BackAction("Now", onBack)
+            Text("SETTINGS", color = Amber, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+        }
+        Spacer(Modifier.height(18.dp))
+        Text("Account and access", color = WarmWhite, fontSize = 26.sp, lineHeight = 31.sp, fontWeight = FontWeight.Bold)
+        Spacer(Modifier.height(7.dp))
+        Text(
+            snapshot?.user?.email.orEmpty(),
+            color = MutedWhite,
+            fontSize = 13.sp,
+            maxLines = 1,
+        )
+        source?.lastSuccessfulSyncAt?.takeIf(String::isNotBlank)?.let {
+            Spacer(Modifier.height(3.dp))
+            Text("Last synced ${displayTime(it)}", color = MutedWhite, fontSize = 11.sp)
+        }
         Spacer(Modifier.height(24.dp))
 
-        SectionTitle("Account")
-        Spacer(Modifier.height(10.dp))
-        InkCard {
-            Text(snapshot?.user?.name.orEmpty().ifBlank { "Google account" }, color = WarmWhite, fontSize = 17.sp, fontWeight = FontWeight.SemiBold)
-            Spacer(Modifier.height(4.dp))
-            Text(snapshot?.user?.email.orEmpty(), color = MutedWhite, fontSize = 13.sp)
-            source?.lastSuccessfulSyncAt?.takeIf(String::isNotBlank)?.let {
-                Spacer(Modifier.height(10.dp))
-                Text("Last synced ${displayTime(it)}", color = MutedWhite, fontSize = 11.sp)
-            }
-        }
-
-        Spacer(Modifier.height(22.dp))
-        SectionTitle("Camera media")
-        Spacer(Modifier.height(10.dp))
-        InkCard {
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = androidx.compose.foundation.layout.Arrangement.SpaceBetween) {
-                Text("Phone Source", color = WarmWhite, fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
-                StatusPill(
-                    when {
-                        mediaAccess == MediaAccess.FULL && source?.enabled == true -> "future only"
-                        mediaAccess == MediaAccess.SELECTED -> "selected only"
-                        else -> "off"
-                    }
+        Column(
+            Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(18.dp))
+                .background(InkRaised)
+                .border(1.dp, Hairline, RoundedCornerShape(18.dp))
+                .animateContentSize(animationSpec = tween(180)),
+        ) {
+            SettingsDisclosure(
+                title = "Phone Source",
+                summary = when {
+                    mediaAccess == MediaAccess.FULL && source?.enabled == true -> "Automatic · future Camera Shots"
+                    mediaAccess == MediaAccess.SELECTED -> "Selected Shots only"
+                    else -> "Off"
+                },
+                expanded = expanded == "source",
+                onToggle = { expanded = expanded.toggle("source") },
+            ) {
+                Text(
+                    "Full access observes only future still Shots in the Camera album. Selected access imports only what you pick.",
+                    color = MutedWhite,
+                    fontSize = 13.sp,
+                    lineHeight = 19.sp,
                 )
-            }
-            Spacer(Modifier.height(7.dp))
-            Text(
-                "Full access observes future still Shots in the Camera album. Selected access only imports what you pick.",
-                color = MutedWhite,
-                fontSize = 13.sp,
-                lineHeight = 19.sp,
-            )
-            Spacer(Modifier.height(13.dp))
-            if (mediaAccess != MediaAccess.FULL) {
-                SecondaryAction("Change media access", onClick = onRequestMedia)
-            } else if (source?.enabled == true) {
-                SecondaryAction("Stop automatic future import", onClick = onDisableSource)
-            } else {
-                SecondaryAction("Start automatic future import", onClick = onEnableSource)
-            }
-        }
-
-        Spacer(Modifier.height(22.dp))
-        SectionTitle("Session summaries")
-        Spacer(Modifier.height(10.dp))
-        InkCard {
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = androidx.compose.foundation.layout.Arrangement.SpaceBetween) {
-                Text("Notifications", color = WarmWhite, fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
-                StatusPill(if (notificationsGranted) "allowed" else "off")
-            }
-            Spacer(Modifier.height(7.dp))
-            Text(
-                "Shoots sends one summary after every member of a Capture Session settles. It does not send a verdict for each Shot.",
-                color = MutedWhite,
-                fontSize = 13.sp,
-                lineHeight = 19.sp,
-            )
-            if (!notificationsGranted) {
                 Spacer(Modifier.height(13.dp))
-                SecondaryAction("Allow session summaries", onClick = onRequestNotifications)
-            }
-        }
-
-        Spacer(Modifier.height(22.dp))
-        SectionTitle("Google Drive", "OPTIONAL")
-        Spacer(Modifier.height(10.dp))
-        InkCard {
-            Text(
-                if (snapshot?.driveConnected == true) "Drive is connected." else "Drive is not connected.",
-                color = WarmWhite,
-                fontSize = 15.sp,
-                fontWeight = FontWeight.SemiBold,
-            )
-            Spacer(Modifier.height(7.dp))
-            Text(
-                "Drive consent is separate from sign-in. Disconnecting removes Shoots access; your files remain in Drive.",
-                color = MutedWhite,
-                fontSize = 13.sp,
-                lineHeight = 19.sp,
-            )
-            Spacer(Modifier.height(13.dp))
-            if (snapshot?.driveConnected == true) {
-                if (snapshot.driveFolderUrl.isNotBlank()) {
-                    SecondaryAction("Open Shoots folder") { onOpenDrive(snapshot.driveFolderUrl) }
-                    Spacer(Modifier.height(8.dp))
+                when {
+                    mediaAccess != MediaAccess.FULL -> SecondaryAction("Change media access", onClick = onRequestMedia)
+                    source?.enabled == true -> SecondaryAction("Stop automatic future import", onClick = onDisableSource)
+                    else -> PrimaryAction("Start automatic future import", enabled = !busy, onClick = onEnableSource)
                 }
-                SecondaryAction("Disconnect Drive", onClick = onDisconnectDrive)
-            } else {
-                PrimaryAction("Connect Drive", enabled = !busy, onClick = onConnectDrive)
+            }
+            HorizontalDivider(color = Hairline)
+
+            SettingsDisclosure(
+                title = "Session summaries",
+                summary = if (notificationsGranted) "Allowed" else "Off",
+                expanded = expanded == "notifications",
+                onToggle = { expanded = expanded.toggle("notifications") },
+            ) {
+                Text(
+                    "One notification arrives after every member of an Experiment Capture Session settles. There is no alert for every Shot.",
+                    color = MutedWhite,
+                    fontSize = 13.sp,
+                    lineHeight = 19.sp,
+                )
+                if (!notificationsGranted) {
+                    Spacer(Modifier.height(13.dp))
+                    PrimaryAction("Allow session summaries", enabled = !busy, onClick = onRequestNotifications)
+                }
+            }
+            HorizontalDivider(color = Hairline)
+
+            SettingsDisclosure(
+                title = "Google Drive",
+                summary = if (snapshot?.driveConnected == true) "Connected" else "Not connected · optional",
+                expanded = expanded == "drive",
+                onToggle = { expanded = expanded.toggle("drive") },
+            ) {
+                Text(
+                    "Drive is separate from sign-in. Disconnecting removes Shoots access while your files remain yours.",
+                    color = MutedWhite,
+                    fontSize = 13.sp,
+                    lineHeight = 19.sp,
+                )
+                Spacer(Modifier.height(13.dp))
+                if (snapshot?.driveConnected == true) {
+                    if (snapshot.driveFolderUrl.isNotBlank()) {
+                        SecondaryAction("Open Shoots folder") { onOpenDrive(snapshot.driveFolderUrl) }
+                        Spacer(Modifier.height(8.dp))
+                    }
+                    SecondaryAction("Disconnect Drive", onClick = onDisconnectDrive)
+                } else {
+                    PrimaryAction("Connect Drive", enabled = !busy, onClick = onConnectDrive)
+                }
+            }
+            HorizontalDivider(color = Hairline)
+
+            SettingsDisclosure(
+                title = "Account and data",
+                summary = snapshot?.user?.name.orEmpty().ifBlank { "Google account" },
+                expanded = expanded == "account",
+                onToggle = { expanded = expanded.toggle("account") },
+            ) {
+                SecondaryAction("Refresh Google sign-in", onClick = onReauthenticate)
+                Spacer(Modifier.height(8.dp))
+                SecondaryAction("Revoke this device") { confirmRevoke = true }
+                Spacer(Modifier.height(8.dp))
+                SecondaryAction("Delete account and Shoots data", danger = true) { confirmDelete = true }
             }
         }
-
-        Spacer(Modifier.height(26.dp))
-        SectionTitle("Account controls")
-        Spacer(Modifier.height(10.dp))
-        SecondaryAction("Refresh Google sign-in", onClick = onReauthenticate)
-        Spacer(Modifier.height(8.dp))
-        SecondaryAction("Revoke this device") { confirmRevoke = true }
-        Spacer(Modifier.height(8.dp))
-        SecondaryAction("Delete account and Shoots data", danger = true) { confirmDelete = true }
-        Spacer(Modifier.height(94.dp))
     }
 
     if (confirmRevoke) {
-        ConfirmDialog(
+        ConfirmSettingsDialog(
             title = "Revoke this device?",
             body = "This device token, local cache, queued imports, and notification target will be removed.",
             action = "Revoke",
@@ -171,7 +206,7 @@ fun SettingsScreen(
         )
     }
     if (confirmDelete) {
-        ConfirmDialog(
+        ConfirmSettingsDialog(
             title = "Delete your Shoots account?",
             body = "Google will confirm your identity again. Shoots records and stored blobs are deleted. User-owned Drive files remain.",
             action = "Delete account",
@@ -182,7 +217,43 @@ fun SettingsScreen(
 }
 
 @Composable
-private fun ConfirmDialog(
+private fun SettingsDisclosure(
+    title: String,
+    summary: String,
+    expanded: Boolean,
+    onToggle: () -> Unit,
+    content: @Composable ColumnScope.() -> Unit,
+) {
+    Column(Modifier.fillMaxWidth().animateContentSize(animationSpec = tween(180))) {
+        Row(
+            Modifier
+                .fillMaxWidth()
+                .clickable(role = Role.Button, onClick = onToggle)
+                .semantics(mergeDescendants = true) {
+                    stateDescription = if (expanded) "Expanded" else "Collapsed"
+                }
+                .padding(horizontal = 16.dp, vertical = 14.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Column(Modifier.weight(1f)) {
+                Text(title, color = WarmWhite, fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
+                Spacer(Modifier.height(3.dp))
+                Text(summary, color = MutedWhite, fontSize = 12.sp, lineHeight = 17.sp)
+            }
+            DisclosureChevron(expanded)
+        }
+        AnimatedVisibility(expanded) {
+            Column(
+                Modifier.fillMaxWidth().padding(start = 16.dp, end = 16.dp, bottom = 16.dp),
+                content = content,
+            )
+        }
+    }
+}
+
+@Composable
+private fun ConfirmSettingsDialog(
     title: String,
     body: String,
     action: String,
@@ -194,7 +265,9 @@ private fun ConfirmDialog(
         title = { Text(title, color = WarmWhite) },
         text = { Text(body, color = MutedWhite, lineHeight = 20.sp) },
         confirmButton = { TextButton(onClick = onConfirm) { Text(action, color = FindingRed) } },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("Keep account", color = WarmWhite) } },
-        containerColor = com.shoots.app.InkRaised,
+        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel", color = WarmWhite) } },
+        containerColor = InkRaised,
     )
 }
+
+private fun String?.toggle(key: String): String? = if (this == key) null else key

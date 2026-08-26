@@ -24,11 +24,20 @@ from app.agents import scrub as scrub_lens
 from app.domain.entities import ShotKind, ShotStatus, now
 from app.domain.grid import Grid
 from app.imaging import canvas, video
+from app.imaging.findingmark import mark as mark_findings
 from app.imaging.grid_overlay import apply_grid
 from app.imaging.overlay import render_overlay
 from app.infra import repository as repo
 from app.infra.bus import TOPICS
-from app.infra.storage import ANNOTATED, CROP, GRIDDED, ORIGINAL, SHEET, blob_path
+from app.infra.storage import (
+    ANNOTATED,
+    CROP,
+    FINDING_MARKED,
+    GRIDDED,
+    ORIGINAL,
+    SHEET,
+    blob_path,
+)
 from app.services.context import Context
 
 logger = logging.getLogger(__name__)
@@ -86,6 +95,17 @@ async def analyse(ctx: Context, message: dict) -> None:
         canvas.to_jpeg_bytes(annotated),
         "image/jpeg",
     )
+
+    # Pixel-located Findings need a separate clean layer. The interactive
+    # clients can switch between the original, composition action and this
+    # deterministic mask without baking unrelated instructions together.
+    finding_marked = mark_findings(base, analysis.findings)
+    if finding_marked is not base:
+        shot.blobs[FINDING_MARKED] = await ctx.blobs.write(
+            blob_path(shot.user_id, shot.id, FINDING_MARKED, "jpg"),
+            canvas.to_jpeg_bytes(finding_marked),
+            "image/jpeg",
+        )
 
     shot.status = ShotStatus.ANALYZED
     shot.analysing_at = None

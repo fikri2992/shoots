@@ -3,10 +3,14 @@ package com.shoots.app.ui
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performScrollTo
 import com.shoots.app.ShootsTheme
 import com.shoots.app.data.AnalysisDto
 import com.shoots.app.data.CompositionDto
 import com.shoots.app.data.GridSpecDto
+import com.shoots.app.data.FindingDto
+import com.shoots.app.data.MoveDto
 import com.shoots.app.data.ShotDto
 import com.shoots.app.data.ShotViewDto
 import com.shoots.app.data.TechniqueEvidenceDto
@@ -52,6 +56,7 @@ class ShotDetailScreenIntegrationTest {
                 ShotDetailScreen(
                     view = view,
                     imageUrl = { _, _ -> "" },
+                    blobUrl = { "" },
                     onBack = {},
                     onKeeper = {},
                     onRetry = {},
@@ -61,11 +66,15 @@ class ShotDetailScreenIntegrationTest {
         }
 
         compose.onNodeWithContentDescription("Thirds composition guide").assertExists()
-        compose.onNodeWithText("1 lens").assertExists()
+        compose.onNodeWithText("1 lens").assertDoesNotExist()
+        compose.onNodeWithText("Full Analysis").performScrollTo().performClick()
+        compose.onNodeWithText("The panel did not corroborate a Technique in this Shot.").assertExists()
+        compose.onNodeWithText("MEASURED FINDINGS").assertDoesNotExist()
         compose.onNodeWithText("A1", substring = true).assertDoesNotExist()
         compose.onNodeWithText("H6", substring = true).assertDoesNotExist()
         compose.onNodeWithText("columns A-C", substring = true).assertDoesNotExist()
         compose.onNodeWithText("quest_internal_only", substring = true).assertDoesNotExist()
+        compose.onNodeWithText("Run and provenance").performScrollTo().performClick()
         compose.onNodeWithText("Associated with an Experiment").assertExists()
     }
 
@@ -84,6 +93,7 @@ class ShotDetailScreenIntegrationTest {
                 ShotDetailScreen(
                     view = view,
                     imageUrl = { _, _ -> "" },
+                    blobUrl = { "" },
                     onBack = {},
                     onKeeper = {},
                     onRetry = {},
@@ -95,5 +105,59 @@ class ShotDetailScreenIntegrationTest {
         compose.onNodeWithText("Analysis was interrupted.").assertExists()
         compose.onNodeWithText("Resume analysis").assertExists()
         compose.onNodeWithText("Analysis is still running.").assertDoesNotExist()
+    }
+
+    @Test
+    fun findingAndActionLayersAreChosenExplicitly() {
+        val view = ShotViewDto(
+            shot = ShotDto(
+                id = "marked-shot",
+                filename = "IMG_marked.jpg",
+                status = "analyzed",
+                grid = GridSpecDto(cols = 7, rows = 9, width = 900, height = 1200),
+            ),
+            analysis = AnalysisDto(
+                shotId = "marked-shot",
+                findings = listOf(
+                    FindingDto(
+                        findingId = "off_guide_subject",
+                        what = "The subject sits on no line.",
+                        why = "The nearest line is 0.08 of the frame away.",
+                    )
+                ),
+                composition = CompositionDto(
+                    subjectCells = listOf("D4"),
+                    subjectX = 0.45,
+                    subjectY = 0.42,
+                    moves = listOf(
+                        MoveDto(
+                            what = "Move the subject toward the line",
+                            fromCells = listOf("D4"),
+                            toCells = listOf("C4"),
+                        )
+                    ),
+                ),
+            ),
+        )
+
+        compose.setContent {
+            ShootsTheme {
+                ShotDetailScreen(
+                    view = view,
+                    imageUrl = { _, _ -> "" },
+                    blobUrl = { "" },
+                    onBack = {},
+                    onKeeper = {},
+                    onRetry = {},
+                    onOpenDrive = {},
+                )
+            }
+        }
+
+        compose.onNodeWithContentDescription("Finding Subject placement").assertExists()
+        compose.onNodeWithText("Try").performClick()
+        compose.onNodeWithContentDescription("Composition action").assertExists()
+        compose.onNodeWithText("Clean").performClick()
+        compose.onNodeWithContentDescription("Clean Shot").assertExists()
     }
 }

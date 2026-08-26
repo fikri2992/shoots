@@ -1,8 +1,13 @@
 package com.shoots.app.ui
 
-import android.app.Activity
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -11,8 +16,12 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.selection.selectable
+import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -20,6 +29,9 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -30,12 +42,10 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.shoots.app.Amber
-import com.shoots.app.Hairline
 import com.shoots.app.Ink
 import com.shoots.app.InkRaised
 import com.shoots.app.MutedWhite
-import com.shoots.app.WarmWhite
-import com.shoots.app.phone.MediaAccess
+import com.shoots.app.R
 import kotlinx.coroutines.launch
 
 data class AppActions(
@@ -45,6 +55,7 @@ data class AppActions(
     val disableSource: () -> Unit,
     val openFreeCamera: () -> Unit,
     val chooseFreeShots: () -> Unit,
+    val requestExperiment: (Boolean) -> Unit,
     val startExperiment: (String) -> Unit,
     val continueSession: (String) -> Unit,
     val finishSession: (String) -> Unit,
@@ -86,11 +97,12 @@ fun ShootsApp(
     val nav = rememberNavController()
     val backStack by nav.currentBackStackEntryAsState()
     val route = backStack?.destination?.route.orEmpty()
-    val showNavigation = !route.startsWith("shot/")
+    val showNavigation = route in setOf("now", "shots", "experiments", "journey")
 
     LaunchedEffect(deepRoute) {
         val destination = when (deepRoute.substringBefore('/')) {
             "journey" -> "journey"
+            "experiments" -> "experiments"
             "shots", "shot" -> "shots"
             "settings" -> "settings"
             else -> "now"
@@ -99,7 +111,29 @@ fun ShootsApp(
     }
 
     Box(Modifier.fillMaxSize().background(Ink)) {
-        NavHost(navController = nav, startDestination = "now", modifier = Modifier.fillMaxSize()) {
+        NavHost(
+            navController = nav,
+            startDestination = "now",
+            modifier = Modifier.fillMaxSize(),
+            enterTransition = {
+                val forward = routeRank(targetState.destination.route) >= routeRank(initialState.destination.route)
+                fadeIn(tween(170)) + slideInHorizontally(tween(220)) { width ->
+                    if (forward) width / 10 else -width / 10
+                }
+            },
+            exitTransition = {
+                val forward = routeRank(targetState.destination.route) >= routeRank(initialState.destination.route)
+                fadeOut(tween(130)) + slideOutHorizontally(tween(190)) { width ->
+                    if (forward) -width / 16 else width / 16
+                }
+            },
+            popEnterTransition = {
+                fadeIn(tween(170)) + slideInHorizontally(tween(220)) { width -> -width / 10 }
+            },
+            popExitTransition = {
+                fadeOut(tween(130)) + slideOutHorizontally(tween(190)) { width -> width / 16 }
+            },
+        ) {
             composable("now") {
                 NowScreen(
                     snapshot,
@@ -112,12 +146,13 @@ fun ShootsApp(
                     onEnableSource = actions.enableSource,
                     onOpenFreeCamera = actions.openFreeCamera,
                     onChooseFreeShots = actions.chooseFreeShots,
-                    onStartExperiment = actions.startExperiment,
                     onContinueSession = actions.continueSession,
                     onFinishSession = actions.finishSession,
                     onCancelSession = actions.cancelSession,
                     onImportSessionAsFree = actions.importSessionAsFree,
-                    onSync = viewModel::sync,
+                    onOpenShot = { nav.navigate("shot/$it") },
+                    onOpenExperiments = { nav.navigate("experiments") },
+                    onOpenSettings = { nav.navigate("settings") },
                 )
             }
             composable("shots") {
@@ -141,6 +176,7 @@ fun ShootsApp(
                 ShotDetailScreen(
                     detail,
                     imageUrl = { shot, original -> viewModel.imageUrl(shot, original) },
+                    blobUrl = viewModel::blobUrl,
                     onBack = nav::popBackStack,
                     onKeeper = { keeper ->
                         scope.launch { viewModel.setKeeper(id, keeper) }
@@ -152,23 +188,39 @@ fun ShootsApp(
             composable("journey") {
                 JourneyScreen(snapshot, { viewModel.imageUrl(it) }) { nav.navigate("shot/$it") }
             }
+            composable("experiments") {
+                ExperimentsScreen(
+                    snapshot = snapshot,
+                    localSession = session,
+                    busy = busy,
+                    imageUrl = { viewModel.imageUrl(it) },
+                    onRequestExperiment = actions.requestExperiment,
+                    onStartExperiment = actions.startExperiment,
+                    onContinueSession = actions.continueSession,
+                    onFinishSession = actions.finishSession,
+                    onCancelSession = actions.cancelSession,
+                    onImportSessionAsFree = actions.importSessionAsFree,
+                    onShot = { nav.navigate("shot/$it") },
+                )
+            }
             composable("settings") {
                 SettingsScreen(
-                    snapshot,
-                    source,
-                    access,
-                    notificationsGranted,
-                    busy,
-                    actions.requestMedia,
-                    actions.enableSource,
-                    actions.disableSource,
-                    actions.requestNotifications,
-                    actions.connectDrive,
-                    actions.disconnectDrive,
-                    actions.openUrl,
-                    actions.signIn,
-                    actions.revoke,
-                    actions.deleteAccount,
+                    snapshot = snapshot,
+                    source = source,
+                    mediaAccess = access,
+                    notificationsGranted = notificationsGranted,
+                    busy = busy,
+                    onBack = nav::popBackStack,
+                    onRequestMedia = actions.requestMedia,
+                    onEnableSource = actions.enableSource,
+                    onDisableSource = actions.disableSource,
+                    onRequestNotifications = actions.requestNotifications,
+                    onConnectDrive = actions.connectDrive,
+                    onDisconnectDrive = actions.disconnectDrive,
+                    onOpenDrive = actions.openUrl,
+                    onReauthenticate = actions.signIn,
+                    onRevoke = actions.revoke,
+                    onDelete = actions.deleteAccount,
                 )
             }
         }
@@ -201,18 +253,70 @@ private fun BottomNavigation(current: String, modifier: Modifier, onNavigate: (S
             .fillMaxWidth()
             .background(InkRaised.copy(alpha = 0.98f), RoundedCornerShape(topStart = 18.dp, topEnd = 18.dp))
             .navigationBarsPadding()
-            .padding(horizontal = 8.dp, vertical = 10.dp),
+            .padding(horizontal = 8.dp, vertical = 7.dp)
+            .selectableGroup(),
         horizontalArrangement = Arrangement.SpaceAround,
     ) {
-        listOf("now" to "Now", "shots" to "Shots", "journey" to "Journey", "settings" to "Settings").forEach { (route, label) ->
-            val selected = current == route
+        listOf(
+            NavigationItem("now", "Now", R.drawable.ic_now),
+            NavigationItem("shots", "Shots", R.drawable.ic_shots),
+            NavigationItem("experiments", "Experiments", R.drawable.ic_experiments),
+            NavigationItem("journey", "Journey", R.drawable.ic_journey),
+        ).forEach { item ->
+            val selected = current == item.route
+            val background by animateColorAsState(
+                if (selected) Amber.copy(alpha = 0.13f) else InkRaised.copy(alpha = 0f),
+                animationSpec = tween(180),
+                label = "${item.label} navigation indicator",
+            )
+            val scale by animateFloatAsState(
+                if (selected) 1f else 0.92f,
+                animationSpec = tween(180),
+                label = "${item.label} navigation icon",
+            )
             Column(
-                Modifier.clickable { onNavigate(route) }.padding(horizontal = 11.dp, vertical = 5.dp),
+                Modifier
+                    .weight(1f)
+                    .padding(horizontal = 3.dp)
+                    .selectable(
+                        selected = selected,
+                        role = Role.Tab,
+                        onClick = { onNavigate(item.route) },
+                    )
+                    .padding(vertical = 3.dp),
                 horizontalAlignment = Alignment.CenterHorizontally,
             ) {
-                Text(label, color = if (selected) Amber else MutedWhite, fontSize = 12.sp, fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal)
-                Text(if (selected) "●" else "·", color = if (selected) Amber else Hairline, fontSize = 8.sp)
+                Box(
+                    Modifier
+                        .size(width = 56.dp, height = 31.dp)
+                        .background(background, RoundedCornerShape(99.dp)),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Icon(
+                        painter = painterResource(item.icon),
+                        contentDescription = null,
+                        tint = if (selected) Amber else MutedWhite,
+                        modifier = Modifier.size(21.dp).graphicsLayer { scaleX = scale; scaleY = scale },
+                    )
+                }
+                Text(
+                    item.label,
+                    color = if (selected) Amber else MutedWhite,
+                    fontSize = 10.sp,
+                    fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium,
+                )
             }
         }
     }
+}
+
+private data class NavigationItem(val route: String, val label: String, val icon: Int)
+
+private fun routeRank(route: String?): Int = when (route?.substringBefore('/')) {
+    "now" -> 0
+    "shots" -> 1
+    "experiments" -> 2
+    "journey" -> 3
+    "shot", "settings" -> 4
+    else -> 0
 }

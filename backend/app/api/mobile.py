@@ -26,6 +26,7 @@ class MobileSnapshot(BaseModel):
     open_experiment: Experiment | None
     latest_capture_session: CaptureSession | None
     latest_run: Run | None
+    latest_shot: shot_api.ShotView | None
     recent_shots: list[Shot]
     journey: list[JourneyUpdate]
     profile: shot_api.ProfileView
@@ -68,6 +69,7 @@ async def snapshot(
         open_experiment=await repo.open_experiment(ctx.store, user.id),
         latest_capture_session=sessions[0] if sessions else None,
         latest_run=runs[0] if runs else None,
+        latest_shot=await shot_api._shot_view(ctx, shots[0]) if shots else None,
         recent_shots=shots,
         journey=await repo.list_journey_updates(ctx.store, user.id, limit=10),
         profile=await shot_api.profile(session_user, ctx),

@@ -68,7 +68,7 @@ class RoomQueueIntegrationTest {
             "experiment-a",
         )
         assertEquals(1, inserted)
-        assertEquals(11, dao.sourceState()?.lastDateAdded)
+        assertEquals(11L, dao.sourceState()?.lastDateAdded)
         assertEquals("capture-a", dao.importBySource(first.sourceId)?.captureSessionId)
         assertEquals(0, dao.importBySource(first.sourceId)?.manifestOrder)
 
@@ -94,11 +94,11 @@ class RoomQueueIntegrationTest {
         database.close()
         database = Room.databaseBuilder(context, ShootsDatabase::class.java, databaseName).build()
         assertEquals("capture-a", database.dao().importBySource(first.sourceId)?.captureSessionId)
-        assertEquals(12, database.dao().sourceState()?.lastDateAdded)
+        assertEquals(12L, database.dao().sourceState()?.lastDateAdded)
     }
 
     @Test
-    fun legacyDeviceIdAndCameraWatermarkMigrateWithoutExperimentPreference() = runBlocking {
+    fun legacyDeviceIdAndCameraWatermarkMigrateWithoutExperimentPreference(): Unit = runBlocking {
         val phone = context.getSharedPreferences("phone_source", Context.MODE_PRIVATE)
         val identity = context.getSharedPreferences("shoots", Context.MODE_PRIVATE)
         phone.edit()
@@ -113,8 +113,8 @@ class RoomQueueIntegrationTest {
         val sessions = SessionStore(context)
 
         assertEquals("legacy-device-id", sessions.deviceId())
-        assertEquals(321, database.dao().sourceState()?.lastDateAdded)
-        assertEquals(654, database.dao().sourceState()?.lastMediaId)
+        assertEquals(321L, database.dao().sourceState()?.lastDateAdded)
+        assertEquals(654L, database.dao().sourceState()?.lastMediaId)
         assertTrue(database.dao().activeCaptureSession() == null)
 
         phone.edit().clear().commit()

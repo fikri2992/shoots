@@ -3,6 +3,7 @@ package com.shoots.app.data
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.JsonElement
+import java.time.Instant
 
 @Serializable
 data class UserDto(
@@ -67,7 +68,20 @@ data class ShotDto(
     @SerialName("ingested_at") val ingestedAt: String = "",
     @SerialName("analyzed_at") val analyzedAt: String? = null,
 ) {
-    val displayTime: String get() = capturedAt ?: exif.capturedAt ?: ingestedAt
+    val displayTime: String
+        get() = mediaStoreCapturedAt ?: capturedAt ?: exif.capturedAt ?: ingestedAt
+
+    private val mediaStoreCapturedAt: String?
+        get() {
+            val sourceTail = sourceId.substringAfter(":external:", "")
+            val dateAdded = sourceTail
+                .split(':')
+                .getOrNull(1)
+                ?.toLongOrNull()
+                ?.takeIf { it in 946684800L..4102444800L }
+                ?: return null
+            return Instant.ofEpochSecond(dateAdded).toString()
+        }
 }
 
 @Serializable
@@ -168,6 +182,9 @@ data class ExperimentDto(
     val change: ChangeDto? = null,
     @SerialName("issued_at") val issuedAt: String = "",
 )
+
+val ExperimentDto.canStartReproduce: Boolean
+    get() = type == "reproduce" && referenceShotId.isNotBlank() && criteria.text.isNotEmpty()
 
 @Serializable
 data class CaptureSessionMemberDto(
@@ -284,6 +301,7 @@ data class MobileSnapshotDto(
     @SerialName("open_experiment") val openExperiment: ExperimentDto? = null,
     @SerialName("latest_capture_session") val latestCaptureSession: CaptureSessionDto? = null,
     @SerialName("latest_run") val latestRun: RunDto? = null,
+    @SerialName("latest_shot") val latestShot: ShotViewDto? = null,
     @SerialName("recent_shots") val recentShots: List<ShotDto> = emptyList(),
     val journey: List<JourneyUpdateDto> = emptyList(),
     val profile: ProfileDto = ProfileDto(),

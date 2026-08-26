@@ -14,8 +14,10 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import com.shoots.app.Amber
+import com.shoots.app.FindingRed
 import com.shoots.app.WarmWhite
 import com.shoots.app.data.CompositionDto
+import com.shoots.app.data.FindingDto
 import com.shoots.app.data.GridSpecDto
 import kotlin.math.atan2
 import kotlin.math.cos
@@ -27,17 +29,33 @@ fun CompositionGuide(
     grid: GridSpecDto,
     composition: CompositionDto,
     modifier: Modifier = Modifier,
+    finding: FindingDto? = null,
+    layer: ReviewLayer = ReviewLayer.GUIDE,
 ) {
     val guide = composition.guide.ifBlank { "thirds" }
     Canvas(
         modifier.semantics {
-            contentDescription = "${guideLabel(guide)} composition guide"
+            contentDescription = when (layer) {
+                ReviewLayer.CLEAN -> "Clean Shot"
+                ReviewLayer.FINDING -> finding?.let { "Finding ${findingLabel(it.findingId)}" } ?: "No located Finding"
+                ReviewLayer.ACTION -> "Composition action"
+                ReviewLayer.GUIDE -> "${guideLabel(guide)} composition guide"
+            }
         },
     ) {
-        drawGuide(guide)
-        drawCompositionRead(grid, composition)
+        when (layer) {
+            ReviewLayer.CLEAN -> Unit
+            ReviewLayer.FINDING -> finding?.let { drawFinding(grid, composition, it) }
+            ReviewLayer.ACTION -> drawAction(grid, composition)
+            ReviewLayer.GUIDE -> {
+                drawGuide(guide)
+                drawGuideRead(grid, composition)
+            }
+        }
     }
 }
+
+enum class ReviewLayer { CLEAN, FINDING, ACTION, GUIDE }
 
 private fun DrawScope.drawGuide(guide: String) {
     val colour = WarmWhite.copy(alpha = 0.34f)
@@ -99,7 +117,20 @@ private fun DrawScope.drawGuide(guide: String) {
     }
 }
 
-private fun DrawScope.drawCompositionRead(grid: GridSpecDto, composition: CompositionDto) {
+private fun DrawScope.drawGuideRead(grid: GridSpecDto, composition: CompositionDto) {
+    val stroke = 2.dp.toPx()
+    composition.horizonRow
+        ?.takeIf { it in 1..grid.rows }
+        ?.let { row ->
+            val y = (row - 0.5f) * size.height / grid.rows
+            drawLine(WarmWhite.copy(alpha = 0.62f), Offset(0f, y), Offset(size.width, y), stroke)
+        }
+    subjectPoint(grid, composition)?.let {
+        drawCircle(WarmWhite, radius = 4.dp.toPx(), center = it)
+    }
+}
+
+private fun DrawScope.drawAction(grid: GridSpecDto, composition: CompositionDto) {
     val stroke = 2.dp.toPx()
     val crop = spanRect(composition.suggestedCropCells, grid)
     if (crop != null) {
@@ -121,36 +152,7 @@ private fun DrawScope.drawCompositionRead(grid: GridSpecDto, composition: Compos
             size = androidx.compose.ui.geometry.Size(size.width - crop.right, crop.height),
         )
         drawRect(WarmWhite, crop.topLeft, crop.size, style = Stroke(stroke))
-    } else {
-        spanRect(composition.subjectCells, grid)?.let { subject ->
-            drawRect(
-                WarmWhite.copy(alpha = 0.78f),
-                subject.topLeft,
-                subject.size,
-                style = Stroke(stroke),
-            )
-        }
     }
-
-    composition.horizonRow
-        ?.takeIf { it in 1..grid.rows }
-        ?.let { row ->
-            val y = (row - 0.5f) * size.height / grid.rows
-            drawLine(
-                WarmWhite.copy(alpha = 0.75f),
-                Offset(0f, y),
-                Offset(size.width, y),
-                stroke,
-            )
-        }
-
-    val subject = if (composition.subjectX != null && composition.subjectY != null) {
-        Offset(size.width * composition.subjectX.toFloat(), size.height * composition.subjectY.toFloat())
-    } else {
-        spanRect(composition.subjectCells, grid)?.center
-    }
-    subject?.let { drawCircle(WarmWhite, radius = 4.dp.toPx(), center = it) }
-
     if (crop == null) {
         val move = composition.moves.firstOrNull {
             it.kind == "move" && it.fromCells.isNotEmpty() && it.toCells.isNotEmpty()
@@ -160,6 +162,78 @@ private fun DrawScope.drawCompositionRead(grid: GridSpecDto, composition: Compos
         if (from != null && to != null) drawMove(from.center, to, stroke)
     }
 }
+
+private fun DrawScope.drawFinding(
+    grid: GridSpecDto,
+    composition: CompositionDto,
+    finding: FindingDto,
+) {
+    val stroke = 2.dp.toPx()
+    when (finding.findingId) {
+        "no_centre_of_interest" -> {
+            spanRect(finding.cells.ifEmpty { composition.subjectCells }, grid)?.let { region ->
+                drawRect(FindingRed.copy(alpha = 0.12f), region.topLeft, region.size)
+                drawRect(FindingRed, region.topLeft, region.size, style = Stroke(stroke))
+            }
+        }
+        "split_horizon" -> composition.horizonRow
+            ?.takeIf { it in 1..grid.rows }
+            ?.let { row ->
+                val y = (row - 0.5f) * size.height / grid.rows
+                drawLine(FindingRed, Offset(0f, y), Offset(size.width, y), stroke * 1.4f)
+                drawLine(
+                    FindingRed.copy(alpha = 0.65f),
+                    Offset(0f, size.height / 2f),
+                    Offset(size.width, size.height / 2f),
+                    stroke,
+                    pathEffect = PathEffect.dashPathEffect(floatArrayOf(stroke * 4, stroke * 3)),
+                )
+            }
+        "off_guide_subject" -> drawPlacementFinding(grid, composition, stroke)
+        "colour_cast" -> {
+            drawRect(FindingRed.copy(alpha = 0.08f))
+            drawRect(FindingRed, style = Stroke(stroke * 1.4f))
+        }
+        "camera_shake" -> drawRect(FindingRed, style = Stroke(stroke * 1.4f))
+        "blown_highlights" -> {
+            // Exact clipped pixels are painted into the finding_marked blob by
+            // the backend. The border keeps the layer legible for legacy Shots.
+            drawRect(FindingRed.copy(alpha = 0.8f), style = Stroke(stroke))
+        }
+        else -> spanRect(finding.cells, grid)?.let { region ->
+            drawRect(FindingRed.copy(alpha = 0.12f), region.topLeft, region.size)
+            drawRect(FindingRed, region.topLeft, region.size, style = Stroke(stroke))
+        }
+    }
+}
+
+private fun DrawScope.drawPlacementFinding(
+    grid: GridSpecDto,
+    composition: CompositionDto,
+    stroke: Float,
+) {
+    val point = subjectPoint(grid, composition) ?: return
+    val x = point.x / size.width
+    val y = point.y / size.height
+    val lines = listOf(1f / 3f, 2f / 3f, 0.382f, 0.618f, 0.5f)
+    val nearestX = lines.minBy { kotlin.math.abs(it - x) }
+    val nearestY = lines.minBy { kotlin.math.abs(it - y) }
+    val target = if (kotlin.math.abs(nearestX - x) >= kotlin.math.abs(nearestY - y)) {
+        Offset(size.width * nearestX, point.y)
+    } else {
+        Offset(point.x, size.height * nearestY)
+    }
+    drawCircle(FindingRed, radius = 5.dp.toPx(), center = point)
+    drawLine(FindingRed, point, target, stroke * 1.2f)
+    drawCircle(FindingRed.copy(alpha = 0.9f), radius = 9.dp.toPx(), center = target, style = Stroke(stroke))
+}
+
+private fun DrawScope.subjectPoint(grid: GridSpecDto, composition: CompositionDto): Offset? =
+    if (composition.subjectX != null && composition.subjectY != null) {
+        Offset(size.width * composition.subjectX.toFloat(), size.height * composition.subjectY.toFloat())
+    } else {
+        spanRect(composition.subjectCells, grid)?.center
+    }
 
 private fun DrawScope.drawMove(start: Offset, target: Rect, stroke: Float) {
     drawRect(
@@ -297,6 +371,16 @@ fun guideLabel(guide: String): String = when (guide) {
     "fill" -> "Frame fill"
     "none" -> "No"
     else -> "Thirds"
+}
+
+fun findingLabel(findingId: String): String = when (findingId) {
+    "camera_shake" -> "Camera shake"
+    "off_guide_subject" -> "Subject placement"
+    "split_horizon" -> "Split horizon"
+    "no_centre_of_interest" -> "Centre of interest"
+    "blown_highlights" -> "Blown highlights"
+    "colour_cast" -> "Colour cast"
+    else -> "Measured Finding"
 }
 
 private val CELL = Regex("^([A-Z])(\\d{1,2})$")

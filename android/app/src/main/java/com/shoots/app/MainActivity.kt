@@ -118,6 +118,9 @@ class MainActivity : ComponentActivity() {
                             pickerSessionId = ""
                             picker.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
                         },
+                        requestExperiment = { force ->
+                            scope.launch { viewModel.requestExperiment(force) }
+                        },
                         startExperiment = { experimentId ->
                             scope.launch {
                                 viewModel.reserveCaptureSession(experimentId)?.let(::launchCamera)

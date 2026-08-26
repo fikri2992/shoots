@@ -1,11 +1,15 @@
 package com.shoots.app.ui
 
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
+import androidx.compose.foundation.LocalIndication
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
@@ -17,11 +21,17 @@ import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -51,7 +61,7 @@ fun ShotsScreen(
 ) {
     Column(Modifier.fillMaxSize().background(Ink).statusBarsPadding()) {
         Column(Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 22.dp)) {
-            ScreenTitle("Shots", "Your record, frame by frame.", "Imported originals stay yours. Shoots records what it could and could not read.")
+            ScreenTitle("Archive", "Shots", "Every readable Shot becomes part of your record.")
         }
         if (shots.isEmpty() && pendingImports.isEmpty()) {
             Column(Modifier.fillMaxSize().padding(20.dp), verticalArrangement = Arrangement.Center) {
@@ -84,7 +94,11 @@ fun ShotsScreen(
                 if (canLoadMore) {
                     item(span = { GridItemSpan(maxLineSpan) }) {
                         Column(Modifier.fillMaxWidth().padding(vertical = 14.dp)) {
-                            SecondaryAction(if (busy) "Loading…" else "Load older Shots", onClick = onLoadMore)
+                            SecondaryAction(
+                                if (busy) "Loading…" else "Load older Shots",
+                                enabled = !busy,
+                                onClick = onLoadMore,
+                            )
                         }
                     }
                 }
@@ -95,12 +109,28 @@ fun ShotsScreen(
 
 @Composable
 private fun PendingImportTile(item: ImportEntity, onRetry: () -> Unit) {
+    val enabled = item.state in listOf(ImportState.DISCOVERED, ImportState.AUTH_REQUIRED)
+    val interactions = remember { MutableInteractionSource() }
+    val pressed by interactions.collectIsPressedAsState()
+    val scale by animateFloatAsState(
+        if (pressed) 0.975f else 1f,
+        animationSpec = tween(90),
+        label = "pending Shot press",
+    )
     Box(
         Modifier
             .fillMaxWidth()
             .aspectRatio(1f)
+            .graphicsLayer { scaleX = scale; scaleY = scale }
+            .clip(RoundedCornerShape(14.dp))
             .background(InkRaised)
-            .clickable(enabled = item.state in listOf(ImportState.DISCOVERED, ImportState.AUTH_REQUIRED), onClick = onRetry),
+            .clickable(
+                enabled = enabled,
+                interactionSource = interactions,
+                indication = LocalIndication.current,
+                role = Role.Button,
+                onClick = onRetry,
+            ),
     ) {
         AsyncImage(
             model = item.uri,
@@ -139,12 +169,33 @@ private fun PendingImportTile(item: ImportEntity, onRetry: () -> Unit) {
 
 @Composable
 private fun ShotTile(shot: ShotDto, url: String, onClick: () -> Unit) {
+    val interactions = remember { MutableInteractionSource() }
+    val pressed by interactions.collectIsPressedAsState()
+    val scale by animateFloatAsState(
+        if (pressed) 0.975f else 1f,
+        animationSpec = tween(90),
+        label = "Shot press",
+    )
+    val readingState = when (shot.status) {
+        "analyzed" -> null
+        "failed" -> "UNREADABLE"
+        "analysing" -> "READING"
+        "ingested" -> "WAITING"
+        else -> "PREPARING"
+    }
     Box(
         Modifier
             .fillMaxWidth()
             .aspectRatio(1f)
+            .graphicsLayer { scaleX = scale; scaleY = scale }
+            .clip(RoundedCornerShape(14.dp))
             .background(InkRaised)
-            .clickable(onClick = onClick),
+            .clickable(
+                interactionSource = interactions,
+                indication = LocalIndication.current,
+                role = Role.Button,
+                onClick = onClick,
+            ),
     ) {
         AsyncImage(
             model = url,
@@ -152,29 +203,31 @@ private fun ShotTile(shot: ShotDto, url: String, onClick: () -> Unit) {
             modifier = Modifier.fillMaxSize(),
             contentScale = ContentScale.Crop,
         )
-        Row(
-            Modifier
-                .align(Alignment.TopStart)
-                .fillMaxWidth()
-                .padding(7.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
-        ) {
+        readingState?.let { state ->
             Text(
-                when (shot.status) {
-                    "analyzed" -> "READ"
-                    "failed" -> "UNREADABLE"
-                    "analysing" -> "READING"
-                    "ingested" -> "WAITING"
-                    else -> "PREPARING"
-                },
+                state,
                 color = if (shot.status == "failed") FindingRed else WarmWhite,
                 fontSize = 9.sp,
                 fontWeight = FontWeight.Bold,
-                modifier = Modifier.background(Ink.copy(alpha = 0.75f)).padding(horizontal = 6.dp, vertical = 4.dp),
+                modifier = Modifier
+                    .align(Alignment.TopStart)
+                    .padding(7.dp)
+                    .background(Ink.copy(alpha = 0.75f), RoundedCornerShape(8.dp))
+                    .padding(horizontal = 6.dp, vertical = 4.dp),
             )
-            if (shot.keptAt != null) {
-                Text("KEEPER", color = Amber, fontSize = 9.sp, fontWeight = FontWeight.Bold, modifier = Modifier.background(Ink.copy(alpha = 0.8f)).padding(4.dp))
-            }
+        }
+        if (shot.keptAt != null) {
+            Text(
+                "KEEPER",
+                color = Amber,
+                fontSize = 9.sp,
+                fontWeight = FontWeight.Bold,
+                modifier = Modifier
+                    .align(Alignment.TopEnd)
+                    .padding(7.dp)
+                    .background(Ink.copy(alpha = 0.8f), RoundedCornerShape(8.dp))
+                    .padding(horizontal = 6.dp, vertical = 4.dp),
+            )
         }
         if (shot.error.isNotBlank()) {
             Text(

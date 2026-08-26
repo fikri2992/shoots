@@ -103,6 +103,18 @@ The photographer keeps using Android's normal camera. Shoots asks once for hones
 
 Android is the daily client. It shows Now, the Room-backed Shot archive, Shot Evidence, Keeper controls, Capture Session recovery, the Reproduce Record, Change, Technique Map, Tendency Profile, Journey, Drive, and account controls. Cached reads remain visible offline with their sync age. The web remains the deeper ActivityEvent and Run audit desk; both read one Photographer record.
 
+The daily mobile hierarchy is intentionally smaller than the data model:
+
+- **Now** has one focal state: the newest evidence-backed Shot result, an active Capture Session that needs attention, or capture setup before any result exists. The next normal-camera action sits directly beneath that value.
+- **Shots** is the visual archive. Shot detail leads with an interactive, evidence-limited annotation before prose.
+- **Experiments** owns today's offered Reproduce, on-demand Scout checks, the exact Keeper reference, Capture Session actions, and earlier Experiment Records.
+- **Journey** owns Tendency, Technique Map, and Change across time.
+- **Settings** is reached from the account control. Its sections are collapsed summaries until the photographer chooses one.
+
+Daily delivery and an on-demand request use the same Scout. Asking now changes timing, not standards: without a supported Keeper-backed direction, Shoots says why it stayed silent. Image marks follow the same rule. A located Finding is drawn where its measurement reaches; a whole-frame or unlocated Finding is labelled honestly rather than given a fictional hotspot.
+
+The Android interaction system uses one optical icon grid, one selected-tab indicator, short directional transitions between destinations, and selectable semantics for tabs and image layers. Motion confirms where state went and remains subordinate to the Shot. Legacy Experiments that predate Keeper-backed Reproduce stay readable but cannot be started under a false current label. Automatic Phone Source timestamps use the known MediaStore instant rather than shifting timezone-less EXIF; other source ambiguity remains explicit follow-up work.
+
 The earlier custom camera, Scene Probe, weather context, and Gemini Live direction are later Companion work. They are excluded from the Taskmaster proof.
 
 ## Why agents belong here

@@ -56,6 +56,11 @@ async def test_mobile_snapshot_etag_and_compatible_shot_cursor(tmp_path):
 
             snapshot = client.get("/api/mobile/snapshot")
             assert snapshot.status_code == 200, snapshot.text
+            assert (
+                snapshot.json()["latest_shot"]["shot"]["id"]
+                == snapshot.json()["recent_shots"][0]["id"]
+            )
+            assert snapshot.json()["latest_shot"]["analysis"] is None
             etag = snapshot.headers["ETag"]
             unchanged = client.get("/api/mobile/snapshot", headers={"If-None-Match": etag})
             assert unchanged.status_code == 304
