@@ -6,7 +6,7 @@
 ## Candidate
 
 The protected Shoot workflow remains available at `6ea693f` on
-`codex/shoot-record`. The candidate-protected continuation through `9e4a856` on
+`codex/shoot-record`. The candidate-protected continuation through `71eee57` on
 `codex/learning-memory` passed the complete local gate. Neither branch exists on the
 remote yet.
 
@@ -16,21 +16,25 @@ Implemented and locally proven:
 - independent Run, Capture Session, and Shoot barriers;
 - late-media Shoot Record revision without history rewrite;
 - deterministic evidence-labelled Shoot receipt with no quality score;
-- typed Scout `explain`, Keeper-backed `reproduce`, or `silence`, including exact
-  warrants and rejected unavailable routes;
+- typed Scout `explain`, consequential `ask`, corrected `explore`, Keeper-backed
+  `reproduce`, or `silence`, including exact warrants and rejected routes;
 - rebuildable Technique Map evidence axes, Mine/Inspiration correction, and scoped
   Photographer memory;
 - corrected Explore with immutable per-session Variations, observations, and no
   Criteria or Verdict;
 - evidence-bound Deconstruction preparation, 1080×1350 rendering, photographer-owned
   Keeper cover, and Android multi-image sharing;
+- replayable Intervention Records from offer through observable outcome, including
+  automatic route adaptation after repeated comparable unchanged outcomes;
+- one deterministic Shot Teaching Receipt that keeps Keep, Notice, Try, Check, and a
+  single matching image layer together on Android and web;
 - cached mobile snapshot and Now focal order;
 - offline receipt recovery after Room database reopen;
 - one real emulator WorkManager request through adb reverse, bearer authentication,
   backend snapshot, and Room write.
 
-The complete local evidence and the test-harness correction are recorded in
-[implementation order](implementation-order.md#checkpoint-result--2026-08-27).
+The current dependency order and acceptance boundaries are recorded in
+[implementation order](implementation-order.md#ordered-phases).
 
 ## Current gates
 
@@ -38,9 +42,10 @@ The complete local evidence and the test-harness correction are recorded in
 |---|---|---|
 | Backend format and lint | Ruff over `app` and `tests` | pass |
 | Backend behavior | complete pytest suite plus continuous Shoot acceptance | pass |
+| Web client | 33 integration and domain checks plus production build | pass |
 | Android debug build | `:app:assembleDebug` | pass |
 | Android static analysis | `:app:lintDebug` | pass |
-| Android instrumentation | 30 emulator tests passed; two hardware-only tests skipped | pass |
+| Android instrumentation | 33 emulator tests passed; two hardware-only tests skipped | pass |
 | Android/backend integration | authenticated `RefreshSnapshotWorker` produced a real `GET /api/mobile/snapshot` and cached it | pass separately |
 | 390 dp Now | receipt, processing, stale-revision, and Experiment focus tests | pass |
 | Cloud Run | project `agentic-system-505405` has `sh-api` and `visual-qa`; `sh-api` serves a different Scene Hunter app, so no Shoots service was found in `asia-southeast2` | not deployed |
