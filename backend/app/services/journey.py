@@ -227,7 +227,10 @@ def _evidence(
         names = ", ".join(t.replace("_", " ") for t in fresh_recurring)
         # Said without the machinery: the writer is told not to mention lenses
         # or confidences, and it will happily repeat any that appear here.
-        lines.append(f"now does reliably, seen and confirmed three separate times: {names}")
+        lines.append(
+            "now recurring in the record, seen clearly in at least three separate Shots: "
+            f"{names}; recurrence does not prove deliberate control"
+        )
 
     if retracted_recurring:
         names = ", ".join(t.replace("_", " ") for t in retracted_recurring)
@@ -277,6 +280,6 @@ def _correction_body(retracted: list[str]) -> str:
     return (
         f"Shoots corrected an earlier record: {examples}{more} no longer meet the current "
         "corroboration rule for recurring Techniques. Their sightings remain observed, but the "
-        "Evidence does not support calling them repeatable yet. This corrects Shoots' "
+        "Evidence no longer supports the recurring label. This corrects Shoots' "
         "interpretation, not your eye."
     )

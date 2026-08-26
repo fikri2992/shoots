@@ -18,6 +18,20 @@ from app.config import settings
 
 logger = logging.getLogger(__name__)
 
+_UNSUPPORTED_CONTROL_WORDS = (
+    " repeatable",
+    " repeatably",
+    " reliable",
+    " reliably",
+    " mastered",
+    " mastery",
+    " improved",
+    " improving",
+    " got better",
+    " better photographer",
+    " under control",
+)
+
 
 class JourneyOut(BaseModel):
     body: str = Field(description="One paragraph, three to five sentences, under 90 words.")
@@ -55,4 +69,9 @@ async def write(evidence: list[str], previous: str, taste_is_known: bool) -> str
     except Exception:  # noqa: BLE001 — the figures stand without the prose
         logger.exception("journey writer failed")
         return ""
-    return (out.body or "").strip()[:800]
+    body = (out.body or "").strip()[:800]
+    lowered = f" {body.lower()}"
+    if any(claim in lowered for claim in _UNSUPPORTED_CONTROL_WORDS):
+        logger.warning("journey writer returned an unsupported control or improvement claim")
+        return ""
+    return body

@@ -1327,7 +1327,7 @@ class JourneyUpdate(BaseModel):
     #: The paragraph the photographer reads.
     body: str
     #: What it was written from: exploration per dimension, what widened, which
-    #: techniques became repeatable, the dwell figure, and marked-Keeper counts.
+    #: Techniques became recurring, the dwell figure, and marked-Keeper counts.
     evidence: list[str] = Field(default_factory=list)
     #: Dimension ids that widened since the last update, widest first.
     widened: list[str] = Field(default_factory=list)

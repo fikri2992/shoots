@@ -4,6 +4,8 @@
 > [`backend/scripts/check_learning_quality.py`](../backend/scripts/check_learning_quality.py).
 > The manifest shape is shown in
 > [`eval/learning-quality.example.json`](../eval/learning-quality.example.json).
+> [`backend/scripts/check_journey_quality.py`](../backend/scripts/check_journey_quality.py)
+> separately checks the real Journey writer against recurrence and causation traps.
 
 ## Why this exists
 
@@ -157,6 +159,20 @@ Its SHA-256 is
 `5c161d5c760345e900a3b4b8307e4b90ca771c6958d794d1adc81c2b8bb1f4e3`.
 The committed example manifest preserves the reproducible contract without
 publishing the corpus.
+
+## Accepted Journey-writer run
+
+The local acceptance run on 2026-08-27 used two evidence-only cases against
+`gemini-3.7-flash` through Vertex AI under Journey prompt version `ddabb4791f14`:
+
+- a newly recurring Technique with no Reproduce session and unknown taste;
+- a measured distribution Change beside an earlier offer, without causal Evidence.
+
+Both returned usable paragraphs under 90 words. Neither converted recurrence into
+reliability, repeatability, mastery, improvement, or control; neither invented taste
+or said the offer caused the later Change. Code also discards a Journey paragraph if
+the writer emits one of those unsupported control or improvement phrases. The stored
+figures remain visible when prose is discarded.
 
 ## Completion rule
 

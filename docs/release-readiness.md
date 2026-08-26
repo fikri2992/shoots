@@ -48,7 +48,7 @@ The current dependency order and acceptance boundaries are recorded in
 |---|---|---|
 | Backend format and lint | Ruff over `app` and `tests` | pass |
 | Backend behavior | complete pytest suite plus continuous Shoot acceptance | pass |
-| Real-agent quality | 11 real Gemini cases, report SHA-256 `5c161d5c760345e900a3b4b8307e4b90ca771c6958d794d1adc81c2b8bb1f4e3`; developer review against the locked hobbyist perspective | pass locally |
+| Real-agent quality | 11 real Shot cases under report SHA-256 `5c161d5c760345e900a3b4b8307e4b90ca771c6958d794d1adc81c2b8bb1f4e3`, plus two real Journey-writer overclaim cases under prompt version `ddabb4791f14`; developer review against the locked hobbyist perspective | pass locally |
 | Web client | 34 integration and domain checks plus production build | pass |
 | Android debug build | `:app:assembleDebug` | pass |
 | Android static analysis | `:app:lintDebug` | pass |

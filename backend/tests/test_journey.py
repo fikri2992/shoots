@@ -131,7 +131,7 @@ async def test_the_second_update_diffs_against_the_first_not_against_nothing():
     assert second is not None and second.counts["placement"] == {"centred": 12, "near the edge": 6}
 
 
-async def test_a_technique_becoming_repeatable_earns_an_update_on_its_own():
+async def test_a_technique_becoming_recurring_earns_an_update_without_claiming_control():
     c = ctx()
     await seed(c, 12)
     await journey.maybe_write(c, "u1")
@@ -148,7 +148,9 @@ async def test_a_technique_becoming_repeatable_earns_an_update_on_its_own():
     update = await journey.maybe_write(c, "u1")
     assert update is not None
     assert "backlight" in update.became_recurring
-    assert any("now does reliably" in line for line in update.evidence)
+    recurrence = next(line for line in update.evidence if "now recurring" in line)
+    assert "recurrence does not prove deliberate control" in recurrence
+    assert all(word not in recurrence for word in ("reliably", "repeatable", "corroborat"))
 
 
 async def test_retracted_recurrence_writes_a_code_authored_correction(no_model):
@@ -182,6 +184,7 @@ async def test_retracted_recurrence_writes_a_code_authored_correction(no_model):
 
     assert correction is not None
     assert "corrected an earlier record" in correction.body
+    assert "repeatable" not in correction.body
     assert any("system correction" in line and "backlight" in line for line in correction.evidence)
     assert correction.provenance.model == "" and correction.provenance.prompt_version == ""
     assert len(no_model) == writer_calls
