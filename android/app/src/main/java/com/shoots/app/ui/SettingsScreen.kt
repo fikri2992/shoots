@@ -39,6 +39,7 @@ fun SettingsScreen(
     notificationsGranted: Boolean,
     busy: Boolean,
     onRequestMedia: () -> Unit,
+    onEnableSource: () -> Unit,
     onDisableSource: () -> Unit,
     onRequestNotifications: () -> Unit,
     onConnectDrive: () -> Unit,
@@ -94,6 +95,8 @@ fun SettingsScreen(
                 SecondaryAction("Change media access", onClick = onRequestMedia)
             } else if (source?.enabled == true) {
                 SecondaryAction("Stop automatic future import", onClick = onDisableSource)
+            } else {
+                SecondaryAction("Start automatic future import", onClick = onEnableSource)
             }
         }
 

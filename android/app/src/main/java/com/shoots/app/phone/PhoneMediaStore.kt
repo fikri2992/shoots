@@ -1,11 +1,13 @@
 package com.shoots.app.phone
 
 import android.Manifest
+import android.content.ContentResolver
 import android.content.ContentUris
 import android.content.Context
 import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Build
+import android.os.Bundle
 import android.provider.MediaStore
 import androidx.core.content.ContextCompat
 import com.shoots.app.data.ImportEntity
@@ -174,13 +176,18 @@ class PhoneMediaStore(
         val selection = "($date > ? OR ($date = ? AND $id > ?)) AND $cameraClause"
         val arguments = arrayOf(afterDate.toString(), afterDate.toString(), afterId.toString(), cameraValue)
         val order = if (newestFirst) "$date DESC, $id DESC" else "$date ASC, $id ASC"
+        val queryArguments = Bundle().apply {
+            putString(ContentResolver.QUERY_ARG_SQL_SELECTION, selection)
+            putStringArray(ContentResolver.QUERY_ARG_SQL_SELECTION_ARGS, arguments)
+            putString(ContentResolver.QUERY_ARG_SQL_SORT_ORDER, order)
+            putInt(ContentResolver.QUERY_ARG_LIMIT, limit)
+        }
         val result = mutableListOf<CameraItem>()
         context.contentResolver.query(
             MediaStore.Images.Media.EXTERNAL_CONTENT_URI,
             projection,
-            selection,
-            arguments,
-            "$order LIMIT $limit",
+            queryArguments,
+            null,
         )?.use { cursor ->
             while (cursor.moveToNext()) {
                 val mediaId = cursor.long(MediaStore.Images.Media._ID)

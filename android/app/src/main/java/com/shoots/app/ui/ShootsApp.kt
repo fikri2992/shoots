@@ -160,6 +160,7 @@ fun ShootsApp(
                     notificationsGranted,
                     busy,
                     actions.requestMedia,
+                    actions.enableSource,
                     actions.disableSource,
                     actions.requestNotifications,
                     actions.connectDrive,

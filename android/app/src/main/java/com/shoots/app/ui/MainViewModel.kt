@@ -81,7 +81,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         PhoneSourceScheduler.enqueueSync(app)
         viewModelScope.launch(Dispatchers.IO) {
             runCatching { repository.refreshSnapshot() }
-                .onFailure { error.value = friendly(it) }
+                .onFailure(::recordFailure)
         }
     }
 
@@ -157,7 +157,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     fun loadShot(id: String) {
         viewModelScope.launch(Dispatchers.IO) {
-            runCatching { repository.refreshShot(id) }.onFailure { error.value = friendly(it) }
+            runCatching { repository.refreshShot(id) }.onFailure(::recordFailure)
         }
     }
 
@@ -167,7 +167,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             busy.value = true
             runCatching { withContext(Dispatchers.IO) { repository.loadShotPage(reset) } }
                 .onSuccess { canLoadMoreShots.value = it }
-                .onFailure { error.value = friendly(it) }
+                .onFailure(::recordFailure)
             busy.value = false
         }
     }
@@ -222,18 +222,17 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             withContext(Dispatchers.IO) { block() }
             true
         } catch (exception: Exception) {
-            error.value = friendly(exception)
+            recordFailure(exception)
             false
         } finally {
             if (showBusy) busy.value = false
         }
     }
 
-    private fun friendly(exception: Throwable): String = exception.message
-        ?.replace(Regex("\\{.*\"detail\":\"([^\"]+)\".*}"), "$1")
-        ?.take(300)
-        ?.takeIf(String::isNotBlank)
-        ?: "Shoots could not finish that yet."
+    private fun recordFailure(exception: Throwable) {
+        if (isAuthenticationFailure(exception)) signedIn.value = false
+        error.value = friendlyMessage(exception)
+    }
 
     private object IntentFlags {
         const val READ = android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION

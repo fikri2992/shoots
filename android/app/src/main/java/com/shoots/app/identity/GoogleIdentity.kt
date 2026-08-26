@@ -6,8 +6,9 @@ import androidx.credentials.ClearCredentialStateRequest
 import androidx.credentials.CredentialManager
 import androidx.credentials.CustomCredential
 import androidx.credentials.GetCredentialRequest
+import androidx.credentials.exceptions.GetCredentialCancellationException
 import androidx.credentials.exceptions.NoCredentialException
-import com.google.android.libraries.identity.googleid.GetGoogleIdOption
+import com.google.android.libraries.identity.googleid.GetSignInWithGoogleOption
 import com.google.android.libraries.identity.googleid.GoogleIdTokenCredential
 import com.shoots.app.BuildConfig
 import java.security.SecureRandom
@@ -26,17 +27,16 @@ class GoogleIdentity(private val activity: Activity) {
             nonceBytes,
             Base64.URL_SAFE or Base64.NO_WRAP or Base64.NO_PADDING,
         )
-        val option = GetGoogleIdOption.Builder()
-            .setServerClientId(BuildConfig.GOOGLE_SERVER_CLIENT_ID)
-            .setFilterByAuthorizedAccounts(false)
-            .setAutoSelectEnabled(false)
+        val option = GetSignInWithGoogleOption.Builder(BuildConfig.GOOGLE_SERVER_CLIENT_ID)
             .setNonce(nonce)
             .build()
         val request = GetCredentialRequest.Builder().addCredentialOption(option).build()
         val credential = try {
             credentials.getCredential(activity, request).credential
+        } catch (exception: GetCredentialCancellationException) {
+            throw IllegalStateException("Google sign-in was cancelled", exception)
         } catch (exception: NoCredentialException) {
-            throw IllegalStateException("No Google account is available on this device", exception)
+            throw IllegalStateException("Google sign-in is unavailable on this device", exception)
         }
         check(
             credential is CustomCredential &&
