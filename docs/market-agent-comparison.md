@@ -1,6 +1,6 @@
 # Shoots agent system against the current market
 
-Research note, 2026-08-25.
+Research note retrieved 2026-08-25; Shoots target updated 2026-08-26.
 
 This is a market and implementation snapshot using the current product vocabulary.
 Competitor language such as challenge, score, and progression is retained only when
@@ -12,7 +12,7 @@ Shoots is not the first AI photography coach, the first live camera coach, the
 first product with personalized practice, or the first product to compare a
 retake with an earlier Shot. Those positions are already occupied.
 
-Its defensible difference is architectural:
+Its current defensible difference is architectural:
 
 > No product in this sample publicly documents the same full chain: an
 > automatic Shot trigger, separately bounded expert readers, measured Evidence
@@ -25,6 +25,17 @@ disagreement, a deterministic decision, an external action, and the next state
 transition. Saying "eight agents" will not establish it. [Kiratiq already
 markets a 10-agent critique panel](https://www.kiratiq.com/), and several
 simpler products already deliver the consumer outcome Shoots describes.
+
+The locked target makes the difference easier to value:
+
+> Shoots turns an ordinary phone Camera period into one checked learning record:
+> every Shot accounted for, repeated and varied decisions synthesized across
+> Scenes, one warranted learning action or silence, longitudinal memory updated,
+> and one visual Deconstruction drafted without manual upload or review.
+
+That target is not implemented. It adds the missing work unit above the existing
+per-Shot pipeline; it does not justify claiming market novelty before the continuous
+run exists.
 
 The closest direct competitors for deliberate practice are PickEpic,
 ShutterCoach, and PhotoCritique.ai. The strongest benchmarks for work completed
@@ -40,8 +51,9 @@ the exact camera moment.
 - Most vendors do not publish their internal routing, prompts, models, scoring
   contracts, or state machines. Those fields remain **not disclosed**. Product
   copy is not evidence of a multi-agent architecture.
-- Shoots was read from the local working tree on 2026-08-25. Current build claims
-  below are limited to behavior present in that tree. Explicit Intent and the
+- Shoots current-build claims were refreshed from the local working tree on
+  2026-08-26. The Shoot-level layer is labelled target throughout. Explicit Intent,
+  corrected Explore, persisted Scene/Shoot records, Deconstruction, and the
   scene-aware Android Companion remain unbuilt.
 
 ## What Shoots actually implements
@@ -315,29 +327,67 @@ the photographer's selection preferences or an emerging style.
 | Style and identity | Keeper-linked distributions exist; explicit style interpretation does not | Aftershoot culling and editing profiles; Photo DNA and Style Fingerprint | Shoots has an honest taste signal but not yet the identity layer |
 | Intent handling | Inferred Technique and current Experiment; proposed explicit Intent is not implemented | PhotoCritique lets the photographer declare special techniques and critique focus | Shoots can currently misread intentional rule-breaking |
 
+Target additions, not current market claims:
+
+| Capability | Locked Shoots target | Why it matters |
+|---|---|---|
+| Automatic Shoot closure | Capture continuity groups approved Camera Shots into Scenes and one Shoot; a barrier waits for every Run and leaves one terminal Shoot Record | Converts background processing into one finished user-visible job instead of a critique queue |
+| Evidence of control | Recurrence, distinct Scenes, explicit Reproduce attempts, Criteria outcomes, conditions, Keeper counts, and comparable Change remain separate | Answers deliberate-versus-lucky without inventing one skill score |
+| Typed intervention | Domain code chooses explain, ask, Explore, Reproduce, or silence before a model writes | Makes orchestration a consequential decision, not prompt routing theatre |
+| Source authority | Manual imports declare Mine or Inspiration; reference work cannot alter Photographer memory | Prevents personalized learning from being trained on someone else's work |
+| Shareable action | Scribe drafts an image-led Deconstruction from stored Evidence; the photographer chooses cover and posting | Leaves a valued artifact while preserving taste and social authority |
+
+## Category fit after the Shoot-level decision
+
+Shoots should enter **Taskmaster**, not Collaborative Partner.
+
+- **Bring Your Own Friction:** the photographer already creates roughly thirty phone
+  Shots in a session but cannot tell whether valued results came from controllable
+  decisions. Manual upload, one-by-one critique, memory, comparison, and follow-up are
+  the friction.
+- **Autonomous execution:** after media permission, the target intercepts the Camera
+  stream, settles member Runs, assembles Scenes and a Shoot, synthesizes the record,
+  updates memory, chooses a justified next action, and drafts a shareable artifact.
+  The photographer supplies Shots and optional authority signals, not workflow steps.
+- **Twist:** automation is used for personal learning bookkeeping rather than office
+  operations. The output is not generated advice; it is an auditable Shoot Record,
+  Experiment Record, Change, Journey Update, and optional Deconstruction.
+- **Collaborative Partner evidence is secondary:** the system does synthesize a messy
+  image stream, but the entry should not split its claim. The clearest judged action is
+  the continuous background workflow completed on the photographer's behalf.
+
+The current build does not yet satisfy that story because it closes per-Shot Runs and
+Reproduce batches, not a natural Shoot. P0.30 through P0.35 in the
+[feature list](feature-list.md) are the missing proof.
+
 ## What this means for the hackathon story
 
-Do not lead with the number or names of agents. Lead with the separation of
-authority and show it in motion:
+Do not lead with the number or names of agents. Lead with one ordinary Camera period
+becoming finished learning work, then expose the authority separation underneath:
 
-1. A Shot arrives without a prompt.
-2. Three expert readers disagree on a Technique.
-3. Measured Evidence vetoes or corroborates the claim.
-4. Cartographer updates only supported Technique Evidence.
-5. Scout offers an Experiment only when the archive supports a Direction.
-6. Judge applies Criteria that the feedback model cannot move.
-7. Scribe writes the reviewed Shot into Drive; later comparable Shots leave a Change.
-8. Criteria met closes atomically and asks Scout again; unsupported advice is silence.
+1. Several ordinary Camera Shots arrive without upload or Analyse controls.
+2. Existing per-Shot Runs measure and read them; measured Evidence can veto model
+   opinion.
+3. Capture continuity assembles Scenes and one Shoot; a barrier accounts for every
+   readable, retrying, or terminal member.
+4. Shoot synthesis shows what repeated and what varied without ranking artistic
+   quality.
+5. Cartographer updates separate longitudinal evidence axes.
+6. Domain code lets Scout explain, ask, offer Explore, offer Reproduce, or stay silent;
+   the chosen route and rejected routes remain inspectable.
+7. One explicit Experiment preserves its manifest and type-specific Evidence. Judge
+   alone checks Reproduce Criteria.
+8. Scribe drafts a Deconstruction; ActivityEvents and stored records prove every
+   transition.
 
 The demo should expose the ActivityEvents and the exact Evidence behind the
 transition. That is what makes the system look intentional rather than like
 several prompts connected in sequence.
 
-The next architectural improvement should be bounded failure adaptation, not
-another agent persona. A failed Experiment should produce a classified reason, then
-allow Scout to change timing, instruction, or required setup while preserving
-the original Criteria. The next Shot must still face the same Judge. That would
-demonstrate replanning without moving the goalposts.
+The next architectural improvement is the Shoot aggregate and typed Scout decision,
+not another agent persona. Bounded failure adaptation follows after the system can
+observe repeated comparable intervention outcomes. Replanning must preserve the
+original Experiment Record instead of moving Criteria after seeing a result.
 
 ## Safe and unsafe market claims
 
@@ -350,6 +400,12 @@ Safe:
 > In the products reviewed here, none publicly documents Shoots' combination of
 > automatic Shot intake, multi-reader Evidence, fixed-criteria Verdicts, Drive
 > writeback, and automatic next-Experiment planning.
+
+Target claim, safe only after the continuous run is implemented:
+
+> Shoots turns an ordinary phone Shoot into an auditable learning record, chooses
+> the kind of help the Evidence supports, and checks what happened next without
+> scoring artistic quality.
 
 Unsafe:
 

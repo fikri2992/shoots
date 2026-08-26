@@ -1,10 +1,24 @@
 # Build diary
 
 Historical implementation notes below preserve what was tried, including features
-later removed. They are not current behavior. As of 2026-08-26, decisions 52–90 in
+later removed. They are not current behavior. As of 2026-08-26, decisions 52–100 in
 [the domain model](domain-model.md) supersede score storage, Keeper-rate arithmetic,
 curriculum selection, capped longitudinal corpora, and automatic Director/Veo work.
-Current status is in [the feature list](feature-list.md).
+Current status is in [the feature list](feature-list.md). The active execution
+sequence is [implementation order](implementation-order.md).
+
+## Day 15 notes (2026-08-26), Shoot-level learning record
+
+- Reframed the personal problem around a self-directed phone photographer who can make Shots and knows some Techniques but cannot distinguish deliberate control from luck, random repetition, or vague encouragement. The product question is now: “Which photographic decisions am I making repeatedly, which can I now make on purpose, and how is that changing across my Shoots?”
+- Separated the learning scales. A Shot is atomic media and Evidence; a Scene is one photographic situation; a Shoot is one natural Camera period across Scenes; Journey is longitudinal. Capture Session remains orthogonal explicit Experiment participation.
+- Defined the completed Taskmaster work as a terminal Shoot Record. Phone Source intercepts ordinary Camera media; existing Runs analyse each Shot; a new aggregate barrier accounts for every member; synthesis records what repeated and varied; Cartographer updates memory; Scout chooses explain, ask, Explore, Reproduce, or silence; Scribe attempts one Deconstruction draft.
+- Rejected an overall skill or image score. Quantification stays as inspectable evidence axes: corroborated sightings, distinct Scene coverage, recurrence, explicit Reproduce attempts and Criteria outcomes, condition transfer, positive Keeper counts, and comparable distribution Change.
+- Made source authority explicit. Approved Camera media defaults to the Photographer's Shot. Ambiguous manual imports ask Mine or Inspiration. Inspiration may be studied or seed an Experiment, but never updates the Photographer's Technique Map, Tendency Profile, Change, or Journey.
+- Made the Shot read image-led: one supported decision, one scoped Finding or labelled observation, one concrete Move, and one visible check. A camera or subject Move outranks crop salvage; generic grids appear only when they explain stored geometry.
+- Selected corrected Explore as the next Experiment type. It offers bounded Variations and records visible differences without a Verdict. Reproduce keeps frozen Criteria and Judge. Compare remains later.
+- Defined Deconstruction as a shareable draft built from stored Evidence, one visual claim per page. The photographer selects the Keeper cover, export, and posting. Shoots does not automate taste or social publishing.
+- The architecture target deepens the existing pipeline instead of adding a critic swarm. Code owns grouping, barriers, evidence arithmetic, eligibility, and transitions. One bounded Shoot reader handles unresolved visual comparison. Scout writes only inside a code-selected route and stores its warrant and rejected routes.
+- This pass changed documentation only. Persisted Scene/Shoot lifecycle, Shoot synthesis, typed Scout routing, corrected Explore, source authority, and Deconstruction remain unbuilt until their feature-list rows are completed.
 
 ## Day 14 notes (2026-08-26), decision-led Android redesign
 

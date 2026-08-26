@@ -4,7 +4,7 @@
 
 The ubiquitous language. If a word is not here, it is not a thing.
 
-The product language below was locked on 2026-08-25 and corrected from real-phone use on 2026-08-26. Experiment, Finding, Technique Map, Change, Shot, and Run are current across code and UI. Variation and Live Scene Session are target terms that are not implemented yet. Only the legacy `skills` Firestore collection key and the migration-target class name `TechniqueState` remain. Overall and element scores are not stored. The numbered history retains old identifiers only while describing a superseded implementation; decisions 52 through 90 are the current contract wherever history conflicts.
+The product language below was locked on 2026-08-25 and corrected from real-phone use and Shoot-level product work on 2026-08-26. Experiment, Finding, Technique Map, Change, Shot, and Run are current across code and UI. Shoot, Shoot Record, Deconstruction, corrected Explore, and persisted Inspiration are target terms that are not implemented yet. Only the legacy `skills` Firestore collection key and the migration-target class name `TechniqueState` remain. Overall and element scores are not stored. The numbered history retains old identifiers only while describing a superseded implementation; decisions 52 through 100 are the current contract wherever history conflicts.
 
 
 
@@ -12,27 +12,33 @@ The product language below was locked on 2026-08-25 and corrected from real-phon
 
 
 
-Shoots is an event-driven control loop: watch, diagnose, remember, plan, verify, write back, and keep an audit trail. The claim is the implemented chain and the artifacts it leaves, not the number of agents.
+Shoots is an event-driven control loop: watch, assemble, read, remember, plan, verify, write back, and keep an audit trail. The claim is the completed learning work and the artifacts it leaves, not the number of agents.
 
 
 
 ```
 
-Android Phone Source or Drive import receives a Shot                  (watch)
+Android Phone Source receives a Shot                                 (watch)
   → Ingest reads file, EXIF, Tone, Motion, grid, and video frames
   → Analyst produces measured and visual Evidence, Findings, and a reading
-      ├→ Cartographer updates Technique Map; recomputes Profile and Journey
+      ├→ Cartographer updates Technique Map and Tendency Profile
       └→ Judge, only for an explicit Reproduce submission
            → Verdict or explicit abstention
            → Scribe writes the reviewed Shot back to Drive
 
-first readable archive / closed Experiment / daily tick                (plan)
-  → Scout derives a cited Experiment Direction
-      ├→ one atomic open Experiment with type-specific Variations or Criteria
-      └→ silence when no Direction is supported
+capture continuity groups Shots into Scenes and one Shoot             (assemble)
+  → every member Run settles or ends terminally
+  → Shoot synthesis records what repeated, varied, and became deliberate
+  → Cartographer recomputes Profile, Technique Map, Change, and Journey
+  → Scout chooses explain, ask, Explore, Reproduce, or evidenced silence
+  → Scribe attempts one Deconstruction draft
+
+manual reference import → Inspiration study → optional Experiment Direction
+  → never enters the Photographer's Technique Map, Profile, Change, or Journey
 
 every step → ActivityEvent; every accepted Shot → one durable Run      (audit)
-photographer → shutter, optional Experiment participation, Keeper, and Intent (signal)
+every closed Shoot → one terminal Shoot Record                       (audit)
+photographer → shutter, optional Experiment participation, Keeper, Intent, and source role (signal)
 Live Scene Session → temporary audio + Scene frames → question, move, or guide
 
 ```
@@ -57,7 +63,7 @@ Live Scene Session → temporary audio + Scene frames → question, move, or gui
 
 
 
-**Finding.** One checkable issue or observation about a Shot. A measured Finding carries the figure and rule that produced it (`domain/findings.py`, and `imaging/findingmark.py` draws it on the pixels it was computed from). A model Finding stays labelled as opinion; nothing produces one yet. A Finding may be excused by corroborated Technique Evidence or explicit Intent, which is why detection runs after the vote. The closed list is six: camera shake, no centre of interest, a horizon that splits the frame, a subject on no line, highlights blown to white, an uncorrected colour cast.
+**Finding.** One checkable issue or observation about a Shot. A measured Finding carries the figure and rule that produced it (`domain/findings.py`, and `imaging/findingmark.py` draws it on the pixels it was computed from). A model Finding stays labelled as opinion; nothing produces one yet. A Finding may be excused by corroborated Technique Evidence or explicit Intent, which is why detection runs after the vote. The vocabulary remains six: camera shake, no centre of interest, a horizon that splits the frame, a subject on no line, highlights blown to white, and an uncorrected colour cast. A detector exists only where its signal supports that mechanism; subject-area share alone cannot emit `no_centre_of_interest`.
 
 **Analysis.** Everything recorded about one Shot: Evidence, Findings, composition read, measured facts, model observations, critique, and the model and prompt version that produced the visual reading. It stores no overall or element score. A model reading is traceable to its inputs, not mechanically reproducible from a calculation version.
 
@@ -71,7 +77,7 @@ Live Scene Session → temporary audio + Scene frames → question, move, or gui
 
 **Motion.** How the camera itself travelled, measured between consecutive frames in `imaging/motion.py` and read in `domain/motion.py`. Signed drift in frame widths, the mean and largest step, direction reversals and the share of steps that did not move.
 
-**Technique Map.** One longitudinal record per photographer and Technique (`TechniqueState`, `domain/technique_map.py`). Three states: `unobserved`, `observed` once the Evidence has seen it, `recurring` after three corroborated sightings. Corroborated Evidence moves the state and model scores move nothing. Time moves nothing either — what recurred keeps having recurred, so there is no decay and no `rusty`; age alone is never an Experiment Direction.
+**Technique Map.** One longitudinal record per photographer and Technique (`TechniqueState`, `domain/technique_map.py`). Three states: `unobserved`, `observed` once the Evidence has seen it, `recurring` after three corroborated sightings. Recurrence, explicit Reproduce attempts, Reproduce Criteria outcomes, distinct Scene coverage, conditions, and positive Keeper counts remain separate evidence; none collapses into a skill score. Corroborated Evidence moves the state and model scores move nothing. Time moves nothing either — what recurred keeps having recurred, so there is no decay and no `rusty`; age alone is never an Experiment Direction.
 
 
 
@@ -93,7 +99,11 @@ Live Scene Session → temporary audio + Scene frames → question, move, or gui
 
 **Run.** The durable stage account for one accepted Shot. It records Ingest, Analyst, Cartographer, Scout, Judge, and Scribe outcomes separately, including retry, abstention, non-applicability, and external-write results. A Run becomes complete only when every required stage has settled; a terminally unreadable Shot ends the Run with a terminal result. ActivityEvents explain what happened, while Run state decides whether the work is finished.
 
-**Scene.** One photographic situation at one place and time containing one or more Shots. Scene membership must come from capture continuity or explicit grouping, not visual similarity alone.
+**Scene.** One photographic situation at one place and time containing one or more Shots inside a Shoot. Scene membership must come from capture continuity or explicit grouping, not visual similarity alone.
+
+**Shoot.** One natural period of Camera activity containing one or more Scenes. Capture continuity assigns membership, with an explicit correction allowed; visual similarity alone does not. A Shoot is `open` while capture-continuous Camera media may extend it, `closing` after the inactivity gap while known member Runs settle, and `settled` when its current revision has one terminal Shoot Record. A late Camera Shot or Photographer correction increments the revision and returns it to `closing` without mutating the earlier record. A Shoot is not an Experiment and does not imply that any member joined one. A Shot may belong to both one Shoot and one Capture Session because those records answer different questions.
+
+**Shoot Record.** The durable result of one settled Shoot: exact Scene and Shot membership, member coverage, observed decision distributions, Variations, Technique Evidence, positive Keeper signals, provenance, and the recorded Scout outcome. It is a learning record, not a quality report or score.
 
 **Tendency.** A neutral repeated pattern across Shots. It describes a distribution or low-variance dimension and carries its Shot set, count, blind spots, and calculation version. It does not imply a problem or Intent.
 
@@ -117,7 +127,7 @@ Live Scene Session → temporary audio + Scene frames → question, move, or gui
 
 **Phone Source.** The narrow Android client that makes the phone's normal Camera album an event source. After one explicit permission grant, it observes only approved Camera media, identifies unseen files by a stable local reference, and schedules their upload to Shoots. Full media access permits automatic future imports. Selected-media access permits only explicit import and must never be presented as automatic. It does not replace the system camera, read screenshots or messaging folders, or edit and delete local media.
 
-**Capture Session.** One explicit, bounded Android handoff from an open Reproduce Experiment to the system camera. It reserves the Experiment before the camera opens, then freezes the exact ordered Camera source references the photographer included when they return. The explicit session assigns those Shots; capture time never does. A Capture Session is not a Scene, does not imply that its Shots share one place or subject, and never gives Shoots control of the shutter. It may be `reserved`, `committed`, `processing`, `settled`, `cancelled`, or `expired`.
+**Capture Session.** One explicit, bounded Android handoff from an open Experiment to the system camera. It reserves the Experiment before the camera opens, then freezes the exact ordered Camera source references the photographer included when they return. The explicit session assigns those Shots; capture time never does. A Capture Session is not a Shoot or Scene, does not imply that its Shots share one place or subject, and never gives Shoots control of the shutter. Reproduce uses its members for Criteria outcomes; corrected Explore uses them for Variation observations without a Verdict. It may be `reserved`, `committed`, `processing`, `settled`, `cancelled`, or `expired`.
 
 **Companion.** Shoots' quiet relationship with the photographer across shoots. In the Taskmaster build it appears through one optional Experiment, proof-carrying results, and silence when Evidence is insufficient. The earlier CameraX viewfinder, Scene Probe, and Live Scene Session are later work, not the Android product boundary or the hackathon proof.
 
@@ -125,7 +135,9 @@ Live Scene Session → temporary audio + Scene frames → question, move, or gui
 
 **Scene Probe.** A temporary capture for inspecting the current Scene without creating a Shot. It is the silent fallback when a Live Scene Session is unavailable or the photographer does not want audio. The server may use explicit Intent and an optionally selected Experiment, then returns one question, Variation, move, or refusal. The bytes are discarded after the response. A Scene Probe never enters the Shot archive, Technique Map, Tendency Profile, or Journey; only its ActivityEvent is durable.
 
-**Inspiration.** Optional sourced reference material attached to an Experiment. It may help the photographer explore, but it is not an Experiment, an artifact of completed work, or a reason to generate media by default.
+**Inspiration.** Sourced reference material the photographer explicitly chooses to study. It may carry its own bounded Analysis and Deconstruction and may support an Experiment Direction, but it is not a Shot, Keeper, or Photographer Evidence and never enters the Technique Map, Tendency Profile, Change, or Journey.
+
+**Deconstruction.** A shareable, image-led explanation of one Shot, Scene, Shoot, Experiment result, or Inspiration, rendered from stored Evidence and labelled model reads. A carousel is one presentation of a Deconstruction. It is a draft the photographer may export, never an automatic social post, quality grade, or source of longitudinal truth.
 
 **Provenance.** The record of how a claim was produced. Deterministic claims carry their calculation version and exact Shot set. Model-read claims additionally carry the Analysis model, prompt version, and a per-Shot digest of the exact soft fields used. Provenance promises replay for arithmetic and traceability plus revision detection for model interpretation; it never calls model output deterministic.
 
@@ -141,17 +153,17 @@ Live Scene Session → temporary audio + Scene frames → question, move, or gui
 
 | Ingest | `media.new` | Drive import or direct Android upload | Shot, blobs, Tone, Motion | none (ffmpeg, Pillow, numpy) |
 
-| Analyst | `media.ingested` | gridded frame, clean frame, EXIF | Analysis with voted Evidence, Findings, observations, and critique | gemini-3.7-flash × 4: three parallel lenses then a Synthesizer |
+| Analyst | `media.ingested`; target `shoot.ready` | one Shot; target settled Shoot facts and member Analyses | Analysis; target Shoot-level decision and Variation synthesis | gemini-3.7-flash × 4 per Shot; one bounded Shoot reader only where arithmetic cannot settle the comparison |
 
-| Cartographer | `media.analyzed` | Analysis and Technique Map | Technique Map; triggers Profile, Change, and Journey recomputation | none (pure) |
+| Cartographer | `media.analyzed`; target `shoot.synthesized` | Analysis, Shoot Record, and Technique Map | Technique Map; Profile, Change, and Journey recomputation | none (pure) |
 
 | Judge | explicit Reproduce result analysed | Analysis, Experiment | Verdict and Reproduce state | gemini-3.7-flash for feedback only; checks are pure |
 
-| Scout | first profile, scheduled tick, completed Experiment | Technique Map, Tendency Profile, Keeper signals, constraints | one typed Experiment with reason, Baseline, Variations or Criteria, and delivery time | gemini-3.7-flash + Search grounding where a reference is useful |
+| Scout | first settled Shoot, scheduled tick, completed Experiment, explicit request | Shoot Record, Technique Map, Tendency Profile, Experiment history, Keeper and Intent signals, constraints | typed choice to explain, ask, offer Explore, offer Reproduce, or stay silent; one Experiment when permitted | gemini-3.7-flash + Search grounding where a reference is useful |
 
 | Director | manual legacy call only | open Experiment and Technique | optional generated reference clip | gemini-3.7-flash, veo-3.1-fast; outside the core product |
 
-| Scribe | `media.judged` | annotated frame, Analysis, Verdict | reviewed copy in the user's Drive | none (Pillow) |
+| Scribe | `media.judged`; target `shoot.settled` | annotated Shot, Shoot Record, Analysis, Experiment result, selected Keeper | reviewed copy and optional Deconstruction draft | none (Pillow) |
 
 | Coach | Live Scene Session or reviewed-Shot summon | current Scene frames, audio, optional Experiment, Intent, Analysis where available, explicit memory | question, Variation, move, guide tool, optional Experiment or remembered fact, ActivityEvent | gemini-live-2.5-flash-native-audio; gemini-3.7-flash Listener |
 | Android Phone Source | approved Camera media changes or explicit picker selection | unseen Camera items, selected open Experiment, revocable device session | stable source reference, original Shot bytes, import/retry state | none; WorkManager and MediaStore |
@@ -312,7 +324,7 @@ Cartographer and Judge state changes are pure code. The Technique Map, Criteria 
 
 72. **Android and web are two clients of one Shoots identity.** Android signs in with the same verified Google identity as web and receives a revocable Shoots device session. The release build carries one stable service origin; no photographer enters a server address or transfers a pairing code. Android sends captured bytes directly to Shoots storage and publishes the same `media.new` event as any other source. Drive becomes optional import and export, not the camera's transport or the product's identity boundary. The code-pairing screen and Drive-mediated camera upload are transitional implementation only. This supersedes decision 1 and the pairing assumption in decision 35.
 
-73. **Gemini Live is the summoned Scene Companion, not only a post-Shot review.** When the photographer summons it, Android streams microphone audio and low-rate Scene frames to the Shoots WebSocket relay. The relay opens Gemini Live server-side, provides current Intent, the optional Experiment, relevant photographic memory, and measured camera facts, then returns interruptible audio and transcripts. A guide tool receives cell refs and Android converts them to a human overlay. The model may ask, suggest, remember an explicit fact, or offer a Variation. It cannot capture a Shot. Silence resumes when the session ends. A one-frame Scene Probe remains the no-audio and degraded-network fallback. This supersedes decisions 10, 35, 47, and 65 wherever they restrict the Companion to a fixed reviewed Shot or a Criteria-only Ask.
+73. **Gemini Live is the summoned Scene Companion, not only a post-Shot review.** When the photographer summons it, Android streams microphone audio and low-rate Scene frames to the Shoots WebSocket relay. The relay opens Gemini Live server-side, provides current Intent, the optional Experiment, relevant photographic memory, and measured camera facts, then returns interruptible audio and transcripts. A guide tool receives cell refs and Android converts them to a human overlay. The model may ask, suggest, remember an explicit fact, or offer a Variation. It cannot capture a Shot. A direct Photographer statement may be remembered with transcript provenance, and the `remember` tool reports what it stored. A derived implication, inferred Intent, preference, or source role requires confirmation. The current post-session Listener merge lacks per-fact provenance and correction and remains migration work rather than target behaviour. Silence resumes when the session ends. A one-frame Scene Probe remains the no-audio and degraded-network fallback. This supersedes decisions 10, 17, 35, 47, and 65 wherever they restrict the Companion to a fixed reviewed Shot, a Criteria-only Ask, or unqualified Listener memory.
 
 74. **The camera and the archive run on different clocks.** Foreground interaction cannot wait for the full Analyst panel. Android acknowledges Talk locally, prepares the Live transport without sending camera or microphone data before an explicit summon, and returns camera control after capture while upload and Analysis continue. Acceptance measures time to listening state, time to first Live audio, capture to ready camera, and capture to background pulse separately. On the real acceptance device, a ready Live Scene Session targets first audio at or below 1.5 seconds median and 3 seconds at p90 over at least 20 turns. Deep Analysis keeps the corroborating panel and publishes when complete; it never locks the viewfinder. The fast answer is a labelled Scene read, not a substitute for Evidence, Verdict, Change, or Journey.
 
@@ -347,3 +359,23 @@ Cartographer and Judge state changes are pure code. The Technique Map, Criteria 
 89. **A legacy Experiment cannot masquerade as a current Reproduce.** Android may start a Capture Session only when the open Experiment is `reproduce`, has one exact Keeper `reference_shot_id`, and declares visible Criteria. An older Explore, missing reference, or otherwise incomplete record stays visible as an older record, but the client names the gap and offers an explicit supported replacement instead of relabelling it, inventing a reference, or sending result Shots into it. Stored `skipped` is rendered as the neutral current term `left`.
 
 90. **A known Phone Source instant outranks a guessed EXIF conversion.** An automatic Android Camera item displays the MediaStore `DATE_ADDED` instant already frozen into its stable source reference instead of a timezone-less EXIF wall clock treated as UTC. Selected and Drive imports still fall back to the capture or ingest fact they carry; correcting their timezone ambiguity is separate work. This display rule does not upgrade naive EXIF into solar or location Evidence.
+
+91. **The completed learning unit is a Shoot, not one Shot.** A Shot remains the atomic media and Analysis unit. Capture continuity groups Shots into Scenes and Scenes into one natural Shoot so Shoots can describe how the photographer worked several situations without asking them to upload, tag, or review every file. A Capture Session remains orthogonal explicit Experiment participation. This deepens decision 77: the per-Shot Run is necessary Evidence, while the settled Shoot Record is the background learning work the photographer receives.
+
+92. **Quantification measures evidence of control, not a photography skill score.** Technique sightings, distinct Scene coverage, recurrence, explicit Reproduce attempts, Criteria outcomes, condition coverage, positive Keeper counts, and comparable Change remain separate figures. One occurrence cannot distinguish control from luck. Recurrence alone cannot prove Intent. Explicitly reproducing a declared decision across Scenes is stronger evidence of control, but still does not license an overall ability or quality grade.
+
+93. **A Shoot settles only after its members are accounted for.** Capture continuity may close a Shoot after inactivity, but synthesis waits until every member Run is complete or terminal. The terminal Shoot Record stores exact membership, unreadable coverage, Scene and Variation synthesis, longitudinal checks, Scout's action or evidenced silence, and the result of any Deconstruction attempt. Run, Capture Session, and Shoot barriers inspect the same per-Shot Run without duplicating Analysis and settle independently over different member sets. Capture Session membership never changes after manifest commit and waits only for its explicit members. Shoot membership may receive a newer revision from any late Camera Shot, including a committed Capture Session member uploaded later, and never waits for unrelated Experiment state. One Run settlement may trigger both aggregate checks. Replaying either check is idempotent. The current client resolves the newest Shoot Record revision while earlier records and ActivityEvents remain inspectable; late discovery never disappears into a stale current summary.
+
+94. **Free shooting is the default and reflection is batch-level.** A free Shot updates its Evidence without claiming the photographer must read a critique. The daily Companion speaks primarily after a meaningful Shoot or settled Experiment, showing what repeated, what varied, what became deliberately reproducible, and what changed against a comparable earlier set. Shot detail remains the audit evidence. Thirty isolated essays are not a Shoot reflection.
+
+95. **Scout chooses the kind of help before writing it.** From a settled Shoot and the Photographer's record, a typed, stored Scout decision may explain supported work, ask one consequential Intent question, offer corrected Explore, offer Keeper-backed Reproduce, or stay silent. Code gates the available routes and records the Evidence permitting the choice and why unsupported routes were rejected; the model writes only inside the selected envelope. Until a route is implemented, Scout chooses silence rather than disguising another Experiment type as it.
+
+96. **Mine versus Inspiration is an authority boundary.** Approved Camera media defaults to the Photographer's Shot. A manual import that may be someone else's work asks for the smallest decisive signal: Mine or Inspiration. Inspiration may reuse imaging and visual readers, but writes a separate record and cannot update the Photographer's Technique Map, Profile, Change, Journey, Keeper counts, or Experiment results. A sourced reference becoming a personal Experiment is an explicit later action.
+
+97. **A Deconstruction is image-led and photographer-controlled.** Scribe may prepare a multi-page draft from one Shoot or Experiment: a Keeper cover when one was explicitly marked, composition, light or colour layers, Scene Variations, repeatability Evidence, and comparable Change. Each page carries one claim and one visual layer; internal cells and scores stay hidden. Without a Keeper, Shoots may prepare evidence pages but asks the photographer to choose the cover. It never posts automatically.
+
+98. **The system evaluates its intervention, not artistic quality.** An Experiment Record and later Change let Scout see whether the photographer attempted its suggestion and whether the declared observable difference appeared. No attempt, attempted but unchanged, changed, and insufficient Evidence remain distinct. Repeated comparable outcomes may cause Scout to revise or retire an approach; a single miss may not. The model cannot call its own advice successful by praising the resulting Shot.
+
+99. **A proxy reaches only the claim it proves.** Subject-area share cannot by itself prove that a Shot has no centre of interest, and a shutter slower than a handheld heuristic proves elevated shake risk rather than the cause of every soft pixel. Findings whose input cannot settle the claimed mechanism are removed, narrowed to risk language, or left as labelled model reads. Arithmetic outranks opinion only inside the scope the arithmetic actually establishes.
+
+100. **One Move should be complete rather than verbose.** An image-led Shot read keeps four parts together: the supported decision worth noticing, the measured Finding or labelled panel observation that matters, one specific Move, and the visible condition the photographer can look for next time. A camera or subject Move teaches the next capture; a tested crop is a secondary way to inspect the existing Shot. More prose, more grids, and more suggestions are not substitutes for a checkable relationship between what, why, action, and expected observation.

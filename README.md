@@ -2,19 +2,21 @@
 
 Learn to see like yourself.
 
-Shoots learns from every Shot, offers one personal Experiment, and tracks what changes.
+Shoots learns from every Shot, closes each Shoot into a learning record, offers one personal Experiment, and tracks what changes.
 
-It is built for the self-directed hobbyist who has enough Shots for patterns to exist but no mentor who remembers the whole archive. Shoots measures each Shot, updates a Tendency Profile and Technique Map, and offers one optional Experiment when a cited Direction exists. Explore records Variations without pass or fail. Reproduce uses fixed Criteria and a Verdict. Compare preserves alternatives and an optional photographer preference. Every type may later record comparable Change. Quality is an opinion. Behaviour is measurable.
+It is built for the self-directed phone photographer who knows some Techniques but cannot tell whether their decisions are becoming deliberate or they are just getting lucky. Shoots intercepts ordinary Camera media, analyses each Shot, and is being extended to group Scenes into one natural Shoot, record what repeated or varied, update longitudinal memory, and choose one justified explanation, question, Experiment, or silence. It does not score artistic quality.
 
 A model may interpret a Shot. Only the photographer supplies Intent, Keeper preference, and the signal that a Change was an improvement. Unmarked Shots remain unknown rather than disliked.
 
 Entry for the All Things Agentic Hackathon, Taskmaster track.
 
-**The web** is three screens: **Now** for the offered or selected Experiment, **Shots** for the archive, and **Journey** for the evidence-backed longitudinal record. Drive is an optional import and export adapter.
+**The web** remains the detailed audit desk. **Android** is the daily client: Now, Shots, Experiments, Journey, and Settings. Drive is an optional import and export adapter.
 
-**The Phone Source** (`android/`, Kotlin + Compose + WorkManager) keeps Android's normal camera in control. After one honest media permission, it watches only the Camera album, uploads unseen original Shots directly and idempotently, optionally associates them with the selected Experiment, survives UI exit, and shows import/retry state. Selected-media access stays manual. Pairing is the four-day authentication cut; native Google sign-in is later.
+**The Phone Source** (`android/`, Kotlin + Compose + WorkManager) keeps Android's normal camera in control. After one honest media permission, it watches only approved Camera media, streams unseen originals directly and idempotently, freezes explicit Capture Session membership, survives UI exit, and shows import/retry state. Selected-media access stays manual. Native Google identity and revocable device sessions are implemented; configured OAuth/FCM and full physical-device acceptance remain incomplete. Pairing endpoints remain only for older APKs.
 
-- Docs: [product](docs/product.md) · [decisions](docs/product-decisions.md) · [feature list](docs/feature-list.md) · [domain model](docs/domain-model.md) · [agents](docs/agents.md) · [build plan](docs/build-plan.md) · [codebase rules](AGENTS.md)
+The current implementation has per-Shot Runs, Reproduce Capture Sessions, Technique Map, Tendency Profile, Change, and Journey. Persisted Scene/Shoot grouping, terminal Shoot Records, corrected Explore, typed Scout routing, Mine/Inspiration authority, and Deconstruction are the next product layer—not current build claims.
+
+- Docs: [product](docs/product.md) · [decisions](docs/product-decisions.md) · [feature list](docs/feature-list.md) · [implementation order](docs/implementation-order.md) · [domain model](docs/domain-model.md) · [agents](docs/agents.md) · [memory contract](docs/final-memory.md) · [Deconstruction](docs/deconstruction.md) · [build diary](docs/build-plan.md) · [codebase rules](AGENTS.md)
 - Stack: Vue 3 (Options API) + Vite + Tailwind PWA · Kotlin + Compose + WorkManager (`android/`) · FastAPI + Google ADK · Firestore + GCS + Pub/Sub + Cloud Scheduler + Secret Manager + Cloud Run
 - Models: `gemini-3.7-flash` (Analyst panel, Scout, Judge feedback, Journey writer, Listener) · `gemini-live-2.5-flash-native-audio` (Coach). The retained Director/Veo prototype is optional legacy code, outside the product loop.
 

@@ -1,6 +1,6 @@
 # Agents
 
-The implemented agent architecture on Google ADK, followed by the later summoned Scene Companion. Solid arrows in the current diagram are built. Dashed arrows in the later diagram are not built yet.
+The implemented per-Shot agent architecture on Google ADK, followed by the target Shoot-level learning workflow and the later summoned Scene Companion. Solid arrows in the current diagram are built. The Shoot-level and Live diagrams are target architecture until the [feature list](feature-list.md) marks their rows built.
 The product vocabulary is locked: Experiment, Finding, Technique Map, Change. The
 only migration names left are the `skills` Firestore collection key and
 `TechniqueState`. Scores are not stored. [Domain model](domain-model.md)
@@ -37,6 +37,7 @@ the source for the submission architecture diagram.
    and its Criteria before any result. Only Reproduce asks Judge for a Verdict. Baseline
    Change remains available where a Tendency actually selected an Experiment. It does
    not claim causation. No model adjudicates either result.
+7. **One Shot is Evidence; one Shoot is completed learning work.** The existing Shot Run remains the atomic stage account. The target aggregate layer groups capture-continuous Shots into Scenes and a Shoot, waits for every member Run, synthesizes what repeated and varied, stores Scout's warranted action or silence, and attempts one Deconstruction. A Capture Session remains separate explicit Experiment membership.
 
 ## Current topology
 
@@ -81,6 +82,42 @@ flowchart LR
 ```
 
 Android now uses Credential Manager, one build-configured service origin, encrypted device sessions, Room, and WorkManager. Pairing endpoints remain only for older APKs. The configured physical-phone Reproduce acceptance and Cloud deployment have not run. Explore, Compare, and Gemini Live remain outside this release.
+
+## Target Shoot-level topology
+
+The existing per-Shot path remains intact. The new layer begins after capture continuity assigns membership and ends only when one Shoot Record is terminal.
+
+```mermaid
+flowchart LR
+  CAMERA[(Normal Camera)] --> PHONE[Phone Source]
+  PHONE --> SHOTS[Shot Runs<br/>existing pipeline]
+  SHOTS --> ASSEMBLE[Shoot lifecycle<br/>capture continuity]
+  ASSEMBLE --> SCENES[(Scenes + Shoot)]
+  SCENES --> BARRIER[Shoot barrier<br/>all Runs complete or terminal]
+  BARRIER --> SYNTH[Shoot synthesis<br/>arithmetic + bounded reader]
+  SYNTH --> RECORD[(Shoot Record)]
+  RECORD --> CART[Cartographer<br/>multi-scale memory]
+  CART --> POLICY[Scout choice<br/>explain / ask / Explore / Reproduce / silence]
+  POLICY -->|Explore| EXPLORE[Variation Capture Session<br/>no Verdict]
+  POLICY -->|Reproduce| REPRO[Keeper-backed Capture Session<br/>Criteria + Verdict]
+  POLICY -->|explain or silence| REFLECT[Reflection or evidenced silence]
+  EXPLORE --> CHANGE[Experiment Record + Change]
+  REPRO --> CHANGE
+  CHANGE --> CART
+  RECORD --> SCRIBE[Scribe<br/>Deconstruction draft]
+  SCRIBE --> DONE[(Shoot settled + one receipt)]
+  REFLECT --> DONE
+
+  PICKER[Manual import] --> ROLE{Mine or Inspiration}
+  ROLE -->|Mine| SHOTS
+  ROLE -->|Inspiration| STUDY[Inspiration study]
+  STUDY -->|explicit borrow| POLICY
+  STUDY -. never Photographer memory .-> VOID[(No Technique Map / Profile / Journey write)]
+```
+
+`Shoot` and `Capture Session` are orthogonal. A Camera Shot may belong to both one natural Shoot and one explicit Experiment batch without a second Analysis. Inspiration may reuse imaging and visual readers, but writes a separate record.
+
+The target adds aggregate depth rather than another critic swarm. Code owns membership, barriers, deterministic Variation figures, route eligibility, and state transitions. A bounded Shoot reader handles only subject continuity or visual differences those figures cannot settle. Scout writes inside a code-selected route.
 
 ## Later summoned Scene Companion topology
 
@@ -131,7 +168,7 @@ Not ADK, on purpose:
 - **Director/Veo** remains an optional manually invoked legacy capability. It has
   no topic, subscription, automatic Scout call, or core UI surface.
 
-## The agents, as they are
+## Current agents and target role changes
 
 | agent | kind | input | returns (`output_key`) | called from | notes |
 |---|---|---|---|---|---|
@@ -141,12 +178,13 @@ Not ADK, on purpose:
 | `synthesizer` | `LlmAgent` | the three readings from state | `SynthesisOut` (`synthesis`): critique | Analyst, after the panel | never sees the image; reader rubric values stay transient |
 | `scrub` | lens, video only | two exact frames pulled by ffmpeg at the Composer's timestamps | `ScrubOut` (`scrub`) | Analyst stage, after the panel | fourth vote on camera-move techniques; rates no elements |
 | `crop_rater` | `LlmAgent` | original + rendered crop | `CropVerdict` (`crop`) | Analyst stage crop loop | ≤ 2 rounds; kept only if composition rose |
+| `shoot_reader` (target) | bounded `LlmAgent` | code-derived Shoot figures, member thumbnails, and only the unresolved visual comparisons | typed subject-continuity and Variation observations | Analyst Shoot synthesis, after the terminal barrier | unbuilt; does not grade, rank, choose a Keeper, or repeat every Shot critique |
 | `judge` (feedback) | `LlmAgent` | Verdict facts from code, result Shot, and the exact frozen Keeper reference | `FeedbackOut` (`feedback`) | explicit Reproduce result only | writes words; decides nothing |
-| `scout` (writer) | `LlmAgent` | Keeper-backed Technique, exact reference Shot id, recent critiques, research text, Technique Map, constraints | `ExperimentOut` with Reproduce Criteria | Scout stage, after `rules.choose` and research | no Keeper-backed direction means silence; Explore and Compare are not issued |
+| `scout` (writer) | `LlmAgent` | current: Keeper-backed Technique, exact reference Shot id, recent critiques, research text, Technique Map, constraints; target: code-selected route plus its warrant and bounded Shoot memory | current `ExperimentOut` with Reproduce Criteria; target route-specific explanation, question, Explore, or Reproduce copy | Scout stage, only after domain eligibility and route choice | current release issues Reproduce or silence; target code chooses the route before the writer speaks |
 | `director` (optional legacy) | `LlmAgent` | Technique + Experiment | `Storyboard` (`storyboard`): Veo prompt | manual check script only | atomically discards the clip if the Experiment closed while rendering |
 | `preflight` | `LlmAgent` | current: Experiment Criteria + 640 px preview; target: optional Intent and Experiment context | current `PreflightOut`; target returns one question, Variation, move, or refusal | Scene Probe fallback | temporary preview; never creates a Shot or guesses camera settings |
 | `listener` | `LlmAgent` | Coach transcript | `NotesOut` (`notes`): missing gear, notes | after a Coach session | the post-session fallback for `remember` |
-| `journey` | `LlmAgent` | bounded Evidence: counts, exploration, what widened, what became recurring, positive Keeper distributions | `JourneyOut` (`journey`): one paragraph | Cartographer stage, only when the Profile moved | sees no Shot; may not say anything it cannot point at |
+| `journey` | `LlmAgent` | bounded Evidence: Shoot coverage, counts, distinct Scenes, Experiment outcomes, what widened, what became recurring, positive Keeper distributions | `JourneyOut` (`journey`): one paragraph | Cartographer stage, only when the longitudinal record moved | sees no original media; may not say anything it cannot point at |
 | Coach | Gemini Live, tools `issue_experiment`, `remember`, `technique_map` | current: reviewed Shot; target: current Scene frames, audio, Intent, optional Experiment, measured facts, memory | audio, transcript, tool calls | current `/api/live/{shot_id}`; target Live Scene route | target adds `show_guide` with cell refs and no shutter tool |
 
 All `LlmAgent`s run `gemini-3.7-flash` on the Vertex global endpoint.
@@ -186,6 +224,30 @@ All `LlmAgent`s run `gemini-3.7-flash` on the Vertex global endpoint.
 - **Director**: optional only. A conditional storage patch attaches a generated
   clip only while the Experiment is still open; otherwise the blob is deleted.
 
+### Target code between Shot Runs and the next intervention
+
+- **Shoot lifecycle**: capture continuity assigns each approved Camera Shot to one
+  natural Shoot and one Scene. Explicit correction may change this membership.
+  Capture Session membership stays independent and never follows from time.
+- **Shoot barrier**: synthesis starts only after every member Run is complete or
+  terminal. A late-discovered member reopens or versions the Shoot Record
+  idempotently instead of silently making its summary stale.
+- **Shoot synthesis**: pure code computes counts, distributions, distinct-Scene
+  coverage, Keeper signals, Experiment membership, and comparable deltas. The
+  bounded `shoot_reader` receives only comparisons that those figures cannot settle.
+  It may describe a difference; it may not score the Shoot or infer Intent.
+- **Cartographer**: writes the multi-scale memory from Shot, Scene, Shoot, and
+  Experiment Evidence. Recurrence, Reproduce attempts, Criteria outcomes,
+  condition transfer, and positive Keeper counts remain separate axes.
+- **Scout**: domain code determines which routes are eligible, then records one
+  typed choice: explain, ask one consequential question, offer Explore, offer
+  Reproduce, or stay silent. The writer receives only that route. The stored record
+  includes the warrant, rejected routes, input ids, policy version, and prompt/model
+  provenance.
+- **Scribe**: code selects eligible one-claim layers from stored Evidence. A bounded
+  writer may order and caption them; imaging renders the Deconstruction. The
+  photographer chooses the Keeper cover, export, and posting.
+
 ## State and sessions
 
 - ADK session state is **per call and discarded**. It carries the prompt's data
@@ -193,13 +255,15 @@ All `LlmAgent`s run `gemini-3.7-flash` on the Vertex global endpoint.
   reads them back after the run and validates each against its schema, reporting a
   missing or malformed one in `errors` so the stage can decide on quorum instead of
   failing.
-- Durable server state is the store: `User` (constraints, location, Drive cursor), `Shot`,
-  `Analysis` (model and prompt version), `TechniqueState`, `Experiment` (fixed Keeper,
-  explicit result Shot ids, and Verdicts), `CaptureSession`, `Run`, device sessions,
-  one-open slot, `JourneyUpdate`, and `ActivityEvent`. Firestore in the cloud, one
+- Durable server state currently holds `User` (constraints, location, Drive cursor),
+  `Shot`, `Analysis` (model and prompt version), `TechniqueState`, `Experiment` (fixed
+  Keeper, explicit result Shot ids, and Verdicts), `CaptureSession`, `Run`, device
+  sessions, one-open slot, `JourneyUpdate`, and `ActivityEvent`. The target adds
+  persisted `Scene`, `Shoot`, `ShootRecord`, `Inspiration`, and `Deconstruction`
+  records without rewriting the current ones. Firestore is used in the cloud and one
   `store.json` locally. Android Room caches the read model and owns immutable source
   assignments; it is never a second photographic truth. Every stage is idempotent on
-  Shot, source, Capture Session, or Experiment id.
+  its domain id.
 - Secrets never enter the store or a prompt: the Drive refresh token is in Secret
   Manager (local: `.blobs/tokens`), the Live session is opened server-side.
 
@@ -212,15 +276,17 @@ All `LlmAgent`s run `gemini-3.7-flash` on the Vertex global endpoint.
 | stage | idempotent on id; retryable ingest leaves the Shot `new`; only proven bad media becomes `failed`; other exceptions propagate |
 | transport | Pub/Sub: 5 attempts, 10 s–300 s backoff, then `<topic>.dlq`; a DLQ replay re-runs one stage, never the fan-out |
 | cross-stage | Judge publishes on every Shot; Scout claims one open slot atomically; Scribe updates in place; the Run barrier prevents one fan-out branch from claiming completion; the Capture Session barrier waits for every member before one summary |
+| target Shoot | a terminal barrier accounts for every member Run; synthesis is idempotent on Shoot revision; late discovery versions or reopens the record; Scout and Deconstruction failures settle as explicit outcomes rather than losing the Shoot |
 
-## What is deliberately not an agent
+## What remains deterministic code
 
-Ingest (EXIF, ffprobe, grid, contact sheet), Cartographer (Technique Map transitions),
-the Judge's Verdict, the Scribe, timing, the crop render, the overlay, and — from
-`lighting.md` / `conditions.md` — the sun, the cast, the
-ratio, the edge, `derive`, `fit`, `prep`, the delta thresholds, `light.check`. Each
-of these was a candidate for a model call and is a function because a function is
-testable with a number and a model is not.
+Ingest (EXIF, ffprobe, grid, contact sheet), Cartographer transitions, the Judge's
+Verdict, current Scribe rendering, timing, crop rendering, overlays, and — from
+`lighting.md` / `conditions.md` — the sun, cast, ratio, edge, `derive`, `fit`,
+`prep`, delta thresholds, and `light.check` remain functions because their answers
+must be replayable. The target Shoot barrier, evidence arithmetic, Scout route
+eligibility, and Deconstruction rendering follow the same rule. A bounded writer
+may choose among code-approved candidates; it never replaces these decisions.
 
 ## Legacy lighting proposal, not current backlog
 

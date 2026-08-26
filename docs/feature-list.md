@@ -1,6 +1,6 @@
 # Feature list
 
-Product backlog derived from the decisions in [product decisions](product-decisions.md). Product rules were corrected from real-phone use on 2026-08-26. State describes the current repository, not a deployment claim.
+Product backlog derived from the decisions in [product decisions](product-decisions.md). Product rules were corrected from real-phone use and deepened around the Shoot-level learning record on 2026-08-26. State describes the current repository, not a deployment claim.
 
 ## Status
 
@@ -19,19 +19,19 @@ These features make the one-liner true and make the completed work visible.
 | P0.1 | Tendency Profile | built | Pure code recomputes dimension counts, exploration, dwell, and blind spots from the complete readable archive: every Shot with an Analysis, no recency cap. Placement and framing are labelled model reads; other dimensions name their limits. |
 | P0.2 | Positive-only Keeper signal | built | `kept_at` and absence are distinct. Keeper summaries are counts and shares among readable marked Keepers only; an unmarked Shot never enters a preference denominator. Sparse samples stay silent. |
 | P0.3 | Technique Map | built | The domain retains `unobserved`, `observed`, and `recurring`; the read side lists only Techniques with actual Evidence, including sightings and corroborations. No empty catalogue slots, totals, locks, levels, prerequisites, or scores make it a curriculum. |
-| P0.4 | Explore Experiment | later | Scout no longer issues the old Criteria-shaped Explore. A future Explore needs two to four optional Variations, explicit result Shots, observed Evidence, and a neutral end action. It creates no Criteria or Verdict. Until then, Scout stays silent. |
-| P0.5 | Experiment Change check | partial | `Change` has three states, exact Baseline Shot ids, and a reason for Comparability. Reproduce now compares only its Baseline plus explicit result Shots accumulated across Capture Sessions; unrelated free Shots cannot move it. Explore and Compare set rules remain unbuilt. No outcome claims causation. |
+| P0.4 | Explore Experiment | needed | Scout no longer issues the old Criteria-shaped Explore. Corrected Explore offers two to four optional Variations, freezes explicit result Shots through a Capture Session, records observed differences and positive Keeper signals, and creates no Criteria or Verdict. Until built, Scout stays silent rather than substituting Reproduce mechanics. |
+| P0.5 | Experiment Change check | partial | `Change` has three states, exact Baseline Shot ids, and a reason for Comparability. Reproduce compares only its Baseline plus explicit result Shots accumulated across Capture Sessions; unrelated free Shots cannot move it. Explore, Shoot-level, condition-transfer, and Compare set rules remain unbuilt. No outcome claims causation. |
 | P0.6 | Journey Update | built | A meaningful Profile difference creates one update from supplied figures. Live polling reloads Journey and Profile with the event that changed them. The first update does not compare against an empty history. |
 | P0.7 | Claim provenance | built | Deterministic claims carry exact Shot ids, sample size, and `CALC_VERSION`. Model-read dimensions also carry Analyst model/prompt digests plus a per-Shot digest of the soft fields used, so re-analysis cannot masquerade as photographer Change. Journey prose records its writer separately. |
 | P0.8 | Score removal | built | Overall and element scores are absent from `Analysis`, `TechniqueState`, migration output, API, client state, phone, reviewed file, Journey, Coach tools, Judge, and comparison selection. Legacy stored keys are dropped by `scripts/migrate_vocabulary.py`. |
-| P0.9 | Vocabulary migration | built | Experiment, Finding, Technique Map, Change, Shot routes, Android names, prompts, events, schemas, and UI agree. Only the legacy `skills` Firestore collection key and `TechniqueState` class remain named migration targets. |
+| P0.9 | Vocabulary migration | partial | Existing Experiment, Finding, Technique Map, Change, and Shot seams agree. Shoot, Shoot Record, Deconstruction, persisted Scene membership, and Inspiration authority are newly locked target terms and do not yet exist across code or UI. The legacy `skills` Firestore collection key and `TechniqueState` class remain named migration targets. |
 | P0.10 | Android Phone Source | partial | Room atomically freezes source assignments with its Camera watermark, WorkManager discovers and streams originals from `ContentResolver` without `readBytes()`, and selected-only access stays explicit. The upgraded release build compiles; current-build Xiaomi recovery and maximum-size acceptance remain. |
-| P0.11 | Evidence-first Shot read | built | Shot detail leads with the strongest corroborated Technique and its agreement, then labels the panel read as model opinion and keeps measured Findings separate. The removed custom-camera pulse is not claimed as built. |
+| P0.11 | Evidence-first Shot read | partial | Shot detail leads with corroborated Technique Evidence and separates model opinion from measured Findings. Done means one image-led read keeps the supported decision, scoped Finding or labelled observation, one next-capture Move, and one visible condition together; Reproduce Criteria remain separate. Current Android fragments these fields and hides useful Moves. |
 | P0.12 | Agent desk | built | Every accepted Shot owns a durable Run with separate Ingest, Analyst, Cartographer, Scout, Judge, and Scribe outcomes. Now reads this stored state rather than inferring completion from event order; Shot detail exposes the same account. Retry, terminal media, abstention, free Shot judgment, and unavailable Drive output remain distinct. |
 | P0.13 | Real-agent quality gate | partial | The existing `backend/scripts/check_*.py` runs against a small labelled set with expected claims, allowed abstentions, false-positive counts, and saved results. |
 | P0.14 | Cloud deployment | needed | The exact demo build runs on Google Cloud. Pub/Sub retries and idempotency are visible. The deployed revision and health check are recorded. |
 | P0.15 | Submission architecture artifact | partial | The Mermaid source in [agents](agents.md) is updated to current vocabulary and exported as a readable diagram for the submission. |
-| P0.16 | Four-minute continuous demo | needed | One continuous run shows a normal phone-camera Shot arriving without an upload button, idempotent background routing, Evidence, one Keeper-backed Reproduce, an explicit result Shot, Verdict or abstention, the Journey comparison, external-write result, durable Run, ActivityEvents, and Cloud proof. |
+| P0.16 | Four-minute continuous demo | needed | One continuous run shows ordinary Camera media arriving without upload or Analyse controls, several Shots becoming Scenes and one settled Shoot Record, every member Run accounted for, Scout's warranted action or silence, one explicit Experiment result, Change, Journey, Deconstruction attempt, ActivityEvents, and visible Google Cloud proof. |
 | P0.17 | Authenticated Phone Source | partial | Credential Manager obtains a nonce-bound Google ID token; the backend verifies signature, issuer, audience, expiry, nonce, and verified email before issuing a revocable 30-day encrypted device session. Pairing endpoints remain only for old APKs. OAuth/Firebase credentials and physical sign-in acceptance remain. |
 | P0.18 | Explicit Experiment participation | built | A committed Capture Session manifest is the authority for Reproduce membership and outranks client Experiment input. Free Shots never enter Reproduce. Capture time never implies participation. Legacy single-Shot submissions retain their behavior. |
 | P0.19 | Background import lifecycle | partial | Room owns immutable assignments, session recovery, attempts, terminal errors, server Shot ids, cache, and sync age. WorkManager orders discovery, manifest commit, streaming upload, then snapshot refresh. Current-build process-death, permission-loss, and network-loss acceptance remain. |
@@ -39,16 +39,22 @@ These features make the one-liner true and make the completed work visible.
 | P0.21 | Batch Capture Session | built | Reproduce reserves one session, freezes an ordered manifest, judges every accepted member including abstentions and terminal media, applies `judge all, any met`, chooses a deterministic representative, waits for every Run, then attempts one FCM summary. |
 | P0.22 | Native offline read surfaces | partial | Navigation Compose exposes Now, paginated Shots, Shot detail, Journey, and Settings from Room-backed flows. Cached data remains readable offline. Physical interaction and accessibility acceptance remain. |
 | P0.23 | Native account and Drive controls | partial | Drive authority is separate from identity; Android can connect with an offline code, disconnect while preserving user files, revoke its device, or request idempotent account cleanup after fresh Google confirmation. Configured-account acceptance remains. |
-| P0.24 | Decision-led mobile IA | built | Bottom navigation is Now, Shots, Experiments, and Journey. Now exposes one current Shot insight or active-session recovery state, then the next camera action. Settings is secondary and uses progressive disclosure instead of expanding every implementation control. Journey separates Update, Tendencies, and Techniques; Experiment history no longer appears twice. |
-| P0.25 | Evidence-grounded Shot annotation | built | Shot detail defaults to a measured Finding, otherwise one supported action or human guide. The photographer can switch Clean, Finding, Try, and Guide layers. Located regions, horizon, subject-to-line placement, tested crops, and Moves are drawn; whole-frame and unlocated Findings say their real scope. New blown-highlight Analyses also store an exact deterministic pixel mask. |
+| P0.24 | Decision-led mobile IA | partial | Bottom navigation is Now, Shots, Experiments, and Journey; Settings is secondary and progressive. Done means Now leads with the newest settled Shoot receipt or active Capture Session instead of treating one Shot critique as the completed learning work. Journey keeps Update, Tendencies, deliberate-reproduction Evidence, and Techniques distinct. |
+| P0.25 | Evidence-grounded Shot annotation | partial | Clean, Finding, Try, and Guide layers draw current regions, placement, horizons, tested crops, Moves, and blown-highlight masks. Done means ambiguous proxies are narrowed or removed, camera and subject Moves outrank crop salvage for next-capture teaching, one observable check accompanies the Move, and one layer speaks at a time. |
 | P0.26 | Daily and on-demand Experiments | partial | The daily tick may offer one supported Reproduce. Android also lets the photographer ask Scout now, request a different supported direction explicitly, start its Capture Session, and inspect previous Experiment Records. Both paths keep the same Keeper Evidence and one-open gates; unsupported requests explain the silence. |
 | P0.27 | Purposeful mobile interaction | built | Proportional 24 dp vector icons share one optical grid; bottom and segmented navigation expose selected semantics; route and Journey changes slide and fade directionally; Shot layers crossfade; clickable cards show ripple and press scale; disclosure chevrons rotate; and every transition stays between 90 and 220 ms while respecting the device animation scale. |
 | P0.28 | Legacy Experiment safety | built | Android starts only a Reproduce with an exact Keeper reference and visible Criteria. Older Explore or incomplete records are labelled as older Experiments, cannot reserve a Capture Session, and may be replaced only through an explicit supported Scout request. Stored `skipped` reads as `left`. Emulator integration coverage proves both the refusal and current Reproduce path. |
 | P0.29 | Honest automatic Phone Source time | built | Automatic Phone Source Shots display the MediaStore instant frozen in their source reference instead of shifting a timezone-less EXIF clock. The observed Camera Shot now reads 15:39 rather than 22:39. Selected and Drive timezone ambiguity remains separate work. |
+| P0.30 | Persisted Scene and Shoot lifecycle | needed | Capture continuity assigns each Photographer Shot to one Scene and natural Shoot, explicit correction is possible, visual similarity alone never assigns membership, late discovery is idempotent, and Capture Session membership remains orthogonal. |
+| P0.31 | Shoot-level terminal workflow | needed | A Shoot closes after capture inactivity, waits for every member Run to complete or become terminal, then stores exact coverage, stage outcomes, synthesis provenance, Scout's action or silence, and Deconstruction outcome in one Shoot Record. |
+| P0.32 | Shoot synthesis and evidence of control | needed | Pure code computes Scene count, Shots per Scene, orientation, placement, distance, focal, light, and Technique variation. One bounded batch read handles only subject continuity and visual differences arithmetic cannot settle. Recurrence, deliberate reproduction, conditions, Keeper counts, and Change remain separate figures. |
+| P0.33 | Mine versus Inspiration authority | needed | Camera media defaults to the Photographer's Shot. Manual import asks Mine or Inspiration. Inspiration may reuse imaging and bounded readers but writes a separate record and cannot affect Technique Map, Profile, Keeper evidence, Experiments, Change, or Journey. |
+| P0.34 | Typed Scout learning choice | partial | Current Scout can issue supported Reproduce or record silence. Done means each settled Shoot stores one code-gated choice to explain, ask one consequential Intent question, offer corrected Explore, offer Reproduce, or stay silent, with exact warrant and rejected routes. |
+| P0.35 | Deconstruction draft | needed | Scribe can render an image-led multi-page draft from stored Shoot or Experiment Evidence: photographer-selected Keeper cover, composition, light or colour, Scene Variations, repeatability, and Change. It never invents a cover, shows scores or cells, or posts automatically. |
 
 P0 passes only when this sentence is visibly true:
 
-> Shoots remembered the photographer's work, chose one decision from a Keeper, verified an explicit result, and accounted for every stage.
+> Shoots turned an ordinary Camera period into a settled learning record, chose the kind of help the Evidence supported, checked what happened next, and accounted for every stage.
 
 ## P1: complete the longitudinal coach
 
@@ -58,11 +64,11 @@ P0 passes only when this sentence is visibly true:
 | P1.2 | Compare Experiment | needed | Shoots names one controlled decision and at least two Variations, records both explicit Shot sets, and asks one optional preference question. It produces no quality Verdict and the model does not choose the winner. |
 | P1.3 | Journey comparison hero | built | Journey pairs the exact Keeper frozen by Reproduce with its latest explicit result. It states the declared Criteria outcome or abstention and explicitly refuses to call the result better. |
 | P1.4 | Comparable-set rules | partial | Reproduce now owns one fixed Keeper reference and explicit result set. Baseline Change already refuses incompatible samples, but Explore and Compare set rules remain unbuilt. |
-| P1.5 | Intent | needed | The photographer may state one short Intent without being prompted. It travels through the Live Scene Session and review, outranks a conflicting offered Experiment, and may mute a conflicting Finding or camera warning. Absence stays valid. |
-| P1.6 | Structured learner memory | needed | Shoots remembers explicit constraints, preferred cadence, repeated Experiment responses, Intent, and Keeper signals with provenance. It never promotes inferred personality to user fact. |
+| P1.5 | Intent | needed | Intent stays absent by default. Scout asks one short question only when its answer would materially change the subject, Move, or Experiment route. Explicit Intent travels through review and later Live work, outranks a conflicting offer, and may excuse a Finding. |
+| P1.6 | Structured learner memory | partial | Technique Map, Tendency Profile, Keepers, constraints, and Experiment records exist. Done means Shoots satisfies the active [memory contract](final-memory.md): Shoot and Scene records, separate evidence axes, explicit scoped Photographer signals, intervention outcomes, correction, invalidation, and bounded recall without promoting inferred personality to fact. |
 | P1.7 | Bounded escalation | needed | A cheap read settles clear cases. Only consequential disagreement opens the full panel or asks for one more view. The escalation reason is stored. |
 | P1.8 | Advice retirement | needed | Shoots retires one Experiment approach only after repeated comparable non-movement, while distinguishing no attempt from an attempted but unchanged result. |
-| P1.9 | Scene grouping | needed | Capture continuity or explicit grouping puts related Shots into one Scene. Contact-sheet comparison can describe how the photographer worked it without forcing a score. |
+| P1.9 | Scene grouping refinement | later | P0.30 owns the first durable capture-continuity grouping. Later refinement adds explicit regrouping, richer place continuity where the Photographer permits it, and contact-sheet correction without using visual similarity as event truth. |
 | P1.10 | Graduation | later | When a Technique recurs reliably, the Companion stops teaching it and says so once. It may return only after contrary Evidence or a user request. |
 
 ## Later: camera Companion
@@ -92,7 +98,7 @@ No C-row is required for the Taskmaster proof. Revisit this section only after t
 |---|---|---|---|
 | P2.1 | Emerging identity view | later | Shoots groups recurring subjects, approaches, and Keeper signals as hypotheses with examples. It never assigns a fixed style label. |
 | P2.2 | Personal projects | later | Repeated Intent and Keeper patterns may suggest a project. The photographer accepts it explicitly. |
-| P2.3 | Reference Inspiration | later | A relevant real photograph or local fact may support an Experiment. It is optional, sourced, and never generated filler. |
+| P2.3 | Inspiration discovery | later | P0.33 owns the Mine/Inspiration authority boundary. Later work may find a relevant sourced reference or local fact for an Experiment; it remains optional and never becomes generated filler or Photographer Evidence. |
 | P2.4 | Long-horizon plan | later | The agent sequences Experiments across a user-chosen goal and revises the plan from Evidence. No streaks or artificial deadlines. |
 
 ## Remove or forbid
@@ -112,13 +118,20 @@ No C-row is required for the Taskmaster proof. Revisit this section only after t
 | Pairing code or server-address setup in release | remove | Android and web are two clients of one Shoots identity and service origin. |
 | Foreground wait for deep Analysis | remove | The panel works in the background while the camera remains usable. |
 | Internal cell grid in UI | forbid | Cells are model addressing, not a photographic guide. |
+| Several generic grids over one Shot | replace | Show only one evidence-linked structure at a time; post-hoc grid fitting is not proof of composition. |
+| One critique paragraph per Shot | replace | Shot detail remains evidence; a settled Shoot produces the primary learning reflection. |
+| Manual reference imported as Photographer Shot | forbid | Inspiration cannot teach the system another photographer's work as the user's Technique, Tendency, Keeper, or Change. |
+| Automatic social posting | forbid | Shoots prepares a Deconstruction draft; the photographer chooses the cover, caption, and publication. |
 | Hidden location history | forbid | Context does not justify surveillance. |
 | Social feed, filters, editing, culling | out of scope | Mature neighbouring products already solve these jobs. |
 | Streaks and skill-tree grinding | forbid | Retention should come from seeing personal Change, not obligation. |
 
 ## Recommended implementation order
 
-1. Finish Android instrumentation and run the current native sign-in, free Shot, three-member Reproduce, offline Journey, Drive, revoke, and deletion sequence on the Xiaomi.
-2. Configure the release OAuth client, Firebase app, HTTPS origin, App Links, indexes, and signing keystore outside the repository.
-3. Deploy only the verified revision after explicit approval; prove Pub/Sub retry and the Capture Session/Run barriers.
-4. Record the phone-to-Capture-Session-to-Journey demonstration and export the architecture diagram.
+The active dependency order, 48-hour keep decision, fallback, commit sequence, and
+post-submission work are maintained in [implementation order](implementation-order.md).
+
+In short: verify a deployed fallback, add Scene/Shoot records and the Shoot barrier,
+synthesize one deterministic Shoot Record, store Scout's typed decision, show one
+mobile receipt, apply the 48-hour acceptance gate, then deploy the exact accepted SHA
+and stop feature work for the submission.
