@@ -118,6 +118,17 @@ def experiment_blob_path(
     return f"{user_prefix(user_id)}experiments/{experiment_id}/{kind}.{extension}"
 
 
+def deconstruction_blob_path(
+    user_id: str, deconstruction_id: str, page: int, extension: str = "jpg"
+) -> str:
+    """Stable page path so replay replaces a draft instead of duplicating it."""
+    return f"{user_prefix(user_id)}deconstructions/{deconstruction_id}/page-{page:02d}.{extension}"
+
+
+def deconstruction_blob_prefix(user_id: str, deconstruction_id: str) -> str:
+    return f"{user_prefix(user_id)}deconstructions/{deconstruction_id}/"
+
+
 @runtime_checkable
 class BlobStore(Protocol):
     async def write(self, path: str, data: bytes, content_type: str = "image/png") -> str: ...

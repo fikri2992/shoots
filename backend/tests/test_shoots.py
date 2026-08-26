@@ -412,6 +412,10 @@ async def test_settled_shoot_receipt_reports_exact_decisions_and_blind_spots():
     assert record.receipt.readable_shot_count == 3
     assert record.receipt.keeper_shot_ids == [first.id]
     assert "overall_score" not in record.receipt.model_dump()
+    assert record.deconstruction.status.value == "needs_cover"
+    assert record.deconstruction.deconstruction_id
+    drafts = await repo.list_deconstructions(ctx.store, first.user_id)
+    assert [draft.id for draft in drafts] == [record.deconstruction.deconstruction_id]
 
     placement = next(item for item in record.receipt.dimensions if item.dimension_id == "placement")
     assert placement.authority == "model_read"

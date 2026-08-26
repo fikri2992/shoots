@@ -14,6 +14,7 @@ from app.api.auth import current_user
 from app.api.deps import get_context
 from app.domain.entities import (
     CaptureSession,
+    Deconstruction,
     Experiment,
     Inspiration,
     JourneyUpdate,
@@ -48,6 +49,7 @@ class MobileSnapshot(BaseModel):
     profile: shot_api.ProfileView
     techniques: list[experiment_api.TechniqueNode]
     experiments: list[Experiment]
+    latest_deconstruction: Deconstruction | None
 
 
 @router.get("/snapshot", response_model=MobileSnapshot)
@@ -60,6 +62,7 @@ async def snapshot(
     sessions = await repo.list_capture_sessions(ctx.store, user.id, limit=1)
     runs = await repo.list_runs(ctx.store, user.id, limit=1)
     experiments = await repo.list_experiments(ctx.store, user.id, limit=20)
+    deconstructions = await repo.list_deconstructions(ctx.store, user.id, limit=1)
     shots = await repo.list_shots(ctx.store, user.id, limit=30)
     included = {shot.id for shot in shots}
     required = {
@@ -72,11 +75,7 @@ async def snapshot(
         required.add(sessions[0].representative_result_shot_id)
     for shot_id in sorted(required - included):
         shot = await repo.find_shot(ctx.store, shot_id)
-        if (
-            shot is not None
-            and shot.user_id == user.id
-            and not shot.superseded_by_inspiration_id
-        ):
+        if shot is not None and shot.user_id == user.id and not shot.superseded_by_inspiration_id:
             shots.append(shot)
     value = MobileSnapshot(
         user=user,
@@ -99,6 +98,7 @@ async def snapshot(
         profile=await shot_api.profile(session_user, ctx),
         techniques=await experiment_api.technique_map(session_user, ctx),
         experiments=experiments,
+        latest_deconstruction=deconstructions[0] if deconstructions else None,
     )
     encoded = jsonable_encoder(value)
     # Building the Profile stamps when this read occurred. That timestamp is

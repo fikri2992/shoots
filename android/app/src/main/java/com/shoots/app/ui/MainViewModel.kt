@@ -9,6 +9,7 @@ import com.google.firebase.FirebaseApp
 import com.google.firebase.installations.FirebaseInstallations
 import com.google.firebase.messaging.FirebaseMessaging
 import com.shoots.app.data.LocalCaptureSessionEntity
+import com.shoots.app.data.DeconstructionDto
 import com.shoots.app.data.ImportEntity
 import com.shoots.app.data.InspirationDto
 import com.shoots.app.data.MobileSnapshotDto
@@ -29,6 +30,7 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
 import kotlinx.coroutines.withContext
+import java.io.File
 
 class MainViewModel(application: Application) : AndroidViewModel(application) {
     private val app = application.shootsApplication
@@ -258,6 +260,19 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         repository.completeExplore(id)
         notice.value = "Explore ended. Shoots kept the Variations you tried."
     }
+
+    suspend fun prepareDeconstruction(
+        sourceType: String,
+        sourceId: String,
+        sourceRevision: Int,
+        coverShotId: String,
+    ): Boolean = operate {
+        repository.prepareDeconstruction(sourceType, sourceId, sourceRevision, coverShotId)
+        notice.value = "Deconstruction draft is ready"
+    }
+
+    suspend fun cacheDeconstructionPages(draft: DeconstructionDto): List<File> =
+        withContext(Dispatchers.IO) { repository.cacheDeconstructionPages(draft) }
 
     fun imageUrl(shot: ShotDto, original: Boolean = false): String =
         repository.imageUrl(shot, original)

@@ -32,7 +32,7 @@ personality profile, or a score.
 | Intent | Generic scoped Photographer Signal and API exist; no native creation flow yet | Add the smallest contextual client action before using Intent in selection |
 | Experiment | Baseline, explicit results, Reproduce Criteria and Verdicts, Change; new Shoot route stores exact Keeper warrant ids | Complete intervention outcomes for every Scout route |
 | Scene | Persisted capture-continuity membership with grouping revisions | Add explicit Photographer correction |
-| Shoot | Persisted natural Camera activity, revisioned terminal Shoot Record, deterministic receipt, and typed Scout outcome | Add client delivery, correction, full projections, and Deconstruction outcome |
+| Shoot | Persisted natural Camera activity, revisioned terminal Shoot Record, deterministic receipt, typed Scout outcome, and Deconstruction attempt | Add explicit grouping correction and configured-device proof |
 | Constraints | Scoped attributable Signals, correction, bounded recall, literal Listener quote gate, Live announcement, and legacy read-only fallback | Remove the legacy fallback after stored-data migration |
 | Inspiration | Explicit Android/web manual role, separate current record, projection-safe free-Shot correction, and client archive section | Add bounded study and correction for Experiment-cited history without weakening immutable records |
 | Android | Room cache and outbox; device token ciphertext uses Android Keystore | Keep Room as a non-authoritative cache; do not claim Room encryption |
@@ -394,7 +394,7 @@ After submission:
 3. Add native Intent authoring and remove the legacy `User.constraints` fallback after migration.
 4. Add the blind bounded Shoot reader only if deterministic synthesis leaves useful
    ambiguity.
-5. Add Deconstruction from the settled Shoot Record.
+5. Extend Deconstruction with MediaStore export, caption editing, and optional Drive output.
 6. Consider embeddings only after structured retrieval has measured gaps.
 
 ## Acceptance

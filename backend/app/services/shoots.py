@@ -7,6 +7,8 @@ from app.config import settings
 from app.domain import shoot_receipt
 from app.domain import shoots as rules
 from app.domain.entities import (
+    DeconstructionAttempt,
+    DeconstructionStatus,
     Provenance,
     RunStatus,
     Scene,
@@ -255,22 +257,41 @@ async def _settle_if_ready(ctx: Context, shoot: Shoot) -> ShootRecord | None:
 
     await cartographer.rebuild(ctx, shoot.user_id)
     scout_decision = await shoot_scout.decide(ctx, shoot, receipt)
-    record = await repo.put_shoot_record_once(
-        ctx.store,
-        ShootRecord(
-            shoot_id=shoot.id,
-            user_id=shoot.user_id,
-            revision=shoot.revision,
-            scene_ids=list(shoot.ordered_scene_ids),
-            shot_ids=list(shoot.ordered_shot_ids),
-            run_outcomes=run_outcomes,
-            unreadable_shot_ids=unreadable_shot_ids,
-            receipt=receipt,
-            scout=scout_decision,
-            provenance=provenance,
-            settled_at=settled_at,
-        ),
+    candidate = ShootRecord(
+        shoot_id=shoot.id,
+        user_id=shoot.user_id,
+        revision=shoot.revision,
+        scene_ids=list(shoot.ordered_scene_ids),
+        shot_ids=list(shoot.ordered_shot_ids),
+        run_outcomes=run_outcomes,
+        unreadable_shot_ids=unreadable_shot_ids,
+        receipt=receipt,
+        scout=scout_decision,
+        provenance=provenance,
+        settled_at=settled_at,
     )
+    from app.services import deconstructions
+
+    try:
+        draft = await deconstructions.prepare_shoot_record(ctx, candidate)
+        candidate.deconstruction = DeconstructionAttempt(
+            deconstruction_id=draft.id,
+            status=draft.status,
+            detail="Waiting for the Photographer to choose a marked Keeper cover.",
+        )
+    except Exception as exc:  # Deconstruction failure cannot erase the Shoot Record.
+        candidate.deconstruction = DeconstructionAttempt(
+            status=DeconstructionStatus.FAILED,
+            detail=f"{type(exc).__name__}: {exc}"[:300],
+        )
+        await repo.record(
+            ctx.store,
+            shoot.user_id,
+            "scribe",
+            "deconstruction_failed",
+            {"shoot_id": shoot.id, "revision": shoot.revision, "reason": str(exc)[:300]},
+        )
+    record = await repo.put_shoot_record_once(ctx.store, candidate)
     settled, changed = await repo.settle_shoot(ctx.store, shoot.id, shoot.revision, settled_at)
     if changed:
         await repo.record_shoot_settled(ctx.store, settled, record)

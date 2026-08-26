@@ -473,8 +473,8 @@ authority: no branch is pushed or deployed without explicit approval.
 | 2 | partial | Photographer correction and Mine/Inspiration authority | Superseding source-role and grouping records plus deterministic invalidation | Free manual correction is built; Inspiration cannot write Photographer memory; grouping and Experiment-cited correction remain |
 | 3 | partial | Scoped Photographer memory and Listener migration | Provenance-carrying Intent, constraint, preference, and source-role records behind one signal seam | Signal/recall/correction and Listener migration are built; native Intent authoring and legacy migration remain |
 | 4 | complete | Corrected Explore | Open Explore Experiment with explicit Variations, immutable per-session choice, ordered results, and structured observations | The Photographer may try alternatives freely; no Criteria, Verdict, or pass/fail language |
-| 5 | next | Deconstruction | Image-led draft from a settled Shoot or Experiment Record | Every page cites stored Evidence; Photographer selects the cover; no invented score or automatic post |
-| 6 | queued | Full local acceptance | One continuous emulator/backend workflow covering correction, recall, Explore, and Deconstruction | Backend, web schema if affected, Android build/lint, and full instrumentation all pass |
+| 5 | complete | Deconstruction | Image-led 4:5 draft from a settled Shoot or Experiment Record plus Android multi-image sharing | Every page cites stored Evidence; Photographer selects the cover; no invented score or automatic post |
+| 6 | complete | Full local acceptance | Backend, web, and emulator workflow covering correction, recall, Explore, and Deconstruction | Full backend suite and Ruff pass; web tests/build pass; Android build/lint and 30 emulator tests pass with two hardware-only skips |
 | 7 | approval-gated | Cloud and physical acceptance | Exact deployed revision and Xiaomi evidence | Requires explicit deployment approval and production credentials |
 
 The dependency order matters. Correction follows the rebuildable projection so a

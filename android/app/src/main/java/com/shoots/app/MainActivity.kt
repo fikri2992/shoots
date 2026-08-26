@@ -1,6 +1,7 @@
 package com.shoots.app
 
 import android.Manifest
+import android.content.ClipData
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.net.Uri
@@ -24,6 +25,7 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.core.content.ContextCompat
+import androidx.core.content.FileProvider
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.shoots.app.identity.DriveAuthorization
 import com.shoots.app.phone.MediaAccess
@@ -181,6 +183,49 @@ class MainActivity : ComponentActivity() {
                         },
                         completeExplore = { experimentId ->
                             scope.launch { viewModel.completeExplore(experimentId) }
+                        },
+                        prepareDeconstruction = { sourceType, sourceId, revision, coverShotId ->
+                            scope.launch {
+                                viewModel.prepareDeconstruction(
+                                    sourceType,
+                                    sourceId,
+                                    revision,
+                                    coverShotId,
+                                )
+                            }
+                        },
+                        shareDeconstruction = { draft ->
+                            scope.launch {
+                                runCatching { viewModel.cacheDeconstructionPages(draft) }
+                                    .onSuccess { files ->
+                                        val uris = ArrayList(files.map { file ->
+                                            FileProvider.getUriForFile(
+                                                this@MainActivity,
+                                                "$packageName.files",
+                                                file,
+                                            )
+                                        })
+                                        if (uris.isEmpty()) return@onSuccess
+                                        val share = Intent(Intent.ACTION_SEND_MULTIPLE).apply {
+                                            type = "image/jpeg"
+                                            putParcelableArrayListExtra(Intent.EXTRA_STREAM, uris)
+                                            putExtra(Intent.EXTRA_TEXT, draft.suggestedCaption)
+                                            clipData = ClipData.newUri(
+                                                contentResolver,
+                                                "Shoots Deconstruction",
+                                                uris.first(),
+                                            ).also { clips ->
+                                                uris.drop(1).forEach { clips.addItem(ClipData.Item(it)) }
+                                            }
+                                            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                                        }
+                                        startActivity(Intent.createChooser(share, "Share Deconstruction"))
+                                    }
+                                    .onFailure {
+                                        viewModel.error.value =
+                                            it.message ?: "Could not prepare share files"
+                                    }
+                            }
                         },
                         continueSession = ::launchCamera,
                         finishSession = { sessionId ->

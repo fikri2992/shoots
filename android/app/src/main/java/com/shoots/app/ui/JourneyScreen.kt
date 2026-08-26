@@ -1,6 +1,7 @@
 package com.shoots.app.ui
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -53,6 +54,7 @@ import com.shoots.app.InkSoft
 import com.shoots.app.MutedWhite
 import com.shoots.app.WarmWhite
 import com.shoots.app.data.ExperimentDto
+import com.shoots.app.data.DeconstructionDto
 import com.shoots.app.data.MobileSnapshotDto
 import com.shoots.app.data.ProfileDimensionDto
 import com.shoots.app.data.ShotDto
@@ -62,6 +64,9 @@ fun JourneyScreen(
     snapshot: MobileSnapshotDto?,
     imageUrl: (ShotDto) -> String,
     onShot: (String) -> Unit,
+    blobUrl: (String) -> String = { "" },
+    onPrepareDeconstruction: (String, String, Int, String) -> Unit = { _, _, _, _ -> },
+    onShareDeconstruction: (DeconstructionDto) -> Unit = {},
 ) {
     var section by rememberSaveable { mutableStateOf(JourneySection.UPDATE) }
     Column(
@@ -96,7 +101,14 @@ fun JourneyScreen(
             label = "Journey section",
         ) { selected ->
             when (selected) {
-                JourneySection.UPDATE -> JourneyUpdateView(snapshot, imageUrl, onShot)
+                JourneySection.UPDATE -> JourneyUpdateView(
+                    snapshot,
+                    imageUrl,
+                    blobUrl,
+                    onShot,
+                    onPrepareDeconstruction,
+                    onShareDeconstruction,
+                )
                 JourneySection.TENDENCIES -> TendencyView(snapshot)
                 JourneySection.TECHNIQUES -> TechniqueView(snapshot)
             }
@@ -147,7 +159,10 @@ private fun JourneySections(selected: JourneySection, onSelect: (JourneySection)
 private fun JourneyUpdateView(
     snapshot: MobileSnapshotDto,
     imageUrl: (ShotDto) -> String,
+    blobUrl: (String) -> String,
     onShot: (String) -> Unit,
+    onPrepareDeconstruction: (String, String, Int, String) -> Unit,
+    onShareDeconstruction: (DeconstructionDto) -> Unit,
 ) {
     Column(Modifier.fillMaxWidth()) {
         val update = snapshot.journey.firstOrNull()
@@ -221,6 +236,102 @@ private fun JourneyUpdateView(
                 Spacer(Modifier.height(10.dp))
             }
             ExperimentHero(snapshot, experiment, imageUrl, onShot)
+        }
+        snapshot.latestShootRecord?.let { record ->
+            Spacer(Modifier.height(24.dp))
+            DeconstructionCard(
+                snapshot,
+                record.shootId,
+                record.revision,
+                record.receipt.keeperShotIds,
+                imageUrl,
+                blobUrl,
+                onPrepareDeconstruction,
+                onShareDeconstruction,
+            )
+        }
+    }
+}
+
+@Composable
+private fun DeconstructionCard(
+    snapshot: MobileSnapshotDto,
+    shootId: String,
+    revision: Int,
+    keeperShotIds: List<String>,
+    imageUrl: (ShotDto) -> String,
+    blobUrl: (String) -> String,
+    onPrepare: (String, String, Int, String) -> Unit,
+    onShare: (DeconstructionDto) -> Unit,
+) {
+    val draft = snapshot.latestDeconstruction
+        ?.takeIf { it.sourceType == "shoot" && it.sourceId == shootId && it.sourceRevision == revision }
+    var selectedCover by rememberSaveable(shootId, revision) {
+        mutableStateOf(draft?.coverShotId.orEmpty().ifBlank { keeperShotIds.firstOrNull().orEmpty() })
+    }
+    Column(Modifier.padding(horizontal = 20.dp)) {
+        SectionTitle("Share the work", "DECONSTRUCTION")
+        Spacer(Modifier.height(10.dp))
+        InkCard {
+            Text(
+                "An image-led draft from this settled Shoot. You choose the cover; Shoots only uses stored Evidence.",
+                color = MutedWhite,
+                fontSize = 13.sp,
+                lineHeight = 19.sp,
+            )
+            Spacer(Modifier.height(12.dp))
+            if (draft?.status == "drafted" && draft.pages.isNotEmpty()) {
+                LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    items(draft.pages) { page ->
+                        AsyncImage(
+                            model = blobUrl(page.blobPath),
+                            contentDescription = page.title,
+                            modifier = Modifier
+                                .width(150.dp)
+                                .aspectRatio(4f / 5f)
+                                .clip(androidx.compose.foundation.shape.RoundedCornerShape(10.dp))
+                                .background(InkSoft),
+                            contentScale = ContentScale.Crop,
+                        )
+                    }
+                }
+                Spacer(Modifier.height(12.dp))
+                PrimaryAction("Share ${draft.pages.size}-page carousel") { onShare(draft) }
+            } else if (keeperShotIds.isEmpty()) {
+                Text(
+                    "Mark one Shot from this Shoot as a Keeper to choose the cover.",
+                    color = WarmWhite,
+                    fontSize = 14.sp,
+                    lineHeight = 20.sp,
+                )
+            } else {
+                Text("CHOOSE YOUR COVER", color = MutedWhite, fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                Spacer(Modifier.height(7.dp))
+                LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    items(keeperShotIds) { id ->
+                        val shot = snapshot.recentShots.firstOrNull { it.id == id }
+                        AsyncImage(
+                            model = shot?.let(imageUrl),
+                            contentDescription = "Keeper cover",
+                            modifier = Modifier
+                                .width(92.dp)
+                                .aspectRatio(1f)
+                                .clip(androidx.compose.foundation.shape.RoundedCornerShape(9.dp))
+                                .border(
+                                    if (selectedCover == id) 2.dp else 1.dp,
+                                    if (selectedCover == id) Amber else Hairline,
+                                    androidx.compose.foundation.shape.RoundedCornerShape(9.dp),
+                                )
+                                .clickable(role = Role.Button) { selectedCover = id },
+                            contentScale = ContentScale.Crop,
+                        )
+                    }
+                }
+                Spacer(Modifier.height(12.dp))
+                PrimaryAction("Create Deconstruction", selectedCover.isNotBlank()) {
+                    onPrepare("shoot", shootId, revision, selectedCover)
+                }
+            }
         }
     }
 }

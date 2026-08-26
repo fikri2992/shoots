@@ -11,6 +11,7 @@ from app.api import (
     app_links,
     auth,
     capture_sessions,
+    deconstructions,
     deps,
     devices,
     drive,
@@ -58,6 +59,7 @@ app.include_router(auth.router)
 app.include_router(account.router)
 app.include_router(app_links.router)
 app.include_router(capture_sessions.router)
+app.include_router(deconstructions.router)
 app.include_router(devices.router)
 app.include_router(drive.router)
 app.include_router(drive_auth.router)

@@ -25,6 +25,8 @@ import retrofit2.http.PUT
 import retrofit2.http.Part
 import retrofit2.http.Path
 import retrofit2.http.Query
+import retrofit2.http.Streaming
+import retrofit2.http.Url
 import java.io.FileNotFoundException
 import java.util.concurrent.TimeUnit
 
@@ -73,6 +75,13 @@ interface ShootsApi {
 
     @POST("api/experiments/{id}/complete")
     suspend fun completeExplore(@Path("id") id: String): ExperimentDto
+
+    @POST("api/deconstructions")
+    suspend fun prepareDeconstruction(@Body body: DeconstructionPrepareRequest): DeconstructionDto
+
+    @Streaming
+    @GET
+    suspend fun downloadBlob(@Url url: String): okhttp3.ResponseBody
 
     @GET("api/shots")
     suspend fun shots(

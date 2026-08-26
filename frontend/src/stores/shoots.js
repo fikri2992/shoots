@@ -29,6 +29,7 @@ export const useShootsStore = defineStore('shoots', {
     journey: [], // Journey Updates, newest first
     pairCode: null, // { code, expires_in_seconds } while pairing a camera
     seeding: null, // { done, total, name } while the first Shots upload
+    mobile: null, // shared read model: latest Shoot Record and Deconstruction
   }),
 
   getters: {
@@ -81,7 +82,7 @@ export const useShootsStore = defineStore('shoots', {
       this.loading = true
       this.error = ''
       try {
-        const [me, experiment, experiments, techniques, shots, inspirations, events, runs, profile, journey] = await Promise.all([
+        const [me, experiment, experiments, techniques, shots, inspirations, events, runs, profile, journey, mobile] = await Promise.all([
           api.get('/api/me'),
           api.get('/api/experiments/open'),
           api.get('/api/experiments?limit=20'),
@@ -92,6 +93,7 @@ export const useShootsStore = defineStore('shoots', {
           api.get('/api/runs?limit=20'),
           api.get('/api/profile'),
           api.get('/api/journey?limit=10'),
+          api.get('/api/mobile/snapshot'),
         ])
         this.me = me
         this.experiment = experiment
@@ -103,6 +105,7 @@ export const useShootsStore = defineStore('shoots', {
         this.runs = runs
         this.profile = profile
         this.journey = journey
+        this.mobile = mobile
         this.lastEventAt = events[0]?.at || ''
       } catch (error) {
         this.error = error.message
@@ -119,7 +122,7 @@ export const useShootsStore = defineStore('shoots', {
         if (newest !== this.lastEventAt) {
           this.events = events
           this.lastEventAt = newest
-          const [experiment, experiments, techniques, shots, inspirations, runs, profile, journey] = await Promise.all([
+          const [experiment, experiments, techniques, shots, inspirations, runs, profile, journey, mobile] = await Promise.all([
             api.get('/api/experiments/open'),
             api.get('/api/experiments?limit=20'),
             api.get('/api/techniques'),
@@ -128,6 +131,7 @@ export const useShootsStore = defineStore('shoots', {
             api.get('/api/runs?limit=20'),
             api.get('/api/profile'),
             api.get('/api/journey?limit=10'),
+            api.get('/api/mobile/snapshot'),
           ])
           this.experiment = experiment
           this.experiments = experiments
@@ -137,6 +141,7 @@ export const useShootsStore = defineStore('shoots', {
           this.runs = runs
           this.profile = profile
           this.journey = journey
+          this.mobile = mobile
         }
       } catch {
         // a failed poll is not an error the user needs to see
@@ -204,6 +209,19 @@ export const useShootsStore = defineStore('shoots', {
       return this.run('complete-explore', async () => {
         await api.post(`/api/experiments/${id}/complete`)
         await this.fetchAll()
+      })
+    },
+
+    prepareDeconstruction(sourceType, sourceId, sourceRevision, coverShotId) {
+      return this.run('deconstruction', async () => {
+        const draft = await api.post('/api/deconstructions', {
+          source_type: sourceType,
+          source_id: sourceId,
+          source_revision: sourceRevision,
+          cover_shot_id: coverShotId,
+        })
+        await this.fetchAll()
+        return draft
       })
     },
 

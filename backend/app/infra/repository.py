@@ -20,6 +20,7 @@ from app.domain.entities import (
     CaptureSession,
     CaptureSessionMember,
     CaptureSessionStatus,
+    Deconstruction,
     Experiment,
     ExperimentStatus,
     ExperimentType,
@@ -65,6 +66,7 @@ CAPTURE_SESSIONS = "capture_sessions"
 ACTIVE_CAPTURE_SESSIONS = "active_capture_sessions"
 ACCOUNT_DELETIONS = "account_deletions"
 PHOTOGRAPHER_SIGNALS = "photographer_signals"
+DECONSTRUCTIONS = "deconstructions"
 
 
 class UnknownEntity(LookupError):
@@ -212,11 +214,7 @@ async def list_shots_page(
     shots = [shot for row in rows if _active_shot(shot := Shot.model_validate(row))]
     if start_after is not None:
         cursor_key = (start_after["ingested_at"], start_after["id"])
-        shots = [
-            shot
-            for shot in shots
-            if (shot.ingested_at.isoformat(), shot.id) < cursor_key
-        ]
+        shots = [shot for shot in shots if (shot.ingested_at.isoformat(), shot.id) < cursor_key]
     has_more = len(shots) > limit
     shots = shots[:limit]
     next_cursor = ""
@@ -252,11 +250,7 @@ async def list_inspirations(
         order_by="created_at",
         descending=True,
     )
-    items = [
-        item
-        for row in rows
-        if not (item := Inspiration.model_validate(row)).superseded_at
-    ]
+    items = [item for row in rows if not (item := Inspiration.model_validate(row)).superseded_at]
     return items[:limit] if limit is not None else items
 
 
@@ -922,8 +916,7 @@ async def record_explore_result(
         if shot_id not in experiment.result_shot_ids:
             experiment.result_shot_ids.append(shot_id)
         if observation is not None and not any(
-            item.shot_id == observation.shot_id
-            for item in experiment.variation_observations
+            item.shot_id == observation.shot_id for item in experiment.variation_observations
         ):
             experiment.variation_observations.append(observation)
         return _dump(experiment)
@@ -1221,6 +1214,33 @@ async def list_events(store: Store, user_id: str, limit: int = 100) -> list[Acti
     return [ActivityEvent.model_validate(d) for d in rows]
 
 
+# --- deconstructions ------------------------------------------------------
+
+
+async def put_deconstruction(store: Store, draft: Deconstruction) -> None:
+    await store.put(DECONSTRUCTIONS, draft.id, _dump(draft))
+
+
+async def find_deconstruction(store: Store, draft_id: str) -> Deconstruction | None:
+    data = await store.get(DECONSTRUCTIONS, draft_id)
+    return Deconstruction.model_validate(data) if data else None
+
+
+async def list_deconstructions(
+    store: Store,
+    user_id: str,
+    limit: int = 20,
+) -> list[Deconstruction]:
+    rows = await store.query(
+        DECONSTRUCTIONS,
+        where={"user_id": user_id},
+        order_by="updated_at",
+        descending=True,
+        limit=limit,
+    )
+    return [Deconstruction.model_validate(row) for row in rows]
+
+
 # --- journey updates -------------------------------------------------------
 
 
@@ -1373,6 +1393,9 @@ async def delete_user_records(store: Store, user_id: str) -> None:
         (RUNS, "id"),
         (JOURNEY, "id"),
         (CAPTURE_SESSIONS, "id"),
+        (SCENES, "id"),
+        (SHOOTS, "id"),
+        (DECONSTRUCTIONS, "id"),
         (DEVICES, "fingerprint"),
         (PAIRING, "code"),
         ("push", "id"),
@@ -1385,6 +1408,11 @@ async def delete_user_records(store: Store, user_id: str) -> None:
         await store.delete(
             TECHNIQUE_STATES,
             technique_state_id_for(user_id, str(row.get("technique_id", ""))),
+        )
+    for row in await store.query(SHOOT_RECORDS, where={"user_id": user_id}):
+        await store.delete(
+            SHOOT_RECORDS,
+            shoot_record_id(str(row.get("shoot_id", "")), int(row.get("revision", 1))),
         )
     for row in await store.query(ACTIVE_CAPTURE_SESSIONS, where={"user_id": user_id}):
         if row.get("experiment_id"):

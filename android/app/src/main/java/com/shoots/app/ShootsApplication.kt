@@ -23,6 +23,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.tasks.await
 import kotlinx.serialization.json.Json
+import java.io.File
 
 class AppContainer(application: Application) {
     val json = Json {
@@ -77,6 +78,7 @@ class ShootsApplication : Application(), ImageLoaderFactory {
     suspend fun clearLocalData() {
         WorkManager.getInstance(this).cancelAllWork().result.get()
         container.database.clearAllTables()
+        File(cacheDir, "deconstructions").deleteRecursively()
         imageLoader.memoryCache?.clear()
         imageLoader.diskCache?.clear()
         if (FirebaseApp.getApps(this).isNotEmpty()) {

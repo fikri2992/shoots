@@ -1,6 +1,6 @@
 # Deconstruction
 
-> Target design, 2026-08-26. This is not implemented. Decision 97 in the
+> Release contract and current first slice, updated 2026-08-27. Decisions 97 and 105 in the
 > [domain model](domain-model.md) is normative; the
 > [feature list](feature-list.md) tracks delivery.
 
@@ -25,7 +25,7 @@ grade.
 
 ## Page grammar
 
-The first target is portrait 1080×1350 (4:5), at most ten pages. Pages are chosen
+The first target is portrait 1080×1350 (4:5), four to seven pages. Pages are chosen
 from the eligible set below; only the one-claim rule is fixed.
 
 | Candidate page | Evidence source | Rule |
@@ -48,29 +48,39 @@ Cell references remain model addressing. Captions use plain spatial language aft
 1. Domain code creates the candidate set from the Shoot Record, Experiment Record,
    Analyses, Technique Map, Keeper signals, and provenance. Unsupported or
    contradictory material never reaches the writer.
-2. A bounded Scribe writer selects and orders four to seven eligible pages and
-   writes one concise caption per page. It cannot invent a page type, measurement,
-   Intent, Keeper, or claim outside the candidate set.
+2. Current Scribe code selects, orders, and captions four to seven eligible pages.
+   A later bounded writer may rewrite only inside that candidate set; it cannot invent
+   a page type, measurement, Intent, Keeper, or claim.
 3. Imaging code renders every mark and page deterministically. A scoped mark is
    drawn only where its Evidence reaches; a whole-frame or unlocated observation
    cannot receive a fictional hotspot.
-4. The photographer chooses the cover, edits or removes captions, exports, and
-   invokes Android's share sheet. Shoots never posts automatically.
+4. The photographer chooses the cover and invokes Android's share sheet. Caption
+   editing and persistent export remain later work. Shoots never posts automatically.
 
 The agentic decision is the supported story this body of work can tell. The
 photographer retains taste and publication authority.
 
 ## Lifecycle and failure
 
-Scribe attempts one Deconstruction after a meaningful Shoot or Experiment settles.
-It does not render one automatically for every Shot. The Shoot Record stores one of
-`not_applicable`, `drafted`, or `failed`, including the input ids and rendering
-version, so a failed export cannot make the learning workflow disappear.
+Scribe may prepare one Deconstruction after a meaningful Shoot or Experiment settles.
+It does not render one automatically for every Shot. The durable record stores
+`needs_cover`, `drafted`, or `failed`, exact input ids, Evidence references, input
+digest, and rendering version. A Shoot or Experiment remains settled if drafting
+fails.
 
 The photographer may request a later render from stored Evidence without rerunning
-perception. Android saves the chosen pages to MediaStore and opens the system share
-sheet. If Drive is connected, a later adapter may also write them to
+perception. Android caches the chosen pages for the system share sheet. A later export
+may save them to MediaStore or, when Drive is connected, write them to
 `Shoots/Deconstructions/`.
+
+Current implementation prepares a replay-safe `needs_cover` record while a Shoot
+settles, then renders four to seven exact 1080×1350 JPEG pages after the Photographer
+chooses an eligible Keeper. Android caches the authenticated page files and opens the
+system multi-image share sheet; web exposes the same durable draft for audit. Export to
+MediaStore, caption editing, automatic Experiment-triggered preparation, and optional
+Drive output remain later work. Composition and Technique pages reuse the stored
+Analyst overlay when it exists; they do not replace visible structure with another
+paragraph.
 
 ## Explicitly out
 
@@ -82,11 +92,13 @@ sheet. If Drive is connected, a later adapter may also write them to
 - no raw cell references or pipeline prose;
 - no claim that an Experiment caused later Change.
 
-## Open decisions
+## First-release decisions
 
-- Default attribution line: “Deconstructed with Shoots,” optional or always on?
-- Let the photographer edit the caption before export, or export pages plus a
-  separate suggested caption?
-- For a Shoot without a Keeper, should the draft stop before rendering image pages
-  or render evidence pages and wait for a cover selection?
-- Are video contact-sheet covers in the first release or still-Shot only?
+- Draft pages carry a small “Deconstructed with Shoots” attribution.
+- Pages and one separate suggested post caption are exported; in-app caption editing
+  is later work.
+- Without an explicitly selected eligible Keeper, the draft stays `needs_cover` and
+  does not render a carousel.
+- Still-Shot covers and pages only. Video contact-sheet covers remain later work.
+- Android shares the rendered page files through the system share sheet. It never
+  calls a social-network posting API.

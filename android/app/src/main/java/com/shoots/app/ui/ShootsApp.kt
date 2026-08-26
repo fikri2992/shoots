@@ -46,6 +46,7 @@ import com.shoots.app.Ink
 import com.shoots.app.InkRaised
 import com.shoots.app.MutedWhite
 import com.shoots.app.R
+import com.shoots.app.data.DeconstructionDto
 import kotlinx.coroutines.launch
 
 data class AppActions(
@@ -59,6 +60,8 @@ data class AppActions(
     val requestExplore: (Boolean) -> Unit,
     val startExperiment: (String, String) -> Unit,
     val completeExplore: (String) -> Unit,
+    val prepareDeconstruction: (String, String, Int, String) -> Unit,
+    val shareDeconstruction: (DeconstructionDto) -> Unit,
     val continueSession: (String) -> Unit,
     val finishSession: (String) -> Unit,
     val cancelSession: (String) -> Unit,
@@ -197,7 +200,14 @@ fun ShootsApp(
                 )
             }
             composable("journey") {
-                JourneyScreen(snapshot, { viewModel.imageUrl(it) }) { nav.navigate("shot/$it") }
+                JourneyScreen(
+                    snapshot = snapshot,
+                    imageUrl = { viewModel.imageUrl(it) },
+                    blobUrl = viewModel::blobUrl,
+                    onShot = { nav.navigate("shot/$it") },
+                    onPrepareDeconstruction = actions.prepareDeconstruction,
+                    onShareDeconstruction = actions.shareDeconstruction,
+                )
             }
             composable("experiments") {
                 ExperimentsScreen(

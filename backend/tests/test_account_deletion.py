@@ -3,7 +3,14 @@
 import httpx
 
 from app.api import auth, deps, main, pairing
-from app.domain.entities import Shot, ShotKind, ShotSource, User
+from app.domain.entities import (
+    Deconstruction,
+    DeconstructionSourceType,
+    Shot,
+    ShotKind,
+    ShotSource,
+    User,
+)
 from app.infra import repository as repo
 from app.infra.bus import InProcessBus
 from app.infra.secrets import LocalTokenStore
@@ -38,6 +45,16 @@ async def test_delete_account_revokes_devices_records_tokens_and_blobs(tmp_path)
             blobs={ORIGINAL: original},
         ),
     )
+    await repo.put_deconstruction(
+        store,
+        Deconstruction(
+            id="deconstruction-delete",
+            user_id=user.id,
+            source_type=DeconstructionSourceType.SHOOT,
+            source_id="shoot-delete",
+            source_revision=1,
+        ),
+    )
 
     async def verified_claims(body: auth.AndroidSessionIn) -> dict:
         return {
@@ -68,6 +85,7 @@ async def test_delete_account_revokes_devices_records_tokens_and_blobs(tmp_path)
 
     assert await repo.find_user(store, user.id) is None
     assert await repo.list_shots(store, user.id) == []
+    assert await repo.list_deconstructions(store, user.id) == []
     assert await repo.list_devices(store, user.id) == []
     assert await tokens.get(user.id) is None
     assert not await blobs.exists(original)

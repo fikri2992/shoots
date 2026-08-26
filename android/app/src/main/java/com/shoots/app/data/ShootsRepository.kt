@@ -12,6 +12,7 @@ import okhttp3.RequestBody.Companion.toRequestBody
 import retrofit2.HttpException
 import java.io.FileNotFoundException
 import java.io.IOException
+import java.io.File
 import java.time.Instant
 
 data class OperationFailure(
@@ -333,6 +334,35 @@ class ShootsRepository(
     suspend fun completeExplore(id: String) {
         api.completeExplore(id)
         refreshSnapshot()
+    }
+
+    suspend fun prepareDeconstruction(
+        sourceType: String,
+        sourceId: String,
+        sourceRevision: Int,
+        coverShotId: String,
+    ): DeconstructionDto {
+        val draft = api.prepareDeconstruction(
+            DeconstructionPrepareRequest(sourceType, sourceId, sourceRevision, coverShotId)
+        )
+        refreshSnapshot()
+        return draft
+    }
+
+    suspend fun cacheDeconstructionPages(draft: DeconstructionDto): List<File> {
+        require(draft.status == "drafted" && draft.pages.isNotEmpty()) {
+            "This Deconstruction has no rendered pages yet"
+        }
+        val folder = File(context.cacheDir, "deconstructions/${draft.id}")
+        folder.mkdirs()
+        folder.listFiles()?.forEach { it.delete() }
+        return draft.pages.mapIndexed { index, page ->
+            val target = File(folder, "page-${(index + 1).toString().padStart(2, '0')}.jpg")
+            api.downloadBlob(blobUrl(page.blobPath)).byteStream().use { input ->
+                target.outputStream().use(input::copyTo)
+            }
+            target
+        }
     }
 
     suspend fun registerNotificationTarget(target: String) {

@@ -392,6 +392,38 @@ data class ShootRecordDto(
 )
 
 @Serializable
+data class DeconstructionPageDto(
+    val kind: String,
+    val title: String,
+    val claim: String,
+    @SerialName("shot_ids") val shotIds: List<String> = emptyList(),
+    @SerialName("evidence_refs") val evidenceRefs: List<String> = emptyList(),
+    @SerialName("visual_layer") val visualLayer: String = "original",
+    @SerialName("blob_path") val blobPath: String = "",
+)
+
+@Serializable
+data class DeconstructionDto(
+    val id: String,
+    @SerialName("source_type") val sourceType: String,
+    @SerialName("source_id") val sourceId: String,
+    @SerialName("source_revision") val sourceRevision: Int = 0,
+    val status: String = "needs_cover",
+    @SerialName("candidate_cover_shot_ids") val candidateCoverShotIds: List<String> = emptyList(),
+    @SerialName("cover_shot_id") val coverShotId: String = "",
+    val pages: List<DeconstructionPageDto> = emptyList(),
+    @SerialName("suggested_caption") val suggestedCaption: String = "",
+)
+
+@Serializable
+data class DeconstructionPrepareRequest(
+    @SerialName("source_type") val sourceType: String,
+    @SerialName("source_id") val sourceId: String,
+    @SerialName("source_revision") val sourceRevision: Int = 0,
+    @SerialName("cover_shot_id") val coverShotId: String = "",
+)
+
+@Serializable
 data class JourneyUpdateDto(
     val id: String,
     val body: String,
@@ -474,6 +506,7 @@ data class MobileSnapshotDto(
     val profile: ProfileDto = ProfileDto(),
     val techniques: List<TechniqueNodeDto> = emptyList(),
     val experiments: List<ExperimentDto> = emptyList(),
+    @SerialName("latest_deconstruction") val latestDeconstruction: DeconstructionDto? = null,
 )
 
 @Serializable

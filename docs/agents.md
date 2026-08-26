@@ -1,6 +1,6 @@
 # Agents
 
-The implemented per-Shot agent architecture on Google ADK, the current backend Shoot-level learning workflow, and the later completed memory and summoned Scene Companion. Solid arrows in the current diagram are built. Corrected Explore is current; Ask, Deconstruction, and Live remain target work in the later diagrams until the [feature list](feature-list.md) marks their rows built.
+The implemented per-Shot agent architecture on Google ADK, the current backend Shoot-level learning workflow, and the later completed memory and summoned Scene Companion. Solid arrows in the current diagram are built. Corrected Explore and the first Deconstruction draft are current; Ask and Live remain target work in the later diagrams until the [feature list](feature-list.md) marks their rows built.
 The product vocabulary is locked: Experiment, Finding, Technique Map, Change. The
 only migration names left are the `skills` Firestore collection key and
 `TechniqueState`. Scores are not stored. [Domain model](domain-model.md)
@@ -37,7 +37,7 @@ the source for the submission architecture diagram.
    and its Criteria before any result. Only Reproduce asks Judge for a Verdict. Baseline
    Change remains available where a Tendency actually selected an Experiment. It does
    not claim causation. No model adjudicates either result.
-7. **One Shot is Evidence; one Shoot is completed learning work.** The Shot Run remains the atomic stage account. The backend now groups capture-continuous Shots into Scenes and a Shoot, waits for every member Run, synthesizes what repeated and varied, and stores Scout's warranted action or silence. Client receipt and Deconstruction remain. A Capture Session stays separate explicit Experiment membership.
+7. **One Shot is Evidence; one Shoot is completed learning work.** The Shot Run remains the atomic stage account. The backend groups capture-continuous Shots into Scenes and a Shoot, waits for every member Run, synthesizes what repeated and varied, stores Scout's warranted action or silence, and prepares one evidence-bound Deconstruction attempt. A Capture Session stays separate explicit Experiment membership.
 
 ## Current topology
 
@@ -92,7 +92,7 @@ Android now uses Credential Manager, one build-configured service origin, encryp
 
 ## Shoot-level topology and remaining routes
 
-The current backend implements membership, the barrier, deterministic synthesis, and `explain`, supported-Tendency `explore`, Keeper-backed `reproduce`, or `silence`. Ask and Deconstruction remain incomplete.
+The current backend implements membership, the barrier, deterministic synthesis, `explain`, supported-Tendency `explore`, Keeper-backed `reproduce`, `silence`, and evidence-bound Deconstruction preparation. Ask remains incomplete; configured-device Deconstruction sharing remains unaccepted.
 
 ```mermaid
 flowchart LR
@@ -113,8 +113,8 @@ flowchart LR
   REPRO --> CHANGE[Experiment Record + Change]
   OBSERVE --> CART
   CHANGE --> CART
-  RECORD -.-> SCRIBE[Scribe<br/>Deconstruction draft target]
-  SCRIBE -.-> DONE[(Shoot settled + one receipt)]
+  RECORD --> SCRIBE[Scribe<br/>evidence-bound Deconstruction draft]
+  SCRIBE --> DONE[(Shoot settled + one receipt)]
   REFLECT --> DONE
   ASK -.-> CART
 
@@ -255,9 +255,9 @@ All `LlmAgent`s run `gemini-3.7-flash` on the Vertex global endpoint.
   Reproduce, or stay silent. The writer receives only that route. The stored record
   includes the warrant, rejected routes, input ids, policy version, and prompt/model
   provenance.
-- **Scribe**: code selects eligible one-claim layers from stored Evidence. A bounded
-  writer may order and caption them; imaging renders the Deconstruction. The
-  photographer chooses the Keeper cover, export, and posting.
+- **Scribe**: code selects and orders eligible one-claim layers from stored Evidence;
+  deterministic imaging renders the first Deconstruction slice. No writer adds facts.
+  The photographer chooses the Keeper cover, share destination, and posting.
 
 ## State and sessions
 
@@ -267,11 +267,10 @@ All `LlmAgent`s run `gemini-3.7-flash` on the Vertex global endpoint.
   missing or malformed one in `errors` so the stage can decide on quorum instead of
   failing.
 - Durable server state currently holds `User` (constraints, location, Drive cursor),
-  `Shot`, `Analysis` (model and prompt version), `TechniqueState`, `Experiment` (fixed
-  Keeper, explicit result Shot ids, and Verdicts), `CaptureSession`, `Run`, device
-  sessions, one-open slot, `JourneyUpdate`, and `ActivityEvent`. The target adds
-  persisted `Scene`, `Shoot`, `ShootRecord`, `Inspiration`, and `Deconstruction`
-  records without rewriting the current ones. Firestore is used in the cloud and one
+  `Shot`, `Analysis` (model and prompt version), `TechniqueState`, `Experiment`,
+  `CaptureSession`, `Run`, `Scene`, `Shoot`, `ShootRecord`, `Inspiration`,
+  `Deconstruction`, device sessions, the one-open slot, `JourneyUpdate`, and
+  `ActivityEvent`. Firestore is used in the cloud and one
   `store.json` locally. Android Room caches the read model and owns immutable source
   assignments; it is never a second photographic truth. Every stage is idempotent on
   its domain id.

@@ -23,6 +23,9 @@ function displayLanguage(text) {
 export default {
   name: 'JourneyPage',
   components: { AgentLog, DisclosureRow, ExperimentRecord, ReproduceProof, TechniqueMap, TendencyProfile },
+  data() {
+    return { selectedCover: '' }
+  },
   computed: {
     ...mapState(useShootsStore, [
       'pastExperiments',
@@ -35,6 +38,7 @@ export default {
       'orderedShots',
       'profile',
       'techniques',
+      'mobile',
     ]),
     latest() {
       return this.journey[0] || null
@@ -104,13 +108,39 @@ export default {
     driveUrl() {
       return this.me?.drive_folder_id ? `https://drive.google.com/drive/folders/${this.me.drive_folder_id}` : ''
     },
+    latestShootRecord() {
+      return this.mobile?.latest_shoot_record || null
+    },
+    deconstruction() {
+      const draft = this.mobile?.latest_deconstruction
+      if (!draft || draft.source_type !== 'shoot' || !this.latestShootRecord) return null
+      return draft.source_id === this.latestShootRecord.shoot_id &&
+        draft.source_revision === this.latestShootRecord.revision ? draft : null
+    },
+    deconstructionKeepers() {
+      const ids = this.latestShootRecord?.receipt?.keeper_shot_ids || []
+      return ids.map((id) => this.orderedShots.find((item) => item.shot.id === id)?.shot).filter(Boolean)
+    },
   },
   methods: {
-    ...mapActions(useShootsStore, ['sync', 'enablePush', 'pairCamera']),
+    ...mapActions(useShootsStore, ['sync', 'enablePush', 'pairCamera', 'prepareDeconstruction']),
     ...mapActions(useAuthStore, ['logout']),
     async signOut() {
       await this.logout()
       this.$router.push({ name: 'login' })
+    },
+    blobUrl(path) {
+      return path ? `/api/blobs/${path}` : ''
+    },
+    createDeconstruction() {
+      const cover = this.selectedCover || this.deconstructionKeepers[0]?.id
+      if (!cover || !this.latestShootRecord) return
+      return this.prepareDeconstruction(
+        'shoot',
+        this.latestShootRecord.shoot_id,
+        this.latestShootRecord.revision,
+        cover,
+      )
     },
   },
 }
@@ -189,6 +219,42 @@ export default {
           </div>
           <p class="mt-3 t-body text-neutral-200">{{ latestChange.change.outcome }}</p>
           <p class="mt-4 t-meta">Comparable counts before and after. This does not claim the Experiment caused the Change or that the Shots improved.</p>
+        </section>
+
+        <section v-if="latestShootRecord" class="surface p-5 sm:p-7">
+          <p class="eyebrow">Deconstruction</p>
+          <h2 class="mt-2 t-title">Share how you worked the Shoot</h2>
+          <p class="mt-3 t-body">One visual claim per page, built from the settled record. You choose the Keeper cover.</p>
+
+          <template v-if="deconstruction?.status === 'drafted'">
+            <div class="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-3">
+              <figure v-for="page in deconstruction.pages" :key="page.blob_path">
+                <img :src="blobUrl(page.blob_path)" :alt="page.title" class="aspect-[4/5] w-full rounded-xl object-cover" />
+                <figcaption class="mt-2 t-meta">{{ page.title }}</figcaption>
+              </figure>
+            </div>
+            <p class="mt-4 t-meta">The Android app shares these exact pages as one carousel. Shoots never posts automatically.</p>
+          </template>
+
+          <template v-else-if="deconstructionKeepers.length">
+            <p class="mt-5 eyebrow">Choose your cover</p>
+            <div class="mt-3 flex gap-3 overflow-x-auto pb-2">
+              <button
+                v-for="shot in deconstructionKeepers"
+                :key="shot.id"
+                type="button"
+                class="shrink-0 rounded-xl border p-1"
+                :class="(selectedCover || deconstructionKeepers[0]?.id) === shot.id ? 'border-accent' : 'border-edge'"
+                @click="selectedCover = shot.id"
+              >
+                <img :src="blobUrl(shot.blobs.thumb || shot.blobs.original)" alt="Keeper cover" class="h-24 w-24 rounded-lg object-cover" />
+              </button>
+            </div>
+            <button type="button" class="btn-primary mt-4" :disabled="busy === 'deconstruction'" @click="createDeconstruction">
+              {{ busy === 'deconstruction' ? 'Rendering…' : 'Create Deconstruction' }}
+            </button>
+          </template>
+          <p v-else class="mt-4 t-body">Mark one Shot from this Shoot as a Keeper before choosing a cover.</p>
         </section>
 
         <section v-if="tendencies.length" class="surface p-5 sm:p-7">

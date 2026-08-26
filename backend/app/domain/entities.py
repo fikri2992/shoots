@@ -858,6 +858,63 @@ class Experiment(BaseModel):
     closed_at: datetime | None = None
 
 
+# --- deconstructions ------------------------------------------------------
+
+
+class DeconstructionSourceType(StrEnum):
+    SHOOT = "shoot"
+    EXPERIMENT = "experiment"
+
+
+class DeconstructionStatus(StrEnum):
+    NEEDS_COVER = "needs_cover"
+    DRAFTED = "drafted"
+    FAILED = "failed"
+
+
+class DeconstructionPageKind(StrEnum):
+    COVER = "cover"
+    SHOOT_WORK = "shoot_work"
+    COMPOSITION = "composition"
+    LIGHT_COLOUR = "light_colour"
+    TECHNIQUE = "technique"
+    EXPLORE = "explore"
+    REPRODUCE = "reproduce"
+    CHANGE = "change"
+    RECORD = "record"
+
+
+class DeconstructionPage(BaseModel):
+    """One claim and its exact visual and Evidence inputs."""
+
+    kind: DeconstructionPageKind
+    title: str
+    claim: str
+    shot_ids: list[str] = Field(default_factory=list)
+    evidence_refs: list[str] = Field(default_factory=list)
+    visual_layer: str = "original"
+    blob_path: str = ""
+
+
+class Deconstruction(BaseModel):
+    """A photographer-controlled, shareable draft from stored Evidence."""
+
+    id: str
+    user_id: str
+    source_type: DeconstructionSourceType
+    source_id: str
+    source_revision: int = 0
+    status: DeconstructionStatus = DeconstructionStatus.NEEDS_COVER
+    candidate_cover_shot_ids: list[str] = Field(default_factory=list)
+    cover_shot_id: str = ""
+    pages: list[DeconstructionPage] = Field(default_factory=list)
+    suggested_caption: str = ""
+    input_digest: str = ""
+    rendering_version: str = "deconstruction-render-1"
+    created_at: datetime = Field(default_factory=now)
+    updated_at: datetime = Field(default_factory=now)
+
+
 # --- scenes and shoots ----------------------------------------------------
 
 
@@ -1016,6 +1073,14 @@ class ScoutDecision(BaseModel):
     executed_at: datetime | None = None
 
 
+class DeconstructionAttempt(BaseModel):
+    """What Scribe could prepare while this Shoot revision settled."""
+
+    deconstruction_id: str = ""
+    status: DeconstructionStatus | None = None
+    detail: str = ""
+
+
 class ShootRecord(BaseModel):
     """The terminal account for one immutable Shoot revision."""
 
@@ -1028,6 +1093,7 @@ class ShootRecord(BaseModel):
     unreadable_shot_ids: list[str] = Field(default_factory=list)
     receipt: ShootReceipt = Field(default_factory=ShootReceipt)
     scout: ScoutDecision = Field(default_factory=ScoutDecision)
+    deconstruction: DeconstructionAttempt = Field(default_factory=DeconstructionAttempt)
     provenance: Provenance = Field(default_factory=Provenance)
     settled_at: datetime = Field(default_factory=now)
 

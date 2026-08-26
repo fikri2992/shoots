@@ -135,7 +135,7 @@ Analyses cannot express.
 | Choose the best Shot automatically | Reject until the Photographer provides a selection signal. “Keeper” is not the model's decision. |
 | Add a Shoot-level Gemini reader now | Defer until deterministic receipts expose a measured gap. A second essay is not depth. |
 | Vector database for memory | Defer. Structured ids, revisions, evidence axes, and provenance answer the current retrieval problem. |
-| Generate a social carousel per Shot | Move to Deconstruction after the settled Shoot Record works; it must be derived from stored evidence and never auto-post. |
+| Generate a social carousel per Shot | Rejected. Current Deconstruction follows the settled Shoot or Experiment Record, derives every page from stored Evidence, requires a photographer-owned cover, and never auto-posts. |
 
 ## Current calibration and tests
 
