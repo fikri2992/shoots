@@ -127,4 +127,4 @@ async def test_real_fanout_settles_only_after_map_scout_judge_and_scribe(tmp_pat
     )
     events = await repo.list_events(ctx.store, shot.user_id)
     assert sum(event.stage == "run_completed" for event in events) == 1
-    assert any(event.stage == "nothing_to_issue" for event in events)
+    assert any(event.stage == "shoot_decision_deferred" for event in events)

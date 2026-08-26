@@ -18,6 +18,7 @@ from app.domain.entities import (
 )
 from app.infra import repository as repo
 from app.services import profile as profile_service
+from app.services import shoot_scout
 from app.services.context import Context
 
 
@@ -157,6 +158,16 @@ async def _settle_if_ready(ctx: Context, shoot: Shoot) -> ShootRecord | None:
     existing = await repo.find_shoot_record(ctx.store, shoot.id, shoot.revision)
     if shoot.status is ShootStatus.SETTLED:
         return existing
+    if existing is not None:
+        settled, changed = await repo.settle_shoot(
+            ctx.store,
+            shoot.id,
+            shoot.revision,
+            existing.settled_at,
+        )
+        if changed:
+            await repo.record_shoot_settled(ctx.store, settled, existing)
+        return existing
 
     runs = [await repo.find_run_for_shot(ctx.store, shot_id) for shot_id in shoot.ordered_shot_ids]
     if any(
@@ -206,6 +217,7 @@ async def _settle_if_ready(ctx: Context, shoot: Shoot) -> ShootRecord | None:
         inputs=base_provenance.inputs,
         analysis_versions=base_provenance.analysis_versions,
     )
+    scout_decision = await shoot_scout.decide(ctx, shoot, receipt)
     record = await repo.put_shoot_record_once(
         ctx.store,
         ShootRecord(
@@ -217,6 +229,7 @@ async def _settle_if_ready(ctx: Context, shoot: Shoot) -> ShootRecord | None:
             run_outcomes=run_outcomes,
             unreadable_shot_ids=unreadable_shot_ids,
             receipt=receipt,
+            scout=scout_decision,
             provenance=provenance,
             settled_at=settled_at,
         ),

@@ -41,6 +41,7 @@ RECENT_EXPERIMENTS = 6
 class KeeperPattern:
     count: int
     reference_shot_id: str
+    shot_ids: tuple[str, ...]
 
 
 async def issue(
@@ -68,26 +69,26 @@ async def issue(
         for q in await repo.list_experiments(ctx.store, user_id, limit=RECENT_EXPERIMENTS)
     ]
     user = await repo.get_user(ctx.store, user_id)
-    keeper_patterns = await _keeper_patterns(ctx, user_id)
+    patterns = await keeper_patterns(ctx, user_id)
     if technique_id:
         requested = taxonomy.BY_ID.get(technique_id)
         technique = (
             requested
             if requested
-            and technique_id in keeper_patterns
+            and technique_id in patterns
             and rules.available(requested, missing_gear=user.constraints.missing_gear)
             else None
         )
     else:
         technique = rules.choose(
-            tuple(keeper_patterns),
+            tuple(patterns),
             recent,
             missing_gear=user.constraints.missing_gear,
         )
     if technique is None:
         reason = (
             "No marked Keeper has corroborated Technique Evidence yet."
-            if not keeper_patterns
+            if not patterns
             else (
                 "Every supported Keeper Technique was offered recently or conflicts "
                 "with a constraint."
@@ -102,7 +103,7 @@ async def issue(
         )
         return None
 
-    pattern = keeper_patterns[technique.id]
+    pattern = patterns[technique.id]
     count = pattern.count
     why = (
         f"{count} marked Keeper{'s' if count != 1 else ''} include {technique.name}; "
@@ -132,6 +133,7 @@ async def issue(
         criteria=agent.criteria_for(technique, out.criteria_text),
         references=agent.pick_references(out, research),
         reference_shot_id=pattern.reference_shot_id,
+        warrant_shot_ids=list(pattern.shot_ids),
         status=ExperimentStatus.OPEN,
         due_at=now() + timedelta(days=settings.experiment_ttl_days),
     )
@@ -168,7 +170,7 @@ async def issue(
     return experiment
 
 
-async def _keeper_patterns(ctx: Context, user_id: str) -> dict[str, KeeperPattern]:
+async def keeper_patterns(ctx: Context, user_id: str) -> dict[str, KeeperPattern]:
     """Corroborated Keeper Techniques with one fixed reference Shot each."""
     candidates: dict[str, list[tuple[str, int, float, datetime]]] = {}
     for shot in await repo.list_shots(ctx.store, user_id):
@@ -191,10 +193,16 @@ async def _keeper_patterns(ctx: Context, user_id: str) -> dict[str, KeeperPatter
         technique_id: KeeperPattern(
             count=len(rows),
             reference_shot_id=max(rows, key=lambda row: (row[1], row[2], row[3]))[0],
+            shot_ids=tuple(sorted(row[0] for row in rows)),
         )
         for technique_id, rows in candidates.items()
     }
     return dict(sorted(patterns.items(), key=lambda item: (-item[1].count, item[0])))
+
+
+async def _keeper_patterns(ctx: Context, user_id: str) -> dict[str, KeeperPattern]:
+    """Compatibility seam for older callers; new code uses ``keeper_patterns``."""
+    return await keeper_patterns(ctx, user_id)
 
 
 async def profile_for(ctx: Context, user_id: str) -> tendency.Profile:
@@ -365,7 +373,7 @@ async def issue_first(ctx: Context, user_id: str) -> Experiment | None:
 
 
 async def consider_after_shot(ctx: Context, user_id: str, shot_id: str) -> str:
-    """Plan from the updated record, or preserve an evidenced silence."""
+    """Settle the per-Shot Run without choosing the Shoot intervention early."""
     opened = await repo.open_experiment(ctx.store, user_id)
     if opened is not None:
         outcome = f'Existing Reproduce Experiment "{opened.title}" remains open.'
@@ -379,10 +387,16 @@ async def consider_after_shot(ctx: Context, user_id: str, shot_id: str) -> str:
             experiment_id=opened.id,
         )
         return outcome
-    created = await issue(ctx, user_id)
-    if created is not None:
-        return f'Scout issued "{created.title}" from a marked Keeper.'
-    return "Scout stayed silent because no supported Reproduce direction won."
+    outcome = "Scout will choose help after the natural Shoot settles."
+    await repo.record(
+        ctx.store,
+        user_id,
+        AGENT,
+        "shoot_decision_deferred",
+        {"reason": outcome},
+        shot_id=shot_id,
+    )
+    return outcome
 
 
 async def deliver_if_due(ctx: Context, experiment: Experiment) -> bool:

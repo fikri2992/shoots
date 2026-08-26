@@ -30,9 +30,9 @@ personality profile, or a score.
 | Tendency Profile | Rebuilt from the complete readable archive under `CALC_VERSION` | Rebuild from authoritative evidence; cache only with an input digest |
 | Keeper | Positive `kept_at`; unmarked means unknown | Keep |
 | Intent | No persisted input | Add explicit scoped Intent |
-| Experiment | Baseline, explicit results, Reproduce Criteria and Verdicts, Change | Add typed intervention history for every Scout route |
-| Scene | Four-minute capture-gap arithmetic exists only inside `tendency.dwell()` | Persist deterministic Scene membership |
-| Shoot | Not stored | Persist natural Camera activity and terminal Shoot Record revisions |
+| Experiment | Baseline, explicit results, Reproduce Criteria and Verdicts, Change; new Shoot route stores exact Keeper warrant ids | Complete intervention outcomes for every Scout route |
+| Scene | Persisted capture-continuity membership with grouping revisions | Add explicit Photographer correction |
+| Shoot | Persisted natural Camera activity, revisioned terminal Shoot Record, deterministic receipt, and typed Scout outcome | Add client delivery, correction, full projections, and Deconstruction outcome |
 | Constraints | Listener and Live `remember` merge model-extracted strings into `User.constraints` | Store direct Photographer statements with provenance and correction; confirm inference |
 | Inspiration | Not separated at ingress | Keep outside Photographer-derived memory |
 | Android | Room cache and outbox; device token ciphertext uses Android Keystore | Keep Room as a non-authoritative cache; do not claim Room encryption |

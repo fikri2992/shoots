@@ -46,6 +46,11 @@ def context() -> Context:
 
 
 async def camera_shot(ctx: Context, shot_id: str, captured_at: datetime) -> Shot:
+    if await repo.find_user(ctx.store, "shoot_user") is None:
+        await repo.put_user(
+            ctx.store,
+            User(id="shoot_user", email="shoot-user@example.test"),
+        )
     shot = Shot(
         id=shot_id,
         user_id="shoot_user",

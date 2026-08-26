@@ -524,9 +524,9 @@ class ExperimentType(StrEnum):
     """Which of the three questions this Experiment asks (decision 43).
 
     Scout currently issues ``REPRODUCE`` from corroborated Techniques in
-    photographer-marked Keepers and otherwise offers ``EXPLORE`` from a
-    supported Direction. ``COMPARE`` remains deliberately unissued until the
-    photographer-owned preference result exists.
+    Photographer-marked Keepers. Corrected ``EXPLORE`` and ``COMPARE`` remain
+    deliberately unissued until their Variation and Photographer-owned result
+    records exist.
     """
 
     #: Widen a dimension the archive barely uses.
@@ -719,6 +719,9 @@ class Experiment(BaseModel):
     #: Reproduce freezes one exact marked Keeper before any result arrives.
     #: Empty for Explore, Compare, and legacy records.
     reference_shot_id: str = ""
+    #: Exact Keeper or Tendency Evidence references that permitted Scout to
+    #: offer this Experiment. Empty on legacy and explicitly requested records.
+    warrant_shot_ids: list[str] = Field(default_factory=list)
     #: Every Shot explicitly submitted while this Experiment owned it. This
     #: includes an abstention, which creates no Verdict but remains a result.
     result_shot_ids: list[str] = Field(default_factory=list)
@@ -823,6 +826,73 @@ class ShootReceipt(BaseModel):
     techniques: list[ShootTechniqueFigure] = Field(default_factory=list)
 
 
+class ScoutRoute(StrEnum):
+    EXPLAIN = "explain"
+    ASK = "ask"
+    EXPLORE = "explore"
+    REPRODUCE = "reproduce"
+    SILENCE = "silence"
+
+
+class ScoutExecutionState(StrEnum):
+    PENDING = "pending"
+    COMPLETED = "completed"
+    BLOCKED = "blocked"
+
+
+class InterventionAttemptState(StrEnum):
+    NOT_APPLICABLE = "not_applicable"
+    OFFERED = "offered"
+    ENTERED = "entered"
+    LEFT = "left"
+    COMPLETED = "completed"
+
+
+class InterventionOutcome(StrEnum):
+    NOT_APPLICABLE = "not_applicable"
+    UNCHANGED = "unchanged"
+    CHANGED = "changed"
+    INSUFFICIENT_EVIDENCE = "insufficient_evidence"
+
+
+class ScoutWarrant(BaseModel):
+    """Exact Evidence permitting one Scout route."""
+
+    kind: str
+    shoot_id: str
+    shoot_revision: int
+    shot_ids: list[str] = Field(default_factory=list)
+    technique_id: str = ""
+    reference_shot_id: str = ""
+    detail: str = ""
+
+
+class ScoutRejectedRoute(BaseModel):
+    route: ScoutRoute
+    reason: str
+
+
+class ScoutDecision(BaseModel):
+    """Code-gated intervention choice stored with one Shoot Record."""
+
+    route: ScoutRoute = ScoutRoute.SILENCE
+    reason: str = "No Shoot-level decision was recorded."
+    warrant: list[ScoutWarrant] = Field(default_factory=list)
+    rejected_routes: list[ScoutRejectedRoute] = Field(default_factory=list)
+    input_shot_ids: list[str] = Field(default_factory=list)
+    projection_versions: dict[str, str] = Field(default_factory=dict)
+    policy_version: str = ""
+    experiment_id: str = ""
+    model: str = ""
+    prompt_version: str = ""
+    execution_state: ScoutExecutionState = ScoutExecutionState.COMPLETED
+    execution_detail: str = ""
+    attempt_state: InterventionAttemptState = InterventionAttemptState.NOT_APPLICABLE
+    observable_outcome: InterventionOutcome = InterventionOutcome.NOT_APPLICABLE
+    decided_at: datetime = Field(default_factory=now)
+    executed_at: datetime | None = None
+
+
 class ShootRecord(BaseModel):
     """The terminal account for one immutable Shoot revision."""
 
@@ -834,7 +904,7 @@ class ShootRecord(BaseModel):
     run_outcomes: dict[str, str] = Field(default_factory=dict)
     unreadable_shot_ids: list[str] = Field(default_factory=list)
     receipt: ShootReceipt = Field(default_factory=ShootReceipt)
-    scout: dict[str, Any] = Field(default_factory=dict)
+    scout: ScoutDecision = Field(default_factory=ScoutDecision)
     provenance: Provenance = Field(default_factory=Provenance)
     settled_at: datetime = Field(default_factory=now)
 

@@ -28,6 +28,7 @@ from app.domain.entities import (
     RunStatus,
     RunStepState,
     Scene,
+    ScoutDecision,
     Shoot,
     ShootRecord,
     ShootStatus,
@@ -987,6 +988,33 @@ async def record_shoot_settled(store: Store, shoot: Shoot, record: ShootRecord) 
         at=record.settled_at,
     )
     await store.put(EVENTS, event.id, _dump(event))
+    return event
+
+
+async def record_scout_decision(
+    store: Store,
+    shoot: Shoot,
+    decision: ScoutDecision,
+) -> ActivityEvent:
+    """Write one replay-safe Scout choice for a Shoot revision."""
+    event = ActivityEvent(
+        id=f"evt_{shoot.id}_r{shoot.revision}_scout",
+        user_id=shoot.user_id,
+        agent="scout",
+        stage="shoot_decision",
+        detail={
+            "shoot_id": shoot.id,
+            "revision": shoot.revision,
+            "route": decision.route.value,
+            "reason": decision.reason,
+            "experiment_id": decision.experiment_id,
+            "rejected_routes": [item.route.value for item in decision.rejected_routes],
+            "policy_version": decision.policy_version,
+        },
+        experiment_id=decision.experiment_id,
+        at=decision.decided_at,
+    )
+    await store.create(EVENTS, event.id, _dump(event))
     return event
 
 
