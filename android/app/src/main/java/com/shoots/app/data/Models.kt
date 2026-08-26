@@ -38,6 +38,14 @@ data class ExifDto(
 )
 
 @Serializable
+data class GridSpecDto(
+    val cols: Int,
+    val rows: Int,
+    val width: Int,
+    val height: Int,
+)
+
+@Serializable
 data class ShotDto(
     val id: String,
     @SerialName("user_id") val userId: String = "",
@@ -48,6 +56,7 @@ data class ShotDto(
     @SerialName("mime_type") val mimeType: String = "image/jpeg",
     val status: String = "new",
     val exif: ExifDto = ExifDto(),
+    val grid: GridSpecDto? = null,
     val blobs: Map<String, String> = emptyMap(),
     @SerialName("experiment_id") val experimentId: String = "",
     @SerialName("capture_session_id") val captureSessionId: String = "",
@@ -80,11 +89,34 @@ data class FindingDto(
 )
 
 @Serializable
+data class MoveDto(
+    val what: String,
+    val kind: String = "move",
+    @SerialName("from_cells") val fromCells: List<String> = emptyList(),
+    @SerialName("to_cells") val toCells: List<String> = emptyList(),
+    val reason: String = "",
+)
+
+@Serializable
+data class CompositionDto(
+    @SerialName("subject_cells") val subjectCells: List<String> = emptyList(),
+    @SerialName("subject_x") val subjectX: Double? = null,
+    @SerialName("subject_y") val subjectY: Double? = null,
+    val guide: String = "",
+    @SerialName("horizon_row") val horizonRow: Int? = null,
+    @SerialName("suggested_crop_cells") val suggestedCropCells: List<String> = emptyList(),
+    @SerialName("crop_tested") val cropTested: Boolean = false,
+    @SerialName("crop_reason") val cropReason: String = "",
+    val moves: List<MoveDto> = emptyList(),
+)
+
+@Serializable
 data class AnalysisDto(
     @SerialName("shot_id") val shotId: String,
     val model: String = "",
     @SerialName("prompt_version") val promptVersion: String = "",
     val techniques: List<TechniqueEvidenceDto> = emptyList(),
+    val composition: CompositionDto = CompositionDto(),
     val observations: List<String> = emptyList(),
     val findings: List<FindingDto> = emptyList(),
     val critique: String = "",
@@ -95,6 +127,7 @@ data class AnalysisDto(
 data class ShotViewDto(
     val shot: ShotDto,
     val analysis: AnalysisDto? = null,
+    val run: RunDto? = null,
 )
 
 @Serializable
@@ -282,4 +315,3 @@ data class DriveConnectResponse(
 
 @Serializable
 data class DeletionResponse(val id: String, val status: String)
-

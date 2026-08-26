@@ -19,6 +19,8 @@ import com.shoots.app.phone.MediaAccess
 import com.shoots.app.shootsApplication
 import com.shoots.app.work.PhoneSourceScheduler
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -63,6 +65,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     val error = MutableStateFlow("")
     val notice = MutableStateFlow("")
     val canLoadMoreShots = MutableStateFlow(true)
+    private var shotDetailJob: Job? = null
 
     init {
         if (signedIn.value) sync()
@@ -156,9 +159,30 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     fun observeShotDetail(id: String) = repository.observeShotDetail(id)
 
     fun loadShot(id: String) {
-        viewModelScope.launch(Dispatchers.IO) {
-            runCatching { repository.refreshShot(id) }.onFailure(::recordFailure)
+        shotDetailJob?.cancel()
+        shotDetailJob = viewModelScope.launch(Dispatchers.IO) {
+            repeat(60) {
+                val result = runCatching { repository.refreshShot(id) }
+                if (result.isFailure) {
+                    recordFailure(requireNotNull(result.exceptionOrNull()))
+                    return@launch
+                }
+                val view = result.getOrThrow()
+                if (
+                    view.analysis != null ||
+                    view.run?.status !in setOf("running", "retrying")
+                ) {
+                    return@launch
+                }
+                delay(3_000)
+            }
         }
+    }
+
+    suspend fun retryShot(id: String): Boolean {
+        val resumed = operate { repository.retryShot(id) }
+        if (resumed) loadShot(id)
+        return resumed
     }
 
     fun loadMoreShots(reset: Boolean = false) {

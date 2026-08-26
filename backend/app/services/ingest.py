@@ -171,6 +171,19 @@ async def ingest(ctx: Context, message: dict) -> None:
     await ctx.bus.publish(TOPICS["media.ingested"], {"shot_id": shot.id})
 
 
+async def resume(ctx: Context, shot: Shot) -> None:
+    """Republish the stage implied by one already accepted Shot.
+
+    Android may retry an ambiguous ingress response, and older accepted Shots
+    may predate durable Run accounting. The Shot status is the durable handoff
+    point, so recovery uses it instead of guessing from elapsed time.
+    """
+    if shot.status in {ShotStatus.NEW, ShotStatus.INGESTING}:
+        await ctx.bus.publish(TOPICS["media.new"], {"shot_id": shot.id})
+    elif shot.status in {ShotStatus.INGESTED, ShotStatus.ANALYSING}:
+        await ctx.bus.publish(TOPICS["media.ingested"], {"shot_id": shot.id})
+
+
 async def _ingest_photo(ctx: Context, shot: Shot, data: bytes) -> Shot:
     shot.exif = read_exif(data)
     shot.captured_at = shot.exif.captured_at

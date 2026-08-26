@@ -140,12 +140,12 @@ fun ShootsApp(
                 LaunchedEffect(id) { viewModel.loadShot(id) }
                 ShotDetailScreen(
                     detail,
-                    snapshot?.latestRun,
                     imageUrl = { shot, original -> viewModel.imageUrl(shot, original) },
                     onBack = nav::popBackStack,
                     onKeeper = { keeper ->
                         scope.launch { viewModel.setKeeper(id, keeper) }
                     },
+                    onRetry = { scope.launch { viewModel.retryShot(id) } },
                     onOpenDrive = actions.openUrl,
                 )
             }

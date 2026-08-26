@@ -164,7 +164,8 @@ private fun ShotTile(shot: ShotDto, url: String, onClick: () -> Unit) {
                     "analyzed" -> "READ"
                     "failed" -> "UNREADABLE"
                     "analysing" -> "READING"
-                    else -> "IMPORT"
+                    "ingested" -> "WAITING"
+                    else -> "PREPARING"
                 },
                 color = if (shot.status == "failed") FindingRed else WarmWhite,
                 fontSize = 9.sp,

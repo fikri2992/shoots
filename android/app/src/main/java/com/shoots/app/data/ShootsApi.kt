@@ -73,6 +73,9 @@ interface ShootsApi {
     @GET("api/shots/{id}")
     suspend fun shot(@Path("id") id: String): ShotViewDto
 
+    @POST("api/shots/{id}/retry")
+    suspend fun retryShot(@Path("id") id: String): ShotViewDto
+
     @PUT("api/shots/{id}/keeper")
     suspend fun setKeeper(@Path("id") id: String, @Body body: KeeperRequest): ShotDto
 

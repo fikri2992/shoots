@@ -16,7 +16,10 @@ from app.domain.entities import (
     JourneyUpdate,
     Provenance,
     Run,
+    RunStage,
+    RunStatus,
     Shot,
+    ShotStatus,
     TechniqueEvidence,
     User,
     now,
@@ -24,6 +27,7 @@ from app.domain.entities import (
 from app.infra import repository as repo
 from app.infra.bus import TOPICS
 from app.infra.storage import content_type_for, requested_user_path
+from app.services import ingest, runs
 from app.services import journey as journey_service
 from app.services import profile as profile_service
 from app.services.context import Context
@@ -71,6 +75,13 @@ class AnalysisView(BaseModel):
 class ShotView(BaseModel):
     shot: Shot
     analysis: AnalysisView | None = None
+    run: Run | None = None
+
+
+async def _shot_view(ctx: Context, shot: Shot, *, analysis_hint: bool = True) -> ShotView:
+    analysis = await repo.find_analysis(ctx.store, shot.id) if analysis_hint else None
+    run = await repo.find_run_for_shot(ctx.store, shot.id)
+    return ShotView(shot=shot, analysis=AnalysisView.of(analysis), run=run)
 
 
 @router.get("/shots", response_model=list[ShotView])
@@ -91,8 +102,7 @@ async def list_shots(
         response.headers["X-Next-Cursor"] = next_cursor
     views = []
     for shot in shots:
-        analysis = await repo.find_analysis(ctx.store, shot.id) if shot.analyzed_at else None
-        views.append(ShotView(shot=shot, analysis=AnalysisView.of(analysis)))
+        views.append(await _shot_view(ctx, shot, analysis_hint=bool(shot.analyzed_at)))
     return views
 
 
@@ -105,8 +115,63 @@ async def get_shot(
     shot = await repo.find_shot(ctx.store, shot_id)
     if shot is None or shot.user_id != session_user["id"]:
         raise HTTPException(404, "shot not found")
+    return await _shot_view(ctx, shot)
+
+
+@router.post("/shots/{shot_id}/retry", response_model=ShotView)
+async def retry_shot(
+    shot_id: str,
+    session_user: dict[str, str] = Depends(current_user),
+    ctx: Context = Depends(get_context),
+) -> ShotView:
+    """Resume an accepted Shot whose durable work stopped before Analysis.
+
+    This is explicit because a GET must never start model work. Existing
+    Analysis remains untouched, terminal media remains terminal, and the Shot
+    status decides which idempotent stage receives the replay.
+    """
+    shot = await repo.find_shot(ctx.store, shot_id)
+    if shot is None or shot.user_id != session_user["id"]:
+        raise HTTPException(404, "shot not found")
     analysis = await repo.find_analysis(ctx.store, shot.id)
-    return ShotView(shot=shot, analysis=AnalysisView.of(analysis))
+    run = await repo.find_run_for_shot(ctx.store, shot.id)
+    if analysis is not None:
+        return ShotView(shot=shot, analysis=AnalysisView.of(analysis), run=run)
+    if shot.status is ShotStatus.FAILED or (run and run.status is RunStatus.TERMINAL):
+        raise HTTPException(409, "This Shot is terminally unreadable")
+    if run and run.status is RunStatus.COMPLETED:
+        raise HTTPException(409, "This Shot has a completed Run but no Analysis record")
+
+    missing_run = run is None
+    run = await runs.ensure(ctx, shot)
+    if missing_run and shot.status is ShotStatus.INGESTING:
+        shot.status = ShotStatus.NEW
+        shot.ingesting_at = None
+        await repo.put_shot(ctx.store, shot)
+    elif missing_run and shot.status in {ShotStatus.ANALYSING, ShotStatus.ANALYZED}:
+        shot.status = ShotStatus.INGESTED
+        shot.analysing_at = None
+        shot.analyzed_at = None
+        await repo.put_shot(ctx.store, shot)
+
+    if shot.status in {ShotStatus.INGESTED, ShotStatus.ANALYSING}:
+        run = await runs.completed(
+            ctx,
+            shot.id,
+            RunStage.INGEST,
+            "Media was already measured before Run recovery",
+        )
+    await repo.record(
+        ctx.store,
+        shot.user_id,
+        "photographer",
+        "resume_requested",
+        {"from_status": shot.status.value},
+        shot_id=shot.id,
+        experiment_id=shot.experiment_id,
+    )
+    await ingest.resume(ctx, shot)
+    return ShotView(shot=shot, analysis=None, run=run)
 
 
 class KeeperIn(BaseModel):

@@ -15,12 +15,11 @@ from app.domain.entities import (
     Shot,
     ShotKind,
     ShotSource,
-    ShotStatus,
 )
 from app.infra import repository as repo
 from app.infra.bus import TOPICS
 from app.infra.storage import ORIGINAL, blob_path, extension_for
-from app.services import runs
+from app.services import ingest, runs
 from app.services.context import Context
 
 router = APIRouter(prefix="/api/ingress", tags=["ingress"])
@@ -80,7 +79,7 @@ async def receive_shot(
             await repo.accept_capture_session_member(
                 ctx.store, capture_session_id, source_id, existing.id
             )
-        await _resume(ctx, existing)
+        await ingest.resume(ctx, existing)
         return IngressResponse(
             shot_id=existing.id,
             source_id=existing.source_id or source_id,
@@ -151,11 +150,3 @@ async def receive_shot(
         capture_session_id=capture_session_id,
         created=True,
     )
-
-
-async def _resume(ctx: Context, shot: Shot) -> None:
-    """Continue an accepted Shot after an ambiguous ingress outcome."""
-    if shot.status in {ShotStatus.NEW, ShotStatus.INGESTING}:
-        await ctx.bus.publish(TOPICS["media.new"], {"shot_id": shot.id})
-    elif shot.status in {ShotStatus.INGESTED, ShotStatus.ANALYSING}:
-        await ctx.bus.publish(TOPICS["media.ingested"], {"shot_id": shot.id})

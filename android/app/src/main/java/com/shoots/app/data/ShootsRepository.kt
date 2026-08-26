@@ -246,9 +246,16 @@ class ShootsRepository(
         }
 
     suspend fun refreshShot(id: String): ShotViewDto {
-        val view = api.shot(id)
+        return cacheShotView(api.shot(id))
+    }
+
+    suspend fun retryShot(id: String): ShotViewDto {
+        return cacheShotView(api.retryShot(id))
+    }
+
+    private suspend fun cacheShotView(view: ShotViewDto): ShotViewDto {
         val at = Instant.now().toString()
-        dao.putResource(CachedResourceEntity("shot:$id", json.encodeToString(view), updatedAt = at))
+        dao.putResource(CachedResourceEntity("shot:${view.shot.id}", json.encodeToString(view), updatedAt = at))
         dao.putShot(cachedShot(view.shot, at))
         return view
     }
