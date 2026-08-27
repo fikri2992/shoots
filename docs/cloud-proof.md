@@ -89,7 +89,7 @@ gcloud scheduler jobs list --project "$GCP_PROJECT" --location "$GCP_LOCATION" \
 Then check public routes:
 
 ```bash
-curl --fail --show-error "$SERVICE_URL/health"
+curl --fail --show-error "$SERVICE_URL/api/health"
 curl --fail --show-error "$SERVICE_URL/.well-known/assetlinks.json"
 ```
 

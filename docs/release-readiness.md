@@ -6,10 +6,11 @@
 ## Candidate
 
 The protected Shoot workflow remains available at `6ea693f` on
-`codex/shoot-record`. The current clean `codex/learning-memory` head, including
-on-demand Technique Explore, passed the complete local gate. Resolve and record its
-exact SHA immediately before any approved deployment. Neither branch exists on the
-remote yet.
+`codex/shoot-record`. Runtime commit `358469262dc8bac7c5f667f6265a829c130ca2f7`
+was deployed to Cloud Run after the complete local gate. Commit `7c2dc59` then
+corrected the infrastructure manifest to match every ordered Firestore query found
+during authenticated acceptance; it does not change the deployed container. Neither
+branch has been pushed.
 
 Implemented and locally proven:
 
@@ -53,52 +54,38 @@ The current dependency order and acceptance boundaries are recorded in
 | Android debug build | `:app:assembleDebug` | pass |
 | Android static analysis | `:app:lintDebug` | pass |
 | Android instrumentation | 35 emulator tests passed after a clean emulator reboot; two hardware-only tests skipped. One prior run ended in an emulator system crash during Activity teardown; both interrupted cases and later full suites passed unchanged | pass |
-| Android release guard | `verifyReleaseConfiguration` rejects blank OAuth, Firebase, HTTPS origin, App Link, and external signing inputs by name without printing values | pass; production values absent |
+| Android release guard | `verifyReleaseConfiguration` rejects blank OAuth, Firebase, HTTPS origin, App Link, and external signing inputs by name without printing values | pass; debug App Link fingerprint is deployed, production signing values remain absent |
 | Android/backend integration | authenticated `RefreshSnapshotWorker` produced a real `GET /api/mobile/snapshot` and cached it | pass separately |
 | 390 dp Now | receipt, processing, stale-revision, and Experiment focus tests | pass |
-| Cloud Run | project `agentic-system-505405` has `sh-api` and `visual-qa`; `sh-api` serves a different Scene Hunter app, so no Shoots service was found in `asia-southeast2` | not deployed |
+| Cloud Run | `shoots-00001-j4d`, image digest `sha256:c533eddc204f72e1e5d7db7c3de62d8eee9d2d00866285562f5764a81e56cefa`, 100% traffic; Google sign-in plus Now, Shots, Journey, `/api/mobile/snapshot`, and `/api/health` verified live | pass |
 | Physical Xiaomi | current Shoot workflow not installed or exercised | not verified |
 | Signed internal APK | production identity, Firebase, service origin, and signing inputs unavailable | not buildable yet |
 
-### Read-only Cloud preflight
+### Cloud preflight and state
 
-The native Windows preflight ran against `agentic-system-505405` on 2026-08-27. It
-confirmed an active gcloud account, readable project, service account, Firestore
-database, and every required API except FCM. The refreshed run has seven deployment
-failures. Resolved since the first run:
+The native Windows preflight passed against `agentic-system-505405` on 2026-08-27.
+Required APIs, Firestore, `gs://agentic-system-505405-shoots`, the runtime service
+account, and four mounted Secret Manager values are present. Pub/Sub stage pushes
+have OIDC, retries, and dead-letter routes; `shoots-tick`, `shoots-daily`, and
+`shoots-renew` are enabled. All 15 checked-in composite Firestore indexes required by
+ordered Shoots queries are ready. The deployed App Link value is the existing debug
+certificate fingerprint, not an internal-release identity.
 
-- `VAPID_SUBJECT` is now configured in the ignored local environment and passed
-  validation.
+## Deployment evidence and boundary
 
-Remaining:
+Shoots is live at
+`https://shoots-718560154436.asia-southeast2.run.app`. Cloud Run reports revision
+`shoots-00001-j4d` ready with 100% traffic and `SOURCE_SHA` equal to the recorded
+runtime commit. Google OAuth was completed with the deployed callback. Authenticated
+browser reads returned 200 for all initial resources and the first mobile snapshot;
+the repeated snapshot returned 304 from its ETag. No Cloud Run error was recorded in
+the final acceptance window. This is the first Shoots revision, so rollback remains a
+source rebuild rather than traffic restoration to an older live revision.
 
-- `ANDROID_APP_LINK_SHA256` is empty because no internal release certificate is
-  configured;
-- `fcm.googleapis.com` is not enabled;
-- `gs://agentic-system-505405-shoots` does not exist;
-- the four mounted backend secrets have no enabled versions.
-
-The refreshed preflight therefore has seven failures: the release fingerprint, FCM
-API, bucket, and four Secret Manager versions. The approved `enable-apis.sh` and
-`state.sh` runs create the API, bucket, and Secret Manager state. The release
-certificate still requires explicit developer direction. No Cloud resource changed
-during this preflight.
-
-## Deployment boundary
-
-Deployment requires explicit Photographer/developer approval. A push is not a
-deployment. After approval:
-
-1. select and record the exact clean `codex/learning-memory` candidate SHA;
-2. load the existing backend environment without copying secrets into the worktree;
-3. run the complete local gates once more;
-4. deploy that exact source to Cloud Run;
-5. verify ready revision, public health, auth, Firestore writes, Pub/Sub retries,
-   Scheduler closure, and all three barriers;
-6. record the live revision and keep the prior revision available if one exists.
-
-No Shoots Cloud Run service currently exists, so there is no prior Shoots revision to
-call a fallback. The protected `6ea693f` branch remains the source fallback only.
+This does not prove the full continuous Shot workflow. Phone Source ingestion,
+Firestore Run advancement, Shoot closure, Shoot Record settlement, FCM, optional
+Drive connection, and the three live barriers still require one physical end-to-end
+acceptance run.
 
 ## Android production inputs
 
