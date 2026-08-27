@@ -37,7 +37,8 @@ function EnvValues([string]$Path) {
 }
 
 $gitCommand = Get-Command git -ErrorAction SilentlyContinue
-$gcloudCommand = Get-Command gcloud -ErrorAction SilentlyContinue
+$gcloudCommand = Get-Command gcloud.cmd -ErrorAction SilentlyContinue
+if (-not $gcloudCommand) { $gcloudCommand = Get-Command gcloud -ErrorAction SilentlyContinue }
 if (-not $gitCommand) { Fail "git is unavailable" }
 if (-not $gcloudCommand) { Fail "gcloud is unavailable" }
 if ($script:Failures) { exit 1 }
@@ -94,8 +95,14 @@ if ($envValues["ANDROID_APP_LINK_SHA256"] -and
     Fail "ANDROID_APP_LINK_SHA256 is not a comma-separated SHA-256 fingerprint list"
 }
 
-$activeAccount = (& $script:GcloudExecutable auth list --filter=status:ACTIVE --format="value(account)" 2>$null | Select-Object -First 1)
-if ($LASTEXITCODE -ne 0 -or -not $activeAccount) {
+try {
+    $activeAccount = (Invoke-GcloudCli @(
+        "auth", "list", "--filter=status:ACTIVE", "--format=value(account)"
+    )) | Select-Object -First 1
+} catch {
+    $activeAccount = ""
+}
+if (-not $activeAccount) {
     Fail "gcloud has no active account"
 } else {
     Pass "gcloud has an active account"
