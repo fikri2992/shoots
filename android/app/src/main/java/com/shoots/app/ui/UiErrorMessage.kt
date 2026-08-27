@@ -1,5 +1,6 @@
 package com.shoots.app.ui
 
+import java.io.IOException
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.jsonObject
@@ -13,6 +14,9 @@ internal fun isAuthenticationFailure(exception: Throwable): Boolean =
 
 internal fun friendlyMessage(exception: Throwable): String {
     if (isAuthenticationFailure(exception)) return "Sign in again to continue."
+    if (exception is IOException) {
+        return "Shoots cannot connect right now. Your cached work stays available."
+    }
     val raw = when (exception) {
         is HttpException -> exception.response()?.errorBody()?.string()
             ?.takeIf(String::isNotBlank)

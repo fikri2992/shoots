@@ -68,11 +68,26 @@ fun ShotsScreen(
             ScreenTitle("Archive", "Shots", "Your work and Inspiration stay separate.")
         }
         if (shots.isEmpty() && inspirations.isEmpty() && pendingImports.isEmpty()) {
-            Column(Modifier.fillMaxSize().padding(20.dp), verticalArrangement = Arrangement.Center) {
+            Column(
+                Modifier
+                    .fillMaxSize()
+                    .padding(start = 20.dp, end = 20.dp, top = 8.dp, bottom = 92.dp),
+            ) {
                 InkCard {
-                    Text("No Shots cached yet.", color = WarmWhite, fontSize = 18.sp, fontWeight = FontWeight.SemiBold)
+                    Text(
+                        "Your first Shot will land here.",
+                        color = WarmWhite,
+                        fontSize = 18.sp,
+                        fontWeight = FontWeight.SemiBold,
+                    )
                     Spacer(Modifier.height(6.dp))
-                    Text("Open the normal camera from Now. Future Camera Shots will appear after import.", color = MutedWhite, fontSize = 14.sp, lineHeight = 20.sp)
+                    Text(
+                        "Allow Camera media from Now, then keep using your normal camera. " +
+                            "Shoots imports future Shots in the background.",
+                        color = MutedWhite,
+                        fontSize = 14.sp,
+                        lineHeight = 20.sp,
+                    )
                 }
             }
         } else {

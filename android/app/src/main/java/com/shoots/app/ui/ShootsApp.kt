@@ -17,7 +17,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -254,7 +253,13 @@ fun ShootsApp(
         }
 
         if (error.isNotBlank() || notice.isNotBlank()) {
-            Box(Modifier.align(Alignment.TopCenter).statusBarsPadding().padding(horizontal = 14.dp, vertical = 12.dp)) {
+            Box(
+                Modifier
+                    .align(Alignment.BottomCenter)
+                    .navigationBarsPadding()
+                    .padding(horizontal = 14.dp)
+                    .padding(bottom = if (showNavigation) 86.dp else 14.dp),
+            ) {
                 MessageBanner(error.ifBlank { notice }, error.isNotBlank(), viewModel::clearMessage)
             }
         }

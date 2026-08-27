@@ -103,6 +103,33 @@ class NowScreenIntegrationTest {
     }
 
     @Test
+    fun openShootStillShowsTheLatestAnalyzedShotReceipt() {
+        val shoot = ShootDto(
+            id = "shoot-open",
+            status = "open",
+            revision = 1,
+            orderedSceneIds = listOf("scene-1"),
+            orderedShotIds = listOf("shot-ready"),
+        )
+        val shot = ShotDto(id = "shot-ready", status = "analyzed")
+        val snapshot = MobileSnapshotDto(
+            user = UserDto(id = "user-1", email = "photographer@example.test"),
+            latestShoot = shoot,
+            latestShot = ShotViewDto(
+                shot = shot,
+                analysis = AnalysisDto(shotId = shot.id),
+            ),
+            recentShots = listOf(shot),
+        )
+
+        compose.setContent { NowTestContent(snapshot) }
+
+        compose.onNodeWithText("Still watching this Shoot.").assertExists()
+        compose.onNodeWithText("From your last Shot").assertExists()
+        compose.onNodeWithText("See what Shoots noticed").assertExists()
+    }
+
+    @Test
     fun keeperBackedRouteMakesTheExperimentTheOnlyAmberPrimaryAction() {
         val shoot = ShootDto(
             id = "shoot-2",

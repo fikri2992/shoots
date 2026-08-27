@@ -210,19 +210,12 @@ fun NowScreen(
             }
         }
 
-        if (latestView?.analysis == null) {
+        if (focus == "shoot-processing" || (focus == "camera" && latest != null)) {
             Spacer(Modifier.height(26.dp))
             SectionTitle("From your last Shot")
             Spacer(Modifier.height(10.dp))
-            if (latest == null) {
-                Text(
-                    "Your newest Camera Shot will appear here while Shoots works in the background.",
-                    color = MutedWhite,
-                    fontSize = 14.sp,
-                    lineHeight = 20.sp,
-                )
-            } else {
-                LatestShotReceipt(latest, imageUrl(latest)) { onOpenShot(latest.id) }
+            latest?.let { shot ->
+                LatestShotReceipt(shot, imageUrl(shot)) { onOpenShot(shot.id) }
             }
         }
     }

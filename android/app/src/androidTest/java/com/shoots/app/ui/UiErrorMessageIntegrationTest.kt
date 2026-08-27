@@ -12,7 +12,10 @@ import retrofit2.Response
 class UiErrorMessageIntegrationTest {
     @Test
     fun networkFailureProducesAReadableMessageOnAndroid() {
-        assertEquals("Connection reset", friendlyMessage(IOException("Connection reset")))
+        assertEquals(
+            "Shoots cannot connect right now. Your cached work stays available.",
+            friendlyMessage(IOException("Connection reset")),
+        )
     }
 
     @Test
