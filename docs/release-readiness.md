@@ -64,18 +64,25 @@ The current dependency order and acceptance boundaries are recorded in
 
 The native Windows preflight ran against `agentic-system-505405` on 2026-08-27. It
 confirmed an active gcloud account, readable project, service account, Firestore
-database, and every required API except FCM. It found eight concrete blockers:
+database, and every required API except FCM. The refreshed run has seven deployment
+failures. Resolved since the first run:
 
-- `VAPID_SUBJECT` is empty;
+- `VAPID_SUBJECT` is now configured in the ignored local environment and passed
+  validation.
+
+Remaining:
+
 - `ANDROID_APP_LINK_SHA256` is empty because no internal release certificate is
   configured;
 - `fcm.googleapis.com` is not enabled;
 - `gs://agentic-system-505405-shoots` does not exist;
 - the four mounted backend secrets have no enabled versions.
 
-The approved `enable-apis.sh` and `state.sh` runs create the API, bucket, and Secret
-Manager state. The contact value and release certificate require explicit developer
-input. No Cloud resource changed during this preflight.
+The refreshed preflight therefore has seven failures: the release fingerprint, FCM
+API, bucket, and four Secret Manager versions. The approved `enable-apis.sh` and
+`state.sh` runs create the API, bucket, and Secret Manager state. The release
+certificate still requires explicit developer direction. No Cloud resource changed
+during this preflight.
 
 ## Deployment boundary
 
