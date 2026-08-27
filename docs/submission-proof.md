@@ -1,5 +1,9 @@
 # Four-minute submission proof
 
+The executable rehearsal, exact current deployment evidence, paper edit, and fallback
+take list are in [Demo rehearsal](demo-rehearsal.md). This document remains the final
+claim ledger and capture checklist.
+
 ## What the judge should repeat
 
 > Shoots watches an ordinary phone Shoot, accounts for every Shot, leaves one
