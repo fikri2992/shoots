@@ -22,8 +22,8 @@ quality score.
 
 ```text
 service_url=https://shoots-718560154436.asia-southeast2.run.app
-runtime_source_sha=358469262dc8bac7c5f667f6265a829c130ca2f7
-cloud_run_revision=shoots-00001-j4d
+runtime_source_sha=6e6096221cc09cfcb688e3f47dd9e957c040ef89
+cloud_run_revision=shoots-00002-chw
 cloud_run_traffic=100%
 android_debug_apk_sha256=680BF3DB8BB592789F632F10686DFB50373A8AD6DC72B362E72C044DFEB8B712
 android_package=com.shoots.app

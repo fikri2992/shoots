@@ -6,11 +6,10 @@
 ## Candidate
 
 The protected Shoot workflow remains available at `6ea693f` on
-`codex/shoot-record`. Runtime commit `358469262dc8bac7c5f667f6265a829c130ca2f7`
-was deployed to Cloud Run after the complete local gate. Commit `7c2dc59` then
-corrected the infrastructure manifest to match every ordered Firestore query found
-during authenticated acceptance; it does not change the deployed container. Neither
-branch has been pushed.
+`codex/shoot-record`. `main` is pushed through runtime commit
+`6e6096221cc09cfcb688e3f47dd9e957c040ef89`, which is deployed to Cloud Run after
+the complete local gate and clean Cloud preflight. The image uses the immutable short
+SHA tag and the service stores the full SHA as deployment evidence.
 
 Implemented and locally proven:
 
@@ -57,9 +56,9 @@ The current dependency order and acceptance boundaries are recorded in
 | Android release guard | `verifyReleaseConfiguration` rejects blank OAuth, Firebase, HTTPS origin, App Link, and external signing inputs by name without printing values | pass; debug App Link fingerprint is deployed, production signing values remain absent |
 | Android/backend integration | authenticated `RefreshSnapshotWorker` produced a real `GET /api/mobile/snapshot` and cached it | pass separately |
 | 390 dp Now | receipt, processing, stale-revision, and Experiment focus tests | pass |
-| Cloud Run | `shoots-00001-j4d`, image digest `sha256:c533eddc204f72e1e5d7db7c3de62d8eee9d2d00866285562f5764a81e56cefa`, 100% traffic; Google sign-in plus Now, Shots, Journey, `/api/mobile/snapshot`, and `/api/health` verified live | pass |
+| Cloud Run | `shoots-00002-chw`, image digest `sha256:af9f321df5412baa54ba2fe663c4e9c45f35d768ece689a86c22d18e02497f6e`, 100% traffic; Google sign-in plus Now, Shots, Journey, `/api/mobile/snapshot`, `/api/health`, and two Scheduler tick requests verified live; no final-revision errors | pass |
 | Physical Xiaomi | current Shoot workflow not installed or exercised | not verified |
-| Signed internal APK | production identity, Firebase, service origin, and signing inputs unavailable | not buildable yet |
+| Signed internal APK | Firebase Android app, OAuth, FCM, production origin, and debug certificate are configured; external release keystore and passwords remain absent | not buildable yet |
 
 ### Cloud preflight and state
 
@@ -75,12 +74,13 @@ certificate fingerprint, not an internal-release identity.
 
 Shoots is live at
 `https://shoots-718560154436.asia-southeast2.run.app`. Cloud Run reports revision
-`shoots-00001-j4d` ready with 100% traffic and `SOURCE_SHA` equal to the recorded
+`shoots-00002-chw` ready with 100% traffic and `SOURCE_SHA` equal to the recorded
 runtime commit. Google OAuth was completed with the deployed callback. Authenticated
 browser reads returned 200 for all initial resources and the first mobile snapshot;
-the repeated snapshot returned 304 from its ETag. No Cloud Run error was recorded in
-the final acceptance window. This is the first Shoots revision, so rollback remains a
-source rebuild rather than traffic restoration to an older live revision.
+the repeated snapshot returned 304 from its ETag. Eight stage push subscriptions and
+three Scheduler jobs remain enabled; both the scheduled and manually requested tick
+returned 200. No Cloud Run error was recorded for the final revision. Revision
+`shoots-00001-j4d` remains available as the live rollback target.
 
 This does not prove the full continuous Shot workflow. Phone Source ingestion,
 Firestore Run advancement, Shoot closure, Shoot Record settlement, FCM, optional
