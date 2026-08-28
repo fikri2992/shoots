@@ -102,8 +102,17 @@ manual picker, streamed it through direct ingress, and later read the completed 
 and four-step visual story back from the production snapshot. A following Explore
 Capture Session froze one Variation, committed two Camera members, waited for both Runs,
 recorded one observed Variation with no Verdict, and completed into Android Experiments
-and Journey. Physical Xiaomi proof, Shoot settlement, all barriers in one run, and FCM
-remain separate gates.
+and Journey.
+
+Native Drive proof used the same production identity. Android exchanged an offline code,
+selected one Google Drive provider file as Inspiration and one as Mine, completed only
+the Mine Run, showed its reviewed Drive copy, disconnected with the user-owned `Shoots`
+folder still visible, then reconnected with a replacement offline code. The fresh mobile
+snapshot reported 17 readable Shots, a settled three-Shot/two-Scene Shoot Record, and the
+settled two-member Capture Session. The web archive independently showed the same 17
+Shots plus the separate Inspiration, and its Experiment Record showed one Variation
+across two readable results with no Verdict. Physical Xiaomi proof, all barriers in one
+run, and FCM remain separate gates.
 
 Use disposable records and one ordinary phone Shoot:
 

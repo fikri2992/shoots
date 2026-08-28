@@ -6,7 +6,7 @@
 ## Candidate
 
 `main` is pushed through Android commit
-`8b067a8519c8021604392f62cc572edee16e3b49`. Cloud Run remains at runtime commit
+`54e9e067401726941c91f4809352b0fac91e55c1`. Cloud Run remains at runtime commit
 `e535a48db3de8f8d435c350517d1595dc1888505`, deployed after the complete local
 gate and clean native-Windows Cloud preflight. The later commit changes only the
 Android Phone Source and its contract, so no service redeploy is required.
@@ -37,6 +37,8 @@ Implemented and locally proven:
   measured maps, bounded geometry, explicit verification state, and honest fallback;
 - explicit Google Picker import as Mine or Inspiration, canonical Drive-file
   idempotency across Picker and folder reconciliation, and Android Files/Drive selection;
+- native Drive connect, provider selection as Inspiration and Mine, reviewed output,
+  disconnect with owned files preserved, and refresh-token-bearing reconnect;
 - one 11-case real-agent report under prompt digest `1c738851cdfb`: 180 automatic
   checks passed, zero failed, 12 remained explicit human-review questions, and no
   case errored;
@@ -68,7 +70,7 @@ The current dependency order and acceptance boundaries are recorded in
 | Android/backend integration | The signed-in emulator opened the normal system Camera, learned its `Pictures/` output album, automatically uploaded `IMG_20260828_215316.jpg`, and read the completed production Analysis back into Room after restart | pass on emulator; physical pending |
 | 390 dp Now | receipt, processing, stale-revision, and Experiment focus tests | pass |
 | Cloud Run | `shoots-00006-mzn`, image digest `sha256:a13c558a55dd450e49278ac99faffa0e234339ce7d9538b36dcf1a8bbe79aaaa`, 100% traffic; health, authenticated web visual story, production mobile snapshot, Picker, and scheduled Run repair verified live; no revision errors | pass |
-| Google Drive selection | authenticated production Picker opened; one selected file became exactly one `drive_picker` Inspiration and never a Photographer Shot | pass |
+| Google Drive selection | Authenticated production web Picker created one `drive_picker` Inspiration. Android then connected natively, selected a provider file as Inspiration without changing the 16-Shot Journey, selected another as Mine and completed its Run at 17 Shots, exposed the reviewed Drive copy, disconnected with the owned folder still visible, and reconnected after replacing the deleted offline token | pass on web and emulator; physical pending |
 | Physical Xiaomi | current Shoot workflow not installed or exercised | not verified |
 | Signed internal APK | Firebase Android app, OAuth, FCM, production origin, and debug certificate are configured; external release keystore and passwords remain absent | not buildable yet |
 
@@ -99,9 +101,9 @@ line claim instead of drawing a box. No Cloud Run error was recorded for the rev
 Revision `shoots-00005-tb6` remains available as the immediate rollback target.
 
 This proves durable production Run recovery, the continuous Camera-to-completed-Run
-Phone Source path, and one multi-member Capture Session on the emulator. Shoot closure,
-Shoot Record settlement, FCM, optional Drive connection, and all three barriers in one
-physical run remain unverified.
+Phone Source path, one multi-member Capture Session, one settled three-Shot/two-Scene
+Shoot Record, and the native Drive lifecycle on the emulator. FCM and all three barriers
+in one physical run remain unverified.
 
 ## Android production inputs
 
