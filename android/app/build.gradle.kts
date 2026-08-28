@@ -25,7 +25,9 @@ val firebaseApiKey = configured("SHOOTS_FIREBASE_API_KEY")
 val firebaseProjectId = configured("SHOOTS_FIREBASE_PROJECT_ID")
 val firebaseSenderId = configured("SHOOTS_FIREBASE_SENDER_ID")
 val serviceOrigin = configured("SHOOTS_SERVICE_ORIGIN")
-val appLinkHost = configured("SHOOTS_APP_LINK_HOST")
+val appLinkHost = configured("SHOOTS_APP_LINK_HOST").ifBlank {
+    runCatching { URI(serviceOrigin).host }.getOrNull().orEmpty()
+}
 val internalSigningReady = listOf(
     signingStoreFile,
     signingStorePassword,

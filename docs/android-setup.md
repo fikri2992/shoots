@@ -72,8 +72,11 @@ For a service origin such as
 
 ```text
 SHOOTS_SERVICE_ORIGIN=https://shoots-123456789.asia-southeast2.run.app
-SHOOTS_APP_LINK_HOST=shoots-123456789.asia-southeast2.run.app
 ```
+
+The manifest derives its App Link host from that origin. `SHOOTS_APP_LINK_HOST`
+is an optional explicit override; the release guard rejects it when it differs
+from the service-origin host.
 
 Set the backend value to the internal certificate SHA-256:
 
@@ -97,7 +100,6 @@ SHOOTS_FIREBASE_API_KEY=<firebase-api-key>
 SHOOTS_FIREBASE_PROJECT_ID=<project-id>
 SHOOTS_FIREBASE_SENDER_ID=<project-number>
 SHOOTS_SERVICE_ORIGIN=https://<service-host>
-SHOOTS_APP_LINK_HOST=<service-host>
 SHOOTS_SIGNING_STORE_FILE=C:\\Users\\<you>\\AndroidKeys\\shoots-internal.jks
 SHOOTS_SIGNING_KEY_ALIAS=shoots-internal
 ```
