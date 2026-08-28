@@ -5,7 +5,8 @@
 
 ## Candidate
 
-The latest behavior candidate is Android commit `5bc4286`. Cloud Run remains at runtime commit
+The latest behavior candidate is Android commit
+`409d5cb4736d022fb067948ab13cea03c742752d`. Cloud Run remains at runtime commit
 `e535a48db3de8f8d435c350517d1595dc1888505`, deployed after the complete local
 gate and clean native-Windows Cloud preflight. Later behavior commits change only
 Android; proof-only commits change documentation. No service redeploy is required.
@@ -53,6 +54,10 @@ Implemented and locally proven:
 - one two-Shot Reproduce Capture Session after FCM registration that emitted exactly
   one generic session summary, emitted no per-Shot notification, and deep-linked to
   the authoritative Journey record.
+- one two-Shot Reproduce batch captured with the emulator offline, preserved as
+  `manifest_pending` through process death, then committed, uploaded, settled, notified,
+  and refreshed Journey after connectivity returned; a successful repository refresh
+  now also clears the obsolete connectivity banner.
 
 The current dependency order and acceptance boundaries are recorded in
 [implementation order](implementation-order.md#ordered-phases).
@@ -67,14 +72,14 @@ The current dependency order and acceptance boundaries are recorded in
 | Web client | 37 integration and domain checks plus production build | pass |
 | Android debug build | `:app:assembleDebug` | pass |
 | Android static analysis | `:app:lintDebug` | pass |
-| Android instrumentation | 43 tests finished with zero failures and two explicit environment-only skips; the real MediaStore tests include learning a non-`DCIM/Camera/` album from an explicit Camera visit. The seven-case Journey class and five-case Experiments class then passed with no skips after live Experiment records exposed type and retry-feedback defects | pass |
+| Android instrumentation | 44 tests finished with zero failures and two explicit environment-only skips; the real MediaStore tests include learning a non-`DCIM/Camera/` album from an explicit Camera visit. The suite now also drives a real Room, WorkManager, repository, and ViewModel refresh to prove successful recovery clears a stale network banner | pass |
 | Android release guard | `verifyReleaseConfiguration` rejects blank OAuth, Firebase, HTTPS origin, App Link, and external signing inputs by name without printing values | pass; debug App Link fingerprint is deployed, production signing values remain absent |
-| Android/backend integration | The signed-in emulator opened the normal system Camera, learned its `Pictures/` output album, automatically uploaded `IMG_20260828_215316.jpg`, and read the completed production Analysis back into Room after restart | pass on emulator; physical pending |
+| Android/backend integration | The signed-in emulator opened the normal system Camera, learned its `Pictures/` output album, automatically uploaded a free Shot, and read the completed production Analysis back into Room after restart. A later Reproduce preserved two immutable members through airplane mode and process death, then automatically committed, uploaded, settled, notified, and refreshed after reconnection | pass on emulator; physical pending |
 | 390 dp Now | receipt, processing, stale-revision, and Experiment focus tests | pass |
 | Cloud Run | `shoots-00006-mzn`, image digest `sha256:a13c558a55dd450e49278ac99faffa0e234339ce7d9538b36dcf1a8bbe79aaaa`, 100% traffic; health, authenticated web visual story, production mobile snapshot, Picker, and scheduled Run repair verified live; no revision errors | pass |
 | Google Drive selection | Authenticated production web Picker created one `drive_picker` Inspiration. Android then connected natively, selected a provider file as Inspiration without changing the 16-Shot Journey, selected another as Mine and completed its Run at 17 Shots, exposed the reviewed Drive copy, disconnected with the owned folder still visible, and reconnected after replacing the deleted offline token | pass on web and emulator; physical pending |
 | FCM session summary | Android registered the emulator installation, a two-member Reproduce settled, exactly one generic `capture-session` notification appeared with no per-Shot notifications, and its content intent opened Journey | pass on emulator; physical pending |
-| Physical Xiaomi | current Shoot workflow not installed or exercised | not verified |
+| Physical Xiaomi | production-origin debug APK installed before the latest recovery patch; native sign-in and current Shoot workflow not exercised | not verified |
 | Signed internal APK | Firebase Android app, OAuth, FCM, production origin, and debug certificate are configured; external release keystore and passwords remain absent | not buildable yet |
 
 ### Cloud preflight and state
@@ -105,8 +110,9 @@ Revision `shoots-00005-tb6` remains available as the immediate rollback target.
 
 This proves durable production Run recovery, the continuous Camera-to-completed-Run
 Phone Source path, multi-member Capture Sessions, one settled three-Shot/two-Scene
-Shoot Record, the native Drive lifecycle, and one batch-only FCM summary on the emulator.
-All three barriers plus notification delivery in one physical run remain unverified.
+Shoot Record, the native Drive lifecycle, one batch-only FCM summary, and local outbox
+recovery across network loss plus process death on the emulator. All three barriers plus
+notification delivery in one physical run remain unverified.
 
 ## Android production inputs
 

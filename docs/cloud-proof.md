@@ -126,6 +126,17 @@ generic `capture-session` notification with a content intent; there were no per-
 notifications. Opening it deep-linked to Journey, which fetched the authoritative open
 Reproduce record, exact Keeper, representative result, and all batch results.
 
+Recovery proof used Capture Session `capture_bdd6de7fd4a8`. Android reserved it online,
+opened the normal Camera, then captured two members with connectivity completely absent.
+On return, Room showed `manifest_pending`; force-stop plus cold start preserved the same
+state and members. Restoring connectivity let WorkManager commit and stream both originals
+without another tap. The backend settled the session with two completed Runs, two
+Criteria-not-met outcomes, no abstentions, and one `notification_sent_at`. Its FCM content
+intent refreshed Journey to the authoritative 21-Shot record. That run also exposed a
+stale offline banner: Android now observes successful repository refreshes from both the
+foreground and WorkManager, clears only after success, and has a real Room/WorkManager
+instrumentation regression check under commit `409d5cb`.
+
 Physical Xiaomi proof, a Criteria-met device case, and all barriers plus FCM in one
 physical run remain separate gates.
 
