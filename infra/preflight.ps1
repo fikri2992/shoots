@@ -73,7 +73,9 @@ $requiredPublic = @(
     "GOOGLE_CLIENT_ID",
     "VAPID_PUBLIC_KEY",
     "VAPID_SUBJECT",
-    "ANDROID_APP_LINK_SHA256"
+    "ANDROID_APP_LINK_SHA256",
+    "DRIVE_PICKER_API_KEY",
+    "DRIVE_PICKER_APP_ID"
 )
 foreach ($key in $requiredPublic) {
     if (-not $envValues[$key]) { Fail "$key is empty in $EnvFile" }
@@ -128,7 +130,8 @@ $requiredApis = @(
     "cloudscheduler.googleapis.com",
     "secretmanager.googleapis.com",
     "fcm.googleapis.com",
-    "drive.googleapis.com"
+    "drive.googleapis.com",
+    "picker.googleapis.com"
 )
 $enabledApis = @()
 try {
