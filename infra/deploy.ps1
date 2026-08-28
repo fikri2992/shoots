@@ -88,44 +88,53 @@ if (-not $ServiceUrl) {
     $ServiceUrl = "https://$Service-$projectNumber.$Region.run.app"
 }
 
-$publicEnvironment = @(
-    "USE_VERTEX_AI=true",
-    "GCP_PROJECT=$Project",
-    "GCP_LOCATION=$Region",
-    "CLOUD_STATE=true",
-    "GCS_BUCKET=$Bucket",
-    "PUBSUB_PUSH_BASE_URL=$ServiceUrl",
-    "PUBSUB_PUSH_AUDIENCE=$ServiceUrl",
-    "DRIVE_WEBHOOK_URL=$ServiceUrl/drive/notify",
-    "OAUTH_REDIRECT_URI=$ServiceUrl/auth/callback",
-    "FRONTEND_ORIGIN=$ServiceUrl",
-    "GOOGLE_CLIENT_ID=$($values['GOOGLE_CLIENT_ID'])",
-    "VAPID_PUBLIC_KEY=$($values['VAPID_PUBLIC_KEY'])",
-    "VAPID_SUBJECT=$($values['VAPID_SUBJECT'])",
-    "ANDROID_APP_LINK_SHA256=$($values['ANDROID_APP_LINK_SHA256'])",
-    "DRIVE_PICKER_API_KEY=$($values['DRIVE_PICKER_API_KEY'])",
-    "DRIVE_PICKER_APP_ID=$($values['DRIVE_PICKER_APP_ID'])",
-    "DRIVE_SERVICE_ACCOUNT=$ServiceAccount",
-    "SOURCE_SHA=$sourceSha"
-) -join "|"
-
-Invoke-Gcloud @(
-    "run", "deploy", $Service,
-    "--project", $Project,
-    "--region", $Region,
-    "--image", $image,
-    "--service-account", $ServiceAccount,
-    "--allow-unauthenticated",
-    "--min-instances", "0",
-    "--max-instances", "3",
-    "--concurrency", "40",
-    "--cpu", "2",
-    "--memory", "2Gi",
-    "--timeout", "600",
-    "--set-env-vars", "^|^$publicEnvironment",
-    "--set-secrets",
-    "GOOGLE_CLIENT_SECRET=shoots-google-client-secret:latest,SESSION_SECRET=shoots-session-secret:latest,TASKS_TOKEN=shoots-tasks-token:latest,VAPID_PRIVATE_KEY=shoots-vapid-private-key:latest"
-)
+$publicEnvironment = [ordered]@{
+    USE_VERTEX_AI = "true"
+    GCP_PROJECT = $Project
+    GCP_LOCATION = $Region
+    CLOUD_STATE = "true"
+    GCS_BUCKET = $Bucket
+    PUBSUB_PUSH_BASE_URL = $ServiceUrl
+    PUBSUB_PUSH_AUDIENCE = $ServiceUrl
+    DRIVE_WEBHOOK_URL = "$ServiceUrl/drive/notify"
+    OAUTH_REDIRECT_URI = "$ServiceUrl/auth/callback"
+    FRONTEND_ORIGIN = $ServiceUrl
+    GOOGLE_CLIENT_ID = $values['GOOGLE_CLIENT_ID']
+    VAPID_PUBLIC_KEY = $values['VAPID_PUBLIC_KEY']
+    VAPID_SUBJECT = $values['VAPID_SUBJECT']
+    ANDROID_APP_LINK_SHA256 = $values['ANDROID_APP_LINK_SHA256']
+    DRIVE_PICKER_API_KEY = $values['DRIVE_PICKER_API_KEY']
+    DRIVE_PICKER_APP_ID = $values['DRIVE_PICKER_APP_ID']
+    DRIVE_SERVICE_ACCOUNT = $ServiceAccount
+    SOURCE_SHA = $sourceSha
+}
+$environmentFile = [IO.Path]::GetTempFileName()
+try {
+    $yaml = $publicEnvironment.GetEnumerator() | ForEach-Object {
+        $escaped = ([string]$_.Value).Replace("'", "''")
+        "$($_.Key): '$escaped'"
+    }
+    [IO.File]::WriteAllLines($environmentFile, $yaml, [Text.UTF8Encoding]::new($false))
+    Invoke-Gcloud @(
+        "run", "deploy", $Service,
+        "--project", $Project,
+        "--region", $Region,
+        "--image", $image,
+        "--service-account", $ServiceAccount,
+        "--allow-unauthenticated",
+        "--min-instances", "0",
+        "--max-instances", "3",
+        "--concurrency", "40",
+        "--cpu", "2",
+        "--memory", "2Gi",
+        "--timeout", "600",
+        "--env-vars-file", $environmentFile,
+        "--set-secrets",
+        "GOOGLE_CLIENT_SECRET=shoots-google-client-secret:latest,SESSION_SECRET=shoots-session-secret:latest,TASKS_TOKEN=shoots-tasks-token:latest,VAPID_PRIVATE_KEY=shoots-vapid-private-key:latest"
+    )
+} finally {
+    Remove-Item -LiteralPath $environmentFile -Force -ErrorAction SilentlyContinue
+}
 
 Invoke-Gcloud @(
     "run", "services", "add-iam-policy-binding", $Service,
