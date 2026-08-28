@@ -13,7 +13,7 @@ from pydantic import BaseModel
 from app.api.deps import get_context
 from app.config import settings
 from app.infra import repository as repo
-from app.services import capture_sessions, ingest, scout, shoots, watch
+from app.services import capture_sessions, ingest, recovery, scout, shoots, watch
 from app.services.context import Context
 
 logger = logging.getLogger(__name__)
@@ -90,10 +90,12 @@ async def tick(
         queued += len(await ingest.sync(ctx, user))
         capture_sessions_expired += await capture_sessions.expire_reserved(ctx, user.id)
     shoots_closed = len(await shoots.close_inactive(ctx))
+    runs_replayed = await recovery.repair_retrying(ctx)
     delivered = await scout.deliver_due(ctx)
     return {
         "queued": queued,
         "delivered": delivered,
         "capture_sessions_expired": capture_sessions_expired,
         "shoots_closed": shoots_closed,
+        "runs_replayed": runs_replayed,
     }

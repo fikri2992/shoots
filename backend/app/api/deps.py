@@ -169,9 +169,20 @@ def wire(ctx: Context) -> None:
             )
 
     async def on_experiment_closed(message: dict) -> None:
-        outcome = await scout.on_experiment_closed(ctx, message)
-        if message.get("shot_id"):
-            await runs.completed(ctx, message["shot_id"], RunStage.SCOUT, outcome)
+        try:
+            outcome = await scout.on_experiment_closed(ctx, message)
+            if message.get("shot_id"):
+                await runs.completed(ctx, message["shot_id"], RunStage.SCOUT, outcome)
+        except Exception as error:
+            if message.get("shot_id"):
+                await runs.retrying(
+                    ctx,
+                    message["shot_id"],
+                    RunStage.SCOUT,
+                    "Scout will retry",
+                    {"error": f"{type(error).__name__}: {error}"[:500]},
+                )
+            raise
 
     async def on_keeper_changed(message: dict) -> None:
         await cartographer.rebuild(ctx, message["user_id"])

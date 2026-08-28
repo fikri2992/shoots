@@ -14,6 +14,8 @@ Implemented and locally proven:
 
 - capture-continuous Scene and Shoot membership;
 - independent Run, Capture Session, and Shoot barriers;
+- bounded scheduled replay of stale retrying Runs after Pub/Sub exhausts delivery,
+  through each stage's ordinary idempotent handler;
 - late-media Shoot Record revision without history rewrite;
 - deterministic evidence-labelled Shoot receipt with no quality score;
 - typed Scout `explain`, consequential `ask`, corrected `explore`, Keeper-backed
@@ -50,7 +52,7 @@ The current dependency order and acceptance boundaries are recorded in
 | Gate | Evidence | State |
 |---|---|---|
 | Backend format and lint | Ruff over `app` and `tests` | pass |
-| Backend behavior | 617-test complete pytest suite plus continuous Shoot and Drive-selection acceptance | pass |
+| Backend behavior | 618-test complete pytest suite plus continuous Shoot, abandoned-Run recovery, and Drive-selection acceptance | pass |
 | Real-agent quality | 11 real Shot cases under report SHA-256 `5c161d5c760345e900a3b4b8307e4b90ca771c6958d794d1adc81c2b8bb1f4e3`, plus two real Journey-writer overclaim cases under prompt version `ddabb4791f14`; developer review against the locked hobbyist perspective | pass locally |
 | Web client | 35 integration and domain checks plus production build | pass |
 | Android debug build | `:app:assembleDebug` | pass |

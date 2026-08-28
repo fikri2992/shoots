@@ -68,6 +68,9 @@ class Settings(BaseSettings):
     #: Camera inactivity that starts another natural Shoot. Scene grouping keeps
     #: its stricter four-minute domain rule.
     shoot_gap_minutes: int = 30
+    #: A durable retrying Run older than this is replayed by the scheduled tick.
+    run_repair_after_minutes: int = 15
+    run_repair_limit: int = 20
 
     # --- Model call resilience --------------------------------------------
     max_model_retries: int = 4
