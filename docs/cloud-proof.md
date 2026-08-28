@@ -95,6 +95,13 @@ curl --fail --show-error "$SERVICE_URL/.well-known/assetlinks.json"
 
 ## Proof-of-action scenario
 
+The first production-connected emulator proof completed on 2026-08-28. Shoots opened
+the normal Android Camera, froze a MediaStore watermark, learned the Camera's
+nonstandard `Pictures/` output album, accepted `IMG_20260828_215316.jpg` without a
+manual picker, streamed it through direct ingress, and later read the completed Run
+and four-step visual story back from the production snapshot. Physical Xiaomi proof,
+Shoot settlement, Capture Session settlement, and FCM remain separate gates.
+
 Use disposable records and one ordinary phone Shoot:
 
 1. Android receives a revocable device session.

@@ -5,10 +5,11 @@
 
 ## Candidate
 
-`main` is pushed through runtime commit
+`main` is pushed through Android commit
+`29a9c1c2811f79d7865cbdf8290f90a568775120`. Cloud Run remains at runtime commit
 `e535a48db3de8f8d435c350517d1595dc1888505`, deployed after the complete local
-gate and clean native-Windows Cloud preflight. The image uses the immutable short
-SHA tag and the service stores the full SHA as deployment evidence.
+gate and clean native-Windows Cloud preflight. The later commit changes only the
+Android Phone Source and its contract, so no service redeploy is required.
 
 Implemented and locally proven:
 
@@ -42,7 +43,10 @@ Implemented and locally proven:
 - cached mobile snapshot and Now focal order;
 - offline receipt recovery after Room database reopen;
 - one real emulator WorkManager request through adb reverse, bearer authentication,
-  backend snapshot, and Room write.
+  backend snapshot, and Room write;
+- one normal emulator system-Camera Shot saved outside `DCIM/Camera/`, learned as
+  the approved `Pictures/` album, streamed to production without manual upload,
+  completed by the deployed Run, and returned as a four-step native visual story.
 
 The current dependency order and acceptance boundaries are recorded in
 [implementation order](implementation-order.md#ordered-phases).
@@ -57,9 +61,9 @@ The current dependency order and acceptance boundaries are recorded in
 | Web client | 37 integration and domain checks plus production build | pass |
 | Android debug build | `:app:assembleDebug` | pass |
 | Android static analysis | `:app:lintDebug` | pass |
-| Android instrumentation | 42-case emulator suite finished with 39 passed and three explicit environment/device gates skipped; the updated nine-case Shot visual-story class passed separately with no skips | pass |
+| Android instrumentation | 43 tests finished with zero failures and two explicit environment-only skips; the real MediaStore tests include learning a non-`DCIM/Camera/` album from an explicit Camera visit | pass |
 | Android release guard | `verifyReleaseConfiguration` rejects blank OAuth, Firebase, HTTPS origin, App Link, and external signing inputs by name without printing values | pass; debug App Link fingerprint is deployed, production signing values remain absent |
-| Android/backend integration | production-origin `RefreshSnapshotWorker` used a disposable bearer token, fetched the deployed mobile snapshot into Room, and the device was immediately revoked | pass separately |
+| Android/backend integration | The signed-in emulator opened the normal system Camera, learned its `Pictures/` output album, automatically uploaded `IMG_20260828_215316.jpg`, and read the completed production Analysis back into Room after restart | pass on emulator; physical pending |
 | 390 dp Now | receipt, processing, stale-revision, and Experiment focus tests | pass |
 | Cloud Run | `shoots-00006-mzn`, image digest `sha256:a13c558a55dd450e49278ac99faffa0e234339ce7d9538b36dcf1a8bbe79aaaa`, 100% traffic; health, authenticated web visual story, production mobile snapshot, Picker, and scheduled Run repair verified live; no revision errors | pass |
 | Google Drive selection | authenticated production Picker opened; one selected file became exactly one `drive_picker` Inspiration and never a Photographer Shot | pass |
@@ -92,8 +96,8 @@ artifact for `02-leading-lines-road.jpg`; the legacy market Shot omitted its uns
 line claim instead of drawing a box. No Cloud Run error was recorded for the revision.
 Revision `shoots-00005-tb6` remains available as the immediate rollback target.
 
-This proves durable production Run recovery, but not the full continuous Phone Source
-workflow. Phone Source ingestion, Shoot closure, Shoot Record settlement, FCM,
+This proves durable production Run recovery and the continuous Camera-to-completed-Run
+Phone Source path on the emulator. Shoot closure, Shoot Record settlement, FCM,
 optional Drive connection, and the three live barriers still require one physical
 end-to-end acceptance run.
 
