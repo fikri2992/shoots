@@ -5,11 +5,10 @@
 
 ## Candidate
 
-`main` is pushed through Android commit
-`3e0bdd6b782b86d27786d532b912750265b797f7`. Cloud Run remains at runtime commit
+The latest behavior candidate is Android commit `5bc4286`. Cloud Run remains at runtime commit
 `e535a48db3de8f8d435c350517d1595dc1888505`, deployed after the complete local
-gate and clean native-Windows Cloud preflight. The later commit changes only the
-Android Phone Source and its contract, so no service redeploy is required.
+gate and clean native-Windows Cloud preflight. Later behavior commits change only
+Android; proof-only commits change documentation. No service redeploy is required.
 
 Implemented and locally proven:
 
@@ -51,6 +50,9 @@ Implemented and locally proven:
   completed by the deployed Run, and returned as a four-step native visual story;
 - one two-Shot Explore Capture Session with a frozen Variation, settled member Runs,
   no Verdict, explicit completion, and type-correct Experiments and Journey records.
+- one two-Shot Reproduce Capture Session after FCM registration that emitted exactly
+  one generic session summary, emitted no per-Shot notification, and deep-linked to
+  the authoritative Journey record.
 
 The current dependency order and acceptance boundaries are recorded in
 [implementation order](implementation-order.md#ordered-phases).
@@ -71,6 +73,7 @@ The current dependency order and acceptance boundaries are recorded in
 | 390 dp Now | receipt, processing, stale-revision, and Experiment focus tests | pass |
 | Cloud Run | `shoots-00006-mzn`, image digest `sha256:a13c558a55dd450e49278ac99faffa0e234339ce7d9538b36dcf1a8bbe79aaaa`, 100% traffic; health, authenticated web visual story, production mobile snapshot, Picker, and scheduled Run repair verified live; no revision errors | pass |
 | Google Drive selection | Authenticated production web Picker created one `drive_picker` Inspiration. Android then connected natively, selected a provider file as Inspiration without changing the 16-Shot Journey, selected another as Mine and completed its Run at 17 Shots, exposed the reviewed Drive copy, disconnected with the owned folder still visible, and reconnected after replacing the deleted offline token | pass on web and emulator; physical pending |
+| FCM session summary | Android registered the emulator installation, a two-member Reproduce settled, exactly one generic `capture-session` notification appeared with no per-Shot notifications, and its content intent opened Journey | pass on emulator; physical pending |
 | Physical Xiaomi | current Shoot workflow not installed or exercised | not verified |
 | Signed internal APK | Firebase Android app, OAuth, FCM, production origin, and debug certificate are configured; external release keystore and passwords remain absent | not buildable yet |
 
@@ -101,9 +104,9 @@ line claim instead of drawing a box. No Cloud Run error was recorded for the rev
 Revision `shoots-00005-tb6` remains available as the immediate rollback target.
 
 This proves durable production Run recovery, the continuous Camera-to-completed-Run
-Phone Source path, one multi-member Capture Session, one settled three-Shot/two-Scene
-Shoot Record, and the native Drive lifecycle on the emulator. FCM and all three barriers
-in one physical run remain unverified.
+Phone Source path, multi-member Capture Sessions, one settled three-Shot/two-Scene
+Shoot Record, the native Drive lifecycle, and one batch-only FCM summary on the emulator.
+All three barriers plus notification delivery in one physical run remain unverified.
 
 ## Android production inputs
 

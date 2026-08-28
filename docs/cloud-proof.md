@@ -119,8 +119,15 @@ Criteria-not-met Verdicts and zero abstentions. The Experiment correctly remaine
 Android now shows that neither result met the frozen Criteria and leads with the latest
 Judge-supported next move before “Try again”; the production web Now surface independently
 shows the same latest result, next move, exact earlier Keeper, and two-result count.
-Physical Xiaomi proof, a Criteria-met device case, all barriers in one run, and FCM remain
-separate gates.
+
+Android then registered its emulator FCM installation and ran another two-member
+Reproduce Capture Session. After the batch settled, Android displayed exactly one
+generic `capture-session` notification with a content intent; there were no per-Shot
+notifications. Opening it deep-linked to Journey, which fetched the authoritative open
+Reproduce record, exact Keeper, representative result, and all batch results.
+
+Physical Xiaomi proof, a Criteria-met device case, and all barriers plus FCM in one
+physical run remain separate gates.
 
 Use disposable records and one ordinary phone Shoot:
 
