@@ -6,7 +6,7 @@
 ## Candidate
 
 `main` is pushed through runtime commit
-`c1068727a65535c876469e6657cf1738242cc999`, deployed after the complete local
+`75704c9053c504305b49862cfbe2e9bfa8cedc1a`, deployed after the complete local
 gate and clean native-Windows Cloud preflight. The image uses the immutable short
 SHA tag and the service stores the full SHA as deployment evidence.
 
@@ -61,7 +61,7 @@ The current dependency order and acceptance boundaries are recorded in
 | Android release guard | `verifyReleaseConfiguration` rejects blank OAuth, Firebase, HTTPS origin, App Link, and external signing inputs by name without printing values | pass; debug App Link fingerprint is deployed, production signing values remain absent |
 | Android/backend integration | production-origin `RefreshSnapshotWorker` used a disposable bearer token, fetched the deployed mobile snapshot into Room, and the device was immediately revoked | pass separately |
 | 390 dp Now | receipt, processing, stale-revision, and Experiment focus tests | pass |
-| Cloud Run | `shoots-00003-hr5`, image digest `sha256:58efd3daba80e0a7142499c5a0c810507418e989ad07d6944904ea4b56b2c01a`, 100% traffic; health, authenticated web, production mobile snapshot, and Picker verified live; no revision errors | pass |
+| Cloud Run | `shoots-00005-tb6`, image digest `sha256:33ae2ddbc3bd66b4005a4b04e776f8cfcab949c6c384938296ac01038096d2ac`, 100% traffic; health, authenticated web, production mobile snapshot, Picker, and scheduled Run repair verified live; no revision errors | pass |
 | Google Drive selection | authenticated production Picker opened; one selected file became exactly one `drive_picker` Inspiration and never a Photographer Shot | pass |
 | Physical Xiaomi | current Shoot workflow not installed or exercised | not verified |
 | Signed internal APK | Firebase Android app, OAuth, FCM, production origin, and debug certificate are configured; external release keystore and passwords remain absent | not buildable yet |
@@ -80,18 +80,20 @@ certificate fingerprint, not an internal-release identity.
 
 Shoots is live at
 `https://shoots-718560154436.asia-southeast2.run.app`. Cloud Run reports revision
-`shoots-00003-hr5` ready with 100% traffic and `SOURCE_SHA` equal to the recorded
+`shoots-00005-tb6` ready with 100% traffic and `SOURCE_SHA` equal to the recorded
 runtime commit. Authenticated browser reads returned the new Drive actions and current
 archive. Picker configuration returned enabled without exposing its token, and a real
 selection produced one separate Inspiration receipt. A disposable Android device
-session fetched `/api/mobile/snapshot` through WorkManager and was revoked. No Cloud
-Run error was recorded for the revision. Revision `shoots-00002-chw` remains available
-as the immediate rollback target.
+session fetched `/api/mobile/snapshot` through WorkManager and was revoked. A manually
+triggered production scheduler tick found three Runs abandoned after Analyst delivery
+exhaustion; all three re-entered the ordinary Analyst handler, stored Analysis, and
+settled every Run stage. No Cloud Run error was recorded for the revision. Revision
+`shoots-00004-5d5` remains available as the immediate rollback target.
 
-This does not prove the full continuous Shot workflow. Phone Source ingestion,
-Firestore Run advancement, Shoot closure, Shoot Record settlement, FCM, optional
-Drive connection, and the three live barriers still require one physical end-to-end
-acceptance run.
+This proves durable production Run recovery, but not the full continuous Phone Source
+workflow. Phone Source ingestion, Shoot closure, Shoot Record settlement, FCM,
+optional Drive connection, and the three live barriers still require one physical
+end-to-end acceptance run.
 
 ## Android production inputs
 
