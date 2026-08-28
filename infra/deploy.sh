@@ -60,10 +60,19 @@ echo
 ACTUAL_URL="$(gcloud run services describe "$SERVICE" --project "$PROJECT" \
   --region "$REGION" --format='value(status.url)')"
 if [ "$ACTUAL_URL" != "$URL" ]; then
-  echo "Cloud Run reported $ACTUAL_URL; predicted $URL" >&2
-  echo "Set SERVICE_URL explicitly and reconcile OAuth, Pub/Sub and Scheduler before use." >&2
-  exit 1
+  echo "Cloud Run service URL: $ACTUAL_URL"
+  echo "Configured canonical URL: $URL"
 fi
+for attempt in {1..12}; do
+  if curl --fail --silent --show-error "${URL}/api/health" >/dev/null; then
+    break
+  fi
+  if [ "$attempt" = 12 ]; then
+    echo "Canonical URL did not reach the deployed service: $URL" >&2
+    exit 1
+  fi
+  sleep 5
+done
 
 echo "deployed: $ACTUAL_URL"
 echo "OAuth: add ${URL}/auth/callback to the OAuth client's redirect URIs."
