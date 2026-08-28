@@ -22,17 +22,22 @@ quality score.
 
 ```text
 service_url=https://shoots-718560154436.asia-southeast2.run.app
-runtime_source_sha=6e6096221cc09cfcb688e3f47dd9e957c040ef89
-cloud_run_revision=shoots-00002-chw
+repository_candidate_sha=b547e77370ca905e1ae9572c650cb09f8de47b78
+runtime_source_sha=e535a48db3de8f8d435c350517d1595dc1888505
+cloud_run_revision=shoots-00006-mzn
 cloud_run_traffic=100%
-android_debug_apk_sha256=680BF3DB8BB592789F632F10686DFB50373A8AD6DC72B362E72C044DFEB8B712
+cloud_run_image_digest=sha256:a13c558a55dd450e49278ac99faffa0e234339ce7d9538b36dcf1a8bbe79aaaa
+android_debug_apk_sha256=2006143B65803C48D468E69F6A08BF8F36C1CA64A5EFB47A6C0A6A1F7F6FC1B3
 android_package=com.shoots.app
 android_identity=debug certificate registered with Firebase and OAuth
 ```
 
-The APK is configured for the production service and installed on the emulator.
-Native acceptance is blocked only at the human Google account sign-in step. This is
-not a production-signed APK and must not be called one.
+Cloud Run state was read back on 2026-08-29: the recorded revision is ready and owns
+100% traffic with the recorded `SOURCE_SHA`. The APK was rebuilt from the recorded
+repository candidate against the production HTTPS origin. The emulator is currently
+waiting at the human Google account chooser; Xiaomi acceptance and the external release
+signing identity remain separate gates. This is not a production-signed APK and must
+not be called one.
 
 ## Prepare one honest account
 
@@ -120,6 +125,18 @@ Record these separately before the hero take:
 If the physical phone fails, the emulator may prove the same system-Camera and Phone
 Source path. It must not fall back to manual gallery upload. Label it as emulator
 proof, not physical acceptance.
+
+The current backup recovery take is not a substitute for the hero recording, but its
+production identifiers are preserved for audit:
+
+```text
+capture_session_id=capture_bdd6de7fd4a8
+shot_ids=shot_86376673_android_5b379a926c3f92b9815d8d95,shot_86376673_android_111ed5607675101404a7d062
+session_outcome=settled; 2 completed; 2 Criteria not met; 0 abstained; 0 terminal
+settled_at_utc=2026-08-28T16:38:45.408695Z
+notification_sent_at_utc=2026-08-28T16:38:46.517258Z
+recovery_fix_sha=409d5cb4736d022fb067948ab13cea03c742752d
+```
 
 ## Live identifiers
 
