@@ -5,6 +5,8 @@ import android.net.Uri
 import com.shoots.app.BuildConfig
 import com.shoots.app.phone.PhoneMediaStore
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.map
 import kotlinx.serialization.encodeToString
 import okhttp3.MediaType.Companion.toMediaType
@@ -29,6 +31,9 @@ class ShootsRepository(
     private val json: kotlinx.serialization.json.Json,
     val phoneSource: PhoneMediaStore,
 ) {
+    private val _successfulRefreshes = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
+    val successfulRefreshes = _successfulRefreshes.asSharedFlow()
+
     val snapshot: Flow<MobileSnapshotDto?> = dao.observeResource(SNAPSHOT_KEY).map { resource ->
         resource?.payload?.let { runCatching { json.decodeFromString<MobileSnapshotDto>(it) }.getOrNull() }
     }
@@ -62,6 +67,7 @@ class ShootsRepository(
         )
         if (response.code() == 304) {
             dao.putSourceState(state)
+            _successfulRefreshes.emit(Unit)
             return false
         }
         if (!response.isSuccessful) throw HttpException(response)
@@ -83,6 +89,7 @@ class ShootsRepository(
                 dao.putCaptureSession(local.copy(state = server.status, error = ""))
             }
         }
+        _successfulRefreshes.emit(Unit)
         return true
     }
 

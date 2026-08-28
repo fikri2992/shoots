@@ -71,6 +71,9 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     private var shotDetailJob: Job? = null
 
     init {
+        viewModelScope.launch {
+            repository.successfulRefreshes.collect { error.value = "" }
+        }
         if (signedIn.value) sync()
     }
 
@@ -87,6 +90,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         PhoneSourceScheduler.enqueueSync(app)
         viewModelScope.launch(Dispatchers.IO) {
             runCatching { repository.refreshSnapshot() }
+                .onSuccess { error.value = "" }
                 .onFailure(::recordFailure)
         }
     }
