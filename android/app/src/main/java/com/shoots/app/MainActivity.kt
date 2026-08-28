@@ -96,7 +96,7 @@ class MainActivity : ComponentActivity() {
                         pickerSourceRole = "mine"
                         picker.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
                     } else {
-                        viewModel.sync()
+                        scope.launch { viewModel.finishFreeCameraVisit() }
                     }
                 }
                 val mediaPermission = rememberLauncherForActivityResult(
@@ -203,7 +203,11 @@ class MainActivity : ComponentActivity() {
                         requestMedia = { mediaPermission.launch(mediaPermissions()) },
                         enableSource = { scope.launch { viewModel.enableFutureShots() } },
                         disableSource = { scope.launch { viewModel.disableFutureShots() } },
-                        openFreeCamera = { launchCamera() },
+                        openFreeCamera = {
+                            scope.launch {
+                                if (viewModel.prepareFreeCameraVisit()) launchCamera()
+                            }
+                        },
                         chooseFreeShots = { chooseSourceRole = true },
                         requestExperiment = { force ->
                             scope.launch { viewModel.requestExperiment(force) }

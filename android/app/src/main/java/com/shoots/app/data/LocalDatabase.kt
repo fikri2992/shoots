@@ -24,6 +24,10 @@ data class SourceStateEntity(
     val lastMediaId: Long = 0,
     val lastSuccessfulSyncAt: String = "",
     val lastError: String = "",
+    val approvedCameraPath: String = "DCIM/Camera/",
+    val cameraVisitActive: Boolean = false,
+    val cameraVisitDateAdded: Long = 0,
+    val cameraVisitMediaId: Long = 0,
 )
 
 @Entity(
@@ -255,7 +259,7 @@ abstract class ShootsDao {
         CachedResourceEntity::class,
         CachedShotEntity::class,
     ],
-    version = 3,
+    version = 4,
     // Version 1 is checked in under app/schemas. Room 2.8.4 cannot re-read its
     // own exported JSON with its current serialization ABI; re-enable export
     // when the upstream compiler fix lands, before introducing version 2.
@@ -269,7 +273,7 @@ abstract class ShootsDatabase : RoomDatabase() {
             context.applicationContext,
             ShootsDatabase::class.java,
             "shoots.db",
-        ).addMigrations(MIGRATION_1_2, MIGRATION_2_3)
+        ).addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4)
             .setJournalMode(JournalMode.WRITE_AHEAD_LOGGING)
             .build()
 
@@ -284,6 +288,27 @@ abstract class ShootsDatabase : RoomDatabase() {
                 db.execSQL(
                     "ALTER TABLE local_capture_sessions " +
                         "ADD COLUMN variationId TEXT NOT NULL DEFAULT ''"
+                )
+            }
+        }
+
+        private val MIGRATION_3_4 = object : Migration(3, 4) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    "ALTER TABLE source_state " +
+                        "ADD COLUMN approvedCameraPath TEXT NOT NULL DEFAULT 'DCIM/Camera/'"
+                )
+                db.execSQL(
+                    "ALTER TABLE source_state " +
+                        "ADD COLUMN cameraVisitActive INTEGER NOT NULL DEFAULT 0"
+                )
+                db.execSQL(
+                    "ALTER TABLE source_state " +
+                        "ADD COLUMN cameraVisitDateAdded INTEGER NOT NULL DEFAULT 0"
+                )
+                db.execSQL(
+                    "ALTER TABLE source_state " +
+                        "ADD COLUMN cameraVisitMediaId INTEGER NOT NULL DEFAULT 0"
                 )
             }
         }

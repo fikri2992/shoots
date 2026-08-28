@@ -118,6 +118,19 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         return id
     }
 
+    suspend fun prepareFreeCameraVisit(): Boolean = operate {
+        repository.prepareFreeCameraVisit()
+    }
+
+    suspend fun finishFreeCameraVisit(): Int {
+        var members = 0
+        operate {
+            members = repository.finishFreeCameraVisit()
+            if (members > 0) PhoneSourceScheduler.enqueueSync(app)
+        }
+        return members
+    }
+
     suspend fun finishCameraVisit(sessionId: String): Int {
         var members = 0
         operate {

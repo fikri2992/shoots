@@ -27,6 +27,7 @@ data class CameraItem(
     val size: Long,
     val displayName: String,
     val mimeType: String,
+    val relativePath: String = "",
 )
 
 class PhoneMediaStore(
@@ -48,8 +49,8 @@ class PhoneMediaStore(
 
     suspend fun enableFutureShots() {
         check(access() == MediaAccess.FULL) { "Full Camera media access is required" }
-        val latest = query(0, 0, newestFirst = true, limit = 1).firstOrNull()
         val state = dao.sourceState() ?: SourceStateEntity()
+        val latest = queryApproved(state, 0, 0, newestFirst = true, limit = 1).firstOrNull()
         dao.putSourceState(
             state.copy(
                 enabled = true,
@@ -70,7 +71,7 @@ class PhoneMediaStore(
         val state = dao.sourceState() ?: SourceStateEntity()
         val active = dao.activeCaptureSession()
         if (!state.enabled && active?.state != LocalCaptureState.RESERVED) return 0
-        val items = query(state.lastDateAdded, state.lastMediaId)
+        val items = queryApproved(state, state.lastDateAdded, state.lastMediaId)
         if (items.isEmpty()) return 0
         val session = active?.takeIf { it.state == LocalCaptureState.RESERVED }
         val imports = items.map(::cameraImport)
@@ -83,20 +84,55 @@ class PhoneMediaStore(
         )
     }
 
-    suspend fun prepareCaptureWatermark() {
+    suspend fun prepareCameraVisit() {
         if (access() != MediaAccess.FULL) return
         val state = dao.sourceState() ?: SourceStateEntity()
         if (state.enabled) discover()
         val current = dao.sourceState() ?: state
-        val latest = query(0, 0, newestFirst = true, limit = 1).firstOrNull() ?: return
-        if (
-            latest.dateAdded > current.lastDateAdded ||
-            (latest.dateAdded == current.lastDateAdded && latest.id > current.lastMediaId)
-        ) {
-            dao.putSourceState(
-                current.copy(lastDateAdded = latest.dateAdded, lastMediaId = latest.id)
+        val latest = queryAll(0, 0, newestFirst = true, limit = 1).firstOrNull()
+        dao.putSourceState(
+            current.copy(
+                cameraVisitActive = true,
+                cameraVisitDateAdded = latest?.dateAdded ?: 0,
+                cameraVisitMediaId = latest?.id ?: 0,
+                lastError = "",
             )
+        )
+    }
+
+    suspend fun completeCameraVisit(sessionId: String = ""): Int {
+        if (access() != MediaAccess.FULL) return 0
+        val state = dao.sourceState() ?: SourceStateEntity()
+        if (!state.cameraVisitActive) return 0
+        val items = queryAll(state.cameraVisitDateAdded, state.cameraVisitMediaId)
+        if (items.isEmpty()) {
+            dao.putSourceState(state.copy(cameraVisitActive = false, lastError = ""))
+            return 0
         }
+        val paths = items.map(CameraItem::relativePath).filter(String::isNotBlank).distinct()
+        if (paths.size != 1) {
+            val message = "More than one media album changed. Choose the Camera Shots explicitly."
+            dao.putSourceState(state.copy(cameraVisitActive = false, lastError = message))
+            error(message)
+        }
+        val approvedPath = paths.single().withTrailingSlash()
+        val session = sessionId.takeIf(String::isNotBlank)?.let { id ->
+            requireNotNull(dao.captureSession(id)) { "Capture Session is not stored" }
+        }
+        val imports = items.map(::cameraImport)
+        val last = items.last()
+        return dao.discoverAndAdvance(
+            imports,
+            state.copy(
+                approvedCameraPath = approvedPath,
+                lastDateAdded = last.dateAdded,
+                lastMediaId = last.id,
+                cameraVisitActive = false,
+                lastError = "",
+            ),
+            session?.id.orEmpty(),
+            session?.experimentId.orEmpty(),
+        )
     }
 
     suspend fun stageSelected(
@@ -133,6 +169,7 @@ class PhoneMediaStore(
                     size = cursor.long(MediaStore.Images.Media.SIZE),
                     displayName = cursor.string(MediaStore.Images.Media.DISPLAY_NAME, "Shot.jpg"),
                     mimeType = cursor.string(MediaStore.Images.Media.MIME_TYPE, "image/jpeg"),
+                    relativePath = cursor.stringOr(MediaStore.Images.Media.RELATIVE_PATH, ""),
                 )
             }
         }.getOrNull()
@@ -180,29 +217,77 @@ class PhoneMediaStore(
         mimeType = mimeType,
     )
 
-    private fun query(
+    private fun queryApproved(
+        state: SourceStateEntity,
         afterDate: Long,
         afterId: Long,
         newestFirst: Boolean = false,
         limit: Int = 500,
     ): List<CameraItem> {
-        val projection = arrayOf(
-            MediaStore.Images.Media._ID,
-            MediaStore.Images.Media.DISPLAY_NAME,
-            MediaStore.Images.Media.MIME_TYPE,
-            MediaStore.Images.Media.DATE_ADDED,
-            MediaStore.Images.Media.SIZE,
-        )
         val date = MediaStore.Images.Media.DATE_ADDED
         val id = MediaStore.Images.Media._ID
         val cameraClause = if (Build.VERSION.SDK_INT >= 29) {
-            "${MediaStore.Images.Media.RELATIVE_PATH} LIKE ?"
+            "${MediaStore.Images.Media.RELATIVE_PATH} = ?"
         } else {
             "${MediaStore.Images.Media.BUCKET_DISPLAY_NAME} = ?"
         }
-        val cameraValue = if (Build.VERSION.SDK_INT >= 29) "DCIM/Camera/%" else "Camera"
+        val cameraValue = if (Build.VERSION.SDK_INT >= 29) {
+            state.approvedCameraPath.withTrailingSlash()
+        } else {
+            "Camera"
+        }
         val selection = "($date > ? OR ($date = ? AND $id > ?)) AND $cameraClause"
-        val arguments = arrayOf(afterDate.toString(), afterDate.toString(), afterId.toString(), cameraValue)
+        val arguments = arrayOf(
+            afterDate.toString(),
+            afterDate.toString(),
+            afterId.toString(),
+            cameraValue,
+        )
+        return queryItems(selection, arguments, newestFirst, limit)
+    }
+
+    private fun queryAll(
+        afterDate: Long,
+        afterId: Long,
+        newestFirst: Boolean = false,
+        limit: Int = 500,
+    ): List<CameraItem> {
+        if (Build.VERSION.SDK_INT < 29) {
+            return queryApproved(
+                SourceStateEntity(),
+                afterDate,
+                afterId,
+                newestFirst,
+                limit,
+            )
+        }
+        val date = MediaStore.Images.Media.DATE_ADDED
+        val id = MediaStore.Images.Media._ID
+        val selection = "$date > ? OR ($date = ? AND $id > ?)"
+        val arguments = arrayOf(
+            afterDate.toString(),
+            afterDate.toString(),
+            afterId.toString(),
+        )
+        return queryItems(selection, arguments, newestFirst, limit)
+    }
+
+    private fun queryItems(
+        selection: String,
+        arguments: Array<String>,
+        newestFirst: Boolean,
+        limit: Int,
+    ): List<CameraItem> {
+        val projection = buildList {
+            add(MediaStore.Images.Media._ID)
+            add(MediaStore.Images.Media.DISPLAY_NAME)
+            add(MediaStore.Images.Media.MIME_TYPE)
+            add(MediaStore.Images.Media.DATE_ADDED)
+            add(MediaStore.Images.Media.SIZE)
+            if (Build.VERSION.SDK_INT >= 29) add(MediaStore.Images.Media.RELATIVE_PATH)
+        }.toTypedArray()
+        val date = MediaStore.Images.Media.DATE_ADDED
+        val id = MediaStore.Images.Media._ID
         val order = if (newestFirst) "$date DESC, $id DESC" else "$date ASC, $id ASC"
         val queryArguments = Bundle().apply {
             putString(ContentResolver.QUERY_ARG_SQL_SELECTION, selection)
@@ -226,6 +311,11 @@ class PhoneMediaStore(
                     size = cursor.long(MediaStore.Images.Media.SIZE),
                     displayName = cursor.string(MediaStore.Images.Media.DISPLAY_NAME, "Shot.jpg"),
                     mimeType = cursor.string(MediaStore.Images.Media.MIME_TYPE, "image/jpeg"),
+                    relativePath = if (Build.VERSION.SDK_INT >= 29) {
+                        cursor.stringOr(MediaStore.Images.Media.RELATIVE_PATH, "")
+                    } else {
+                        "Camera"
+                    },
                 )
             }
         }
@@ -234,6 +324,8 @@ class PhoneMediaStore(
 
     private fun granted(permission: String): Boolean =
         ContextCompat.checkSelfPermission(context, permission) == PackageManager.PERMISSION_GRANTED
+
+    private fun String.withTrailingSlash(): String = if (endsWith('/')) this else "$this/"
 
     private fun android.database.Cursor.long(column: String): Long = getLong(getColumnIndexOrThrow(column))
 

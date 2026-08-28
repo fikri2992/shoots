@@ -91,18 +91,18 @@ class ShootsRepository(
         variationId: String = "",
     ): LocalCaptureSessionEntity {
         require(isSignedIn()) { "Sign in is required" }
-        phoneSource.prepareCaptureWatermark()
         val remote = api.reserveCaptureSession(
             CaptureSessionReserveRequest(experimentId, variationId)
         )
+        phoneSource.prepareCameraVisit()
         val watermark = dao.sourceState() ?: SourceStateEntity()
         return LocalCaptureSessionEntity(
             id = remote.id,
             experimentId = remote.experimentId,
             variationId = remote.variationId,
             state = LocalCaptureState.RESERVED,
-            baselineDateAdded = watermark.lastDateAdded,
-            baselineMediaId = watermark.lastMediaId,
+            baselineDateAdded = watermark.cameraVisitDateAdded,
+            baselineMediaId = watermark.cameraVisitMediaId,
             reservedAt = remote.reservedAt,
             expiresAt = remote.expiresAt,
         ).also { dao.putCaptureSession(it) }
@@ -114,12 +114,18 @@ class ShootsRepository(
             dao.putCaptureSession(session.copy(state = LocalCaptureState.AWAITING_SELECTION))
             return 0
         }
-        phoneSource.discover()
+        phoneSource.completeCameraVisit(sessionId)
         val members = dao.sessionImports(sessionId)
         if (members.isEmpty()) return 0
         dao.putCaptureSession(session.copy(state = LocalCaptureState.MANIFEST_PENDING, error = ""))
         return members.size
     }
+
+    suspend fun prepareFreeCameraVisit() {
+        phoneSource.prepareCameraVisit()
+    }
+
+    suspend fun finishFreeCameraVisit(): Int = phoneSource.completeCameraVisit()
 
     suspend fun stageSelected(
         uris: List<Uri>,
