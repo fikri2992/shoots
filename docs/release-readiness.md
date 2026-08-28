@@ -6,7 +6,7 @@
 ## Candidate
 
 The latest behavior candidate is Android commit
-`409d5cb4736d022fb067948ab13cea03c742752d`. Cloud Run remains at runtime commit
+`2da257b3e5937bef404d81dc5d43385e49deb691`. Cloud Run remains at runtime commit
 `e535a48db3de8f8d435c350517d1595dc1888505`, deployed after the complete local
 gate and clean native-Windows Cloud preflight. Later behavior commits change only
 Android; proof-only commits change documentation. No service redeploy is required.
@@ -73,14 +73,14 @@ The current dependency order and acceptance boundaries are recorded in
 | Android debug build | `:app:assembleDebug` | pass |
 | Android static analysis | `:app:lintDebug` | pass |
 | Android instrumentation | 44 tests finished with zero failures and two explicit environment-only skips; the real MediaStore tests include learning a non-`DCIM/Camera/` album from an explicit Camera visit. The suite now also drives a real Room, WorkManager, repository, and ViewModel refresh to prove successful recovery clears a stale network banner | pass |
-| Android release guard | `verifyReleaseConfiguration` rejects blank OAuth, Firebase, HTTPS origin, App Link, and external signing inputs by name without printing values | pass; debug App Link fingerprint is deployed, production signing values remain absent |
+| Android release guard | `verifyReleaseConfiguration` validates OAuth, Firebase, and the HTTPS origin, derives the App Link host from that origin unless explicitly overridden, rejects a mismatch, and names missing external signing inputs without printing values | pass; only the four production signing values remain absent |
 | Android/backend integration | The signed-in emulator opened the normal system Camera, learned its `Pictures/` output album, automatically uploaded a free Shot, and read the completed production Analysis back into Room after restart. A later Reproduce preserved two immutable members through airplane mode and process death, then automatically committed, uploaded, settled, notified, and refreshed after reconnection | pass on emulator; physical pending |
 | 390 dp Now | receipt, processing, stale-revision, and Experiment focus tests | pass |
 | Cloud Run | `shoots-00006-mzn`, image digest `sha256:a13c558a55dd450e49278ac99faffa0e234339ce7d9538b36dcf1a8bbe79aaaa`, 100% traffic; health, authenticated web visual story, production mobile snapshot, Picker, and scheduled Run repair verified live; no revision errors | pass |
 | Google Drive selection | Authenticated production web Picker created one `drive_picker` Inspiration. Android then connected natively, selected a provider file as Inspiration without changing the 16-Shot Journey, selected another as Mine and completed its Run at 17 Shots, exposed the reviewed Drive copy, disconnected with the owned folder still visible, and reconnected after replacing the deleted offline token | pass on web and emulator; physical pending |
 | FCM session summary | Android registered the emulator installation, a two-member Reproduce settled, exactly one generic `capture-session` notification appeared with no per-Shot notifications, and its content intent opened Journey | pass on emulator; physical pending |
 | Physical Xiaomi | production-origin debug APK installed before the latest recovery patch; native sign-in and current Shoot workflow not exercised | not verified |
-| Signed internal APK | Firebase Android app, OAuth, FCM, production origin, and debug certificate are configured; external release keystore and passwords remain absent | not buildable yet |
+| Signed internal APK | Firebase Android app, OAuth, FCM, production origin, and debug certificate are configured; the App Link host is derived from the origin. External release keystore, alias, and passwords remain absent | not buildable yet |
 
 ### Cloud preflight and state
 
@@ -120,8 +120,9 @@ The exact setup, source of each value, release-build guard, and physical verific
 commands are in [Android setup](android-setup.md). The approved Cloud sequence and
 readback evidence are in [Cloud proof](cloud-proof.md).
 
-OAuth, Firebase, HTTPS origin, and App Link values are configured outside the
-repository in the user Gradle profile. These signing values remain absent:
+OAuth, Firebase, and the HTTPS origin are configured outside the repository in
+the user Gradle profile. The App Link host is derived from that origin. These
+signing values remain absent:
 
 ```text
 SHOOTS_SIGNING_STORE_FILE
