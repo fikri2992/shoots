@@ -99,8 +99,11 @@ The first production-connected emulator proof completed on 2026-08-28. Shoots op
 the normal Android Camera, froze a MediaStore watermark, learned the Camera's
 nonstandard `Pictures/` output album, accepted `IMG_20260828_215316.jpg` without a
 manual picker, streamed it through direct ingress, and later read the completed Run
-and four-step visual story back from the production snapshot. Physical Xiaomi proof,
-Shoot settlement, Capture Session settlement, and FCM remain separate gates.
+and four-step visual story back from the production snapshot. A following Explore
+Capture Session froze one Variation, committed two Camera members, waited for both Runs,
+recorded one observed Variation with no Verdict, and completed into Android Experiments
+and Journey. Physical Xiaomi proof, Shoot settlement, all barriers in one run, and FCM
+remain separate gates.
 
 Use disposable records and one ordinary phone Shoot:
 
