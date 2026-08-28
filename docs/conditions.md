@@ -1,5 +1,9 @@
 # Conditions
 
+> Unbuilt design note. The current Scout starts from a cited Experiment Direction,
+> not a Technique gap, and the Android Companion does not yet read weather, location
+> facts, or the visible Scene. This note is input to that future work, not a build claim.
+
 Technical note, 2026-08-23. Weather, sky and air as inputs to the plan, the person's
 preparation, and the verdict. Companion to `lighting.md`; the same split applies:
 code measures and derives, agents decide between trade-offs, code verifies.

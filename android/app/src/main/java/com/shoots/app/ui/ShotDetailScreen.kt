@@ -2,7 +2,6 @@ package com.shoots.app.ui
 
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -10,6 +9,7 @@ import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -20,25 +20,29 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
-import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.selection.selectable
-import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.Text
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.semantics
@@ -59,8 +63,8 @@ import com.shoots.app.data.CompositionDto
 import com.shoots.app.data.FindingDto
 import com.shoots.app.data.GridSpecDto
 import com.shoots.app.data.ShotDto
-import com.shoots.app.data.ShotTeachingReceiptDto
 import com.shoots.app.data.ShotViewDto
+import com.shoots.app.data.VisualMarkDto
 
 @Composable
 fun ShotDetailScreen(
@@ -99,27 +103,50 @@ fun ShotDetailScreen(
         }
 
         val analysis = view.analysis
+        val story = analysis?.let { buildShotVisualStory(it, view.teaching, shot.grid) }.orEmpty()
         var selectedFinding by rememberSaveable(shot.id) { mutableIntStateOf(0) }
-        var reviewLayer by rememberSaveable(shot.id) {
-            mutableStateOf(defaultReviewLayer(view.teaching, analysis))
+        var storyIndex by rememberSaveable(shot.id) { mutableIntStateOf(0) }
+        var guideMode by rememberSaveable(shot.id) { mutableStateOf(false) }
+        var selectedGuide by rememberSaveable(shot.id) {
+            mutableStateOf(analysis?.composition?.guide?.ifBlank { "none" } ?: "none")
         }
+        var guideRotation by rememberSaveable(shot.id) { mutableIntStateOf(0) }
+        var showGuidePicker by rememberSaveable(shot.id) { mutableStateOf(false) }
         var fullAnalysis by rememberSaveable(shot.id) { mutableStateOf(false) }
         var provenance by rememberSaveable(shot.id) { mutableStateOf(false) }
         var confirmInspiration by rememberSaveable(shot.id) { mutableStateOf(false) }
-        LaunchedEffect(analysis?.shotId) {
-            if (analysis != null && reviewLayer == ReviewLayer.CLEAN) {
-                reviewLayer = defaultReviewLayer(view.teaching, analysis)
+        LaunchedEffect(analysis?.shotId, story.size) {
+            storyIndex = storyIndex.coerceIn(0, maxOf(0, story.lastIndex))
+            if (selectedGuide == "none" && !analysis?.composition?.guide.isNullOrBlank()) {
+                selectedGuide = analysis?.composition?.guide.orEmpty()
             }
             selectedFinding = selectedFinding.coerceIn(0, maxOf(0, analysis?.findings?.lastIndex ?: 0))
+        }
+        val currentStep = story.getOrNull(storyIndex)
+        val reviewLayer = when {
+            guideMode && selectedGuide == "none" -> ReviewLayer.CLEAN
+            guideMode -> ReviewLayer.GUIDE
+            else -> currentStep?.layer ?: ReviewLayer.CLEAN
+        }
+        LaunchedEffect(storyIndex, guideMode) {
+            if (!guideMode) selectedFinding = currentStep?.findingIndex ?: 0
         }
         ShotImage(
             shot = shot,
             analysis = analysis,
             source = imageUrl(shot, true),
             findingSource = blobUrl(shot.blobs["finding_marked"].orEmpty()),
-            layer = reviewLayer,
-            selectedFinding = selectedFinding,
-            onLayer = { reviewLayer = it },
+            artifactSource = blobUrl,
+            story = story,
+            storyIndex = storyIndex,
+            guideMode = guideMode,
+            selectedGuide = selectedGuide,
+            guideRotation = guideRotation,
+            onPrevious = { if (storyIndex > 0) storyIndex -= 1 },
+            onNext = { if (storyIndex < story.lastIndex) storyIndex += 1 },
+            onCompareGuides = { showGuidePicker = true },
+            onBackToStory = { guideMode = false },
+            onRotateGuide = { guideRotation = (guideRotation + 1) % 4 },
         )
 
         Column(Modifier.padding(horizontal = 20.dp, vertical = 20.dp)) {
@@ -144,22 +171,6 @@ fun ShotDetailScreen(
                 val corroborated = analysis.techniques
                     .filter(::isCorroborated)
                     .sortedWith(compareByDescending<com.shoots.app.data.TechniqueEvidenceDto> { it.agreement }.thenByDescending { it.confidence })
-                view.teaching?.let { teaching ->
-                    TeachingReceiptCard(
-                        teaching,
-                        onNotice = {
-                            if (teaching.noticeFindingId.isNotBlank()) {
-                                selectedFinding = 0
-                                reviewLayer = ReviewLayer.FINDING
-                            }
-                        },
-                        onTry = {
-                            if (teaching.tryKind != "camera") reviewLayer = ReviewLayer.ACTION
-                        },
-                    )
-                    Spacer(Modifier.height(22.dp))
-                }
-
                 AnalysisDisclosure(
                     analysis = analysis,
                     shot = shot,
@@ -170,7 +181,10 @@ fun ShotDetailScreen(
                     onToggle = { fullAnalysis = !fullAnalysis },
                     onFinding = { index ->
                         selectedFinding = index
-                        reviewLayer = ReviewLayer.FINDING
+                        guideMode = false
+                        story.indexOfFirst {
+                            it.layer == ReviewLayer.FINDING && it.findingIndex == index
+                        }.takeIf { it >= 0 }?.let { storyIndex = it }
                     },
                 )
             }
@@ -222,102 +236,18 @@ fun ShotDetailScreen(
                 },
             )
         }
-    }
-}
-
-@Composable
-private fun TeachingReceiptCard(
-    teaching: ShotTeachingReceiptDto,
-    onNotice: () -> Unit,
-    onTry: () -> Unit,
-) {
-    SectionTitle("This Shot", "ONE READ")
-    Spacer(Modifier.height(10.dp))
-    InkCard {
-        if (teaching.keepTitle.isNotBlank()) {
-            TeachingLine(
-                label = "KEEP · MODEL READ",
-                title = teaching.keepTitle,
-                proof = teaching.keepProof,
+        if (showGuidePicker) {
+            GuidePickerSheet(
+                selected = selectedGuide,
+                suggested = analysis?.composition?.guide.orEmpty(),
+                onSelect = {
+                    selectedGuide = it
+                    guideMode = true
+                    showGuidePicker = false
+                },
+                onDismiss = { showGuidePicker = false },
             )
         }
-        if (teaching.noticeTitle.isNotBlank()) {
-            if (teaching.keepTitle.isNotBlank()) Spacer(Modifier.height(16.dp))
-            Column(
-                Modifier
-                    .fillMaxWidth()
-                    .clickable(
-                        enabled = teaching.noticeFindingId.isNotBlank(),
-                        role = Role.Button,
-                        onClick = onNotice,
-                    )
-            ) {
-                TeachingLine(
-                    label = if (teaching.noticeAuthority == "measured") {
-                        "NOTICE · MEASURED"
-                    } else {
-                        "NOTICE · MODEL READ"
-                    },
-                    title = teaching.noticeTitle,
-                    proof = teaching.noticeProof,
-                    finding = teaching.noticeAuthority == "measured",
-                )
-            }
-        }
-        if (teaching.tryText.isNotBlank()) {
-            Spacer(Modifier.height(16.dp))
-            Column(
-                Modifier
-                    .fillMaxWidth()
-                    .clickable(
-                        enabled = teaching.tryKind != "camera",
-                        role = Role.Button,
-                        onClick = onTry,
-                    )
-            ) {
-                TeachingLine(
-                    label = if (teaching.tryKind == "camera") "TRY · MOVE CAMERA" else "TRY NEXT",
-                    title = teaching.tryText,
-                    proof = teaching.tryReason,
-                )
-            }
-        }
-        if (teaching.visibleCheck.isNotBlank()) {
-            Spacer(Modifier.height(17.dp))
-            Column(
-                Modifier
-                    .fillMaxWidth()
-                    .background(Amber.copy(alpha = 0.1f), RoundedCornerShape(13.dp))
-                    .border(1.dp, Amber.copy(alpha = 0.35f), RoundedCornerShape(13.dp))
-                    .padding(13.dp)
-            ) {
-                Text("CHECK ON THE NEXT SHOT", color = Amber, fontSize = 10.sp, fontWeight = FontWeight.Bold)
-                Spacer(Modifier.height(5.dp))
-                Text(teaching.visibleCheck, color = WarmWhite, fontSize = 13.sp, lineHeight = 19.sp)
-            }
-        }
-    }
-}
-
-@Composable
-private fun TeachingLine(
-    label: String,
-    title: String,
-    proof: String,
-    finding: Boolean = false,
-) {
-    Text(label, color = if (finding) FindingRed else Amber, fontSize = 10.sp, fontWeight = FontWeight.Bold)
-    Spacer(Modifier.height(5.dp))
-    Text(
-        title,
-        color = if (finding) FindingRed else WarmWhite,
-        fontSize = 16.sp,
-        lineHeight = 22.sp,
-        fontWeight = FontWeight.SemiBold,
-    )
-    if (proof.isNotBlank()) {
-        Spacer(Modifier.height(5.dp))
-        Text(proof, color = MutedWhite, fontSize = 12.sp, lineHeight = 18.sp)
     }
 }
 
@@ -570,121 +500,351 @@ private fun ShotImage(
     analysis: AnalysisDto?,
     source: String,
     findingSource: String,
-    layer: ReviewLayer,
-    selectedFinding: Int,
-    onLayer: (ReviewLayer) -> Unit,
+    artifactSource: (String) -> String,
+    story: List<ShotStoryStep>,
+    storyIndex: Int,
+    guideMode: Boolean,
+    selectedGuide: String,
+    guideRotation: Int,
+    onPrevious: () -> Unit,
+    onNext: () -> Unit,
+    onCompareGuides: () -> Unit,
+    onBackToStory: () -> Unit,
+    onRotateGuide: () -> Unit,
 ) {
     val grid = shot.grid
     val composition = analysis?.composition
-    val finding = analysis?.findings?.getOrNull(selectedFinding)
+    val step = story.getOrNull(storyIndex)
+    val finding = analysis?.findings?.getOrNull(step?.findingIndex ?: 0)
+    val layer = when {
+        guideMode && selectedGuide == "none" -> ReviewLayer.CLEAN
+        guideMode -> ReviewLayer.GUIDE
+        else -> step?.layer ?: ReviewLayer.CLEAN
+    }
     val ratio = grid
         ?.takeIf { it.width > 0 && it.height > 0 }
         ?.let { it.width.toFloat() / it.height.toFloat() }
         ?: (4f / 3f)
+    var horizontalDrag by remember { mutableFloatStateOf(0f) }
+    var showClean by remember(storyIndex, guideMode) { mutableStateOf(false) }
     Column(Modifier.fillMaxWidth().background(InkRaised)) {
-        Box(Modifier.fillMaxWidth().aspectRatio(ratio)) {
+        if (step != null) {
+            StoryHeader(
+                current = storyIndex,
+                total = story.size,
+                guideMode = guideMode,
+            )
+        }
+        Box(
+            Modifier
+                .fillMaxWidth()
+                .aspectRatio(ratio)
+                .pointerInput(storyIndex, story.size, guideMode) {
+                    if (!guideMode) {
+                        detectHorizontalDragGestures(
+                            onDragStart = { horizontalDrag = 0f },
+                            onHorizontalDrag = { _, amount -> horizontalDrag += amount },
+                            onDragEnd = {
+                                when {
+                                    horizontalDrag < -80f -> onNext()
+                                    horizontalDrag > 80f -> onPrevious()
+                                }
+                                horizontalDrag = 0f
+                            },
+                        )
+                    }
+                }
+        ) {
             AnimatedContent(
-                targetState = layer,
+                targetState = StoryRenderState(
+                    layer,
+                    step?.findingIndex ?: 0,
+                    selectedGuide,
+                    guideRotation,
+                    step?.mark ?: VisualMarkDto(),
+                    showClean,
+                ),
                 modifier = Modifier.fillMaxSize(),
                 transitionSpec = { fadeIn(tween(150)) togetherWith fadeOut(tween(110)) },
-                label = "Shot review layer",
-            ) { shownLayer ->
+                label = "Shot visual story",
+            ) { rendered ->
                 Box(Modifier.fillMaxSize()) {
-                    AsyncImage(
-                        model = if (
-                            shownLayer == ReviewLayer.FINDING &&
+                    val artifactPath = rendered.mark.visualArtifact?.blobPath.orEmpty()
+                    val renderedSource = when {
+                        rendered.showClean -> source
+                        artifactPath.isNotBlank() -> artifactSource(artifactPath)
+                        rendered.layer == ReviewLayer.FINDING &&
                             finding?.findingId == "blown_highlights" &&
-                            findingSource.isNotBlank()
-                        ) findingSource else source,
-                        contentDescription = shot.filename,
+                            findingSource.isNotBlank() -> findingSource
+                        else -> source
+                    }
+                    AsyncImage(
+                        model = renderedSource,
+                        contentDescription = if (
+                            !rendered.showClean && artifactPath.isNotBlank()
+                        ) {
+                            "Visual evidence ${rendered.mark.visualArtifact?.label.orEmpty()}"
+                        } else {
+                            shot.filename
+                        },
                         modifier = Modifier.fillMaxSize(),
                         contentScale = if (grid == null) ContentScale.Fit else ContentScale.FillBounds,
                     )
-                    if (grid != null && composition != null) {
+                    if (
+                        !rendered.showClean &&
+                        artifactPath.isBlank() &&
+                        grid != null &&
+                        composition != null
+                    ) {
                         CompositionGuide(
                             grid = grid,
                             composition = composition,
                             finding = finding,
-                            layer = shownLayer,
+                            layer = rendered.layer,
+                            guideOverride = if (guideMode) rendered.guide else null,
+                            guideRotation = rendered.guideRotation,
+                            storyMark = if (guideMode) null else rendered.mark,
                             modifier = Modifier.fillMaxSize(),
                         )
                     }
-                    Text(
-                        reviewLayerLabel(shownLayer, composition, finding),
-                        color = if (shownLayer == ReviewLayer.FINDING) FindingRed else WarmWhite,
-                        fontSize = 10.sp,
-                        fontWeight = FontWeight.Bold,
-                        modifier = Modifier
-                            .align(Alignment.TopEnd)
-                            .background(Ink.copy(alpha = 0.78f))
-                            .padding(horizontal = 8.dp, vertical = 6.dp),
-                    )
+                    if (guideMode) {
+                        Text(
+                            "GUIDE · ${guideLabel(selectedGuide).uppercase()}",
+                            color = WarmWhite,
+                            fontSize = 10.sp,
+                            fontWeight = FontWeight.Bold,
+                            modifier = Modifier
+                                .align(Alignment.TopEnd)
+                                .background(Ink.copy(alpha = 0.78f))
+                                .padding(horizontal = 8.dp, vertical = 6.dp),
+                        )
+                    }
                 }
             }
         }
-        ReviewLayerPicker(
-            selected = layer,
-            hasFinding = !analysis?.findings.isNullOrEmpty(),
-            hasAction = composition?.let(::hasCompositionAction) == true,
-            hasGuide = grid != null && composition != null,
-            onLayer = onLayer,
-        )
+        if (guideMode) {
+            GuideStoryCard(
+                selectedGuide = selectedGuide,
+                suggestedGuide = composition?.guide.orEmpty(),
+                onBackToStory = onBackToStory,
+                onCompareGuides = onCompareGuides,
+                onRotateGuide = onRotateGuide,
+            )
+        } else if (step != null) {
+            VisualStoryCard(
+                step = step,
+                hasPrevious = storyIndex > 0,
+                hasNext = storyIndex < story.lastIndex,
+                onPrevious = onPrevious,
+                onNext = onNext,
+                onCompareGuides = onCompareGuides,
+                showClean = showClean,
+                onToggleClean = { showClean = !showClean },
+            )
+        }
     }
 }
 
 @Composable
-private fun ReviewLayerPicker(
-    selected: ReviewLayer,
-    hasFinding: Boolean,
-    hasAction: Boolean,
-    hasGuide: Boolean,
-    onLayer: (ReviewLayer) -> Unit,
+private fun StoryHeader(
+    current: Int,
+    total: Int,
+    guideMode: Boolean,
 ) {
-    val layers = buildList {
-        add(ReviewLayer.CLEAN)
-        if (hasFinding) add(ReviewLayer.FINDING)
-        if (hasAction) add(ReviewLayer.ACTION)
-        if (hasGuide) add(ReviewLayer.GUIDE)
-    }
-    Row(
-        Modifier
-            .fillMaxWidth()
-            .horizontalScroll(rememberScrollState())
-            .selectableGroup()
-            .padding(horizontal = 12.dp, vertical = 10.dp),
-        horizontalArrangement = Arrangement.spacedBy(7.dp),
-    ) {
-        layers.forEach { layer ->
-            val chosen = selected == layer
-            val accent = if (layer == ReviewLayer.FINDING) FindingRed else Amber
-            val background by animateColorAsState(
-                if (chosen) accent.copy(alpha = 0.16f) else Ink,
-                animationSpec = tween(160),
-                label = "$layer layer",
-            )
-            Text(
-                when (layer) {
-                    ReviewLayer.CLEAN -> "Clean"
-                    ReviewLayer.FINDING -> "Finding"
-                    ReviewLayer.ACTION -> "Try"
-                    ReviewLayer.GUIDE -> "Guide"
-                },
-                color = if (chosen) accent else MutedWhite,
-                fontSize = 11.sp,
-                fontWeight = if (chosen) FontWeight.Bold else FontWeight.Medium,
-                modifier = Modifier
-                    .background(background, RoundedCornerShape(99.dp))
-                    .border(1.dp, if (chosen) accent.copy(alpha = 0.45f) else Hairline, RoundedCornerShape(99.dp))
-                    .selectable(
-                        selected = chosen,
-                        role = Role.Tab,
-                        onClick = { onLayer(layer) },
+    Column(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 13.dp)) {
+        Row(
+            Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text(if (guideMode) "Compare guides" else "Visual story", color = WarmWhite, fontSize = 14.sp, fontWeight = FontWeight.Bold)
+            Text(if (guideMode) "INSPECTION ONLY" else "${current + 1} of $total", color = MutedWhite, fontSize = 10.sp)
+        }
+        if (!guideMode && total > 1) {
+            Spacer(Modifier.height(9.dp))
+            Row(horizontalArrangement = Arrangement.spacedBy(7.dp)) {
+                repeat(total) { index ->
+                    Box(
+                        Modifier
+                            .size(if (index == current) 7.dp else 6.dp)
+                            .background(
+                                if (index == current) Amber else MutedWhite.copy(alpha = 0.4f),
+                                RoundedCornerShape(99.dp),
+                            )
                     )
-                    .padding(horizontal = 14.dp, vertical = 8.dp),
-            )
+                }
+            }
         }
     }
 }
+
+@Composable
+private fun VisualStoryCard(
+    step: ShotStoryStep,
+    hasPrevious: Boolean,
+    hasNext: Boolean,
+    onPrevious: () -> Unit,
+    onNext: () -> Unit,
+    onCompareGuides: () -> Unit,
+    showClean: Boolean,
+    onToggleClean: () -> Unit,
+) {
+    Column(Modifier.fillMaxWidth().padding(16.dp)) {
+        val labelColour = when (step.layer) {
+            ReviewLayer.FINDING -> FindingRed
+            ReviewLayer.ACTION -> Amber
+            else -> MutedWhite
+        }
+        Text(step.label, color = labelColour, fontSize = 10.sp, fontWeight = FontWeight.Bold)
+        Spacer(Modifier.height(6.dp))
+        Text(step.title, color = WarmWhite, fontSize = 18.sp, lineHeight = 24.sp, fontWeight = FontWeight.Bold)
+        if (step.body.isNotBlank()) {
+            Spacer(Modifier.height(6.dp))
+            Text(step.body, color = MutedWhite, fontSize = 13.sp, lineHeight = 19.sp)
+        }
+        step.mark.visualArtifact?.takeIf { it.status != "unresolved" }?.let { artifact ->
+            Spacer(Modifier.height(10.dp))
+            val authorityLine = buildList {
+                add(humanLabel(artifact.authority))
+                if (
+                    artifact.verification != "not_run" &&
+                    artifact.verification != artifact.authority
+                ) add(humanLabel(artifact.verification))
+            }.joinToString(" · ")
+            Text(
+                "$authorityLine · ${artifact.label}",
+                color = WarmWhite,
+                fontSize = 11.sp,
+                fontWeight = FontWeight.SemiBold,
+            )
+            if (artifact.legend.isNotBlank()) {
+                Spacer(Modifier.height(3.dp))
+                Text(artifact.legend, color = MutedWhite, fontSize = 11.sp, lineHeight = 16.sp)
+            }
+            if (artifact.metrics.isNotEmpty()) {
+                Spacer(Modifier.height(5.dp))
+                Text(
+                    artifact.metrics.entries.take(3).joinToString(" · ") { (key, value) ->
+                        "${humanLabel(key)} ${value.toString().trim('"')}"
+                    },
+                    color = MutedWhite,
+                    fontSize = 10.sp,
+                    lineHeight = 14.sp,
+                )
+            }
+        }
+        Spacer(Modifier.height(13.dp))
+        Row(
+            Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            TextButton(onClick = onPrevious, enabled = hasPrevious, modifier = Modifier.weight(1f)) {
+                Text("Previous")
+            }
+            TextButton(onClick = onToggleClean, modifier = Modifier.weight(1.4f)) {
+                Text(if (showClean) "Show visual" else "See clean")
+            }
+            TextButton(onClick = onNext, enabled = hasNext, modifier = Modifier.weight(1f)) {
+                Text(if (hasNext) "Next" else "End")
+            }
+        }
+        SecondaryAction("Compare guides", onClick = onCompareGuides)
+    }
+}
+
+@Composable
+private fun GuideStoryCard(
+    selectedGuide: String,
+    suggestedGuide: String,
+    onBackToStory: () -> Unit,
+    onCompareGuides: () -> Unit,
+    onRotateGuide: () -> Unit,
+) {
+    Column(Modifier.fillMaxWidth().padding(16.dp)) {
+        Text("COMPARE THE FRAME", color = Amber, fontSize = 10.sp, fontWeight = FontWeight.Bold)
+        Spacer(Modifier.height(6.dp))
+        Text(
+            if (selectedGuide == "none") "No guide" else guideLabel(selectedGuide),
+            color = WarmWhite,
+            fontSize = 18.sp,
+            fontWeight = FontWeight.Bold,
+        )
+        Spacer(Modifier.height(6.dp))
+        Text(
+            if (selectedGuide == suggestedGuide && suggestedGuide.isNotBlank()) {
+                "Shoots suggested this guide from the stored composition read."
+            } else {
+                "This is a viewing lens. It does not rewrite how the Shot was read."
+            },
+            color = MutedWhite,
+            fontSize = 13.sp,
+            lineHeight = 19.sp,
+        )
+        Spacer(Modifier.height(13.dp))
+        if (selectedGuide == "golden_spiral") {
+            SecondaryAction("Rotate spiral", onClick = onRotateGuide)
+            Spacer(Modifier.height(8.dp))
+        }
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            TextButton(onClick = onBackToStory, modifier = Modifier.weight(1f)) { Text("Back to story") }
+            TextButton(onClick = onCompareGuides, modifier = Modifier.weight(1f)) { Text("Change guide") }
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun GuidePickerSheet(
+    selected: String,
+    suggested: String,
+    onSelect: (String) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    val options = listOf(
+        "none" to "No guide",
+        "thirds" to "Rule of thirds",
+        "phi" to "Phi grid",
+        "golden_spiral" to "Golden spiral",
+        "diagonals" to "Diagonals",
+        "centre" to "Centre",
+    )
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        containerColor = InkRaised,
+    ) {
+        Column(Modifier.fillMaxWidth().padding(bottom = 24.dp)) {
+            Text("Choose a guide", color = WarmWhite, fontSize = 20.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(horizontal = 20.dp, vertical = 12.dp))
+            Text("Inspect the Shot without changing its Analysis.", color = MutedWhite, fontSize = 13.sp, modifier = Modifier.padding(horizontal = 20.dp).padding(bottom = 10.dp))
+            options.forEachIndexed { index, (id, label) ->
+                Row(
+                    Modifier
+                        .fillMaxWidth()
+                        .clickable(role = Role.Button) { onSelect(id) }
+                        .padding(horizontal = 20.dp, vertical = 15.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Column(Modifier.weight(1f)) {
+                        Text(label, color = if (selected == id) Amber else WarmWhite, fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
+                        if (suggested == id) Text("Shoots suggests", color = MutedWhite, fontSize = 10.sp)
+                    }
+                    if (selected == id) Text("Selected", color = Amber, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                }
+                if (index < options.lastIndex) HorizontalDivider(color = Hairline)
+            }
+        }
+    }
+}
+
+private data class StoryRenderState(
+    val layer: ReviewLayer,
+    val findingIndex: Int,
+    val guide: String,
+    val guideRotation: Int,
+    val mark: VisualMarkDto,
+    val showClean: Boolean,
+)
 
 @Composable
 private fun AnalysisState(view: ShotViewDto, onRetry: () -> Unit) {
@@ -763,42 +923,6 @@ fun compositionInstruction(composition: CompositionDto, grid: GridSpecDto?): Str
         what.isNotBlank() -> "$what."
         else -> reason
     }
-}
-
-private fun defaultReviewLayer(
-    teaching: ShotTeachingReceiptDto?,
-    analysis: AnalysisDto?,
-): ReviewLayer = when (teaching?.primaryLayer) {
-    "finding" -> ReviewLayer.FINDING
-    "action" -> ReviewLayer.ACTION
-    "guide" -> ReviewLayer.GUIDE
-    "clean" -> ReviewLayer.CLEAN
-    else -> when {
-    analysis == null -> ReviewLayer.CLEAN
-    analysis.findings.isNotEmpty() -> ReviewLayer.FINDING
-    hasCompositionAction(analysis.composition) -> ReviewLayer.ACTION
-    else -> ReviewLayer.GUIDE
-    }
-}
-
-private fun hasCompositionAction(composition: CompositionDto): Boolean =
-    composition.suggestedCropCells.isNotEmpty() || composition.moves.any {
-        it.kind == "move" && it.fromCells.isNotEmpty() && it.toCells.isNotEmpty()
-    }
-
-private fun reviewLayerLabel(
-    layer: ReviewLayer,
-    composition: CompositionDto?,
-    finding: FindingDto?,
-): String = when (layer) {
-    ReviewLayer.CLEAN -> "CLEAN"
-    ReviewLayer.FINDING -> "FINDING · ${findingLabel(finding?.findingId.orEmpty()).uppercase()}"
-    ReviewLayer.ACTION -> if (composition?.suggestedCropCells?.isNotEmpty() == true) {
-        "TRY · TESTED CROP"
-    } else {
-        "TRY · MOVE"
-    }
-    ReviewLayer.GUIDE -> "GUIDE · ${guideLabel(composition?.guide.orEmpty().ifBlank { "thirds" }).uppercase()}"
 }
 
 private fun findingLocationCopy(finding: FindingDto): String = when (finding.findingId) {

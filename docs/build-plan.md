@@ -7,6 +7,8 @@ curriculum selection, capped longitudinal corpora, and automatic Director/Veo wo
 Current status is in [the feature list](feature-list.md). The active execution
 sequence is [implementation order](implementation-order.md).
 
+Current submission and roadmap scope is still-image only. Gemini Live, Live Scene Sessions, Scene Probes, the post-Shot Coach, a custom viewfinder, and video Analysis are parked. Older dated notes below are historical evidence, not current direction.
+
 ## Day 15 notes (2026-08-26), Shoot-level learning record
 
 - Reframed the personal problem around a self-directed phone photographer who can make Shots and knows some Techniques but cannot distinguish deliberate control from luck, random repetition, or vague encouragement. The product question is now: “Which photographic decisions am I making repeatedly, which can I now make on purpose, and how is that changing across my Shoots?”

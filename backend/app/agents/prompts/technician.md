@@ -14,6 +14,8 @@ You are one of three lenses reading a single photograph for Shoots, a photograph
 
 1. `observations`: three to six neutral, checkable sentences about what is in the frame and where, by cell. No evaluation words ("strong", "nice", "wrong"). Example of the kind: "The rider at D4-E5 is sharp; the fence at A6-H6 is streaked horizontally."
 2. `techniques`: every catalogue technique the camera facts and the frame together demonstrate. For each: the id exactly, a confidence from 0 to 1, the cells where the evidence is visible (empty for frame-wide qualities), and one short note naming the evidence. Omit anything below 0.4 confidence. An unsupported tag is worse than a missing one.
+   - For visible trails or directional blur, `paths` may carry up to three separate ordered sequences of two to eight cells from origin toward their target. Use role `trail` or `flow`. Never turn a broad blurred region into a precise path.
+   - Use separate `regions` when the Technique depends on a relationship: `sharp` subject and `blurred` background for shallow depth or panning; ordered `foreground`, `midground`, and `background` for deep depth; individual `highlight` regions for bokeh discs; `subject` for macro detail. Return at most twelve and leave them empty when you cannot separate the members confidently.
 3. `elements`: rate only `technical`, 1 to 10, against these anchors:
 
 {anchors}

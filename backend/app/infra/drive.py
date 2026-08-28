@@ -49,6 +49,8 @@ class DriveFile:
 class DriveClient(Protocol):
     async def list_media(self, folder_id: str) -> list[DriveFile]: ...
 
+    async def get_file(self, file_id: str) -> DriveFile: ...
+
     async def download(self, file_id: str) -> bytes: ...
 
     async def watch(
@@ -95,6 +97,20 @@ class LocalDriveClient:
                 )
             )
         return out
+
+    async def get_file(self, file_id: str) -> DriveFile:
+        path = self._index().get(file_id)
+        if path is None:
+            raise FileNotFoundError(file_id)
+        mime = mimetypes.guess_type(path.name)[0] or ""
+        stat = path.stat()
+        return DriveFile(
+            id=file_id,
+            name=path.name,
+            mime_type=mime,
+            size=stat.st_size,
+            modified_at=datetime.fromtimestamp(stat.st_mtime, tz=UTC),
+        )
 
     async def download(self, file_id: str) -> bytes:
         path = self._index().get(file_id)
@@ -190,6 +206,18 @@ class GoogleDriveClient:
 
         return await asyncio.to_thread(run)
 
+    async def get_file(self, file_id: str) -> DriveFile:
+        def run() -> DriveFile:
+            item = (
+                self._svc()
+                .files()
+                .get(fileId=file_id, fields=FIELDS, supportsAllDrives=True)
+                .execute()
+            )
+            return _to_drive_file(item)
+
+        return await asyncio.to_thread(run)
+
     async def download(self, file_id: str) -> bytes:
         def run() -> bytes:
             from googleapiclient.http import MediaIoBaseDownload
@@ -251,6 +279,43 @@ class UserDrive:
 
     def __init__(self, credentials: Any):
         self._credentials = credentials
+
+    async def get_file(self, file_id: str) -> DriveFile:
+        """Canonical metadata for one file explicitly granted through Picker."""
+
+        def run() -> DriveFile:
+            item = (
+                _service(self._credentials)
+                .files()
+                .get(fileId=file_id, fields=FIELDS, supportsAllDrives=True)
+                .execute()
+            )
+            return _to_drive_file(item)
+
+        return await asyncio.to_thread(run)
+
+    async def download(self, file_id: str) -> bytes:
+        """Download only a file the app created or the user selected in Picker."""
+
+        def run() -> bytes:
+            from googleapiclient.http import MediaIoBaseDownload
+
+            request = (
+                _service(self._credentials)
+                .files()
+                .get_media(
+                    fileId=file_id,
+                    supportsAllDrives=True,
+                )
+            )
+            buffer = io.BytesIO()
+            downloader = MediaIoBaseDownload(buffer, request, chunksize=8 * 1024 * 1024)
+            done = False
+            while not done:
+                _, done = downloader.next_chunk()
+            return buffer.getvalue()
+
+        return await asyncio.to_thread(run)
 
     async def create_folder(self, name: str, parent_id: str = "") -> str:
         def run() -> str:
@@ -346,3 +411,15 @@ def user_credentials(token: dict) -> Any:
         client_secret=settings.google_client_secret,
         scopes=settings.oauth_scopes.split(),
     )
+
+
+async def picker_access_token(token: dict) -> str:
+    """Return a fresh, short-lived drive.file token for Google Picker."""
+    credentials = user_credentials(token)
+    if credentials.refresh_token:
+        from google.auth.transport.requests import Request
+
+        await asyncio.to_thread(credentials.refresh, Request())
+    if not credentials.token:
+        raise ValueError("Google returned no Drive access token")
+    return credentials.token

@@ -129,6 +129,11 @@ class Settings(BaseSettings):
     drive_webhook_url: str = "http://localhost:8000/drive/notify"
     #: Watch channels expire; the Scheduler renews them this often (hours).
     drive_channel_hours: int = 24
+    #: Browser-restricted Google Picker key and numeric Cloud project id.
+    #: Picker returns only opaque selected ids; the backend re-reads each file.
+    drive_picker_api_key: str = ""
+    drive_picker_app_id: str = ""
+    drive_picker_max_files: int = 100
 
     # --- Auth -------------------------------------------------------------
     google_client_id: str = ""

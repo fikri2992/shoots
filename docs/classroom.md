@@ -1,5 +1,9 @@
 # Shoots for a class
 
+> Archived exploration, not the current product. Shoots targets the self-directed
+> hobbyist; no classroom, assignment, grading, or teacher workflow is planned or built.
+> Retired vocabulary below is preserved only as historical evidence.
+
 Design note for the pivot from one photographer to a teacher running a class.
 Written 2026-08-23, eight days before the deadline (2026-08-31 17:00 PDT).
 Nothing here is built yet; decisions get numbered in `domain-model.md` when they ship.

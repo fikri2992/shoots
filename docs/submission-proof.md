@@ -30,7 +30,7 @@ system does next.
 | 1:20–1:50 | Add the other Shots from the same ordinary Camera period, then show the Run and Shoot barriers | "One Run accounts for one Shot. The Shoot closes only when every current member finishes or ends terminally." Show exact member ids and one replay-safe Shoot Record. |
 | 1:50–2:15 | Android Now opens on the Shoot receipt | Read only the repeated, varied, and blind-spot lines. Do not open thirty critiques. Show the newest revision and cached offline state. |
 | 2:15–2:45 | Open one Shot Teaching Receipt | Keep first. Then Notice, one Try, and one Check over one matching image layer. Expand Full Analysis briefly to prove dissent, model version, measured Findings, and cells still exist behind the simple surface. |
-| 2:45–3:10 | Show Scout decision and rejected routes | "Code decides which help is eligible. The model cannot invent a Technique, Criteria, or improvement." Show explain, ask, Explore, Reproduce, or evidenced silence with its warrant. |
+| 2:45–3:10 | Show Scout decision and rejected routes | "Code decides which help is eligible. The model cannot invent a Technique, Criteria, or improvement." Show one supported route and why the others were rejected. |
 | 3:10–3:35 | Enter one supported Experiment through the normal Camera | Show the frozen Capture Session manifest, every result outcome, and the batch barrier. If Reproduce is used, say the Verdict answers Criteria only. If Explore is used, show Variations and no Verdict. |
 | 3:35–3:50 | Journey and Deconstruction | Show comparable Change or insufficient Evidence, Intervention outcome, and the image-led draft automatically left by that Shoot or terminal Experiment. The Photographer chooses the Keeper cover and posting. |
 | 3:50–4:00 | Architecture SVG beside Cloud Run revision | "Shoots learns from every Shot, offers one personal Experiment, and tracks what changes. It never turns the model's taste into mine." |
@@ -80,7 +80,7 @@ Say instead:
 - Shot, Shoot, Technique, Finding, Experiment, Verdict, Change;
 - measured, model read, or Photographer-owned;
 - complete, terminal, abstained, or insufficient Evidence;
-- "the system chose silence" when no route was supported.
+- the available Evidence did not support a recommendation.
 
 ## Capture checklist
 

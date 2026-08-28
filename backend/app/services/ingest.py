@@ -65,6 +65,14 @@ async def sync(ctx: Context, user: User) -> list[Shot]:
     files = await ctx.drive.list_media(user.drive_folder_id)
     created: list[Shot] = []
     for file in files:
+        inspiration_id = repo.source_inspiration_id_for(
+            user.id,
+            ShotSource.DRIVE_PICKER.value,
+            file.id,
+        )
+        inspiration = await repo.find_inspiration(ctx.store, inspiration_id)
+        if inspiration is not None and not inspiration.superseded_at:
+            continue
         shot_id = repo.shot_id_for(user.id, file.id)
         if await repo.find_shot(ctx.store, shot_id):
             continue

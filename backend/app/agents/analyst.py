@@ -30,6 +30,10 @@ from app.domain.entities import (
     MoveWarrant,
     Shot,
     VideoMeta,
+    VisualPath,
+    VisualPathRole,
+    VisualRegion,
+    VisualRegionRole,
 )
 from app.domain.grid import Grid
 
@@ -51,10 +55,44 @@ ANALYST_PROMPTS = ("technician", "composer", "storyteller", "synthesizer")
 # --- the lenses' output shapes ----------------------------------------------
 
 
+class VisualPathOut(BaseModel):
+    points: list[str] = Field(default_factory=list)
+    leads_to: list[str] = Field(default_factory=list)
+    role: Literal["boundary", "edge", "trail", "flow", "axis", "other"] = "other"
+
+
+class VisualRegionOut(BaseModel):
+    cells: list[str] = Field(default_factory=list)
+    role: Literal[
+        "subject",
+        "target",
+        "foreground",
+        "midground",
+        "background",
+        "frame",
+        "reflection",
+        "source",
+        "repeat",
+        "exception",
+        "highlight",
+        "light",
+        "shadow",
+        "warm",
+        "cool",
+        "sharp",
+        "blurred",
+        "negative_space",
+        "other",
+    ] = "other"
+    order: int = Field(default=0, ge=0, le=99)
+
+
 class EvidenceOut(BaseModel):
     technique_id: str
     confidence: float = Field(ge=0, le=1)
     cells: list[str] = Field(default_factory=list)
+    paths: list[VisualPathOut] = Field(default_factory=list)
+    regions: list[VisualRegionOut] = Field(default_factory=list)
     note: str = ""
 
 
@@ -379,6 +417,8 @@ def lens_read(shot: Shot, lens: str, raw: LensOut) -> panel.LensRead:
                 technique_id=tid,
                 confidence=max(0.0, min(1.0, item.confidence)),
                 cells=tuple(_cells(grid, item.cells)),
+                paths=tuple(_paths(grid, item.paths)),
+                regions=tuple(_regions(grid, item.regions)),
                 note=_clip(item.note, 300),
             )
         )
@@ -570,3 +610,38 @@ def _cells(grid: Grid, refs: list[str]) -> list[str]:
         if grid.contains(cleaned) and cleaned not in out:
             out.append(cleaned)
     return out
+
+
+def _paths(grid: Grid, raw_paths: list[VisualPathOut]) -> list[VisualPath]:
+    """Keep separate ordered paths; never infer them from unordered cells."""
+    paths: list[VisualPath] = []
+    for raw in raw_paths[:3]:
+        points = _cells(grid, raw.points)[:8]
+        if len(points) < 2:
+            continue
+        leads_to = _cells(grid, raw.leads_to)[:4]
+        paths.append(
+            VisualPath(
+                points=points,
+                leads_to=leads_to,
+                role=VisualPathRole(raw.role),
+            )
+        )
+    return paths
+
+
+def _regions(grid: Grid, raw_regions: list[VisualRegionOut]) -> list[VisualRegion]:
+    """Keep grouped semantic members separate and bounded to valid cells."""
+    regions: list[VisualRegion] = []
+    for raw in raw_regions[:12]:
+        cells = _cells(grid, raw.cells)[:32]
+        if not cells:
+            continue
+        regions.append(
+            VisualRegion(
+                cells=cells,
+                role=VisualRegionRole(raw.role),
+                order=raw.order,
+            )
+        )
+    return regions

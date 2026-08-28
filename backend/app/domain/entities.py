@@ -151,6 +151,8 @@ class ShotSource(StrEnum):
     """Where the stable source reference and original bytes came from."""
 
     DRIVE = "drive"
+    DRIVE_PICKER = "drive_picker"
+    WEB_UPLOAD = "web_upload"
     ANDROID = "android"
 
 
@@ -384,6 +386,113 @@ class Inspiration(BaseModel):
 # --- analysis -------------------------------------------------------------
 
 
+class VisualPathRole(StrEnum):
+    BOUNDARY = "boundary"
+    EDGE = "edge"
+    TRAIL = "trail"
+    FLOW = "flow"
+    AXIS = "axis"
+    OTHER = "other"
+
+
+class VisualPath(BaseModel):
+    """One ordered, cell-addressed visible path and its optional target."""
+
+    points: list[str] = Field(default_factory=list)
+    leads_to: list[str] = Field(default_factory=list)
+    role: VisualPathRole = VisualPathRole.OTHER
+
+
+class VisualRegionRole(StrEnum):
+    SUBJECT = "subject"
+    TARGET = "target"
+    FOREGROUND = "foreground"
+    MIDGROUND = "midground"
+    BACKGROUND = "background"
+    FRAME = "frame"
+    REFLECTION = "reflection"
+    SOURCE = "source"
+    REPEAT = "repeat"
+    EXCEPTION = "exception"
+    HIGHLIGHT = "highlight"
+    LIGHT = "light"
+    SHADOW = "shadow"
+    WARM = "warm"
+    COOL = "cool"
+    SHARP = "sharp"
+    BLURRED = "blurred"
+    NEGATIVE_SPACE = "negative_space"
+    OTHER = "other"
+
+
+class VisualRegion(BaseModel):
+    """One cell-bounded member of a pair, plane sequence, or instance set."""
+
+    cells: list[str] = Field(default_factory=list)
+    role: VisualRegionRole = VisualRegionRole.OTHER
+    order: int = Field(default=0, ge=0, le=99)
+
+
+class VisualArtifactAuthority(StrEnum):
+    MEASURED = "measured"
+    LOCATED_MODEL_READ = "located_model_read"
+    RELATIONAL_MODEL_READ = "relational_model_read"
+    UNRESOLVED = "unresolved"
+
+
+class VisualArtifactStatus(StrEnum):
+    RENDERED = "rendered"
+    FALLBACK = "fallback"
+    UNRESOLVED = "unresolved"
+
+
+class VisualArtifactVerification(StrEnum):
+    NOT_RUN = "not_run"
+    MEASURED = "measured"
+    BOUNDED = "bounded"
+    FALLBACK = "fallback"
+    REJECTED = "rejected"
+
+
+class VisualArtifactKind(StrEnum):
+    HUE_MASK = "hue_mask"
+    SATURATION_MAP = "saturation_map"
+    LUMINANCE_MAP = "luminance_map"
+    SHARPNESS_MAP = "sharpness_map"
+    NOISE_MAP = "noise_map"
+    EDGE_MAP = "edge_map"
+    VERIFIED_PATHS = "verified_paths"
+    BOKEH_INSTANCES = "bokeh_instances"
+    BLUR_DIRECTION = "blur_direction"
+    RADIAL_BLUR = "radial_blur"
+    FACE_LANDMARKS = "face_landmarks"
+    SUBJECT_CONTOUR = "subject_contour"
+    EXIF_RECEIPT = "exif_receipt"
+    GEOMETRY = "geometry"
+
+
+class VisualEvidenceArtifact(BaseModel):
+    """Code-rendered support for one Technique Evidence claim.
+
+    A measured artifact states only the measurement it actually renders. The
+    Technique interpretation remains the Analyst's model read unless hard
+    Evidence separately settles it.
+    """
+
+    kind: VisualArtifactKind
+    authority: VisualArtifactAuthority
+    status: VisualArtifactStatus = VisualArtifactStatus.RENDERED
+    verification: VisualArtifactVerification = VisualArtifactVerification.NOT_RUN
+    refinement_count: int = Field(default=0, ge=0, le=1)
+    blob_path: str = ""
+    label: str = ""
+    legend: str = ""
+    metrics: dict[str, float | int | str] = Field(default_factory=dict)
+    source_digest: str = ""
+    renderer_version: str = ""
+    fallback_reason: str = ""
+
+
 class TechniqueEvidence(BaseModel):
     """One technique the Analyst believes this shot demonstrates."""
 
@@ -391,6 +500,12 @@ class TechniqueEvidence(BaseModel):
     confidence: float = Field(ge=0, le=1)
     #: Cells where the evidence is visible. Empty for global qualities.
     cells: list[str] = Field(default_factory=list)
+    #: Separate ordered geometry for line-shaped Evidence. Never reconstructed from cells.
+    paths: list[VisualPath] = Field(default_factory=list)
+    #: Separate semantic members for pair, plane, enclosure, and instance Evidence.
+    regions: list[VisualRegion] = Field(default_factory=list)
+    #: Deterministic pixels or an explicit fallback created after the panel.
+    visual_artifact: VisualEvidenceArtifact | None = None
     note: str = ""
     #: How many panel lenses saw it, and which (domain/panel.py).
     agreement: int = 1
@@ -502,6 +617,34 @@ class TeachingAuthority(StrEnum):
     MODEL_READ = "model_read"
 
 
+class VisualMarkKind(StrEnum):
+    NONE = "none"
+    REGION = "region"
+    LINE = "line"
+    FRAME = "frame"
+    POINT = "point"
+    WHOLE_FRAME = "whole_frame"
+    FINDING = "finding"
+    MOVE = "move"
+    CROP = "crop"
+    PAIR = "pair"
+    INSTANCES = "instances"
+    PLANES = "planes"
+
+
+class VisualMark(BaseModel):
+    """Drawable support for one visible Shot-story claim."""
+
+    kind: VisualMarkKind = VisualMarkKind.NONE
+    cells: list[str] = Field(default_factory=list)
+    to_cells: list[str] = Field(default_factory=list)
+    paths: list[VisualPath] = Field(default_factory=list)
+    regions: list[VisualRegion] = Field(default_factory=list)
+    visual_artifact: VisualEvidenceArtifact | None = None
+    technique_id: str = ""
+    finding_id: str = ""
+
+
 class ShotTeachingReceipt(BaseModel):
     """One compact, evidence-labelled teaching action for a Shot read."""
 
@@ -510,17 +653,21 @@ class ShotTeachingReceipt(BaseModel):
     keep_technique_id: str = ""
     keep_authority: TeachingAuthority | None = None
     keep_cells: list[str] = Field(default_factory=list)
+    keep_mark: VisualMark = Field(default_factory=VisualMark)
     notice_title: str = ""
     notice_proof: str = ""
     notice_finding_id: str = ""
     notice_authority: TeachingAuthority | None = None
     notice_cells: list[str] = Field(default_factory=list)
+    notice_mark: VisualMark = Field(default_factory=VisualMark)
     try_text: str = ""
     try_reason: str = ""
     try_kind: MoveKind | None = None
     try_from_cells: list[str] = Field(default_factory=list)
     try_to_cells: list[str] = Field(default_factory=list)
+    try_mark: VisualMark = Field(default_factory=VisualMark)
     visible_check: str = ""
+    check_mark: VisualMark = Field(default_factory=VisualMark)
     primary_layer: str = "clean"
     guide: str = ""
 

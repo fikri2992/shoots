@@ -294,7 +294,7 @@ snapshot schema changes without first changing the domain model.
 - Compare and explicit preference learning;
 - a blind Shoot model reader, unless the quality report proves deterministic
   synthesis leaves a specific gap;
-- summoned Gemini Live Companion and Scene Probe;
+- parked Gemini Live, Live Scene Session, Scene Probe, post-Shot Coach, custom-viewfinder, and video-Analysis work unless explicitly reopened after the hackathon;
 - weather, location facts, and ambient context;
 - a custom camera, automatic shutter, or live preview scoring;
 - embeddings or vector retrieval before structured retrieval shows a measured need;

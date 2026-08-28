@@ -52,6 +52,8 @@ class MainActivity : ComponentActivity() {
                 var pickerSessionId by remember { mutableStateOf("") }
                 var pickerSourceRole by remember { mutableStateOf("mine") }
                 var chooseSourceRole by remember { mutableStateOf(false) }
+                var chooseSourceLocation by remember { mutableStateOf(false) }
+                var documentSourceRole by remember { mutableStateOf("mine") }
                 var notificationsGranted by remember { mutableStateOf(hasNotificationPermission()) }
                 val drive = remember { DriveAuthorization(this) }
 
@@ -64,6 +66,15 @@ class MainActivity : ComponentActivity() {
                     pickerSourceRole = "mine"
                     if (uris.isNotEmpty()) {
                         scope.launch { viewModel.stageSelected(uris, session, sourceRole) }
+                    }
+                }
+                val documentPicker = rememberLauncherForActivityResult(
+                    ActivityResultContracts.OpenMultipleDocuments()
+                ) { uris ->
+                    val sourceRole = documentSourceRole
+                    documentSourceRole = "mine"
+                    if (uris.isNotEmpty()) {
+                        scope.launch { viewModel.stageSelected(uris, sourceRole = sourceRole) }
                     }
                 }
                 val camera = rememberLauncherForActivityResult(
@@ -133,13 +144,8 @@ class MainActivity : ComponentActivity() {
                             TextButton(
                                 onClick = {
                                     chooseSourceRole = false
-                                    pickerSessionId = ""
-                                    pickerSourceRole = "mine"
-                                    picker.launch(
-                                        PickVisualMediaRequest(
-                                            ActivityResultContracts.PickVisualMedia.ImageOnly
-                                        )
-                                    )
+                                    documentSourceRole = "mine"
+                                    chooseSourceLocation = true
                                 }
                             ) { Text("My Shots") }
                         },
@@ -147,15 +153,45 @@ class MainActivity : ComponentActivity() {
                             TextButton(
                                 onClick = {
                                     chooseSourceRole = false
+                                    documentSourceRole = "inspiration"
+                                    chooseSourceLocation = true
+                                }
+                            ) { Text("Inspiration") }
+                        },
+                    )
+                }
+
+                if (chooseSourceLocation) {
+                    AlertDialog(
+                        onDismissRequest = { chooseSourceLocation = false },
+                        title = { Text("Where are the images?") },
+                        text = {
+                            Text(
+                                "Use Gallery for images on this phone. Use Files or Google Drive " +
+                                    "to choose from a document provider."
+                            )
+                        },
+                        confirmButton = {
+                            TextButton(
+                                onClick = {
+                                    chooseSourceLocation = false
                                     pickerSessionId = ""
-                                    pickerSourceRole = "inspiration"
+                                    pickerSourceRole = documentSourceRole
                                     picker.launch(
                                         PickVisualMediaRequest(
                                             ActivityResultContracts.PickVisualMedia.ImageOnly
                                         )
                                     )
                                 }
-                            ) { Text("Inspiration") }
+                            ) { Text("Phone gallery") }
+                        },
+                        dismissButton = {
+                            TextButton(
+                                onClick = {
+                                    chooseSourceLocation = false
+                                    documentPicker.launch(arrayOf("image/*"))
+                                }
+                            ) { Text("Files or Google Drive") }
                         },
                     )
                 }

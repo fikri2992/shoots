@@ -94,7 +94,7 @@ A useful Shoot receipt may say:
 | Settle | The Shoot waits for every member Run or terminal unreadable outcome. | Terminal coverage |
 | Synthesize | Code and one bounded batch read describe repeated and varied decisions without choosing a best Shot. | Shoot Record |
 | Remember | Cartographer updates the Technique Map, Tendency Profile, Change, and Journey. | Longitudinal records |
-| Choose | Scout explains, asks, offers Explore, offers Reproduce, or records evidenced silence. | Stored Scout decision or Experiment Record |
+| Choose | Scout selects the justified kind of help: explain, ask, Explore, or Reproduce. | Stored Scout decision or Experiment Record |
 | Verify | Explore records Variation observations; Reproduce checks fixed Criteria; Compare preserves alternatives and preference. | Type-specific Experiment evidence |
 | Share | Scribe renders one-claim visual pages from stored Evidence. | Deconstruction draft |
 
@@ -108,7 +108,7 @@ The photographer only has to shoot. Keeper, Intent, Experiment participation, an
 
 **Compare.** Change one variable, preserve both alternatives, and let the photographer say which result they value. The model does not choose the winner.
 
-The current implementation proves Reproduce. Corrected Explore, Shoot-level synthesis, and Compare remain implementation work. An unavailable route produces silence rather than a mislabeled substitute.
+The current implementation records unsupported routes instead of substituting generic advice. `silence` is an internal Scout fallback, not part of the product pitch.
 
 An Experiment is optional. The camera starts free, only explicitly selected Shots join, and the photographer may pause or leave without failing anything.
 
@@ -124,7 +124,7 @@ Shoots keeps three claim classes separate:
 
 A Keeper is positive-only. Unmarked means unknown, never disliked. A slow shutter may establish elevated shake risk without proving the cause of every soft pixel. Subject-area share cannot prove that a Shot lacks a centre of interest. A proxy reaches only the claim it actually supports.
 
-When Evidence is weak, Shoots says less. The panel may abstain. Scout may stay silent. Journey may name a blind spot instead of inventing a conclusion.
+When Evidence is weak, Shoots says less. The panel may abstain, and Journey may name a blind spot instead of inventing a conclusion.
 
 The sentence competitors do not say:
 
@@ -142,7 +142,7 @@ Android is the daily client. The web remains the deeper ActivityEvent and Run au
 - **Journey** owns Tendency, Technique Map, deliberate-reproduction evidence, and Change across time.
 - **Settings** owns permissions, Drive, notifications, device sessions, and account actions behind progressive disclosure.
 
-The earlier custom camera, Scene Probe, weather context, and Gemini Live direction remain later Companion work. They are not required for the unattended Shoot-to-learning-record proof.
+Gemini Live, Live Scene Sessions, Scene Probes, the post-Shot Coach, a custom viewfinder, and video Analysis are parked outside the hackathon submission and current roadmap. Existing prototypes remain historical implementation, not future-work promises.
 
 ## Image-led learning
 
@@ -215,7 +215,7 @@ Generated reference clips and Director remain outside the core.
 
 A successful demonstration shows one ordinary Camera period becoming one completed learning record without upload, tagging, or pipeline controls:
 
-> It intercepted the photographer's Camera stream, grouped the Shots into Scenes and a Shoot, accounted for every Run, showed what repeated and varied, chose one justified learning action or silence, updated the Journey, and prepared a visual Deconstruction.
+> It intercepted the photographer's Camera stream, grouped the Shots into Scenes and a Shoot, accounted for every Run, showed what repeated and varied, chose one justified learning action, updated the Journey, and prepared a visual Deconstruction.
 
 Then an explicit Experiment shows whether a declared decision became reproducible without claiming the resulting Shot was better.
 

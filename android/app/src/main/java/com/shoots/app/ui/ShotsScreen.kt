@@ -62,10 +62,12 @@ fun ShotsScreen(
     onRetryImport: (String) -> Unit,
     onRestoreInspiration: (String) -> Unit,
     onReauthenticate: () -> Unit,
+    onAdd: () -> Unit,
 ) {
     Column(Modifier.fillMaxSize().background(Ink).statusBarsPadding()) {
         Column(Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 22.dp)) {
             ScreenTitle("Archive", "Shots", "Your work and Inspiration stay separate.")
+            SecondaryAction("Add from gallery, Files, or Google Drive", onClick = onAdd)
         }
         if (shots.isEmpty() && inspirations.isEmpty() && pendingImports.isEmpty()) {
             Column(

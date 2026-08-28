@@ -30,7 +30,7 @@ The locked target makes the difference easier to value:
 
 > Shoots turns an ordinary phone Camera period into one checked learning record:
 > every Shot accounted for, repeated and varied decisions synthesized across
-> Scenes, one warranted learning action or silence, longitudinal memory updated,
+> Scenes, one warranted learning action, longitudinal memory updated,
 > and one visual Deconstruction drafted without manual upload or review.
 
 That target is not implemented. It adds the missing work unit above the existing
@@ -102,9 +102,9 @@ fixed Keeper references, and checkable result records.
 
 The locked target corrects two problems found on a physical phone. The camera opens
 free, and an Experiment affects only Shots the photographer explicitly includes.
-A summoned Live Scene Session receives audio and low-rate camera frames, may offer a
-question or Variation, and can call a cell-ref guide tool. Scene conversation becomes
-load-bearing; longitudinal Evidence and type-specific Experiment Records remain the
+The current submission stops at the autonomous still-image Shoot loop. Gemini Live,
+Live Scene Sessions, Scene Probes, the post-Shot Coach, custom-viewfinder work, and
+video Analysis are parked; longitudinal Evidence and type-specific Experiment Records remain the
 difference Pixel does not publicly describe.
 
 ### 2. GudoCam

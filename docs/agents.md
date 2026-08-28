@@ -1,11 +1,15 @@
 # Agents
 
-The implemented per-Shot agent architecture on Google ADK, the current backend Shoot-level learning workflow, and the later completed memory and summoned Scene Companion. Solid arrows in the current diagram are built. Consequential Ask, corrected Explore, and the first Deconstruction draft are current; Live remains target work in the later diagrams until the [feature list](feature-list.md) marks its rows built.
+The implemented per-Shot agent architecture on Google ADK and the current backend Shoot-level learning workflow. Solid arrows in the current diagram are built. Consequential Ask, corrected Explore, and the first Deconstruction draft are current.
 The product vocabulary is locked: Experiment, Finding, Technique Map, Change. The
 only migration names left are the `skills` Firestore collection key and
 `TechniqueState`. Scores are not stored. [Domain model](domain-model.md)
 is normative; [feature list](feature-list.md) tracks what is left. This file remains
 the source for the submission architecture diagram.
+
+## Current scope
+
+The hackathon submission and current roadmap are still-image only. Gemini Live, Live Scene Sessions, Scene Probes, the post-Shot Coach, a custom viewfinder, and video Analysis are parked. Their diagrams and implementation notes below are retained as historical context only. `silence` remains a stored Scout fallback, not a submission differentiator.
 
 ## Principles
 
@@ -143,7 +147,7 @@ flowchart LR
 
 The aggregate adds depth rather than another critic swarm. Code owns membership, barriers, deterministic figures, route eligibility, and state transitions. No model participates in current Shoot route eligibility or the deterministic Reproduce card. A bounded Shoot reader may be added only if real receipts expose a useful comparison the existing evidence cannot settle.
 
-## Later summoned Scene Companion topology
+## Parked Scene Companion topology
 
 ```mermaid
 flowchart LR
@@ -155,7 +159,7 @@ flowchart LR
   GUIDE -.-> CAM
 ```
 
-The later path keeps the current system-camera capture, deep Analyst, and longitudinal code. Intent and the photographer own the foreground decision; an Experiment is optional context and Gemini Live is summonable.
+This diagram preserves an earlier direction. It is not part of the submission or current roadmap and must not be presented as planned work without an explicit new scope decision.
 
 Locally every topic is an `InProcessBus` task; on Cloud Run every topic is a
 Pub/Sub push subscription to `/pubsub/<stage>` with OIDC, an ack deadline of 540 s,

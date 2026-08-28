@@ -18,6 +18,10 @@ from app.domain.entities import (
     ShotStatus,
     TechniqueEvidence,
     User,
+    VisualPath,
+    VisualPathRole,
+    VisualRegion,
+    VisualRegionRole,
 )
 from app.infra import repository as repo
 from app.infra.bus import InProcessBus
@@ -78,9 +82,9 @@ async def test_teaching_receipt_unifies_keep_notice_try_and_visible_check():
                         reason="Remove the shelf.",
                     ),
                     Move(
-                        what="Lower the camera below the beam",
+                        what="Lower the camera below the bamboo pole",
                         kind=MoveKind.CAMERA,
-                        reason="Keep the beam from crossing the subject.",
+                        reason="Keep the bamboo pole from crossing the subject.",
                     ),
                     Move(
                         what="Move the subject right",
@@ -102,15 +106,31 @@ async def test_teaching_receipt_unifies_keep_notice_try_and_visible_check():
         main.app.dependency_overrides.clear()
 
     assert response.status_code == 200
+    assert response.json()["analysis"]["techniques"][0]["name"] == "Negative space"
     teaching = response.json()["teaching"]
     assert teaching["keep_technique_id"] == "negative_space"
     assert teaching["keep_title"] == "Negative space"
     assert teaching["keep_authority"] == "model_read"
+    assert teaching["keep_mark"] == {
+        "kind": "region",
+        "cells": ["B2", "C2"],
+        "to_cells": [],
+        "paths": [],
+        "regions": [],
+        "visual_artifact": None,
+        "technique_id": "negative_space",
+        "finding_id": "",
+    }
     assert "second sentence" not in teaching["keep_proof"]
     assert teaching["notice_finding_id"] == "camera_shake"
     assert teaching["notice_authority"] == "measured"
+    assert teaching["notice_mark"]["kind"] == "finding"
+    assert teaching["notice_mark"]["finding_id"] == "camera_shake"
     assert teaching["try_kind"] == "camera"
-    assert teaching["try_text"] == "Lower the camera below the beam."
+    assert teaching["try_text"] == "Lower the camera below the bamboo pole."
+    assert teaching["try_mark"]["kind"] == "line"
+    assert teaching["try_mark"]["cells"] == [f"{column}2" for column in "ABCDEFGH"]
+    assert teaching["check_mark"] == teaching["try_mark"]
     assert teaching["visible_check"].startswith("Zoom into one fine edge")
     assert teaching["primary_layer"] == "guide"
     visible = " ".join(
@@ -179,6 +199,9 @@ async def test_model_notice_aligns_with_the_selected_move_and_hides_grid_languag
     assert re.search(r"\b[A-H][1-6]\b", receipt["notice_title"]) is None
     assert "row" not in receipt["try_reason"].lower()
     assert "the top of the frame" in receipt["try_reason"].lower()
+    assert receipt["notice_cells"] == [f"{column}2" for column in "ABCDEFGH"]
+    assert receipt["notice_mark"]["kind"] == "line"
+    assert receipt["try_mark"] == receipt["notice_mark"]
 
 
 async def test_located_measured_finding_owns_the_default_visual_layer():
@@ -218,6 +241,8 @@ async def test_located_measured_finding_owns_the_default_visual_layer():
     receipt = response.json()["teaching"]
     assert receipt["primary_layer"] == "finding"
     assert receipt["notice_cells"] == ["B3", "C3"]
+    assert receipt["notice_mark"]["kind"] == "finding"
+    assert receipt["check_mark"] == receipt["notice_mark"]
     assert "deliberately reject" in receipt["visible_check"]
 
 
@@ -259,6 +284,10 @@ async def test_uncertain_analysis_does_not_invent_a_lesson_or_image_layer():
     assert receipt["try_text"] == ""
     assert receipt["visible_check"] == ""
     assert receipt["primary_layer"] == "clean"
+    assert receipt["keep_mark"]["kind"] == "none"
+    assert receipt["notice_mark"]["kind"] == "none"
+    assert receipt["try_mark"]["kind"] == "none"
+    assert receipt["check_mark"]["kind"] == "none"
 
 
 async def test_a_strong_read_does_not_turn_crop_salvage_into_homework():
@@ -302,7 +331,7 @@ async def test_a_strong_read_does_not_turn_crop_salvage_into_homework():
                         kind=MoveKind.CROP,
                         to_cells=["B1", "H6"],
                         reason="Make the placement follow a common guide.",
-                    )
+                    ),
                 ],
             ),
         ),
@@ -320,3 +349,173 @@ async def test_a_strong_read_does_not_turn_crop_salvage_into_homework():
     assert receipt["try_text"] == ""
     assert receipt["visible_check"] == ""
     assert receipt["primary_layer"] == "guide"
+    assert receipt["keep_mark"]["kind"] == "none"
+
+
+async def test_every_visible_story_claim_carries_its_own_supported_mark():
+    ctx = Context(store=InMemoryStore(), blobs=None, bus=InProcessBus(), drive=None, tokens=None)
+    user = User(id="marks_user", email="marks@example.test")
+    await repo.put_user(ctx.store, user)
+
+    analyses = {
+        "market": Analysis(
+            shot_id="market",
+            user_id=user.id,
+            model="gemini-test",
+            techniques=[
+                TechniqueEvidence(
+                    technique_id="leading_lines",
+                    confidence=0.91,
+                    agreement=2,
+                    cells=["E6", "E7", "E8", "E9", "F6", "F7", "F8", "D5"],
+                    paths=[
+                        VisualPath(
+                            points=["D9", "D7", "D5"],
+                            leads_to=["D4", "E4"],
+                            role=VisualPathRole.BOUNDARY,
+                        ),
+                        VisualPath(
+                            points=["G9", "F7", "E5"],
+                            leads_to=["D4", "E4"],
+                            role=VisualPathRole.BOUNDARY,
+                        ),
+                    ],
+                    note="The wet corridor draws the eye toward the subject.",
+                )
+            ],
+            observations=[
+                "A person with a red umbrella occupies cells D3 through E6.",
+                "The teal tarp fills cells A5 through D9 in the foreground.",
+            ],
+            composition=Composition(
+                moves=[
+                    Move(
+                        what="Step forward past the tarp",
+                        kind=MoveKind.CAMERA,
+                        reason="Reduce the teal tarp in the foreground.",
+                    )
+                ]
+            ),
+        ),
+        "frame": Analysis(
+            shot_id="frame",
+            user_id=user.id,
+            model="gemini-test",
+            techniques=[
+                TechniqueEvidence(
+                    technique_id="frame_within_frame",
+                    confidence=0.88,
+                    agreement=2,
+                    cells=["B2", "C2", "D2", "E2", "B3", "E3", "B4", "E4"],
+                    note="The doorway encloses the subject.",
+                )
+            ],
+        ),
+        "pair": Analysis(
+            shot_id="pair",
+            user_id=user.id,
+            model="gemini-test",
+            techniques=[
+                TechniqueEvidence(
+                    technique_id="warm_cool",
+                    confidence=0.9,
+                    agreement=2,
+                    cells=["A1", "B1", "G1", "H1"],
+                    regions=[
+                        VisualRegion(
+                            cells=["A1", "B1"],
+                            role=VisualRegionRole.WARM,
+                            order=0,
+                        ),
+                        VisualRegion(
+                            cells=["G1", "H1"],
+                            role=VisualRegionRole.COOL,
+                            order=1,
+                        ),
+                    ],
+                    note="Warm light and cool shadow remain separate.",
+                )
+            ],
+        ),
+        "move": Analysis(
+            shot_id="move",
+            user_id=user.id,
+            model="gemini-test",
+            observations=["The cup occupies cell B4 beside the frame edge."],
+            composition=Composition(
+                moves=[
+                    Move(
+                        what="Move the cup right",
+                        kind=MoveKind.MOVE,
+                        from_cells=["B4"],
+                        to_cells=["D4"],
+                        reason="Separate it from the edge.",
+                    )
+                ]
+            ),
+        ),
+        "crop": Analysis(
+            shot_id="crop",
+            user_id=user.id,
+            model="gemini-test",
+            observations=["A shelf fills cells A1 through B6."],
+            composition=Composition(
+                moves=[
+                    Move(
+                        what="Crop past the shelf",
+                        kind=MoveKind.CROP,
+                        to_cells=["C1", "H6"],
+                        reason="Remove the shelf.",
+                    )
+                ]
+            ),
+        ),
+    }
+    for shot_id, analysis in analyses.items():
+        await repo.put_shot(
+            ctx.store,
+            Shot(
+                id=shot_id,
+                user_id=user.id,
+                kind=ShotKind.PHOTO,
+                filename=f"{shot_id}.jpg",
+                mime_type="image/jpeg",
+                status=ShotStatus.ANALYZED,
+                grid=GridSpec(cols=8, rows=9, width=800, height=900),
+            ),
+        )
+        await repo.put_analysis(ctx.store, analysis)
+
+    main.app.dependency_overrides[deps.get_context] = lambda: ctx
+    main.app.dependency_overrides[current_user] = lambda: {"id": user.id}
+    try:
+        with TestClient(main.app) as client:
+            receipts = {
+                shot_id: client.get(f"/api/shots/{shot_id}").json()["teaching"]
+                for shot_id in analyses
+            }
+    finally:
+        main.app.dependency_overrides.clear()
+
+    assert receipts["market"]["keep_mark"]["kind"] == "line"
+    assert [path["points"] for path in receipts["market"]["keep_mark"]["paths"]] == [
+        ["D9", "D7", "D5"],
+        ["G9", "F7", "E5"],
+    ]
+    assert receipts["market"]["notice_mark"]["kind"] == "region"
+    assert receipts["market"]["notice_mark"]["cells"] == [
+        f"{column}{row}" for row in range(5, 10) for column in "ABCD"
+    ]
+    assert receipts["market"]["try_mark"] == receipts["market"]["notice_mark"]
+    assert receipts["market"]["check_mark"] == receipts["market"]["notice_mark"]
+    assert receipts["frame"]["keep_mark"]["kind"] == "frame"
+    assert receipts["pair"]["keep_mark"]["kind"] == "pair"
+    assert [region["role"] for region in receipts["pair"]["keep_mark"]["regions"]] == [
+        "warm",
+        "cool",
+    ]
+    assert receipts["move"]["try_mark"]["kind"] == "move"
+    assert receipts["move"]["try_mark"]["cells"] == ["B4"]
+    assert receipts["move"]["try_mark"]["to_cells"] == ["D4"]
+    assert receipts["crop"]["try_mark"]["kind"] == "crop"
+    assert receipts["crop"]["try_mark"]["cells"] == ["C1", "H6"]

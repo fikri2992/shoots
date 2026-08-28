@@ -60,7 +60,7 @@ The product objections are part of the problem definition:
 
 ## 3. The work accomplished
 
-Shoots turns ordinary Camera activity into a checked record of photographic behaviour. It intercepts Shots, assembles Scenes and a natural Shoot, waits for every member Run, records what repeated and varied, chooses one justified learning action or silence, and reports what changed afterward.
+Shoots turns ordinary Camera activity into a checked record of photographic behaviour. It intercepts Shots, assembles Scenes and a natural Shoot, waits for every member Run, records what repeated and varied, chooses one justified learning action, and reports what changed afterward.
 
 A human doing the same work would inspect every Shot, reconstruct Scenes and sessions, maintain comparable measurements, find repeated patterns, distinguish recurrence from deliberate reproduction, select an appropriate Experiment, preserve a Baseline, inspect the result, recompute the record, and lay out a shareable explanation. Shoots does that work in the background.
 
@@ -119,9 +119,9 @@ Rules:
 | Change | A measured difference between comparable earlier and later behaviour | Progress without a user-grounded goal |
 | Journey Update | The evidence-backed longitudinal conclusion shown when the record meaningfully changes | report card |
 | Intent | The photographer's optional statement of what they are trying to make | inferred purpose presented as fact |
-| Companion | The quiet camera-side partner that sees and hears the current Scene when summoned | generic camera, narrator, Experiment enforcer |
-| Live Scene Session | An explicit temporary audio-and-camera conversation before the shutter | always-on recording, post-Shot review |
-| Scene Probe | A temporary low-resolution fallback used to inspect the current Scene without audio | Shot, Keeper, training history |
+| Companion | The continuing relationship that learns across Shoots and offers bounded help | generic camera, narrator, Experiment enforcer |
+| Live Scene Session | Parked historical audio-and-camera concept | current submission or roadmap capability |
+| Scene Probe | Parked historical low-resolution Scene-inspection fallback | current submission or roadmap capability |
 
 "Eye" belongs in the promise, such as "Learn to see like yourself." It is not a metric. "Style" is an emerging interpretation supported by repeated Tendency and Keeper signals, never a label the model declares.
 
@@ -213,11 +213,11 @@ Boundaries:
 - The internal cell grid never reaches the photographer. The Companion shows a human guide, arrow, crop region, or plain direction.
 - Intent may mute a conflicting local warning, such as zebras for a declared silhouette.
 
-The release excludes the earlier free-form Android Ask, custom viewfinder, microphone, Gemini Live, and Scene frames. The current one-tap Scout Question is a bounded authority action inside the unattended longitudinal loop, not a live camera coach.
+The release and current roadmap exclude the earlier free-form Android Ask, custom viewfinder, microphone, Gemini Live, Live Scene Session, Scene Probe, post-Shot Coach, video Analysis, and Scene frames. The current one-tap Scout Question is a bounded authority action inside the unattended longitudinal loop, not a live camera coach. Reopening any excluded direction requires an explicit post-hackathon scope decision.
 
 Android and web are two clients of one Shoots identity. Android now uses native Google identity, one build-configured service origin, direct Shot ingress, and optional separate Drive authority. Pairing endpoints remain temporarily for older APKs; the new client has no pairing or server-address UI.
 
-Foreground and background have separate acceptance clocks. A ready Live Scene Session targets first audio at or below 1.5 seconds median and 3 seconds at p90 over at least twenty real-device turns. Deep Analysis stays corroborated and may take longer, but it cannot lock the camera.
+The active acceptance clock measures normal Camera return, background Shot discovery, durable processing, and settled Shoot output. Historical Live response targets are not release criteria.
 
 The selected visual system is Companion-led Ink + amber. Ink holds the Scene and archive; warm white carries readable content; amber is reserved for an offered or selected Experiment, a Companion suggestion, or a selected action. It never grades quality. Red is reserved for a Finding that needs attention, and generic green success is removed from product surfaces.
 
@@ -257,7 +257,7 @@ The resulting decisions are:
 2. Capture continuity groups Shots into Scenes and Scenes into one natural Shoot. Visual similarity cannot invent event membership.
 3. A Shoot settles only after all member Runs are complete or terminal, then leaves one Shoot Record.
 4. Recurrence, deliberate Reproduce Evidence, condition coverage, Keeper counts, and Change remain separate quantities rather than one score.
-5. Scout chooses a bounded kind of help before any prose: explain, ask, Explore, Reproduce, or evidenced silence.
+5. Scout chooses a bounded kind of help before any prose and records why unsupported routes were rejected.
 6. Corrected Explore is the next Experiment type after the Shoot Record. It records Variations and observed differences without a Verdict.
 7. Manual imports declare Mine or Inspiration. Inspiration may be studied but cannot enter the Photographer's longitudinal record.
 8. Scribe may prepare a Deconstruction carousel from stored Evidence. The photographer chooses any Keeper cover and controls posting.
@@ -272,4 +272,3 @@ Architecturally, the existing per-Shot pipeline remains. A new aggregate layer a
 - The exact capture-continuity thresholds that separate Scenes and Shoots, including late Camera discovery.
 - The minimum deterministic Variation set needed before one bounded Shoot-level model read adds value.
 - Which carousel pages can be drafted without a Keeper and how the photographer selects a cover.
-- Which Live Scene transcript details remain in ActivityEvent after raw audio and frames are discarded.

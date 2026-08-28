@@ -1,0 +1,183 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="1120" viewBox="0 0 1600 1120" role="img" aria-labelledby="title desc">
+  <title id="title">Shoots detailed multi-agent architecture on Google Cloud</title>
+  <desc id="desc">The Photographer captures a Shot with the system Camera. The Android Phone Source uploads it to a Cloud Run API, which creates a durable Run and delivers independently retryable stages through Pub/Sub. ADK runs the Analyst sequence and its parallel image readers. Code validates every model result, owns barriers and routing, and settles one Shoot Record. A code-gated Scout policy may invoke a grounded Scout writer. Firestore, Cloud Storage, Drive, FCM, identity, read models, and Cloud Logging form the service plane.</desc>
+  <defs>
+    <style>
+      text{font-family:Inter,Roboto,"Segoe UI",Arial,sans-serif;fill:#202124}
+      .bg{fill:#fff}.cloud{fill:#4285f4;stroke:#275db2;stroke-width:2}.region{fill:#fff;stroke:#3c4043;stroke-width:1.6}
+      .external{fill:#fff;stroke:#5f6368;stroke-width:1.7}.workflow{fill:#dff3e5;stroke:#4d6655;stroke-width:1.7}
+      .subflow{fill:#fff;fill-opacity:.74;stroke:#5f6368;stroke-width:1.7;stroke-dasharray:7 5}
+      .code{fill:#fff;stroke:#4285f4;stroke-width:2.2}.agent{fill:#fff;stroke:#f29900;stroke-width:2.2}
+      .artifact{fill:#fff;stroke:#34a853;stroke-width:2.2}.service-area{fill:#e8f0fe;stroke:#5f6368;stroke-width:1.7;stroke-dasharray:7 5}
+      .service{fill:#fff;stroke:#5f6368;stroke-width:1.7}.optional{fill:#f1f3f4;stroke:#9aa0a6;stroke-width:1.7}
+      .h1{fill:#fff;font-size:32px;font-weight:650}.h2{font-size:22px;font-weight:700}.h3{font-size:17px;font-weight:700}
+      .t{font-size:14px}.small{fill:#5f6368;font-size:12px}.tiny{fill:#5f6368;font-size:11px}.label{font-size:14px;font-weight:650}.card-title{font-size:15px;font-weight:700}
+      .eyebrow{font-size:13px;font-weight:750;letter-spacing:.55px}.cloud-note{fill:#fff;font-size:14px}
+      .arrow{stroke:#3c4043;stroke-width:2.4;fill:none;marker-end:url(#arrow)}
+      .return{stroke:#3c4043;stroke-width:2;fill:none;marker-end:url(#arrow)}
+      .data{stroke:#5f6368;stroke-width:2;fill:none;stroke-dasharray:7 5;marker-end:url(#arrow)}
+      .tool{stroke:#f29900;stroke-width:2.4;fill:none;stroke-dasharray:5 5;marker-end:url(#arrowGold)}
+      .label-bg{fill:#fff;stroke:#dadce0;stroke-width:1}.step{fill:#188038}.step-text{fill:#fff;font-size:14px;font-weight:750}
+      .robot{fill:none;stroke:#f29900;stroke-width:2}.code-icon{fill:none;stroke:#4285f4;stroke-width:2}.store-icon{fill:none;stroke:#5f6368;stroke-width:2}
+      .dot-code{fill:#4285f4}.dot-agent{fill:#f29900}.dot-artifact{fill:#34a853}
+    </style>
+    <marker id="arrow" markerWidth="11" markerHeight="11" refX="10" refY="3.5" orient="auto" markerUnits="strokeWidth"><path d="M0,0 L0,7 L10,3.5 z" fill="#3c4043"/></marker>
+    <marker id="arrowGold" markerWidth="11" markerHeight="11" refX="10" refY="3.5" orient="auto" markerUnits="strokeWidth"><path d="M0,0 L0,7 L10,3.5 z" fill="#f29900"/></marker>
+    <symbol id="person" viewBox="0 0 24 24"><circle cx="8" cy="7" r="3" fill="#202124"/><circle cx="16" cy="7" r="3" fill="#202124"/><path d="M2 20v-4c0-3 2-5 6-5s6 2 6 5v4zM13 20v-4c0-1.8-.6-3.2-1.7-4.2 1.1-.5 2.5-.8 4.2-.8 4 0 6.5 2 6.5 5v4z" fill="#202124"/></symbol>
+    <symbol id="bot" viewBox="0 0 24 24"><rect x="4" y="7" width="16" height="11" rx="4" class="robot"/><circle cx="9" cy="12" r="1.2" fill="#f29900"/><circle cx="15" cy="12" r="1.2" fill="#f29900"/><path d="M12 7V4m-2 0h4M7 21h10" class="robot"/></symbol>
+    <symbol id="braces" viewBox="0 0 24 24"><path d="M9 4H7c-2 0-2 2-2 4v2c0 1-1 2-2 2 1 0 2 1 2 2v2c0 2 0 4 2 4h2M15 4h2c2 0 2 2 2 4v2c0 1 1 2 2 2-1 0-2 1-2 2v2c0 2 0 4-2 4h-2" class="code-icon"/></symbol>
+    <symbol id="doc" viewBox="0 0 24 24"><path d="M6 2h8l5 5v15H6zM14 2v6h5M9 12h7M9 16h7" fill="none" stroke="#34a853" stroke-width="2"/></symbol>
+    <symbol id="spark" viewBox="0 0 24 24"><path d="M12 1c1.2 6.7 4.3 9.8 11 11-6.7 1.2-9.8 4.3-11 11-1.2-6.7-4.3-9.8-11-11C7.7 10.8 10.8 7.7 12 1z" fill="#4285f4"/></symbol>
+  </defs>
+
+  <rect class="bg" width="1600" height="1120"/>
+
+  <!-- People and clients -->
+  <rect class="external" x="50" y="20" width="200" height="72" rx="9"/>
+  <use href="#person" x="72" y="43" width="26" height="26"/><text class="h3" x="112" y="61">Photographer</text>
+  <rect class="external" x="300" y="20" width="210" height="72" rx="9"/>
+  <text class="h3" x="325" y="52">System Camera</text><text class="small" x="325" y="73">Photographer owns shutter</text>
+  <rect class="external" x="570" y="20" width="250" height="72" rx="9"/>
+  <text class="h3" x="595" y="52">Android daily client</text><text class="small" x="595" y="73">Phone Source · Room · WorkManager</text>
+  <rect class="external" x="870" y="20" width="220" height="72" rx="9"/>
+  <text class="h3" x="895" y="52">Web audit desk</text><text class="small" x="895" y="73">same Photographer record</text>
+  <rect class="external" x="1280" y="20" width="250" height="72" rx="9"/>
+  <use href="#person" x="1302" y="43" width="26" height="26"/><text class="h3" x="1342" y="51">Shoots developers</text><text class="small" x="1342" y="72">define agents and prompts</text>
+
+  <path class="arrow" d="M250 56 H300"/>
+  <path class="arrow" d="M510 56 H570"/>
+  <circle class="step" cx="540" cy="56" r="18"/><text class="step-text" x="540" y="61" text-anchor="middle">1</text>
+  <rect class="label-bg" x="484" y="102" width="112" height="25" rx="12"/><text class="small" x="540" y="119" text-anchor="middle">approved Shot</text>
+
+  <!-- Google Cloud -->
+  <rect class="cloud" x="20" y="135" width="1560" height="970" rx="12"/>
+  <text class="h1" x="50" y="179">Google Cloud · Shoots</text>
+  <rect class="region" x="35" y="198" width="1530" height="890" rx="9"/>
+  <text class="label" x="55" y="224">Region · asia-southeast2</text>
+
+  <!-- Runtime row -->
+  <rect class="code" x="70" y="244" width="310" height="88" rx="9"/>
+  <use href="#braces" x="92" y="270" width="28" height="28"/><text class="h3" x="137" y="271">FastAPI service · Cloud Run</text><text class="t" x="137" y="296">identity · API · upload · read models</text><text class="small" x="137" y="318">creates Shot and durable Run atomically</text>
+  <rect class="code" x="430" y="244" width="300" height="88" rx="9"/>
+  <use href="#braces" x="452" y="270" width="28" height="28"/><text class="h3" x="497" y="271">Pub/Sub stage transport</text><text class="t" x="497" y="296">one push subscription per stage</text><text class="small" x="497" y="318">OIDC · retries · dead-letter topics</text>
+  <rect class="service" x="870" y="244" width="110" height="88" rx="9"/>
+  <text class="h3" x="925" y="279" text-anchor="middle">ADK</text><text class="small" x="925" y="303" text-anchor="middle">2.x</text>
+  <rect class="service" x="1030" y="244" width="315" height="88" rx="9"/>
+  <use href="#spark" x="1055" y="270" width="30" height="30"/><text class="h3" x="1100" y="271">Gemini 3.7 Flash</text><text class="t" x="1100" y="296">Vertex AI model runtime · global</text><text class="small" x="1100" y="318">structured reads and bounded writing</text>
+  <rect class="service" x="1390" y="244" width="140" height="88" rx="9"/>
+  <text class="h3" x="1460" y="274" text-anchor="middle">Cloud Logging</text><text class="small" x="1460" y="298" text-anchor="middle">logs · traces</text><text class="small" x="1460" y="317" text-anchor="middle">revision proof</text>
+
+  <path class="arrow" d="M695 92 V212 H225 V244"/>
+  <circle class="step" cx="695" cy="153" r="18"/><text class="step-text" x="695" y="158" text-anchor="middle">2</text>
+  <rect class="label-bg" x="718" y="141" width="112" height="25" rx="12"/><text class="small" x="774" y="158" text-anchor="middle">upload + Run</text>
+  <path class="arrow" d="M980 92 V212 H300 V244"/>
+  <path class="arrow" d="M1405 92 V212 H925 V244"/>
+  <path class="arrow" d="M380 288 H430"/>
+  <path class="arrow" d="M980 270 H1030"/>
+  <rect class="label-bg" x="981" y="236" width="118" height="24" rx="12"/><text class="small" x="1040" y="252" text-anchor="middle">inference request</text>
+  <path class="return" d="M1030 308 H980"/>
+  <text class="small" x="1005" y="326" text-anchor="middle">response</text>
+
+  <!-- Workflow -->
+  <rect class="workflow" x="50" y="390" width="965" height="615" rx="9"/>
+  <text class="h2" x="72" y="425">Shoots agent workflows</text>
+  <text class="small" x="990" y="424" text-anchor="end">models answer bounded questions · code owns authority</text>
+
+  <path class="arrow" d="M580 332 V358 H38 V554 H92"/>
+  <circle class="step" cx="580" cy="358" r="18"/><text class="step-text" x="580" y="363" text-anchor="middle">3</text>
+  <rect class="label-bg" x="604" y="346" width="112" height="25" rx="12"/><text class="small" x="660" y="363" text-anchor="middle">deliver stage</text>
+  <path class="data" d="M925 332 V390"/>
+  <rect class="label-bg" x="842" y="348" width="101" height="24" rx="12"/><text class="small" x="893" y="364" text-anchor="middle">ADK runner</text>
+
+  <!-- One Shot -->
+  <rect class="subflow" x="72" y="448" width="920" height="337" rx="9"/>
+  <text class="eyebrow" x="92" y="474">ONE SHOT</text><text class="small" x="176" y="474">independently retryable stages</text>
+  <rect class="code" x="92" y="510" width="150" height="88" rx="9"/>
+  <use href="#braces" x="108" y="538" width="27" height="27"/><text class="h3" x="148" y="540">Ingest</text><text class="small" x="108" y="574">EXIF · Tone · Motion</text>
+
+  <rect class="subflow" x="278" y="480" width="430" height="255" rx="9"/>
+  <text class="h3" x="300" y="507">Analyst · SequentialAgent</text>
+  <rect class="subflow" x="298" y="522" width="390" height="89" rx="8"/>
+  <text class="small" x="314" y="542">ParallelAgent · independent image views</text>
+  <rect class="agent" x="312" y="556" width="112" height="42" rx="7"/><use href="#bot" x="320" y="566" width="21" height="21"/><text class="label" x="347" y="582">Technician</text>
+  <rect class="agent" x="437" y="556" width="112" height="42" rx="7"/><use href="#bot" x="445" y="566" width="21" height="21"/><text class="label" x="472" y="582">Composer</text>
+  <rect class="agent" x="562" y="556" width="112" height="42" rx="7"/><use href="#bot" x="570" y="566" width="21" height="21"/><text class="label" x="597" y="582">Storyteller</text>
+  <path class="arrow" d="M493 611 V627"/>
+  <rect class="agent" x="402" y="627" width="182" height="50" rx="8"/><use href="#bot" x="417" y="640" width="23" height="23"/><text class="h3" x="453" y="658">Synthesizer</text>
+  <rect class="agent" x="300" y="694" width="150" height="29" rx="14"/><text class="small" x="375" y="713" text-anchor="middle">Crop rater · max 2 rounds</text>
+  <rect class="agent" x="465" y="694" width="145" height="29" rx="14"/><text class="small" x="538" y="713" text-anchor="middle">Scrub · video only</text>
+  <text class="tiny" x="625" y="713">conditional reads</text>
+
+  <path class="arrow" d="M242 554 H278"/>
+  <path class="arrow" d="M584 652 H731 V548 H752"/>
+  <rect class="code" x="752" y="505" width="214" height="86" rx="9"/>
+  <use href="#braces" x="770" y="532" width="27" height="27"/><text class="h3" x="810" y="533">Panel validation</text><text class="small" x="770" y="566">taxonomy · cells · hard Evidence</text>
+  <path class="arrow" d="M859 591 V614"/>
+  <rect class="code" x="752" y="614" width="214" height="116" rx="9"/>
+  <text class="h3" x="770" y="642">Deterministic fan-out</text>
+  <circle class="dot-code" cx="776" cy="665" r="5"/><text class="small" x="788" y="670">Cartographer</text><circle class="dot-agent" cx="874" cy="665" r="5"/><text class="tiny" x="886" y="670">Journey writer</text>
+  <circle class="dot-code" cx="776" cy="689" r="5"/><text class="small" x="788" y="694">Judge Criteria</text><circle class="dot-agent" cx="874" cy="689" r="5"/><text class="tiny" x="886" y="694">feedback</text>
+  <circle class="dot-code" cx="776" cy="713" r="5"/><text class="small" x="788" y="718">Scribe</text>
+  <path class="arrow" d="M859 730 V742"/>
+  <rect class="artifact" x="752" y="742" width="214" height="42" rx="8"/>
+  <text class="label" x="859" y="760" text-anchor="middle">RUN BARRIER</text><text class="tiny" x="859" y="777" text-anchor="middle">complete or terminal</text>
+
+  <!-- One Shoot -->
+  <path class="data" d="M859 784 V800 H58 V889 H92"/>
+  <circle class="step" cx="58" cy="800" r="18"/><text class="step-text" x="58" y="805" text-anchor="middle">4</text>
+  <rect class="label-bg" x="82" y="788" width="154" height="25" rx="12"/><text class="small" x="159" y="805" text-anchor="middle">settled member Runs</text>
+  <rect class="subflow" x="72" y="815" width="920" height="175" rx="9"/>
+  <text class="eyebrow" x="92" y="842">ONE SHOOT</text><text class="small" x="185" y="842">revisioned aggregate workflow</text>
+  <rect class="code" x="92" y="860" width="125" height="58" rx="8"/><text class="label" x="155" y="884" text-anchor="middle">Run truth</text><text class="tiny" x="155" y="903" text-anchor="middle">same settled Run</text>
+  <rect class="code" x="232" y="860" width="130" height="58" rx="8"/><text class="label" x="297" y="884" text-anchor="middle">Shoot barrier</text><text class="tiny" x="297" y="903" text-anchor="middle">every current member</text>
+  <rect class="code" x="377" y="860" width="140" height="58" rx="8"/><text class="label" x="447" y="884" text-anchor="middle">Shoot synthesis</text><text class="tiny" x="447" y="903" text-anchor="middle">repeated · varied</text>
+  <rect class="code" x="532" y="860" width="140" height="58" rx="8"/><text class="label" x="602" y="884" text-anchor="middle">Eligibility gate</text><text class="tiny" x="602" y="903" text-anchor="middle">code selects route</text>
+  <rect class="code" x="687" y="860" width="140" height="58" rx="8"/><use href="#braces" x="697" y="878" width="22" height="22"/><text class="label" x="727" y="884">Scout policy</text><text class="tiny" x="727" y="903">typed execution</text>
+  <rect class="artifact" x="842" y="860" width="140" height="58" rx="8"/><use href="#doc" x="852" y="878" width="22" height="22"/><text class="label" x="882" y="884">Shoot Record</text><text class="tiny" x="882" y="903">terminal revision</text>
+  <path class="arrow" d="M217 889 H232"/><path class="arrow" d="M362 889 H377"/><path class="arrow" d="M517 889 H532"/><path class="arrow" d="M672 889 H687"/><path class="arrow" d="M827 889 H842"/>
+
+  <rect class="service" x="112" y="938" width="170" height="38" rx="8"/><text class="label" x="197" y="962" text-anchor="middle">Capture Session</text>
+  <rect class="code" x="382" y="938" width="170" height="38" rx="8"/><text class="label" x="467" y="962" text-anchor="middle">Member barrier</text>
+  <rect class="artifact" x="652" y="938" width="190" height="38" rx="8"/><text class="label" x="747" y="962" text-anchor="middle">Experiment Record</text>
+  <path class="data" d="M282 957 H382"/><path class="data" d="M552 957 H652"/>
+
+  <!-- Conditional writer and tool -->
+  <rect class="agent" x="1070" y="390" width="215" height="88" rx="9"/>
+  <use href="#bot" x="1092" y="416" width="28" height="28"/><text class="h3" x="1134" y="422">Scout writer</text><text class="small" x="1094" y="450">only when policy requests copy</text>
+  <rect class="service" x="1305" y="390" width="215" height="88" rx="9"/>
+  <text class="card-title" x="1327" y="421">Google Search grounding</text><text class="t" x="1327" y="448">Scout research only</text><text class="small" x="1327" y="466">source URLs retained</text>
+  <path class="data" d="M757 860 V830 H1038 V434 H1070"/>
+  <path class="tool" d="M1285 434 H1305"/>
+
+  <!-- Durable services -->
+  <rect class="service-area" x="1045" y="505" width="500" height="345" rx="9"/>
+  <text class="h2" x="1070" y="540">Durable state + Google services</text>
+  <rect class="service" x="1070" y="565" width="140" height="112" rx="9"/>
+  <ellipse class="store-icon" cx="1094" cy="592" rx="14" ry="7"/><path class="store-icon" d="M1080 592v31c0 4 6 7 14 7s14-3 14-7v-31M1080 607c0 4 6 7 14 7s14-3 14-7"/><text class="card-title" x="1120" y="599">Firestore</text><text class="tiny" x="1087" y="642">Run · ActivityEvent</text><text class="tiny" x="1087" y="658">Shoot Record</text><text class="tiny" x="1087" y="673">Experiment Record</text>
+  <rect class="service" x="1225" y="565" width="140" height="112" rx="9"/>
+  <text class="card-title" x="1242" y="599">Cloud Storage</text><text class="tiny" x="1242" y="626">original media</text><text class="tiny" x="1242" y="647">display assets</text><text class="tiny" x="1242" y="668">Deconstruction pages</text>
+  <rect class="service" x="1380" y="565" width="140" height="112" rx="9"/>
+  <text class="card-title" x="1395" y="599">Google Drive API</text><text class="tiny" x="1395" y="626">optional Mine import</text><text class="tiny" x="1395" y="647">reviewed output</text><text class="tiny" x="1395" y="668">Inspiration kept separate</text>
+  <rect class="service" x="1070" y="705" width="140" height="98" rx="9"/>
+  <text class="card-title" x="1087" y="738">FCM</text><text class="tiny" x="1087" y="764">receipt + Experiment</text><text class="tiny" x="1087" y="784">notifications</text>
+  <rect class="service" x="1225" y="705" width="140" height="98" rx="9"/>
+  <text class="card-title" x="1242" y="738">Google identity</text><text class="tiny" x="1242" y="764">same Photographer</text><text class="tiny" x="1242" y="784">revocable device session</text>
+  <rect class="service" x="1380" y="705" width="140" height="98" rx="9"/>
+  <text class="card-title" x="1397" y="738">Read models</text><text class="tiny" x="1397" y="764">Android offline cache</text><text class="tiny" x="1397" y="784">web audit detail</text>
+  <path class="data" d="M982 889 H1005 V621 H1070"/>
+  <circle class="step" cx="1005" cy="770" r="18"/><text class="step-text" x="1005" y="775" text-anchor="middle">5</text>
+
+  <!-- Non-core -->
+  <rect class="optional" x="1045" y="875" width="500" height="115" rx="9"/>
+  <text class="h3" x="1068" y="907">Optional · outside the core release</text>
+  <text class="t" x="1068" y="937">Coach · Gemini Live · issue_experiment · remember · technique_map</text>
+  <text class="t" x="1068" y="965">Listener · Preflight · Director and Veo legacy path</text>
+
+  <!-- Runtime and legend -->
+  <text class="label" x="70" y="1045">Runtime</text><text class="t" x="138" y="1045">FastAPI API + stage workers on Cloud Run</text>
+  <text class="label" x="420" y="1045">Transport</text><text class="t" x="505" y="1045">Pub/Sub + DLQs</text>
+  <text class="label" x="680" y="1045">Model</text><text class="t" x="738" y="1045">Gemini on Vertex AI</text>
+  <rect class="code" x="1000" y="1025" width="22" height="22" rx="4"/><text class="small" x="1032" y="1041">deterministic code</text>
+  <rect class="agent" x="1150" y="1025" width="22" height="22" rx="4"/><text class="small" x="1182" y="1041">model-backed agent</text>
+  <rect class="artifact" x="1320" y="1025" width="22" height="22" rx="4"/><text class="small" x="1352" y="1041">durable artifact</text>
+</svg>

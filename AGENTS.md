@@ -6,6 +6,8 @@ Read `docs/domain-model.md` first. Its vocabulary (Photographer, Shot, Scene, Sh
 
 Shoots is an autonomous photography Companion for hobbyists. It learns from every Shot, offers one optional personal Experiment, and tracks what changes. Android and web are clients of one Photographer record. Android sends Shots directly; Google Drive is an optional import and export adapter. The current per-Shot Run and Reproduce path is built; the target Taskmaster work unit is one settled Shoot Record across a natural Camera period. Explore uses Variations and no Verdict. Reproduce alone uses Criteria and a Verdict. Compare preserves alternatives and an optional photographer preference. Hackathon entry for the Taskmaster track of the All Things Agentic Hackathon (deadline 2026-08-31 17:00 PDT). See `docs/product.md` and `docs/build-plan.md`.
 
+The hackathon submission and current roadmap are still-image only. Gemini Live, Live Scene Sessions, Scene Probes, the post-Shot Coach, a custom viewfinder, and video Analysis are parked. Do not add them to Devpost copy, demo plans, architecture claims, or future-work sections unless the user explicitly reopens that scope. `silence` remains an internal Scout fallback, not a submission differentiator.
+
 ## Repo layout
 
 ```
@@ -72,7 +74,7 @@ Banned: tests that mock the collaborators of the thing under test to assert the 
 3. EXIF is hard evidence; vision is soft evidence with a confidence. The Judge checks hard first.
 4. Only the Judge records a Verdict against explicit Reproduce Criteria. Explore and Compare never receive a Verdict.
 5. The system camera owns capture. Phone Source observes only approved Camera media. Only an explicit Experiment id associates a Shot; capture time never implies participation.
-6. The photographer controls the shutter. Gemini Live has no shutter tool, and Scene frames or Scene Probes never become Shots.
+6. The system Camera owns capture and the photographer controls the shutter. Temporary or legacy Scene media never becomes a Shot.
 7. A Shoot groups natural Camera activity. A Capture Session records explicit Experiment participation. The memberships are orthogonal.
 8. Approved Camera media defaults to the Photographer's Shot. Ambiguous manual imports must distinguish Mine from Inspiration before longitudinal writes. Inspiration never updates Photographer memory.
 9. A Deconstruction is a draft from stored Evidence. The photographer chooses the Keeper cover, export, and posting.

@@ -111,10 +111,44 @@ data class PhotographerSignalDto(
 )
 
 @Serializable
+data class VisualPathDto(
+    val points: List<String> = emptyList(),
+    @SerialName("leads_to") val leadsTo: List<String> = emptyList(),
+    val role: String = "other",
+)
+
+@Serializable
+data class VisualRegionDto(
+    val cells: List<String> = emptyList(),
+    val role: String = "other",
+    val order: Int = 0,
+)
+
+@Serializable
+data class VisualEvidenceArtifactDto(
+    val kind: String,
+    val authority: String,
+    val status: String = "rendered",
+    val verification: String = "not_run",
+    @SerialName("refinement_count") val refinementCount: Int = 0,
+    @SerialName("blob_path") val blobPath: String = "",
+    val label: String = "",
+    val legend: String = "",
+    val metrics: Map<String, JsonElement> = emptyMap(),
+    @SerialName("source_digest") val sourceDigest: String = "",
+    @SerialName("renderer_version") val rendererVersion: String = "",
+    @SerialName("fallback_reason") val fallbackReason: String = "",
+)
+
+@Serializable
 data class TechniqueEvidenceDto(
     @SerialName("technique_id") val techniqueId: String,
+    val name: String = "",
     val confidence: Double = 0.0,
     val cells: List<String> = emptyList(),
+    val paths: List<VisualPathDto> = emptyList(),
+    val regions: List<VisualRegionDto> = emptyList(),
+    @SerialName("visual_artifact") val visualArtifact: VisualEvidenceArtifactDto? = null,
     val note: String = "",
     val agreement: Int = 1,
     val lenses: List<String> = emptyList(),
@@ -174,23 +208,39 @@ data class ShotViewDto(
 )
 
 @Serializable
+data class VisualMarkDto(
+    val kind: String = "none",
+    val cells: List<String> = emptyList(),
+    @SerialName("to_cells") val toCells: List<String> = emptyList(),
+    val paths: List<VisualPathDto> = emptyList(),
+    val regions: List<VisualRegionDto> = emptyList(),
+    @SerialName("visual_artifact") val visualArtifact: VisualEvidenceArtifactDto? = null,
+    @SerialName("technique_id") val techniqueId: String = "",
+    @SerialName("finding_id") val findingId: String = "",
+)
+
+@Serializable
 data class ShotTeachingReceiptDto(
     @SerialName("keep_title") val keepTitle: String = "",
     @SerialName("keep_proof") val keepProof: String = "",
     @SerialName("keep_technique_id") val keepTechniqueId: String = "",
     @SerialName("keep_authority") val keepAuthority: String? = null,
     @SerialName("keep_cells") val keepCells: List<String> = emptyList(),
+    @SerialName("keep_mark") val keepMark: VisualMarkDto = VisualMarkDto(),
     @SerialName("notice_title") val noticeTitle: String = "",
     @SerialName("notice_proof") val noticeProof: String = "",
     @SerialName("notice_finding_id") val noticeFindingId: String = "",
     @SerialName("notice_authority") val noticeAuthority: String? = null,
     @SerialName("notice_cells") val noticeCells: List<String> = emptyList(),
+    @SerialName("notice_mark") val noticeMark: VisualMarkDto = VisualMarkDto(),
     @SerialName("try_text") val tryText: String = "",
     @SerialName("try_reason") val tryReason: String = "",
     @SerialName("try_kind") val tryKind: String? = null,
     @SerialName("try_from_cells") val tryFromCells: List<String> = emptyList(),
     @SerialName("try_to_cells") val tryToCells: List<String> = emptyList(),
+    @SerialName("try_mark") val tryMark: VisualMarkDto = VisualMarkDto(),
     @SerialName("visible_check") val visibleCheck: String = "",
+    @SerialName("check_mark") val checkMark: VisualMarkDto = VisualMarkDto(),
     @SerialName("primary_layer") val primaryLayer: String = "clean",
     val guide: String = "",
 )

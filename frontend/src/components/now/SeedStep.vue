@@ -14,7 +14,7 @@ export default {
     ...mapState(useShootsStore, ['seeding']),
   },
   methods: {
-    ...mapActions(useShootsStore, ['seed']),
+    ...mapActions(useShootsStore, ['seed', 'openDrivePicker']),
     onPick(event) {
       const files = [...(event.target.files || [])]
       event.target.value = ''
@@ -43,6 +43,9 @@ export default {
             Choose Shots
             <input type="file" accept="image/*,video/*" multiple class="hidden" @change="onPick" />
           </label>
+          <button type="button" class="btn-quiet mt-2 w-full" @click="openDrivePicker('mine')">
+            Choose from Google Drive
+          </button>
           <p class="mt-3 t-meta">They enter Shoots directly. Drive is optional.</p>
         </div>
       </div>

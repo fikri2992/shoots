@@ -16,6 +16,7 @@ gcloud services enable \
   secretmanager.googleapis.com \
   fcm.googleapis.com \
   drive.googleapis.com \
+  picker.googleapis.com \
   gmail.googleapis.com \
   cloudtrace.googleapis.com \
   --project "$PROJECT"

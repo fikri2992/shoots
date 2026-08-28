@@ -15,16 +15,27 @@ older than ``_LEASE_SECONDS`` — the panel's own timeout plus the slack the
 rest of the stage needs — is treated as dead and taken over.
 """
 
+import asyncio
+import hashlib
 import logging
 from datetime import timedelta
 
 from app.agents import analyst as agent
 from app.agents import crop as crop_loop
 from app.agents import scrub as scrub_lens
-from app.domain import shot_teaching
-from app.domain.entities import ShotKind, ShotStatus, now
+from app.domain import shot_teaching, technique_map
+from app.domain.entities import (
+    ShotKind,
+    ShotStatus,
+    VisualArtifactAuthority,
+    VisualArtifactKind,
+    VisualArtifactStatus,
+    VisualArtifactVerification,
+    VisualEvidenceArtifact,
+    now,
+)
 from app.domain.grid import Grid
-from app.imaging import canvas, video
+from app.imaging import canvas, video, visual_evidence
 from app.imaging.findingmark import mark as mark_findings
 from app.imaging.grid_overlay import apply_grid
 from app.imaging.overlay import render_overlay
@@ -38,6 +49,7 @@ from app.infra.storage import (
     ORIGINAL,
     SHEET,
     blob_path,
+    visual_evidence_blob_path,
 )
 from app.services.context import Context
 
@@ -89,7 +101,14 @@ async def analyse(ctx: Context, message: dict) -> None:
     # (the sheet for video, the original for photos). The dashboard draws its
     # own SVG; this one is for the activity feed, emails and the demo.
     base_key = SHEET if SHEET in shot.blobs else ORIGINAL
-    base = canvas.load_bytes(await ctx.blobs.read(shot.blobs[base_key]))
+    base_bytes = await ctx.blobs.read(shot.blobs[base_key])
+    base = canvas.load_bytes(base_bytes)
+    if shot.kind is ShotKind.PHOTO:
+        await render_visual_evidence(ctx, shot, analysis, base, base_bytes)
+        # The initial write above makes the Analysis durable even if rendering
+        # fails. This second idempotent write attaches only code-created visual
+        # artifacts; it never reruns or changes the panel read.
+        await repo.put_analysis(ctx.store, analysis)
     receipt = shot_teaching.build(shot, analysis)
     if receipt.primary_layer == "finding":
         annotated = mark_findings(base, analysis.findings)
@@ -154,6 +173,63 @@ async def analyse(ctx: Context, message: dict) -> None:
         shot_id=shot.id,
     )
     await ctx.bus.publish(TOPICS["media.analyzed"], {"shot_id": shot.id})
+
+
+async def render_visual_evidence(ctx: Context, shot, analysis, base, base_bytes: bytes) -> None:
+    """Attach honest artifacts to the corroborated Evidence Android may show."""
+    source_digest = hashlib.sha256(base_bytes).hexdigest()[:24]
+    wanted = [evidence for evidence in analysis.techniques if technique_map.corroborated(evidence)]
+    semaphore = asyncio.Semaphore(4)
+
+    async def render_one(evidence):
+        async with semaphore:
+            return await asyncio.to_thread(
+                visual_evidence.render,
+                base,
+                shot,
+                evidence,
+                source_digest,
+            )
+
+    outcomes = await asyncio.gather(
+        *(render_one(evidence) for evidence in wanted), return_exceptions=True
+    )
+    for evidence, outcome in zip(wanted, outcomes, strict=True):
+        try:
+            if isinstance(outcome, Exception):
+                raise outcome
+            if isinstance(outcome, BaseException):
+                raise RuntimeError(type(outcome).__name__)
+            rendered = outcome
+            artifact = rendered.artifact
+            if rendered.image is not None:
+                artifact.blob_path = await ctx.blobs.write(
+                    visual_evidence_blob_path(
+                        shot.user_id,
+                        shot.id,
+                        evidence.technique_id,
+                    ),
+                    canvas.to_jpeg_bytes(rendered.image, quality=88),
+                    "image/jpeg",
+                )
+            evidence.visual_artifact = artifact
+        except Exception:  # noqa: BLE001 — visual support cannot erase the Analysis
+            logger.exception(
+                "visual evidence render failed for %s/%s",
+                shot.id,
+                evidence.technique_id,
+            )
+            evidence.visual_artifact = VisualEvidenceArtifact(
+                kind=VisualArtifactKind.GEOMETRY,
+                authority=VisualArtifactAuthority.UNRESOLVED,
+                status=VisualArtifactStatus.UNRESOLVED,
+                verification=VisualArtifactVerification.REJECTED,
+                label="Visual location unresolved",
+                legend="The Technique read remains available without a fabricated overlay.",
+                source_digest=source_digest,
+                renderer_version=visual_evidence.RENDERER_VERSION,
+                fallback_reason="Renderer failed",
+            )
 
 
 async def _test_crop(ctx: Context, shot, analysis, clean, gridded: bytes) -> None:

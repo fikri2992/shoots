@@ -35,7 +35,7 @@ true of the prompts and false of the panel.
 from dataclasses import dataclass, field
 
 from app.domain import rubric, taxonomy
-from app.domain.entities import TechniqueEvidence
+from app.domain.entities import TechniqueEvidence, VisualPath, VisualRegion
 from app.domain.taxonomy import Family
 
 TECHNICIAN = "technician"
@@ -94,6 +94,8 @@ class Sighting:
     technique_id: str
     confidence: float
     cells: tuple[str, ...] = ()
+    paths: tuple[VisualPath, ...] = ()
+    regions: tuple[VisualRegion, ...] = ()
     note: str = ""
 
 
@@ -191,6 +193,10 @@ def aggregate(
                 if cell not in cells:
                     cells.append(cell)
         note_source = owner_sighting or lens_votes[lenses[0]]
+        # Geometry has one accountable author. Other lenses corroborate the
+        # Technique but their cells never flatten separate paths into one cloud.
+        paths = list(note_source.paths[:3])
+        regions = list(note_source.regions[:12])
         # Cells and the note come from the lenses that looked; the measurement
         # joins the vote afterwards, having none of either.
         if measured:
@@ -201,6 +207,8 @@ def aggregate(
                 technique_id=tid,
                 confidence=round(min(1.0, confidence), 3),
                 cells=cells,
+                paths=paths,
+                regions=regions,
                 note=note_source.note,
                 agreement=len(lenses),
                 lenses=lenses,

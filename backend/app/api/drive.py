@@ -1,8 +1,8 @@
-"""Drive: connect a folder, sync it, and receive change notifications.
+"""Drive selection, optional folder sync, and reviewed-copy export.
 
-``/drive/connect`` is the one thing the user does once. As the user (their
-``drive.file`` token) the app creates the Shoots folder and shares it with the
-reader service account. From then on the reader sees whatever lands there.
+Google Picker selects existing files explicitly. ``/drive/connect`` is a
+separate optional action that creates a Shoots folder and shares it with the
+reader service account. Direct browser and Android ingress need neither.
 
 ``/drive/sync`` and ``/drive/notify`` are the same operation with different
 callers: the dashboard button, and Google's push channel. Both just enqueue
@@ -20,12 +20,21 @@ from app.api.auth import current_user
 from app.api.deps import get_context
 from app.config import settings
 from app.domain import taxonomy
-from app.domain.entities import User
+from app.domain.entities import (
+    Inspiration,
+    Shot,
+    ShotKind,
+    ShotSource,
+    SignalScope,
+    SourceRole,
+    User,
+)
 from app.imaging import canvas
 from app.infra import repository as repo
 from app.infra.bus import TOPICS
-from app.infra.drive import DriveFile, UserDrive, user_credentials
-from app.services import ingest, runs, watch
+from app.infra.drive import DriveClient, DriveFile, UserDrive, picker_access_token, user_credentials
+from app.infra.storage import ORIGINAL, blob_path, extension_for
+from app.services import ingest, runs, shoots, source_authority, watch
 from app.services.context import Context
 
 logger = logging.getLogger(__name__)
@@ -45,6 +54,35 @@ class ConnectResponse(BaseModel):
 class SyncResponse(BaseModel):
     queued: int
     shot_ids: list[str]
+
+
+class PickerConfigResponse(BaseModel):
+    enabled: bool
+    reason: str = ""
+    api_key: str = ""
+    app_id: str = ""
+    oauth_token: str = ""
+    max_files: int
+
+
+class ImportRequest(BaseModel):
+    file_ids: list[str]
+    source_role: SourceRole = SourceRole.MINE
+
+
+class ImportFailure(BaseModel):
+    file_id: str
+    name: str = ""
+    error: str
+
+
+class ImportResponse(BaseModel):
+    discovered: int
+    imported: int
+    duplicates: int
+    shot_ids: list[str]
+    inspiration_ids: list[str]
+    failures: list[ImportFailure]
 
 
 async def _load_user(ctx: Context, session_user: dict) -> User:
@@ -112,6 +150,223 @@ async def connect(session_user: dict = Depends(current_user), ctx: Context = Dep
         folder_url=_folder_url(folder_id),
         reader=settings.drive_service_account,
         mode="google",
+    )
+
+
+@router.get("/picker-config", response_model=PickerConfigResponse)
+async def picker_config(
+    session_user: dict = Depends(current_user),
+    ctx: Context = Depends(get_context),
+) -> PickerConfigResponse:
+    if not settings.drive_picker_api_key or not settings.drive_picker_app_id:
+        return PickerConfigResponse(
+            enabled=False,
+            reason="Google Drive selection is not configured on this server.",
+            max_files=settings.drive_picker_max_files,
+        )
+    token = await ctx.tokens.get(session_user["id"]) if ctx.tokens else None
+    if not token or not token.get("refresh_token"):
+        return PickerConfigResponse(
+            enabled=False,
+            reason="Reconnect Google Drive to select existing files.",
+            max_files=settings.drive_picker_max_files,
+        )
+    try:
+        access_token = await picker_access_token(token)
+    except Exception as error:
+        logger.warning("Drive Picker token refresh failed for %s: %s", session_user["id"], error)
+        return PickerConfigResponse(
+            enabled=False,
+            reason="Google Drive access expired. Reconnect Drive and try again.",
+            max_files=settings.drive_picker_max_files,
+        )
+    return PickerConfigResponse(
+        enabled=True,
+        api_key=settings.drive_picker_api_key,
+        app_id=settings.drive_picker_app_id,
+        oauth_token=access_token,
+        max_files=settings.drive_picker_max_files,
+    )
+
+
+def _selected_drive(ctx: Context, user_id: str, token: dict | None) -> DriveClient | UserDrive:
+    if settings.drive_local_folder:
+        if ctx.drive is None:
+            raise HTTPException(503, "Local Drive adapter is unavailable")
+        return ctx.drive
+    if not token or not token.get("refresh_token"):
+        raise HTTPException(409, "Connect Google Drive before selecting existing files")
+    return UserDrive(user_credentials(token))
+
+
+@router.post("/import", response_model=ImportResponse)
+async def import_files(
+    body: ImportRequest,
+    session_user: dict = Depends(current_user),
+    ctx: Context = Depends(get_context),
+) -> ImportResponse:
+    """Accept only explicitly selected Drive ids, then enter the normal pipeline."""
+    user = await _load_user(ctx, session_user)
+    file_ids = list(dict.fromkeys(value.strip() for value in body.file_ids if value.strip()))
+    if not file_ids:
+        raise HTTPException(400, "select at least one Drive file")
+    if len(file_ids) > settings.drive_picker_max_files:
+        raise HTTPException(413, f"select at most {settings.drive_picker_max_files} files")
+    token = await ctx.tokens.get(user.id) if ctx.tokens else None
+    drive = _selected_drive(ctx, user.id, token)
+
+    created_shots: list[str] = []
+    created_inspirations: list[str] = []
+    duplicates = 0
+    failures: list[ImportFailure] = []
+    for file_id in file_ids:
+        name = ""
+        try:
+            selected = await drive.get_file(file_id)
+            name = selected.name
+            if not selected.is_media:
+                raise ValueError("only image and video files can be imported")
+            if selected.size > settings.max_upload_bytes:
+                raise ValueError("file is larger than the upload limit")
+            record_id = (
+                repo.shot_id_for(user.id, selected.id)
+                if body.source_role is SourceRole.MINE
+                else repo.source_inspiration_id_for(
+                    user.id,
+                    ShotSource.DRIVE_PICKER.value,
+                    selected.id,
+                )
+            )
+            if body.source_role is SourceRole.MINE:
+                existing_inspiration = await repo.find_inspiration(
+                    ctx.store,
+                    repo.source_inspiration_id_for(
+                        user.id,
+                        ShotSource.DRIVE_PICKER.value,
+                        selected.id,
+                    ),
+                )
+                if existing_inspiration is not None and not existing_inspiration.superseded_at:
+                    raise ValueError("this Drive file is already Inspiration")
+                existing = await repo.find_shot(ctx.store, record_id)
+                if existing is not None:
+                    duplicates += 1
+                    await runs.ensure(ctx, existing)
+                    await shoots.observe_shot(ctx, existing.id)
+                    await ingest.resume(ctx, existing)
+                    continue
+            else:
+                existing_mine = await repo.find_shot(
+                    ctx.store,
+                    repo.shot_id_for(user.id, selected.id),
+                )
+                if existing_mine is not None and not existing_mine.superseded_at:
+                    raise ValueError("this Drive file is already in the archive as Mine")
+                existing_inspiration = await repo.find_inspiration(ctx.store, record_id)
+                if existing_inspiration is not None and not existing_inspiration.superseded_at:
+                    duplicates += 1
+                    continue
+
+            data = await drive.download(selected.id)
+            if not data:
+                raise ValueError("selected file is empty")
+            if len(data) > settings.max_upload_bytes:
+                raise ValueError("file is larger than the upload limit")
+            original = blob_path(
+                user.id,
+                record_id,
+                ORIGINAL,
+                extension_for(selected.mime_type),
+            )
+            original = await ctx.blobs.write(original, data, selected.mime_type)
+
+            if body.source_role is SourceRole.INSPIRATION:
+                inspiration = Inspiration(
+                    id=record_id,
+                    user_id=user.id,
+                    source=ShotSource.DRIVE_PICKER,
+                    source_id=selected.id,
+                    filename=selected.name,
+                    mime_type=selected.mime_type,
+                    blobs={ORIGINAL: original},
+                )
+                await repo.put_inspiration(ctx.store, inspiration)
+                await source_authority.record_source_role(
+                    ctx,
+                    user.id,
+                    SignalScope.INSPIRATION,
+                    inspiration.id,
+                    SourceRole.INSPIRATION.value,
+                )
+                created_inspirations.append(inspiration.id)
+                continue
+
+            shot = Shot(
+                id=record_id,
+                user_id=user.id,
+                kind=(
+                    ShotKind.VIDEO if selected.mime_type.startswith("video/") else ShotKind.PHOTO
+                ),
+                source=ShotSource.DRIVE_PICKER,
+                source_id=selected.id,
+                drive_file_id=selected.id,
+                filename=selected.name,
+                mime_type=selected.mime_type,
+                blobs={ORIGINAL: original},
+            )
+            await repo.put_shot(ctx.store, shot)
+            await source_authority.record_source_role(
+                ctx,
+                user.id,
+                SignalScope.SHOT,
+                shot.id,
+                SourceRole.MINE.value,
+            )
+            await runs.ensure(ctx, shot)
+            await shoots.observe_shot(ctx, shot.id)
+            await repo.record(
+                ctx.store,
+                user.id,
+                "ingest",
+                "queued",
+                {
+                    "filename": selected.name,
+                    "via": ShotSource.DRIVE_PICKER.value,
+                    "source_role": SourceRole.MINE.value,
+                },
+                shot_id=shot.id,
+            )
+            await ctx.bus.publish(TOPICS["media.new"], {"shot_id": shot.id})
+            created_shots.append(shot.id)
+        except Exception as error:
+            failures.append(
+                ImportFailure(
+                    file_id=file_id,
+                    name=name,
+                    error=f"{type(error).__name__}: {error}"[:300],
+                )
+            )
+
+    await repo.record(
+        ctx.store,
+        user.id,
+        "drive",
+        "imported",
+        {
+            "discovered": len(file_ids),
+            "imported": len(created_shots) + len(created_inspirations),
+            "duplicates": duplicates,
+            "failed": len(failures),
+            "source_role": body.source_role.value,
+        },
+    )
+    return ImportResponse(
+        discovered=len(file_ids),
+        imported=len(created_shots) + len(created_inspirations),
+        duplicates=duplicates,
+        shot_ids=created_shots,
+        inspiration_ids=created_inspirations,
+        failures=failures,
     )
 
 

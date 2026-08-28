@@ -9,6 +9,7 @@ import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import android.provider.MediaStore
+import android.provider.OpenableColumns
 import androidx.core.content.ContextCompat
 import com.shoots.app.data.ImportEntity
 import com.shoots.app.data.LocalCaptureState
@@ -122,15 +123,36 @@ class PhoneMediaStore(
             MediaStore.Images.Media.DATE_ADDED,
             MediaStore.Images.Media.SIZE,
         )
-        return context.contentResolver.query(uri, projection, null, null, null)?.use { cursor ->
+        val mediaItem = runCatching {
+            context.contentResolver.query(uri, projection, null, null, null)?.use { cursor ->
+                if (!cursor.moveToFirst()) return@use null
+                CameraItem(
+                    uri = uri,
+                    id = cursor.long(MediaStore.Images.Media._ID),
+                    dateAdded = cursor.long(MediaStore.Images.Media.DATE_ADDED),
+                    size = cursor.long(MediaStore.Images.Media.SIZE),
+                    displayName = cursor.string(MediaStore.Images.Media.DISPLAY_NAME, "Shot.jpg"),
+                    mimeType = cursor.string(MediaStore.Images.Media.MIME_TYPE, "image/jpeg"),
+                )
+            }
+        }.getOrNull()
+        if (mediaItem != null) return mediaItem
+
+        return context.contentResolver.query(
+            uri,
+            arrayOf(OpenableColumns.DISPLAY_NAME, OpenableColumns.SIZE),
+            null,
+            null,
+            null,
+        )?.use { cursor ->
             if (!cursor.moveToFirst()) return@use null
             CameraItem(
                 uri = uri,
-                id = cursor.long(MediaStore.Images.Media._ID),
-                dateAdded = cursor.long(MediaStore.Images.Media.DATE_ADDED),
-                size = cursor.long(MediaStore.Images.Media.SIZE),
-                displayName = cursor.string(MediaStore.Images.Media.DISPLAY_NAME, "Shot.jpg"),
-                mimeType = cursor.string(MediaStore.Images.Media.MIME_TYPE, "image/jpeg"),
+                id = uri.toString().hashCode().toLong() and 0xffffffffL,
+                dateAdded = 0,
+                size = cursor.longOr(OpenableColumns.SIZE, 0),
+                displayName = cursor.stringOr(OpenableColumns.DISPLAY_NAME, "Shot.jpg"),
+                mimeType = context.contentResolver.getType(uri) ?: "application/octet-stream",
             )
         }
     }
@@ -217,4 +239,14 @@ class PhoneMediaStore(
 
     private fun android.database.Cursor.string(column: String, fallback: String): String =
         getString(getColumnIndexOrThrow(column)) ?: fallback
+
+    private fun android.database.Cursor.longOr(column: String, fallback: Long): Long {
+        val index = getColumnIndex(column)
+        return if (index >= 0 && !isNull(index)) getLong(index) else fallback
+    }
+
+    private fun android.database.Cursor.stringOr(column: String, fallback: String): String {
+        val index = getColumnIndex(column)
+        return if (index >= 0 && !isNull(index)) getString(index) ?: fallback else fallback
+    }
 }

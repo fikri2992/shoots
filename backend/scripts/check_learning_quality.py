@@ -26,7 +26,15 @@ from pydantic import BaseModel, Field, model_validator
 
 from app.config import settings
 from app.domain import shot_teaching, taxonomy
-from app.domain.entities import Analysis, MoveKind, Shot, ShotTeachingReceipt, User
+from app.domain.entities import (
+    Analysis,
+    MoveKind,
+    Shot,
+    ShotTeachingReceipt,
+    User,
+    VisualMark,
+    VisualMarkKind,
+)
 from app.domain.grid import Grid
 from app.infra import repository as repo
 from app.infra.bus import InProcessBus
@@ -76,8 +84,8 @@ class Expectations(BaseModel):
     acceptable_move_kinds: list[MoveKind] = Field(default_factory=list)
     forbidden_move_kinds: list[MoveKind] = Field(default_factory=list)
     forbidden_move_phrases: list[str] = Field(default_factory=list)
-    acceptable_primary_layers: list[Literal["clean", "finding", "action", "guide"]] = (
-        Field(default_factory=list)
+    acceptable_primary_layers: list[Literal["clean", "finding", "action", "guide"]] = Field(
+        default_factory=list
     )
     allow_abstention: bool = True
     require_action: bool = False
@@ -88,11 +96,9 @@ class Expectations(BaseModel):
 
     @model_validator(mode="after")
     def validate_labels(self) -> Expectations:
-        technique_ids = {
-            item
-            for group in self.required_any_techniques
-            for item in group
-        } | set(self.forbidden_techniques)
+        technique_ids = {item for group in self.required_any_techniques for item in group} | set(
+            self.forbidden_techniques
+        )
         unknown = sorted(technique_ids - taxonomy.BY_ID.keys())
         if unknown:
             raise ValueError(f"unknown Technique ids: {unknown}")
@@ -250,6 +256,34 @@ def _visible_text(receipt: ShotTeachingReceipt) -> str:
     )
 
 
+def _drawable(mark: VisualMark) -> bool:
+    artifact = mark.visual_artifact
+    if (
+        artifact
+        and artifact.status.value == "rendered"
+        and (artifact.blob_path or (artifact.kind.value == "exif_receipt" and artifact.metrics))
+    ):
+        return True
+    if mark.kind in {VisualMarkKind.FINDING, VisualMarkKind.WHOLE_FRAME}:
+        return True
+    if mark.kind is VisualMarkKind.MOVE:
+        return bool(mark.cells and mark.to_cells)
+    if mark.kind in {
+        VisualMarkKind.CROP,
+        VisualMarkKind.REGION,
+        VisualMarkKind.LINE,
+        VisualMarkKind.FRAME,
+    }:
+        return bool(mark.cells)
+    if mark.kind is VisualMarkKind.PAIR:
+        return len(mark.regions) >= 2
+    if mark.kind is VisualMarkKind.PLANES:
+        return len(mark.regions) >= 2
+    if mark.kind is VisualMarkKind.INSTANCES:
+        return bool(mark.regions)
+    return mark.kind is VisualMarkKind.POINT
+
+
 def _subject_iou(shot: Shot, analysis: Analysis, expected: tuple[float, ...]) -> float:
     cells = analysis.composition.subject_cells
     if not cells or shot.grid is None:
@@ -349,6 +383,95 @@ def evaluate(
             "one supported image layer",
             receipt.primary_layer in {"clean", "finding", "action", "guide"},
             receipt.primary_layer,
+        )
+    )
+    marks = (
+        receipt.keep_mark,
+        receipt.notice_mark,
+        receipt.try_mark,
+        receipt.check_mark,
+    )
+    grid = (
+        Grid(
+            cols=shot.grid.cols,
+            rows=shot.grid.rows,
+            width=shot.grid.width,
+            height=shot.grid.height,
+        )
+        if shot.grid is not None
+        else None
+    )
+    mark_cells = [
+        ref
+        for mark in marks
+        for ref in (
+            *mark.cells,
+            *mark.to_cells,
+            *(point for path in mark.paths for point in (*path.points, *path.leads_to)),
+            *(cell for region in mark.regions for cell in region.cells),
+        )
+    ]
+    checks.append(
+        _check(
+            "Visual Marks use valid cells",
+            grid is not None and all(grid.contains(ref) for ref in mark_cells),
+            f"{len(mark_cells)} located references",
+        )
+    )
+    checks.append(
+        _check(
+            "relational Marks keep members separate",
+            all(
+                (mark.kind is not VisualMarkKind.PAIR or len(mark.regions) >= 2)
+                and (mark.kind is not VisualMarkKind.PLANES or len(mark.regions) >= 2)
+                and (mark.kind is not VisualMarkKind.INSTANCES or bool(mark.regions))
+                for mark in marks
+            ),
+            ", ".join(f"{mark.kind.value}:{len(mark.regions)}" for mark in marks),
+        )
+    )
+    checks.append(
+        _check(
+            "located Keep has its own Visual Mark",
+            not receipt.keep_cells
+            or (_drawable(receipt.keep_mark) and receipt.keep_mark.cells == receipt.keep_cells),
+            f"{receipt.keep_mark.kind.value}: {len(receipt.keep_mark.cells)} cells",
+        )
+    )
+    notice_is_located = bool(receipt.notice_cells or receipt.notice_finding_id)
+    checks.append(
+        _check(
+            "located Notice has its own Visual Mark",
+            not notice_is_located or _drawable(receipt.notice_mark),
+            f"{receipt.notice_mark.kind.value}: {len(receipt.notice_mark.cells)} cells",
+        )
+    )
+    try_is_located = bool(receipt.try_from_cells or receipt.try_to_cells or receipt.try_mark.cells)
+    checks.append(
+        _check(
+            "located Try has its own Visual Mark",
+            not try_is_located or _drawable(receipt.try_mark),
+            f"{receipt.try_mark.kind.value}: {len(receipt.try_mark.cells)} cells",
+        )
+    )
+    source_mark_exists = any(_drawable(mark) for mark in marks[:3])
+    checks.append(
+        _check(
+            "Check reuses a supported Visual Mark",
+            not receipt.visible_check or not source_mark_exists or _drawable(receipt.check_mark),
+            receipt.check_mark.kind.value,
+        )
+    )
+    checks.append(
+        _check(
+            "precise line Marks use ordered Visual Paths",
+            all(
+                mark.kind is not VisualMarkKind.LINE
+                or not mark.paths
+                or all(len(path.points) >= 2 for path in mark.paths)
+                for mark in marks
+            ),
+            ", ".join(f"{mark.kind.value}:{len(mark.paths)}" for mark in marks),
         )
     )
     protected = {receipt.keep_technique_id} if receipt.keep_technique_id else set()

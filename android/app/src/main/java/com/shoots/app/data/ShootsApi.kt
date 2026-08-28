@@ -68,13 +68,15 @@ interface ShootsApi {
     suspend fun mobileSnapshot(@Header("If-None-Match") etag: String?): Response<MobileSnapshotDto>
 
     @POST("api/experiments/issue")
-    suspend fun issueExperiment(@Query("force") force: Boolean = false): ExperimentDto?
+    suspend fun issueExperiment(
+        @Query("force") force: Boolean = false,
+    ): Response<okhttp3.ResponseBody>
 
     @POST("api/experiments/explore")
     suspend fun issueExplore(
         @Query("force") force: Boolean = false,
         @Query("technique_id") techniqueId: String = "",
-    ): ExperimentDto?
+    ): Response<okhttp3.ResponseBody>
 
     @POST("api/experiments/{id}/complete")
     suspend fun completeExplore(@Path("id") id: String): ExperimentDto

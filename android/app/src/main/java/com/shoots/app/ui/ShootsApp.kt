@@ -177,6 +177,7 @@ fun ShootsApp(
                     viewModel::retryImport,
                     { id -> scope.launch { viewModel.moveInspirationToMine(id) } },
                     actions.signIn,
+                    actions.chooseFreeShots,
                 )
             }
             composable("shot/{id}") { entry ->

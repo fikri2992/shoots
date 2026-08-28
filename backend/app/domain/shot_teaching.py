@@ -11,8 +11,11 @@ from app.domain.entities import (
     Shot,
     ShotTeachingReceipt,
     TeachingAuthority,
+    TechniqueEvidence,
+    VisualMark,
+    VisualMarkKind,
 )
-from app.domain.grid import Grid, GridError
+from app.domain.grid import Grid, GridError, cell_ref
 
 _CELL_SPAN = re.compile(
     r"\b(?:(?:cells?|rows?|columns?)\s+)?([A-Z]\d{1,2})"
@@ -28,6 +31,27 @@ _COLUMN_SPAN = re.compile(
     re.IGNORECASE,
 )
 _MOVE_PRIORITY = {MoveKind.CAMERA: 0, MoveKind.MOVE: 1, MoveKind.CROP: 2}
+_LINE_TECHNIQUES = {"diagonals", "horizon_placement", "leading_lines", "light_trails"}
+_FRAME_TECHNIQUES = {"frame_within_frame"}
+_POINT_TECHNIQUES = {"break_the_pattern", "eye_contact_portrait", "single_accent"}
+_PAIR_TECHNIQUES = {
+    "backlight",
+    "complementary",
+    "juxtaposition",
+    "panning",
+    "reflections",
+    "shallow_dof",
+    "warm_cool",
+}
+_PLANE_TECHNIQUES = {"deep_dof", "layering", "telephoto_compression"}
+_INSTANCE_TECHNIQUES = {
+    "astro",
+    "bokeh_balls",
+    "break_the_pattern",
+    "dappled_light",
+    "patterns",
+    "rule_of_odds",
+}
 _STOPWORDS = {
     "about",
     "after",
@@ -70,6 +94,7 @@ def build(shot: Shot, analysis: Analysis) -> ShotTeachingReceipt:
         receipt.keep_technique_id = evidence.technique_id
         receipt.keep_authority = TeachingAuthority.MODEL_READ
         receipt.keep_cells = list(evidence.cells)
+        receipt.keep_mark = _technique_mark(evidence, grid)
         keep_focus = f"{evidence.note} {technique.cue if technique else ''}"
 
     finding = analysis.findings[0] if analysis.findings else None
@@ -78,19 +103,31 @@ def build(shot: Shot, analysis: Analysis) -> ShotTeachingReceipt:
         allow_crop=not corroborated or finding is not None,
         protected_technique_ids={item.technique_id for item in corroborated[:1]},
     )
+    aligned_observation = (
+        _aligned_observation(analysis.observations, move, keep_focus)
+        if analysis.observations
+        else ""
+    )
+    aligned_cells = _located_cells(aligned_observation, grid)
     if finding is not None:
         receipt.notice_title = _sentence(_compact(finding.what, grid, 120))
         receipt.notice_proof = _sentence(_compact(finding.why, grid, 180))
         receipt.notice_finding_id = finding.finding_id
         receipt.notice_authority = TeachingAuthority.MEASURED
         receipt.notice_cells = list(finding.cells)
-    elif analysis.observations:
-        observation = _aligned_observation(analysis.observations, move, keep_focus)
+        receipt.notice_mark = VisualMark(
+            kind=VisualMarkKind.FINDING,
+            cells=list(finding.cells),
+            finding_id=finding.finding_id,
+        )
+    elif aligned_observation:
+        receipt.notice_cells = aligned_cells
         receipt.notice_title = _sentence(
-            _compact(_without_grid_locators(observation), None, 160, first_clause=True)
+            _compact(_without_grid_locators(aligned_observation), None, 160, first_clause=True)
         )
         receipt.notice_proof = "One Analyst observation; not a measured Finding."
         receipt.notice_authority = TeachingAuthority.MODEL_READ
+        receipt.notice_mark = _cells_mark(receipt.notice_cells, grid)
 
     if move is not None:
         receipt.try_text = _sentence(_compact(move.what, grid, 140))
@@ -98,12 +135,134 @@ def build(shot: Shot, analysis: Analysis) -> ShotTeachingReceipt:
         receipt.try_kind = move.kind
         receipt.try_from_cells = list(move.from_cells)
         receipt.try_to_cells = list(move.to_cells)
+        receipt.try_mark = _move_mark(move, aligned_cells or receipt.notice_cells, grid)
 
     receipt.visible_check = _visible_check(finding.finding_id if finding else "", move, grid)
+    source_mark = (
+        receipt.try_mark
+        if receipt.try_mark.kind is not VisualMarkKind.NONE
+        else receipt.notice_mark
+    )
+    if source_mark.kind is VisualMarkKind.NONE:
+        source_mark = receipt.keep_mark
+    receipt.check_mark = source_mark.model_copy(deep=True)
     receipt.primary_layer = _primary_layer(
         finding.finding_id if finding else "", finding.cells if finding else [], move, receipt.guide
     )
     return receipt
+
+
+def _technique_mark(evidence: TechniqueEvidence, grid: Grid | None) -> VisualMark:
+    technique_id = evidence.technique_id
+    path_cells = [point for path in evidence.paths for point in path.points]
+    region_cells = [cell for region in evidence.regions for cell in region.cells]
+    cells = list(evidence.cells or dict.fromkeys(path_cells or region_cells))
+    if not cells or grid is None:
+        return VisualMark(
+            technique_id=technique_id,
+            paths=list(evidence.paths),
+            regions=list(evidence.regions),
+            visual_artifact=evidence.visual_artifact,
+        )
+    if evidence.regions and technique_id in _PAIR_TECHNIQUES:
+        kind = VisualMarkKind.PAIR
+    elif evidence.regions and technique_id in _PLANE_TECHNIQUES:
+        kind = VisualMarkKind.PLANES
+    elif evidence.regions and technique_id in _INSTANCE_TECHNIQUES:
+        kind = VisualMarkKind.INSTANCES
+    elif technique_id in _LINE_TECHNIQUES:
+        kind = VisualMarkKind.LINE
+    elif technique_id in _FRAME_TECHNIQUES:
+        kind = VisualMarkKind.FRAME
+    elif technique_id in _POINT_TECHNIQUES:
+        kind = VisualMarkKind.POINT
+    else:
+        kind = _cells_mark_kind(cells, grid)
+    return VisualMark(
+        kind=kind,
+        cells=cells,
+        paths=list(evidence.paths),
+        regions=list(evidence.regions),
+        visual_artifact=evidence.visual_artifact,
+        technique_id=technique_id,
+    )
+
+
+def _move_mark(move: Move, notice_cells: list[str], grid: Grid | None) -> VisualMark:
+    if move.kind is MoveKind.MOVE and move.from_cells and move.to_cells:
+        return VisualMark(
+            kind=VisualMarkKind.MOVE,
+            cells=list(move.from_cells),
+            to_cells=list(move.to_cells),
+        )
+    if move.kind is MoveKind.CROP and move.to_cells:
+        return VisualMark(kind=VisualMarkKind.CROP, cells=list(move.to_cells))
+    if move.kind is not MoveKind.CAMERA or grid is None:
+        return VisualMark()
+    focus_cells = _located_cells(f"{move.what} {move.reason}", grid) or list(notice_cells)
+    return _cells_mark(focus_cells, grid)
+
+
+def _cells_mark(cells: list[str], grid: Grid | None) -> VisualMark:
+    if not cells or grid is None:
+        return VisualMark()
+    return VisualMark(kind=_cells_mark_kind(cells, grid), cells=list(cells))
+
+
+def _cells_mark_kind(cells: list[str], grid: Grid) -> VisualMarkKind:
+    points = [grid.parse(ref) for ref in cells if grid.contains(ref)]
+    if not points:
+        return VisualMarkKind.NONE
+    if len(points) / grid.cell_count > 0.65:
+        return VisualMarkKind.WHOLE_FRAME
+    width = max(col for col, _ in points) - min(col for col, _ in points) + 1
+    height = max(row for _, row in points) - min(row for _, row in points) + 1
+    if max(width, height) >= 3 * min(width, height):
+        return VisualMarkKind.LINE
+    return VisualMarkKind.REGION
+
+
+def _located_cells(text: str, grid: Grid | None) -> list[str]:
+    """Preserve the Analyst's locations before visible copy drops grid syntax."""
+    if grid is None:
+        return []
+    out: list[str] = []
+
+    def add(ref: str) -> None:
+        clean = ref.upper()
+        if grid.contains(clean) and clean not in out:
+            out.append(clean)
+
+    for match in _CELL_SPAN.finditer(text):
+        first, last = match.groups()
+        if not grid.contains(first.upper()):
+            continue
+        if not last or not grid.contains(last.upper()):
+            add(first)
+            continue
+        first_col, first_row = grid.parse(first)
+        last_col, last_row = grid.parse(last)
+        for row in range(min(first_row, last_row), max(first_row, last_row) + 1):
+            for col in range(min(first_col, last_col), max(first_col, last_col) + 1):
+                add(cell_ref(col, row))
+
+    if out:
+        return out
+    for match in _ROW_SPAN.finditer(text):
+        first, last = match.groups()
+        for row in range(max(0, int(first) - 1), min(grid.rows - 1, int(last or first) - 1) + 1):
+            for col in range(grid.cols):
+                add(cell_ref(col, row))
+    for match in _COLUMN_SPAN.finditer(text):
+        first, last = match.groups()
+        first_col = ord(first.upper()) - ord("A")
+        last_col = ord((last or first).upper()) - ord("A")
+        for row in range(grid.rows):
+            for col in range(
+                max(0, min(first_col, last_col)), min(grid.cols - 1, max(first_col, last_col)) + 1
+            ):
+                add(cell_ref(col, row))
+    return out
 
 
 def _primary_move(
@@ -139,23 +298,20 @@ def _aligned_observation(
         return observations[0]
     wanted = _keywords(focus)
     if not wanted:
-        return observations[0]
-    return max(
+        return ""
+    best = max(
         enumerate(observations),
         key=lambda item: (
             len(wanted & _keywords(item[1])),
             -len(item[1]),
             -item[0],
         ),
-    )[1]
+    )
+    return best[1] if wanted & _keywords(best[1]) else ""
 
 
 def _keywords(text: str) -> set[str]:
-    return {
-        word
-        for word in re.findall(r"[a-z]{4,}", text.lower())
-        if word not in _STOPWORDS
-    }
+    return {word for word in re.findall(r"[a-z]{4,}", text.lower()) if word not in _STOPWORDS}
 
 
 def _visible_check(finding_id: str, move: Move | None, grid: Grid | None) -> str:
@@ -198,9 +354,7 @@ def _visible_check(finding_id: str, move: Move | None, grid: Grid | None) -> str
                 "After changing viewpoint, check that the background no longer crosses "
                 "or competes with the subject."
             )
-        return (
-            "After changing viewpoint, compare the subject's separation and every frame edge."
-        )
+        return "After changing viewpoint, compare the subject's separation and every frame edge."
     return ""
 
 

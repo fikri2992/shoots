@@ -20,6 +20,7 @@ class SourceAuthorityScreenIntegrationTest {
     @Test
     fun archiveSeparatesInspirationAndOffersExplicitRestoration() {
         var restored = ""
+        var addRequested = false
         val shot = ShotDto(id = "mine", filename = "mine.jpg", status = "analyzed")
         val inspiration = InspirationDto(id = "reference", filename = "reference.jpg")
 
@@ -38,10 +39,13 @@ class SourceAuthorityScreenIntegrationTest {
                     onRetryImport = {},
                     onRestoreInspiration = { restored = it },
                     onReauthenticate = {},
+                    onAdd = { addRequested = true },
                 )
             }
         }
 
+        compose.onNodeWithText("Add from gallery, Files, or Google Drive").performClick()
+        assertTrue(addRequested)
         compose.onNodeWithText("References Shoots does not count as your work.")
             .performScrollTo()
             .assertExists()

@@ -1,6 +1,7 @@
 <script>
 import { mapActions, mapState } from 'pinia'
 
+import DriveImportPanel from '@/components/DriveImportPanel.vue'
 import { useShootsStore } from '@/stores/shoots'
 
 function ago(iso) {
@@ -34,6 +35,7 @@ function dayLabel(key) {
 /** Everything the agent has read, newest first. The image is the row. */
 export default {
   name: 'ShotsPage',
+  components: { DriveImportPanel },
   computed: {
     ...mapState(useShootsStore, ['orderedShots', 'inspirations', 'seeding']),
     rows() {
@@ -104,6 +106,8 @@ export default {
         </label>
       </div>
     </header>
+
+    <DriveImportPanel />
 
     <div v-if="groups.length" class="mt-9 space-y-10">
       <section v-for="group in groups" :key="group.key">

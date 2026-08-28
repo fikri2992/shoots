@@ -320,15 +320,24 @@ class ShootsRepository(
     }
 
     suspend fun requestExperiment(force: Boolean): ExperimentDto? {
-        val experiment = api.issueExperiment(force)
+        val experiment = decodeOptionalExperiment(api.issueExperiment(force))
         refreshSnapshot()
         return experiment
     }
 
     suspend fun requestExplore(force: Boolean, techniqueId: String = ""): ExperimentDto? {
-        val experiment = api.issueExplore(force, techniqueId)
+        val experiment = decodeOptionalExperiment(api.issueExplore(force, techniqueId))
         refreshSnapshot()
         return experiment
+    }
+
+    private fun decodeOptionalExperiment(
+        response: retrofit2.Response<okhttp3.ResponseBody>,
+    ): ExperimentDto? {
+        if (!response.isSuccessful) throw HttpException(response)
+        val payload = response.body()?.string()?.trim().orEmpty()
+        if (payload.isBlank() || payload == "null") return null
+        return json.decodeFromString<ExperimentDto>(payload)
     }
 
     suspend fun completeExplore(id: String) {

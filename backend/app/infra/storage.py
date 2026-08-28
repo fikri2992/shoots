@@ -112,6 +112,13 @@ def blob_path(user_id: str, shot_id: str, kind: str, extension: str = "png") -> 
     return f"{user_prefix(user_id)}shots/{shot_id}/{kind}.{extension}"
 
 
+def visual_evidence_blob_path(
+    user_id: str, shot_id: str, technique_id: str, extension: str = "jpg"
+) -> str:
+    """Stable artifact path; Technique ids are the finite taxonomy vocabulary."""
+    return f"{user_prefix(user_id)}shots/{shot_id}/visual-{technique_id}.{extension}"
+
+
 def experiment_blob_path(
     user_id: str, experiment_id: str, kind: str, extension: str = "mp4"
 ) -> str:

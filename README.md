@@ -4,21 +4,31 @@ Learn to see like yourself.
 
 Shoots learns from every Shot, closes each Shoot into a learning record, offers one personal Experiment, and tracks what changes.
 
-It is built for the self-directed phone photographer who knows some Techniques but cannot tell whether their decisions are becoming deliberate or they are just getting lucky. Shoots intercepts ordinary Camera media, groups Scenes into one natural Shoot, records what repeated or varied, updates longitudinal memory, and chooses one justified explanation, Experiment, or silence. It does not score artistic quality.
+It is built for the self-directed phone photographer who knows some Techniques but cannot tell whether their decisions are becoming deliberate or they are just getting lucky. Shoots intercepts ordinary Camera still images, groups Scenes into one natural Shoot, records what repeated or varied, updates longitudinal memory, and chooses one justified next step. It does not score artistic quality.
 
 A model may interpret a Shot. Only the photographer supplies Intent, Keeper preference, and the signal that a Change was an improvement. Unmarked Shots remain unknown rather than disliked.
 
 Entry for the All Things Agentic Hackathon, Taskmaster track.
 
+Submission scope is the autonomous still-image Shoot loop. Gemini Live, Live Scene Sessions, Scene Probes, the post-Shot Coach, a custom viewfinder, and video Analysis are parked outside the submission and current roadmap.
+
+## Architecture
+
+![Shoots hybrid event-driven agent workflow](docs/architecture.png)
+
+Pub/Sub separates replay-safe code stages. ADK coordinates the Analyst's in-process agent panel. Settled per-Shot Runs converge behind code-owned barriers into one revisioned Shoot Record. Read models deliver the Shoot receipt to Android and web, while FCM sends Android notices.
+
+[Open the full-size diagram](docs/architecture.svg) · [Read the architecture notes](docs/architecture.md) · [Inspect the detailed agent topology](docs/architecture-detailed.svg)
+
 **The web** remains the detailed audit desk. **Android** is the daily client: Now, Shots, Experiments, Journey, and Settings. Drive is an optional import and export adapter.
 
 **The Phone Source** (`android/`, Kotlin + Compose + WorkManager) keeps Android's normal camera in control. After one honest media permission, it watches only approved Camera media, streams unseen originals directly and idempotently, freezes explicit Capture Session membership, survives UI exit, and shows import/retry state. Selected-media access stays manual. Native Google identity and revocable device sessions are implemented; Firebase, OAuth, FCM, App Links, and a production-connected debug APK are configured. Human native sign-in completion, production signing, and full physical-device acceptance remain. Pairing endpoints remain only for older APKs.
 
-The current implementation has per-Shot Runs, one bounded Shot Teaching Receipt, typed Reproduce and Explore Capture Sessions, Technique Map, Tendency Profile, Change, Journey, persisted Scene/Shoot grouping, revisioned terminal Shoot Records, deterministic evidence-labelled Shoot receipts, scoped Photographer Signals, Mine/Inspiration authority, stored Scout routes for explain, one consequential Ask, Tendency-backed Explore, Keeper-backed Reproduce, or evidenced silence, replayable Intervention Records that adapt after repeated comparable outcomes, and evidence-bound Deconstruction carousels with photographer-owned covers. Android caches and leads Now with the current Shoot state or newest valid receipt. Shoots is live on Cloud Run and authenticated web acceptance passed; continuous Phone Source and physical-device acceptance remain incomplete.
+The current implementation has per-Shot Runs, one bounded Shot Teaching Receipt, typed Reproduce and Explore Capture Sessions, Technique Map, Tendency Profile, Change, Journey, persisted Scene/Shoot grouping, revisioned terminal Shoot Records, deterministic evidence-labelled Shoot receipts, scoped Photographer Signals, Mine/Inspiration authority, code-gated Scout help, replayable Intervention Records that adapt after repeated comparable outcomes, and evidence-bound Deconstruction carousels with photographer-owned covers. Android caches and leads Now with the current Shoot state or newest valid receipt. Shoots is live on Cloud Run and authenticated web acceptance passed; continuous Phone Source and physical-device acceptance remain incomplete.
 
 - Docs: [product](docs/product.md) · [decisions](docs/product-decisions.md) · [feature list](docs/feature-list.md) · [implementation order](docs/implementation-order.md) · [learning path](docs/learning-path.md) · [agent quality](docs/agent-quality.md) · [architecture](docs/architecture.md) · [submission proof](docs/submission-proof.md) · [demo rehearsal](docs/demo-rehearsal.md) · [domain model](docs/domain-model.md) · [agents](docs/agents.md) · [memory contract](docs/final-memory.md) · [release readiness](docs/release-readiness.md) · [Cloud proof](docs/cloud-proof.md) · [Android setup](docs/android-setup.md) · [Deconstruction](docs/deconstruction.md) · [build diary](docs/build-plan.md) · [codebase rules](AGENTS.md)
 - Stack: Vue 3 (Options API) + Vite + Tailwind PWA · Kotlin + Compose + WorkManager (`android/`) · FastAPI + Google ADK · Firestore + GCS + Pub/Sub + Cloud Scheduler + Secret Manager + Cloud Run
-- Models: `gemini-3.7-flash` (Analyst panel, Scout, Judge feedback, Journey writer, Listener) · `gemini-live-2.5-flash-native-audio` (Coach). The retained Director/Veo prototype is optional legacy code, outside the product loop.
+- Models: `gemini-3.7-flash` (Analyst panel, Scout, Judge feedback, Journey writer, Listener). Retained Gemini Live and Director/Veo paths are legacy code outside the submission and current roadmap.
 
 ## Prerequisites
 

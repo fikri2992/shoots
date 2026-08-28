@@ -1,0 +1,105 @@
+{
+  "name": "photography-test-corpus-2026-08-28",
+  "cases": [
+    {
+      "id": "online-panning-cyclist",
+      "path": "online-inspiration/01-panning-cyclist.jpg",
+      "note": "A real phone panning example.",
+      "expectations": {
+        "required_any_techniques": [["panning", "motion_blur"]],
+        "human_review": ["Does the receipt separate deliberate panning from global camera shake?"]
+      }
+    },
+    {
+      "id": "online-leading-lines-road",
+      "path": "online-inspiration/02-leading-lines-road.jpg",
+      "expectations": {
+        "required_any_techniques": [["leading_lines"]]
+      }
+    },
+    {
+      "id": "online-window-portrait",
+      "path": "online-inspiration/03-window-portrait.jpg",
+      "expectations": {
+        "required_any_techniques": [["window_light", "shallow_dof"]],
+        "human_review": ["Does the subject location follow the person rather than the bright window?"]
+      }
+    },
+    {
+      "id": "online-sunset-silhouette",
+      "path": "online-inspiration/04-sunset-silhouette.jpg",
+      "expectations": {
+        "required_any_techniques": [["silhouette"]],
+        "forbidden_findings": ["blown_highlights"]
+      }
+    },
+    {
+      "id": "online-blue-hour-city",
+      "path": "online-inspiration/05-blue-hour-city.jpg",
+      "expectations": {
+        "required_any_techniques": [["blue_hour"], ["long_exposure", "reflections"]]
+      }
+    },
+    {
+      "id": "online-complementary-colors",
+      "path": "online-inspiration/06-complementary-colors.jpg",
+      "expectations": {
+        "required_any_techniques": [["complementary", "colour_blocking"]]
+      }
+    },
+    {
+      "id": "online-rainy-night-street",
+      "path": "online-inspiration/07-rainy-night-street.jpg",
+      "expectations": {
+        "required_any_techniques": [["reflections", "blue_hour", "low_key"]]
+      }
+    },
+    {
+      "id": "online-window-shadow",
+      "path": "online-inspiration/08-window-shadow.jpg",
+      "expectations": {
+        "required_any_techniques": [["hard_light", "negative_space"]]
+      }
+    },
+    {
+      "id": "online-flower-bokeh",
+      "path": "online-inspiration/09-flower-bokeh.jpg",
+      "expectations": {
+        "required_any_techniques": [["shallow_dof", "bokeh_balls"]]
+      }
+    },
+    {
+      "id": "online-frame-within-frame",
+      "path": "online-inspiration/10-frame-within-frame.jpg",
+      "expectations": {
+        "required_any_techniques": [["frame_within_frame"]]
+      }
+    },
+    {
+      "id": "generated-doorway-hard-light",
+      "path": "generated-intent/11-intent-doorway-hard-light.png",
+      "note": "Synthetic test input with written Intent outside Photographer memory.",
+      "expectations": {
+        "required_any_techniques": [["frame_within_frame"], ["low_key", "chiaroscuro"]],
+        "human_review": ["Does advice preserve the deliberate dark frame instead of treating low key as an exposure mistake?"]
+      }
+    },
+    {
+      "id": "generated-panning-cyclist",
+      "path": "generated-intent/12-intent-panning-cyclist.png",
+      "note": "Synthetic test input with written Intent outside Photographer memory.",
+      "expectations": {
+        "required_any_techniques": [["panning", "motion_blur"], ["warm_cool"]],
+        "human_review": ["Does the receipt ask for better subject tracking without removing the intentional streaked background?"]
+      }
+    },
+    {
+      "id": "generated-color-market",
+      "path": "generated-intent/13-intent-color-market.png",
+      "note": "Synthetic test input with written Intent outside Photographer memory.",
+      "expectations": {
+        "required_any_techniques": [["complementary"], ["leading_lines", "frame_within_frame"]]
+      }
+    }
+  ]
+}

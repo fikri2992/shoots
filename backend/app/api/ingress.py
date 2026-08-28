@@ -49,7 +49,7 @@ async def receive_shot(
     session_user: dict[str, str] = Depends(current_user),
     ctx: Context = Depends(get_context),
 ) -> IngressResponse:
-    """Accept one original from the Android Phone Source.
+    """Accept one original from Android or a browser upload.
 
     ``source_id`` comes from Android MediaStore and device identity. It is the
     idempotency key, so WorkManager may retry the upload after any ambiguous
@@ -87,10 +87,15 @@ async def receive_shot(
         experiment_id = capture_session.experiment_id
         variation_id = capture_session.variation_id
 
-    shot_id = repo.source_shot_id_for(user_id, ShotSource.ANDROID.value, source_id)
+    source = (
+        ShotSource.ANDROID
+        if session_user.get("device") or automatic_camera
+        else ShotSource.WEB_UPLOAD
+    )
+    shot_id = repo.source_shot_id_for(user_id, source.value, source_id)
     inspiration_id = repo.source_inspiration_id_for(
         user_id,
-        ShotSource.ANDROID.value,
+        source.value,
         source_id,
     )
     existing = await repo.find_shot(ctx.store, shot_id)
@@ -167,7 +172,7 @@ async def receive_shot(
         inspiration = Inspiration(
             id=inspiration_id,
             user_id=user_id,
-            source=ShotSource.ANDROID,
+            source=source,
             source_id=source_id,
             filename=name,
             mime_type=mime,
@@ -186,7 +191,7 @@ async def receive_shot(
             user_id,
             "ingest",
             "inspiration_accepted",
-            {"filename": name, "via": "android", "role_basis": role_basis},
+            {"filename": name, "via": source.value, "role_basis": role_basis},
         )
         return IngressResponse(
             inspiration_id=inspiration.id,
@@ -200,7 +205,7 @@ async def receive_shot(
         id=shot_id,
         user_id=user_id,
         kind=ShotKind.VIDEO if mime.startswith("video/") else ShotKind.PHOTO,
-        source=ShotSource.ANDROID,
+        source=source,
         source_id=source_id,
         filename=name,
         mime_type=mime,
@@ -229,8 +234,8 @@ async def receive_shot(
         "queued",
         {
             "filename": name,
-            "via": "android",
-            "source": ShotSource.ANDROID.value,
+            "via": source.value,
+            "source": source.value,
             "capture_session_id": capture_session_id,
             "source_role": SourceRole.MINE.value,
             "role_basis": role_basis,

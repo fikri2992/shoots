@@ -30,6 +30,7 @@ export const useShootsStore = defineStore('shoots', {
     pairCode: null, // { code, expires_in_seconds } while pairing a camera
     seeding: null, // { done, total, name } while the first Shots upload
     mobile: null, // shared read model: latest Shoot Record and Deconstruction
+    driveImport: null, // latest explicit Picker result; never Photographer memory
   }),
 
   getters: {
@@ -185,6 +186,24 @@ export const useShootsStore = defineStore('shoots', {
       return this.run('sync', async () => {
         const result = await api.post('/drive/sync')
         await this.poll()
+        return result
+      })
+    },
+
+    openDrivePicker(sourceRole = 'mine') {
+      return this.run('drive-import', async () => {
+        this.driveImport = null
+        const config = await api.get('/drive/picker-config')
+        if (!config.enabled) throw new Error(config.reason)
+        await loadPickerApi()
+        const fileIds = await pickDriveFiles(config)
+        if (!fileIds.length) return null
+        const result = await api.post('/drive/import', {
+          file_ids: fileIds,
+          source_role: sourceRole,
+        })
+        this.driveImport = { ...result, source_role: sourceRole }
+        await this.fetchAll()
         return result
       })
     },
@@ -380,6 +399,60 @@ function urlBase64ToUint8Array(base64) {
 
 function webSourceId(file) {
   return `web:${file.name}:${file.size}:${file.lastModified}`
+}
+
+let pickerApiPromise = null
+
+function loadPickerApi() {
+  if (window.google?.picker) return Promise.resolve()
+  if (pickerApiPromise) return pickerApiPromise
+  pickerApiPromise = new Promise((resolve, reject) => {
+    const load = () =>
+      window.gapi.load('picker', {
+        callback: resolve,
+        onerror: () => reject(new Error('Google Drive selection could not load')),
+      })
+    if (window.gapi) return load()
+    const script = document.createElement('script')
+    script.src = 'https://apis.google.com/js/api.js'
+    script.async = true
+    script.onload = load
+    script.onerror = () => reject(new Error('Google Drive selection could not load'))
+    document.head.appendChild(script)
+  }).catch((error) => {
+    pickerApiPromise = null
+    throw error
+  })
+  return pickerApiPromise
+}
+
+function pickDriveFiles(config) {
+  return new Promise((resolve, reject) => {
+    const view = new window.google.picker.DocsView(window.google.picker.ViewId.DOCS)
+      .setIncludeFolders(false)
+      .setSelectFolderEnabled(false)
+      .setMimeTypes(
+        'image/jpeg,image/png,image/webp,image/gif,image/heic,image/heif,image/avif,video/mp4,video/quicktime',
+      )
+    const picker = new window.google.picker.PickerBuilder()
+      .addView(view)
+      .enableFeature(window.google.picker.Feature.MULTISELECT_ENABLED)
+      .setOAuthToken(config.oauth_token)
+      .setDeveloperKey(config.api_key)
+      .setAppId(config.app_id)
+      .setOrigin(window.location.origin)
+      .setCallback((data) => {
+        if (data.action === window.google.picker.Action.PICKED) {
+          resolve((data.docs || []).slice(0, config.max_files).map((document) => document.id))
+        } else if (data.action === window.google.picker.Action.CANCEL) {
+          resolve([])
+        } else if (data.action === window.google.picker.Action.ERROR || data.action === 'error') {
+          reject(new Error(data.error || 'Google Drive could not open this selection'))
+        }
+      })
+      .build()
+    picker.setVisible(true)
+  })
 }
 
 if (import.meta.hot) {

@@ -19,10 +19,17 @@ import com.shoots.app.WarmWhite
 import com.shoots.app.data.CompositionDto
 import com.shoots.app.data.FindingDto
 import com.shoots.app.data.GridSpecDto
+import com.shoots.app.data.VisualMarkDto
 import kotlin.math.atan2
 import kotlin.math.cos
+import kotlin.math.exp
+import kotlin.math.ln
 import kotlin.math.min
 import kotlin.math.sin
+import kotlin.math.sqrt
+
+private val EvidenceCyan = Color(0xFF36C4DC)
+private val EvidenceViolet = Color(0xFFCB7EEB)
 
 @Composable
 fun CompositionGuide(
@@ -31,38 +38,233 @@ fun CompositionGuide(
     modifier: Modifier = Modifier,
     finding: FindingDto? = null,
     layer: ReviewLayer = ReviewLayer.GUIDE,
+    guideOverride: String? = null,
+    guideRotation: Int = 0,
+    storyMark: VisualMarkDto? = null,
 ) {
-    val guide = composition.guide.ifBlank { "thirds" }
+    val guide = guideOverride ?: composition.guide.ifBlank { "thirds" }
     Canvas(
         modifier.semantics {
             contentDescription = when (layer) {
                 ReviewLayer.CLEAN -> "Clean Shot"
+                ReviewLayer.EVIDENCE -> "Located composition Evidence"
                 ReviewLayer.FINDING -> finding?.let { "Finding ${findingLabel(it.findingId)}" } ?: "No located Finding"
                 ReviewLayer.ACTION -> "Composition action"
                 ReviewLayer.GUIDE -> "${guideLabel(guide)} composition guide"
             }
+            if (storyMark?.let(::hasDrawableMark) == true) {
+                contentDescription = "Visual mark ${storyMark.kind.replace('_', ' ')}"
+            }
         },
     ) {
-        when (layer) {
-            ReviewLayer.CLEAN -> Unit
-            ReviewLayer.FINDING -> finding?.let { drawFinding(grid, composition, it) }
-            ReviewLayer.ACTION -> drawAction(grid, composition)
-            ReviewLayer.GUIDE -> {
-                drawGuide(guide)
-                drawGuideRead(grid, composition)
+        if (storyMark?.let(::hasDrawableMark) == true) {
+            drawStoryMark(grid, composition, finding, storyMark)
+        } else {
+            when (layer) {
+                ReviewLayer.CLEAN -> Unit
+                ReviewLayer.EVIDENCE -> drawCompositionEvidence(grid, composition)
+                ReviewLayer.FINDING -> finding?.let { drawFinding(grid, composition, it) }
+                ReviewLayer.ACTION -> drawAction(grid, composition)
+                ReviewLayer.GUIDE -> {
+                    drawGuide(guide, guideRotation)
+                    drawSubjectPoint(grid, composition)
+                }
             }
         }
     }
 }
 
-enum class ReviewLayer { CLEAN, FINDING, ACTION, GUIDE }
+enum class ReviewLayer { CLEAN, EVIDENCE, FINDING, ACTION, GUIDE }
 
-private fun DrawScope.drawGuide(guide: String) {
+private fun DrawScope.drawStoryMark(
+    grid: GridSpecDto,
+    composition: CompositionDto,
+    finding: FindingDto?,
+    mark: VisualMarkDto,
+) {
+    when (mark.kind) {
+        "region" -> drawMarkedRegion(grid, mark.cells)
+        "line" -> drawMarkedLine(grid, composition, mark)
+        "frame" -> drawMarkedFrame(grid, mark.cells)
+        "point" -> drawMarkedPoint(grid, composition, mark.cells)
+        "whole_frame" -> drawWholeFrame()
+        "finding" -> if (finding != null) {
+            drawFinding(grid, composition, finding)
+        } else {
+            drawMarkedFindingFallback(grid, mark)
+        }
+        "move" -> drawMarkedMove(grid, mark)
+        "crop" -> drawMarkedCrop(grid, mark.cells)
+        "pair" -> drawMarkedPair(grid, mark)
+        "instances" -> drawMarkedInstances(grid, mark)
+        "planes" -> drawMarkedPlanes(grid, mark)
+    }
+}
+
+private fun DrawScope.drawMarkedRegion(grid: GridSpecDto, cells: List<String>) {
+    val region = spanRect(cells, grid) ?: return
+    val stroke = 2.dp.toPx()
+    drawRect(EvidenceCyan.copy(alpha = 0.18f), region.topLeft, region.size)
+    drawRect(EvidenceCyan.copy(alpha = 0.9f), region.topLeft, region.size, style = Stroke(stroke))
+}
+
+private fun DrawScope.drawMarkedLine(
+    grid: GridSpecDto,
+    composition: CompositionDto,
+    mark: VisualMarkDto,
+) {
+    val paths = mark.paths.mapNotNull { visualPath ->
+        cellCentres(visualPath.points, grid).takeIf { it.size >= 2 }?.let { it to visualPath }
+    }
+    if (paths.isEmpty()) {
+        drawMarkedRegion(grid, mark.cells)
+        return
+    }
+    val stroke = 3.dp.toPx()
+    paths.forEach { (points, visualPath) ->
+        val path = Path().apply {
+            moveTo(points.first().x, points.first().y)
+            points.drop(1).forEach { point -> lineTo(point.x, point.y) }
+        }
+        drawPath(path, Color.Black.copy(alpha = 0.6f), style = Stroke(stroke * 2.2f))
+        drawPath(path, EvidenceCyan, style = Stroke(stroke))
+        drawCircle(EvidenceCyan, radius = 4.dp.toPx(), center = points.first())
+        drawCircle(EvidenceCyan, radius = 4.dp.toPx(), center = points.last())
+        spanRect(visualPath.leadsTo, grid)?.center?.let { target ->
+            drawCircle(EvidenceCyan.copy(alpha = 0.2f), radius = 13.dp.toPx(), center = target)
+            drawCircle(EvidenceCyan, radius = 8.dp.toPx(), center = target, style = Stroke(2.dp.toPx()))
+        }
+    }
+    if (mark.techniqueId == "leading_lines" && paths.none { it.second.leadsTo.isNotEmpty() }) {
+        drawSubjectPoint(grid, composition)
+    }
+}
+
+private fun DrawScope.drawMarkedFrame(grid: GridSpecDto, cells: List<String>) {
+    val region = spanRect(cells, grid) ?: return
+    val stroke = 2.dp.toPx()
+    drawRect(EvidenceCyan.copy(alpha = 0.08f), region.topLeft, region.size)
+    drawRect(EvidenceCyan, region.topLeft, region.size, style = Stroke(stroke * 1.4f))
+    val inset = stroke * 3f
+    if (region.width > inset * 2 && region.height > inset * 2) {
+        drawRect(
+            EvidenceCyan.copy(alpha = 0.65f),
+            Offset(region.left + inset, region.top + inset),
+            androidx.compose.ui.geometry.Size(region.width - inset * 2, region.height - inset * 2),
+            style = Stroke(stroke),
+        )
+    }
+}
+
+private fun DrawScope.drawMarkedPoint(
+    grid: GridSpecDto,
+    composition: CompositionDto,
+    cells: List<String>,
+) {
+    val point = spanRect(cells, grid)?.center ?: subjectPoint(grid, composition) ?: return
+    drawCircle(EvidenceCyan.copy(alpha = 0.18f), radius = 18.dp.toPx(), center = point)
+    drawCircle(EvidenceCyan, radius = 11.dp.toPx(), center = point, style = Stroke(2.dp.toPx()))
+    drawCircle(EvidenceCyan, radius = 4.dp.toPx(), center = point)
+}
+
+private fun DrawScope.drawWholeFrame() {
+    val stroke = 2.dp.toPx()
+    drawRect(EvidenceCyan.copy(alpha = 0.07f))
+    drawRect(EvidenceCyan.copy(alpha = 0.88f), style = Stroke(stroke))
+}
+
+private fun DrawScope.drawMarkedPair(grid: GridSpecDto, mark: VisualMarkDto) {
+    val regions = mark.regions.sortedBy { it.order }.take(2).mapNotNull { region ->
+        spanRect(region.cells, grid)?.let { it to region.role }
+    }
+    if (regions.size < 2) {
+        drawMarkedRegion(grid, mark.cells)
+        return
+    }
+    val stroke = 2.dp.toPx()
+    val colours = listOf(EvidenceCyan, EvidenceViolet)
+    regions.forEachIndexed { index, (rect, _) ->
+        val colour = colours[index]
+        drawRect(colour.copy(alpha = 0.14f), rect.topLeft, rect.size)
+        drawRect(colour, rect.topLeft, rect.size, style = Stroke(stroke))
+        drawCircle(colour, 4.dp.toPx(), rect.center)
+    }
+    drawLine(
+        WarmWhite.copy(alpha = 0.72f),
+        regions[0].first.center,
+        regions[1].first.center,
+        stroke,
+        pathEffect = PathEffect.dashPathEffect(floatArrayOf(stroke * 3, stroke * 2)),
+    )
+}
+
+private fun DrawScope.drawMarkedInstances(grid: GridSpecDto, mark: VisualMarkDto) {
+    val stroke = 2.dp.toPx()
+    mark.regions.sortedBy { it.order }.forEach { region ->
+        val rect = spanRect(region.cells, grid) ?: return@forEach
+        val colour = if (region.role == "exception") EvidenceViolet else EvidenceCyan
+        val radius = maxOf(8.dp.toPx(), min(rect.width, rect.height) * 0.22f)
+        drawCircle(colour.copy(alpha = 0.14f), radius * 1.35f, rect.center)
+        drawCircle(colour, radius, rect.center, style = Stroke(stroke))
+    }
+}
+
+private fun DrawScope.drawMarkedPlanes(grid: GridSpecDto, mark: VisualMarkDto) {
+    val colours = listOf(EvidenceCyan, EvidenceViolet, WarmWhite.copy(alpha = 0.8f))
+    val stroke = 2.dp.toPx()
+    mark.regions.sortedBy { it.order }.take(3).forEachIndexed { index, region ->
+        val rect = spanRect(region.cells, grid) ?: return@forEachIndexed
+        val colour = colours[index % colours.size]
+        drawRect(colour.copy(alpha = 0.12f), rect.topLeft, rect.size)
+        drawRect(colour, rect.topLeft, rect.size, style = Stroke(stroke))
+    }
+}
+
+private fun DrawScope.drawMarkedFindingFallback(grid: GridSpecDto, mark: VisualMarkDto) {
+    if (mark.cells.isNotEmpty()) {
+        val region = spanRect(mark.cells, grid) ?: return
+        drawRect(FindingRed.copy(alpha = 0.16f), region.topLeft, region.size)
+        drawRect(FindingRed, region.topLeft, region.size, style = Stroke(2.dp.toPx()))
+    } else {
+        drawRect(FindingRed.copy(alpha = 0.8f), style = Stroke(2.dp.toPx()))
+    }
+}
+
+private fun DrawScope.drawMarkedMove(grid: GridSpecDto, mark: VisualMarkDto) {
+    val from = spanRect(mark.cells, grid) ?: return
+    val to = spanRect(mark.toCells, grid) ?: return
+    drawMove(from.center, to, 2.dp.toPx())
+}
+
+private fun DrawScope.drawMarkedCrop(grid: GridSpecDto, cells: List<String>) {
+    val crop = spanRect(cells, grid) ?: return
+    val shade = Color.Black.copy(alpha = 0.55f)
+    drawRect(shade, size = androidx.compose.ui.geometry.Size(size.width, crop.top))
+    drawRect(
+        shade,
+        topLeft = Offset(0f, crop.bottom),
+        size = androidx.compose.ui.geometry.Size(size.width, size.height - crop.bottom),
+    )
+    drawRect(
+        shade,
+        topLeft = Offset(0f, crop.top),
+        size = androidx.compose.ui.geometry.Size(crop.left, crop.height),
+    )
+    drawRect(
+        shade,
+        topLeft = Offset(crop.right, crop.top),
+        size = androidx.compose.ui.geometry.Size(size.width - crop.right, crop.height),
+    )
+    drawRect(WarmWhite, crop.topLeft, crop.size, style = Stroke(2.dp.toPx()))
+}
+
+private fun DrawScope.drawGuide(guide: String, rotation: Int) {
     val colour = WarmWhite.copy(alpha = 0.34f)
     val stroke = 1.dp.toPx()
     val pointStroke = Stroke(stroke)
     when (guide) {
         "none", "fill" -> return
+        "golden_spiral" -> drawGoldenSpiral(rotation)
         "centre" -> {
             drawLine(colour, Offset(size.width / 2f, 0f), Offset(size.width / 2f, size.height), stroke)
             drawLine(colour, Offset(0f, size.height / 2f), Offset(size.width, size.height / 2f), stroke)
@@ -117,16 +319,70 @@ private fun DrawScope.drawGuide(guide: String) {
     }
 }
 
-private fun DrawScope.drawGuideRead(grid: GridSpecDto, composition: CompositionDto) {
+private fun DrawScope.drawGoldenSpiral(rotation: Int) {
+    val phi = (1.0 + sqrt(5.0)) / 2.0
+    val growth = ln(phi) / (Math.PI / 2.0)
+    val orientation = ((rotation % 4) + 4) % 4
+    val focus = when (orientation) {
+        0 -> Offset(size.width * 0.618f, size.height * 0.382f)
+        1 -> Offset(size.width * 0.618f, size.height * 0.618f)
+        2 -> Offset(size.width * 0.382f, size.height * 0.618f)
+        else -> Offset(size.width * 0.382f, size.height * 0.382f)
+    }
+    val outer = when (orientation) {
+        0 -> Offset(0f, size.height)
+        1 -> Offset.Zero
+        2 -> Offset(size.width, 0f)
+        else -> Offset(size.width, size.height)
+    }
+    val endAngle = atan2(outer.y - focus.y, outer.x - focus.x).toDouble()
+    val quarterTurns = 8
+    val thetaMax = quarterTurns * Math.PI / 2.0
+    val radiusMax = kotlin.math.hypot(
+        (outer.x - focus.x).toDouble(),
+        (outer.y - focus.y).toDouble(),
+    )
+    val path = Path()
+    val samples = 180
+    repeat(samples + 1) { index ->
+        val theta = thetaMax * index / samples
+        val radius = radiusMax * exp(growth * (theta - thetaMax))
+        val angle = endAngle - thetaMax + theta
+        val point = Offset(
+            x = (focus.x + radius * cos(angle)).toFloat(),
+            y = (focus.y + radius * sin(angle)).toFloat(),
+        )
+        if (index == 0) path.moveTo(point.x, point.y) else path.lineTo(point.x, point.y)
+    }
+    val stroke = 1.6.dp.toPx()
+    drawPath(path, Color.Black.copy(alpha = 0.5f), style = Stroke(stroke * 2.2f))
+    drawPath(path, WarmWhite.copy(alpha = 0.82f), style = Stroke(stroke))
+    drawCircle(
+        WarmWhite.copy(alpha = 0.7f),
+        radius = 5.dp.toPx(),
+        center = focus,
+        style = Stroke(1.dp.toPx()),
+    )
+}
+
+private fun DrawScope.drawCompositionEvidence(grid: GridSpecDto, composition: CompositionDto) {
     val stroke = 2.dp.toPx()
+    spanRect(composition.subjectCells, grid)?.let { region ->
+        drawRect(Amber.copy(alpha = 0.10f), region.topLeft, region.size)
+        drawRect(Amber.copy(alpha = 0.82f), region.topLeft, region.size, style = Stroke(stroke))
+    }
     composition.horizonRow
         ?.takeIf { it in 1..grid.rows }
         ?.let { row ->
             val y = (row - 0.5f) * size.height / grid.rows
-            drawLine(WarmWhite.copy(alpha = 0.62f), Offset(0f, y), Offset(size.width, y), stroke)
+            drawLine(Amber.copy(alpha = 0.86f), Offset(0f, y), Offset(size.width, y), stroke)
         }
+    drawSubjectPoint(grid, composition)
+}
+
+private fun DrawScope.drawSubjectPoint(grid: GridSpecDto, composition: CompositionDto) {
     subjectPoint(grid, composition)?.let {
-        drawCircle(WarmWhite, radius = 4.dp.toPx(), center = it)
+        drawCircle(Amber, radius = 4.dp.toPx(), center = it)
     }
 }
 
@@ -271,6 +527,22 @@ private fun DrawScope.spanRect(refs: List<String>, grid: GridSpecDto): Rect? {
     )
 }
 
+private fun DrawScope.cellCentres(refs: List<String>, grid: GridSpecDto): List<Offset> =
+    refs.mapNotNull { ref ->
+        CELL.matchEntire(ref.trim().uppercase())?.let { match ->
+            val col = match.groupValues[1][0] - 'A'
+            val row = match.groupValues[2].toIntOrNull()?.minus(1) ?: return@let null
+            if (col !in 0 until grid.cols || row !in 0 until grid.rows) {
+                null
+            } else {
+                Offset(
+                    x = (col + 0.5f) * size.width / grid.cols,
+                    y = (row + 0.5f) * size.height / grid.rows,
+                )
+            }
+        }
+    }
+
 private data class CellSpan(val left: Float, val top: Float, val right: Float, val bottom: Float)
 
 private fun span(refs: List<String>, grid: GridSpecDto): CellSpan? {
@@ -365,7 +637,8 @@ private fun place(refs: List<String>, grid: GridSpecDto): String {
 }
 
 fun guideLabel(guide: String): String = when (guide) {
-    "phi" -> "Phi"
+    "phi" -> "Phi grid"
+    "golden_spiral" -> "Golden spiral"
     "diagonals" -> "Diagonal"
     "centre" -> "Centre"
     "fill" -> "Frame fill"

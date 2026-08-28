@@ -56,7 +56,7 @@ describe('ConnectStep', () => {
   it('says what connecting does before asking for it', () => {
     const wrapper = render(ConnectStep)
     expect(wrapper.text()).toMatch(/folder named Shoots/i)
-    expect(wrapper.text()).toMatch(/No access to the rest of your Drive/i)
+    expect(wrapper.text()).toMatch(/Existing files are read only when you select them/i)
     expect(wrapper.text()).toMatch(/Phone Source and direct upload work without Drive/i)
     expect(wrapper.find('button').text()).toBe('Connect optional Drive')
   })

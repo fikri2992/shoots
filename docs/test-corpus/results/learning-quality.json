@@ -1,0 +1,3880 @@
+{
+  "quality_version": "learning-quality-v1",
+  "manifest": "photography-test-corpus-2026-08-28",
+  "manifest_sha256": "dd4051fc4c27887116a090e6bcf2f5f664836901a1f0a2e9a3f63b30d2f4e409",
+  "created_at": "2026-08-28T07:43:21.456796+00:00",
+  "model": "gemini-3.7-flash",
+  "provider": "vertex",
+  "model_location": "global",
+  "case_count": 13,
+  "summary": {
+    "pass": 176,
+    "fail": 5,
+    "review": 4,
+    "errored_cases": 2
+  },
+  "cases": [
+    {
+      "id": "online-panning-cyclist",
+      "note": "A real phone panning example.",
+      "filename": "01-panning-cyclist.jpg",
+      "input_sha256": "5755af5d4fa9dafdbfaee7ecb6c2432946785dd0280c5632d06c6cd222370095",
+      "elapsed_seconds": 80.313,
+      "model": "gemini-3.7-flash",
+      "prompt_version": "1c738851cdfb",
+      "shot_evidence": {
+        "kind": "photo",
+        "mime_type": "image/jpeg",
+        "exif": {
+          "make": "Xiaomi",
+          "model": "Redmi 6A",
+          "lens": "",
+          "exposure_time_s": 0.029996,
+          "f_number": 2.2,
+          "iso": 447,
+          "focal_length_mm": 3.79,
+          "flash_fired": false,
+          "captured_at": "2021-04-11T18:24:30Z",
+          "latitude": 28.638737,
+          "longitude": 77.218307
+        },
+        "tone": {
+          "cct_k": 7317,
+          "cast": 1.1,
+          "saturation": 23.9,
+          "saturation_p95": 51.4,
+          "accent_share": 3.9,
+          "warm_share": 32.7,
+          "cool_share": 34.0,
+          "luma_mean": 122.9,
+          "luma_p5": 38.1,
+          "luma_p95": 185.0,
+          "clipped_high": 0.18,
+          "clipped_low": 0.0,
+          "hues": [
+            "cyan",
+            "red",
+            "magenta"
+          ],
+          "hue_opposition": 150
+        },
+        "motion": null,
+        "grid": {
+          "cols": 7,
+          "rows": 9,
+          "width": 1096,
+          "height": 1536
+        }
+      },
+      "analysis": {
+        "shot_id": "shot_-cyclist_quality_5755af5d4fa9dafdbfaee7ec",
+        "user_id": "quality_online-panning-cyclist",
+        "model": "gemini-3.7-flash",
+        "prompt_version": "1c738851cdfb",
+        "techniques": [
+          {
+            "technique_id": "panning",
+            "confidence": 0.833,
+            "cells": [
+              "A1",
+              "B1",
+              "C1",
+              "D1",
+              "E1",
+              "F1",
+              "G1",
+              "A2",
+              "B2",
+              "C2",
+              "D2",
+              "E2",
+              "F2",
+              "G2",
+              "A3",
+              "B3",
+              "C3",
+              "D3",
+              "E3",
+              "F3",
+              "G3",
+              "G5"
+            ],
+            "note": "Horizontal streaking in the background indicates a panning attempt at 1/33 s.",
+            "agreement": 3,
+            "lenses": [
+              "technician",
+              "composer",
+              "storyteller"
+            ]
+          },
+          {
+            "technique_id": "motion_blur",
+            "confidence": 0.825,
+            "cells": [
+              "A8",
+              "B8",
+              "A9",
+              "B9",
+              "D8",
+              "E8",
+              "D9",
+              "E9",
+              "C6",
+              "D7",
+              "A7",
+              "F8"
+            ],
+            "note": "Rotational and subject movement blurred the wheels and pedaling feet during the slow 1/33 s exposure.",
+            "agreement": 2,
+            "lenses": [
+              "technician",
+              "composer"
+            ]
+          },
+          {
+            "technique_id": "single_accent",
+            "confidence": 0.775,
+            "cells": [
+              "B5",
+              "B6",
+              "C5",
+              "C6",
+              "C7",
+              "D6",
+              "D7",
+              "E6",
+              "E7",
+              "E8",
+              "B7",
+              "C8",
+              "D8"
+            ],
+            "note": "The vivid red bicycle frame accounts for the small 4% high-saturation share, popping against a restrained 24% mean saturation scene.",
+            "agreement": 2,
+            "lenses": [
+              "composer",
+              "storyteller"
+            ]
+          },
+          {
+            "technique_id": "complementary",
+            "confidence": 0.8,
+            "cells": [],
+            "note": "The dominant red of the bicycle opposes the cyan tones in the road and background by 150° on the color wheel.",
+            "agreement": 1,
+            "lenses": [
+              "storyteller"
+            ]
+          }
+        ],
+        "composition": {
+          "subject_cells": [
+            "A5",
+            "B5",
+            "C4",
+            "C5",
+            "C6",
+            "D4",
+            "D5",
+            "D6",
+            "A7",
+            "B7",
+            "C7",
+            "D7",
+            "E7",
+            "A8",
+            "B8",
+            "C8",
+            "D8",
+            "E8",
+            "F8",
+            "A9",
+            "B9",
+            "D9",
+            "E9"
+          ],
+          "subject_x": 0.38,
+          "subject_y": 0.62,
+          "guide": "phi",
+          "horizon_row": null,
+          "suggested_crop_cells": [],
+          "crop_tested": false,
+          "crop_before": null,
+          "crop_after": null,
+          "crop_rounds": 0,
+          "crop_reason": "",
+          "moves": [
+            {
+              "what": "Pan the camera left to provide active lead room ahead of the cyclist.",
+              "kind": "camera",
+              "from_cells": [],
+              "to_cells": [],
+              "reason": "The cyclist travels toward the left edge with no visual space ahead, leaving dead space behind in columns F and G.",
+              "warrant": "frame_edge",
+              "challenges_technique_ids": []
+            }
+          ]
+        },
+        "observations": [
+          "A cyclist riding a bright red bicycle is positioned across B4 to E9.",
+          "The background foliage and wall across rows A1 to G4 show strong horizontal motion streaking.",
+          "The cyclist's torso, head, and limbs in C4 to D7 exhibit soft edges and motion blur.",
+          "The bicycle wheels in A8-B9 and D8-E9 show rotational motion blur on the spokes.",
+          "A cyclist riding toward the left occupies columns A through E across rows 4 to 9.",
+          "The bicycle's front wheel and handlebars crowd the left edge in A6-B9, while empty road and wall fill the right in F4-G9.",
+          "The background in rows 1 to 5 displays strong horizontal streaks from camera panning.",
+          "The lighting is flat and diffuse across the scene, casting minimal soft shadows directly under the bike in rows 8 and 9.",
+          "A young cyclist wearing a patterned white shirt and dark trousers rides across cells B3 to F9, looking over their shoulder.",
+          "A vivid red-orange bicycle frame spans cells B5 to F8, contrasting against the muted asphalt road across A6 to G9.",
+          "The background through A1 to G5 displays heavy horizontal motion blur of trees and roadside barriers."
+        ],
+        "findings": [],
+        "critique": "The vibrant red bicycle cuts cleanly through the cool, muted tones of the street, and the horizontally streaked background establishes a strong feeling of speed as the cyclist glances back. However, at 1/33 s, a slight tracking mismatch leaves the rider's face and body smeared, while framing them right against the left edge crowds their path forward. Next time, bump your shutter speed toward 1/125 s to sharpen the rider against the motion blur, and pan slightly ahead to leave lead room in front of the bike.",
+        "panel": {
+          "technician": 22.3,
+          "composer": 66.3,
+          "storyteller": 17.3
+        },
+        "dissent": [],
+        "abstained": "",
+        "created_at": "2026-08-28T07:26:58.786784Z"
+      },
+      "teaching": {
+        "keep_title": "Panning",
+        "keep_proof": "Horizontal streaking in the background indicates a panning attempt at 1/33 s.",
+        "keep_technique_id": "panning",
+        "keep_authority": "model_read",
+        "keep_cells": [
+          "A1",
+          "B1",
+          "C1",
+          "D1",
+          "E1",
+          "F1",
+          "G1",
+          "A2",
+          "B2",
+          "C2",
+          "D2",
+          "E2",
+          "F2",
+          "G2",
+          "A3",
+          "B3",
+          "C3",
+          "D3",
+          "E3",
+          "F3",
+          "G3",
+          "G5"
+        ],
+        "notice_title": "A cyclist riding toward the left occupies.",
+        "notice_proof": "One Analyst observation; not a measured Finding.",
+        "notice_finding_id": "",
+        "notice_authority": "model_read",
+        "notice_cells": [],
+        "try_text": "Pan the camera left to provide active lead room ahead of the cyclist.",
+        "try_reason": "The cyclist travels toward the left edge with no visual space ahead, leaving dead space behind in the right of the frame.",
+        "try_kind": "camera",
+        "try_from_cells": [],
+        "try_to_cells": [],
+        "visible_check": "After changing viewpoint, compare the subject's separation and every frame edge.",
+        "primary_layer": "guide",
+        "guide": "phi"
+      },
+      "artifacts": {
+        "annotated": "C:\\Users\\fikuri\\Documents\\shoots\\docs\\test-corpus\\results\\learning-quality-assets\\users\\quality_online-panning-cyclist\\shots\\shot_-cyclist_quality_5755af5d4fa9dafdbfaee7ec\\annotated.jpg"
+      },
+      "checks": [
+        {
+          "name": "taxonomy",
+          "status": "pass",
+          "detail": "stored Technique ids: ['complementary', 'motion_blur', 'panning', 'single_accent']"
+        },
+        {
+          "name": "receipt has no internal cells",
+          "status": "pass",
+          "detail": "visible characters: 450"
+        },
+        {
+          "name": "receipt has no clipped clause",
+          "status": "pass",
+          "detail": "visible receipt clauses are complete"
+        },
+        {
+          "name": "receipt is bounded",
+          "status": "pass",
+          "detail": "450 <= 700"
+        },
+        {
+          "name": "authority labels",
+          "status": "pass",
+          "detail": "keep=model_read, notice=model_read"
+        },
+        {
+          "name": "one supported image layer",
+          "status": "pass",
+          "detail": "guide"
+        },
+        {
+          "name": "Try preserves Keep",
+          "status": "pass",
+          "detail": "selected Move challenges []"
+        },
+        {
+          "name": "Try has corrective warrant",
+          "status": "pass",
+          "detail": "selected Move warrant: frame_edge"
+        },
+        {
+          "name": "Try has a concrete reason",
+          "status": "pass",
+          "detail": "The cyclist travels toward the left edge with no visual space ahead, leaving dead space behind in columns F and G."
+        },
+        {
+          "name": "abstention policy",
+          "status": "pass",
+          "detail": "panel did not abstain"
+        },
+        {
+          "name": "required Technique group 1",
+          "status": "pass",
+          "detail": "expected any of ['panning', 'motion_blur']; found ['motion_blur', 'panning']"
+        },
+        {
+          "name": "forbidden Techniques",
+          "status": "pass",
+          "detail": "found []"
+        },
+        {
+          "name": "required Findings",
+          "status": "pass",
+          "detail": "missing []; found []"
+        },
+        {
+          "name": "forbidden Findings",
+          "status": "pass",
+          "detail": "found []"
+        },
+        {
+          "name": "forbidden Move kinds",
+          "status": "pass",
+          "detail": "forbidden []; found camera"
+        },
+        {
+          "name": "forbidden Move phrases",
+          "status": "pass",
+          "detail": "found []"
+        },
+        {
+          "name": "human review 1",
+          "status": "review",
+          "detail": "Does the receipt separate deliberate panning from global camera shake?"
+        }
+      ],
+      "error": ""
+    },
+    {
+      "id": "online-leading-lines-road",
+      "note": "",
+      "filename": "02-leading-lines-road.jpg",
+      "input_sha256": "bcb174f73a8e2c5069a07a5585577d58fd96ae066138b33c7e99d073cca0aab4",
+      "elapsed_seconds": 57.828,
+      "model": "gemini-3.7-flash",
+      "prompt_version": "1c738851cdfb",
+      "shot_evidence": {
+        "kind": "photo",
+        "mime_type": "image/jpeg",
+        "exif": {
+          "make": "NIKON CORPORATION",
+          "model": "NIKON D5200",
+          "lens": "18.0-105.0 mm f/3.5-5.6",
+          "exposure_time_s": 0.004,
+          "f_number": 8.0,
+          "iso": 200,
+          "focal_length_mm": 18.0,
+          "focal_length_35mm": 18,
+          "flash_fired": false,
+          "captured_at": "2014-04-04T15:37:27Z"
+        },
+        "tone": {
+          "cct_k": 6638,
+          "cast": 3.5,
+          "saturation": 28.8,
+          "saturation_p95": 65.9,
+          "accent_share": 10.6,
+          "warm_share": 50.6,
+          "cool_share": 12.3,
+          "luma_mean": 98.6,
+          "luma_p5": 37.5,
+          "luma_p95": 204.9,
+          "clipped_high": 0.26,
+          "clipped_low": 0.0,
+          "hues": [
+            "amber",
+            "orange",
+            "cyan"
+          ],
+          "hue_opposition": 30
+        },
+        "motion": null,
+        "grid": {
+          "cols": 10,
+          "rows": 6,
+          "width": 1536,
+          "height": 1000
+        }
+      },
+      "analysis": {
+        "shot_id": "shot_nes-road_quality_bcb174f73a8e2c5069a07a55",
+        "user_id": "quality_online-leading-lines-road",
+        "model": "gemini-3.7-flash",
+        "prompt_version": "1c738851cdfb",
+        "techniques": [
+          {
+            "technique_id": "leading_lines",
+            "confidence": 0.915,
+            "cells": [
+              "H6",
+              "I6",
+              "I5",
+              "I4",
+              "H4",
+              "G3",
+              "G2"
+            ],
+            "note": "The bridge and winding road draw the eye from the bottom right corner up into the hillside settlement.",
+            "agreement": 2,
+            "lenses": [
+              "composer",
+              "storyteller"
+            ]
+          },
+          {
+            "technique_id": "deep_dof",
+            "confidence": 0.9,
+            "cells": [
+              "A1",
+              "J6"
+            ],
+            "note": "Aperture of f/8 at 18 mm delivers consistent front-to-back sharpness from the bridge in H6 to the mountain ridgelines in E1-G2.",
+            "agreement": 2,
+            "lenses": [
+              "technician",
+              "composer"
+            ]
+          },
+          {
+            "technique_id": "layering",
+            "confidence": 0.85,
+            "cells": [
+              "A6",
+              "F6",
+              "I6",
+              "D4",
+              "G3",
+              "D2",
+              "F1",
+              "J6",
+              "A3",
+              "J3",
+              "A1",
+              "J1"
+            ],
+            "note": "Three distinct depth planes span from the foreground river and bridge to the midground village and distant mountain ridge.",
+            "agreement": 2,
+            "lenses": [
+              "composer",
+              "storyteller"
+            ]
+          },
+          {
+            "technique_id": "soft_light",
+            "confidence": 0.8,
+            "cells": [
+              "A1",
+              "D2",
+              "E3",
+              "H5"
+            ],
+            "note": "Overcast daylight creates soft, even illumination without harsh directional shadow edges.",
+            "agreement": 2,
+            "lenses": [
+              "technician",
+              "composer"
+            ]
+          },
+          {
+            "technique_id": "wide_angle",
+            "confidence": 0.9,
+            "cells": [
+              "A1",
+              "J6"
+            ],
+            "note": "The 18 mm focal length produces an expansive landscape perspective encompassing foreground bridge structures and distant valley peaks.",
+            "agreement": 1,
+            "lenses": [
+              "technician"
+            ]
+          },
+          {
+            "technique_id": "warm_cool",
+            "confidence": 0.75,
+            "cells": [],
+            "note": "The 51% warm earth tones and foliage contrast against 12% cool tones in the sky and rushing river.",
+            "agreement": 1,
+            "lenses": [
+              "storyteller"
+            ]
+          }
+        ],
+        "composition": {
+          "subject_cells": [
+            "G3",
+            "H3",
+            "H4",
+            "I4",
+            "I5",
+            "I6",
+            "H6"
+          ],
+          "subject_x": 0.78,
+          "subject_y": 0.65,
+          "guide": "diagonals",
+          "horizon_row": null,
+          "suggested_crop_cells": [],
+          "crop_tested": false,
+          "crop_before": null,
+          "crop_after": null,
+          "crop_rounds": 0,
+          "crop_reason": "",
+          "moves": [
+            {
+              "what": "Step forward to clear the thin foreground branches obscuring the riverbed.",
+              "kind": "camera",
+              "from_cells": [],
+              "to_cells": [],
+              "reason": "The bare tree branches in E6-G6 visually cut across the clean flow of the river below.",
+              "warrant": "visible_conflict",
+              "challenges_technique_ids": []
+            }
+          ]
+        },
+        "observations": [
+          "Overcast sky with clouds occupies cells A1 through D2.",
+          "A steep mountain slope with terraced hillside buildings extends across F1 through J3.",
+          "A narrow curving roadway winds from H3 through I5 down to a concrete bridge in H6-I6.",
+          "A boulder-strewn river with moving white water flows through A4 across to G6.",
+          "Deciduous trees and foliage throughout C3 to G6 maintain sharpness from foreground to midground.",
+          "A rocky riverbed runs through the lower midground from C5-D6 across to the bottom right at H6.",
+          "A concrete bridge and paved road enter at H6-I6, curving sharply upward through I5, H4, and G3 toward a hillside village in H2-J2.",
+          "A steep mountain slope dominates the upper-middle frame across D2-H1, set against cloud-covered sky in A1-D2.",
+          "Diffuse daylight evenly illuminates the valley, creating soft, low-contrast shadows consistent with the measured 6638 K overcast light.",
+          "A curving concrete and stone bridge enters at H6 and leads into a narrow road winding up a steep hillside toward a terraced village in G2-J2.",
+          "A wide, boulder-strewn river with flowing white water runs diagonally through the valley floor across B4-F6.",
+          "Layered green and brown mountain ridges rise dramatically into the upper frame from C1-H2 beneath a patch of blue sky and clouds in A1-C2."
+        ],
+        "findings": [],
+        "critique": "The winding stone bridge and road create an effective leading line that draws the eye across the rocky riverbed and up into the terraced hillside village. Under the soft 6638 K overcast daylight, the scene carries balanced, gentle tones, but the thin foreground branches along the lower edge visually clutter the rushing water below. Step forward past the brush on the rim to give the river and bridge an unobstructed path into the valley.",
+        "panel": {
+          "technician": 40.6,
+          "composer": 43.1,
+          "storyteller": 16.1
+        },
+        "dissent": [
+          {
+            "lens": "storyteller",
+            "technique_id": "muted_palette",
+            "confidence": 0.72
+          }
+        ],
+        "abstained": "",
+        "created_at": "2026-08-28T07:27:56.614721Z"
+      },
+      "teaching": {
+        "keep_title": "Leading lines",
+        "keep_proof": "The bridge and winding road draw the eye from the bottom right corner up into the hillside settlement.",
+        "keep_technique_id": "leading_lines",
+        "keep_authority": "model_read",
+        "keep_cells": [
+          "H6",
+          "I6",
+          "I5",
+          "I4",
+          "H4",
+          "G3",
+          "G2"
+        ],
+        "notice_title": "A boulder-strewn river with moving white water flows through across to.",
+        "notice_proof": "One Analyst observation; not a measured Finding.",
+        "notice_finding_id": "",
+        "notice_authority": "model_read",
+        "notice_cells": [],
+        "try_text": "Step forward to clear the thin foreground branches obscuring the riverbed.",
+        "try_reason": "The bare tree branches in the bottom of the frame visually cut across the clean flow of the river below.",
+        "try_kind": "camera",
+        "try_from_cells": [],
+        "try_to_cells": [],
+        "visible_check": "After changing viewpoint, check that the background no longer crosses or competes with the subject.",
+        "primary_layer": "guide",
+        "guide": "diagonals"
+      },
+      "artifacts": {
+        "annotated": "C:\\Users\\fikuri\\Documents\\shoots\\docs\\test-corpus\\results\\learning-quality-assets\\users\\quality_online-leading-lines-road\\shots\\shot_nes-road_quality_bcb174f73a8e2c5069a07a55\\annotated.jpg"
+      },
+      "checks": [
+        {
+          "name": "taxonomy",
+          "status": "pass",
+          "detail": "stored Technique ids: ['deep_dof', 'layering', 'leading_lines', 'soft_light', 'warm_cool', 'wide_angle']"
+        },
+        {
+          "name": "receipt has no internal cells",
+          "status": "pass",
+          "detail": "visible characters: 517"
+        },
+        {
+          "name": "receipt has no clipped clause",
+          "status": "pass",
+          "detail": "visible receipt clauses are complete"
+        },
+        {
+          "name": "receipt is bounded",
+          "status": "pass",
+          "detail": "517 <= 700"
+        },
+        {
+          "name": "authority labels",
+          "status": "pass",
+          "detail": "keep=model_read, notice=model_read"
+        },
+        {
+          "name": "one supported image layer",
+          "status": "pass",
+          "detail": "guide"
+        },
+        {
+          "name": "Try preserves Keep",
+          "status": "pass",
+          "detail": "selected Move challenges []"
+        },
+        {
+          "name": "Try has corrective warrant",
+          "status": "pass",
+          "detail": "selected Move warrant: visible_conflict"
+        },
+        {
+          "name": "Try has a concrete reason",
+          "status": "pass",
+          "detail": "The bare tree branches in E6-G6 visually cut across the clean flow of the river below."
+        },
+        {
+          "name": "abstention policy",
+          "status": "pass",
+          "detail": "panel did not abstain"
+        },
+        {
+          "name": "required Technique group 1",
+          "status": "pass",
+          "detail": "expected any of ['leading_lines']; found ['leading_lines']"
+        },
+        {
+          "name": "forbidden Techniques",
+          "status": "pass",
+          "detail": "found []"
+        },
+        {
+          "name": "required Findings",
+          "status": "pass",
+          "detail": "missing []; found []"
+        },
+        {
+          "name": "forbidden Findings",
+          "status": "pass",
+          "detail": "found []"
+        },
+        {
+          "name": "forbidden Move kinds",
+          "status": "pass",
+          "detail": "forbidden []; found camera"
+        },
+        {
+          "name": "forbidden Move phrases",
+          "status": "pass",
+          "detail": "found []"
+        }
+      ],
+      "error": ""
+    },
+    {
+      "id": "online-window-portrait",
+      "note": "",
+      "filename": "03-window-portrait.jpg",
+      "input_sha256": "dc766122d1593581328375d21d476fd0ab5909309cb249ebacea5fb9c723b08c",
+      "elapsed_seconds": 115.14,
+      "model": "gemini-3.7-flash",
+      "prompt_version": "1c738851cdfb",
+      "shot_evidence": {
+        "kind": "photo",
+        "mime_type": "image/jpeg",
+        "exif": {
+          "make": "Canon",
+          "model": "Canon EOS 30D",
+          "lens": "",
+          "exposure_time_s": 0.0025,
+          "f_number": 1.4,
+          "iso": 160,
+          "focal_length_mm": 50.0,
+          "flash_fired": false,
+          "captured_at": "2008-06-14T15:28:02Z"
+        },
+        "tone": {
+          "cct_k": 6155,
+          "cast": 21.3,
+          "saturation": 40.2,
+          "saturation_p95": 76.1,
+          "accent_share": 31.3,
+          "warm_share": 62.5,
+          "cool_share": 8.7,
+          "luma_mean": 85.5,
+          "luma_p5": 3.0,
+          "luma_p95": 243.9,
+          "clipped_high": 1.96,
+          "clipped_low": 11.81,
+          "hues": [
+            "red",
+            "amber",
+            "orange"
+          ],
+          "hue_opposition": 60
+        },
+        "motion": null,
+        "grid": {
+          "cols": 7,
+          "rows": 9,
+          "width": 1024,
+          "height": 1536
+        }
+      },
+      "analysis": {
+        "shot_id": "shot_portrait_quality_dc766122d1593581328375d2",
+        "user_id": "quality_online-window-portrait",
+        "model": "gemini-3.7-flash",
+        "prompt_version": "1c738851cdfb",
+        "techniques": [
+          {
+            "technique_id": "shallow_dof",
+            "confidence": 0.833,
+            "cells": [
+              "A1",
+              "A6",
+              "B2",
+              "B6",
+              "A2",
+              "A3",
+              "A4",
+              "B3",
+              "B4",
+              "C7"
+            ],
+            "note": "Shot wide open at f/1.4, rendering the background foliage into smooth blur.",
+            "agreement": 3,
+            "lenses": [
+              "technician",
+              "composer",
+              "storyteller"
+            ]
+          },
+          {
+            "technique_id": "eye_contact_portrait",
+            "confidence": 0.925,
+            "cells": [
+              "D2",
+              "D3",
+              "E2",
+              "E3",
+              "E4"
+            ],
+            "note": "Direct gaze into the lens with the eyes positioned along the upper third line.",
+            "agreement": 2,
+            "lenses": [
+              "composer",
+              "storyteller"
+            ]
+          },
+          {
+            "technique_id": "frame_within_frame",
+            "confidence": 0.85,
+            "cells": [
+              "B1",
+              "C1",
+              "C2",
+              "C3",
+              "C4",
+              "C5",
+              "C6",
+              "C7",
+              "G2",
+              "G3",
+              "G4",
+              "C8",
+              "F1",
+              "G6"
+            ],
+            "note": "The vertical window sashes and sill frame the subject against the outdoor foliage.",
+            "agreement": 2,
+            "lenses": [
+              "composer",
+              "storyteller"
+            ]
+          },
+          {
+            "technique_id": "normal_portrait",
+            "confidence": 0.9,
+            "cells": [
+              "D2",
+              "E3",
+              "D5",
+              "E6"
+            ],
+            "note": "The 50 mm focal length on an APS-C sensor yields an 80 mm equivalent field of view with natural facial proportions.",
+            "agreement": 1,
+            "lenses": [
+              "technician"
+            ]
+          },
+          {
+            "technique_id": "backlight",
+            "confidence": 0.8,
+            "cells": [
+              "A1",
+              "A2",
+              "A3",
+              "A4",
+              "B1",
+              "B2",
+              "B3",
+              "B4",
+              "C2",
+              "C3"
+            ],
+            "note": "Strong outdoor daylight behind the subject creates high dynamic range against the interior shadow.",
+            "agreement": 1,
+            "lenses": [
+              "composer"
+            ]
+          }
+        ],
+        "composition": {
+          "subject_cells": [
+            "D2",
+            "D3",
+            "D4",
+            "E2",
+            "E3",
+            "E4"
+          ],
+          "subject_x": 0.58,
+          "subject_y": 0.27,
+          "guide": "phi",
+          "horizon_row": null,
+          "suggested_crop_cells": [],
+          "crop_tested": true,
+          "crop_before": 7,
+          "crop_after": null,
+          "crop_rounds": 1,
+          "crop_reason": "Cropping out columns A and B awkwardly amputates the subject's hand and creates an uncomfortably narrow aspect ratio that destroys the environmental balance.",
+          "moves": [
+            {
+              "what": "Step slightly to the right to give breathing room along the right edge.",
+              "kind": "camera",
+              "from_cells": [],
+              "to_cells": [],
+              "reason": "The right arm and shoulder are squeezed tightly against column G while the left holds dead space.",
+              "warrant": "frame_edge",
+              "challenges_technique_ids": []
+            },
+            {
+              "what": "Crop columns A and B to eliminate the distracting bright green background.",
+              "kind": "crop",
+              "from_cells": [],
+              "to_cells": [
+                "C1",
+                "C9",
+                "G1",
+                "G9"
+              ],
+              "reason": "The empty high-key foliage on the left pulls attention away from the darker subject.",
+              "warrant": "visible_conflict",
+              "challenges_technique_ids": []
+            }
+          ]
+        },
+        "observations": [
+          "The subject's face is positioned across D2-E4, with eyes in D3 and E3.",
+          "The outdoor foliage visible through the window across A1-B7 is softly blurred.",
+          "Vertical and horizontal elements of a weathered window frame run through columns C1-C7, G1-G7, and row 7.",
+          "The subject wears a dark top spanning D5-G8, where deep shadow tones dominate.",
+          "Bright ambient daylight highlights the subject's left forearm across F5-G7 and the sill in G8.",
+          "A female subject occupies columns D through G from rows 2 down to 9, looking directly into the lens.",
+          "A white window frame borders the subject on the left across columns B and C and along the lower sill in rows 7 and 8.",
+          "Bright daylight enters from the background in columns A through C, illuminating lush green foliage behind the window opening.",
+          "The subject's face is positioned in cells D2-E4, receiving soft directional fill while backlit by outdoor daylight.",
+          "A young woman in a black halter top poses at C1-G9, looking directly toward the lens with her hands resting on a ledge at B8-D8.",
+          "A white window frame flanks her at B1-C8 and F1-G7, opening out to lush green foliage in the background at A1-C8.",
+          "Directional ambient light from the right illuminates the side of her face and arm at E2-G8, while her torso and the interior fall into deep shadow."
+        ],
+        "findings": [],
+        "critique": "The subject's direct gaze and the weathered window frame create an intimate, engaging portrait, with soft daylight beautifully sculpting her features against the blurred outdoor foliage. However, 11.81% of the frame is crushed to pure black across her clothing and torso, creating an overly harsh drop-off in shadow detail while the bright window opening on the left pulls the eye away from her tightly cropped right shoulder. Next time, step slightly to the right to give the subject breathing room and use a bounce reflector on the shadow side to lift the dark tones.",
+        "panel": {
+          "technician": 65.2,
+          "composer": 60.3,
+          "storyteller": 18.8
+        },
+        "dissent": [],
+        "abstained": "",
+        "created_at": "2026-08-28T07:29:11.988821Z"
+      },
+      "teaching": {
+        "keep_title": "Shallow depth of field",
+        "keep_proof": "Shot wide open at f/1.4, rendering the background foliage into smooth blur.",
+        "keep_technique_id": "shallow_dof",
+        "keep_authority": "model_read",
+        "keep_cells": [
+          "A1",
+          "A6",
+          "B2",
+          "B6",
+          "A2",
+          "A3",
+          "A4",
+          "B3",
+          "B4",
+          "C7"
+        ],
+        "notice_title": "A white window frame borders the subject on the left and along the lower sill.",
+        "notice_proof": "One Analyst observation; not a measured Finding.",
+        "notice_finding_id": "",
+        "notice_authority": "model_read",
+        "notice_cells": [],
+        "try_text": "Step slightly to the right to give breathing room along the right edge.",
+        "try_reason": "The right arm and shoulder are squeezed tightly against the right of the frame while the left holds dead space.",
+        "try_kind": "camera",
+        "try_from_cells": [],
+        "try_to_cells": [],
+        "visible_check": "After changing viewpoint, compare the subject's separation and every frame edge.",
+        "primary_layer": "guide",
+        "guide": "phi"
+      },
+      "artifacts": {
+        "annotated": "C:\\Users\\fikuri\\Documents\\shoots\\docs\\test-corpus\\results\\learning-quality-assets\\users\\quality_online-window-portrait\\shots\\shot_portrait_quality_dc766122d1593581328375d2\\annotated.jpg"
+      },
+      "checks": [
+        {
+          "name": "taxonomy",
+          "status": "pass",
+          "detail": "stored Technique ids: ['backlight', 'eye_contact_portrait', 'frame_within_frame', 'normal_portrait', 'shallow_dof']"
+        },
+        {
+          "name": "receipt has no internal cells",
+          "status": "pass",
+          "detail": "visible characters: 491"
+        },
+        {
+          "name": "receipt has no clipped clause",
+          "status": "pass",
+          "detail": "visible receipt clauses are complete"
+        },
+        {
+          "name": "receipt is bounded",
+          "status": "pass",
+          "detail": "491 <= 700"
+        },
+        {
+          "name": "authority labels",
+          "status": "pass",
+          "detail": "keep=model_read, notice=model_read"
+        },
+        {
+          "name": "one supported image layer",
+          "status": "pass",
+          "detail": "guide"
+        },
+        {
+          "name": "Try preserves Keep",
+          "status": "pass",
+          "detail": "selected Move challenges []"
+        },
+        {
+          "name": "Try has corrective warrant",
+          "status": "pass",
+          "detail": "selected Move warrant: frame_edge"
+        },
+        {
+          "name": "Try has a concrete reason",
+          "status": "pass",
+          "detail": "The right arm and shoulder are squeezed tightly against column G while the left holds dead space."
+        },
+        {
+          "name": "abstention policy",
+          "status": "pass",
+          "detail": "panel did not abstain"
+        },
+        {
+          "name": "required Technique group 1",
+          "status": "pass",
+          "detail": "expected any of ['window_light', 'shallow_dof']; found ['shallow_dof']"
+        },
+        {
+          "name": "forbidden Techniques",
+          "status": "pass",
+          "detail": "found []"
+        },
+        {
+          "name": "required Findings",
+          "status": "pass",
+          "detail": "missing []; found []"
+        },
+        {
+          "name": "forbidden Findings",
+          "status": "pass",
+          "detail": "found []"
+        },
+        {
+          "name": "forbidden Move kinds",
+          "status": "pass",
+          "detail": "forbidden []; found camera"
+        },
+        {
+          "name": "forbidden Move phrases",
+          "status": "pass",
+          "detail": "found []"
+        },
+        {
+          "name": "human review 1",
+          "status": "review",
+          "detail": "Does the subject location follow the person rather than the bright window?"
+        }
+      ],
+      "error": ""
+    },
+    {
+      "id": "online-sunset-silhouette",
+      "note": "",
+      "filename": "04-sunset-silhouette.jpg",
+      "input_sha256": "3951f28e87da0f9dc75ef7ac499bf431279ae8f94d7d6efc3dd89a9774201a17",
+      "elapsed_seconds": 148.922,
+      "model": "gemini-3.7-flash",
+      "prompt_version": "1c738851cdfb",
+      "shot_evidence": {
+        "kind": "photo",
+        "mime_type": "image/jpeg",
+        "exif": {
+          "make": "",
+          "model": "",
+          "lens": "",
+          "captured_at": "2017-05-13T14:37:29Z"
+        },
+        "tone": {
+          "cast": 20.2,
+          "saturation": 38.0,
+          "saturation_p95": 87.8,
+          "accent_share": 39.4,
+          "warm_share": 60.3,
+          "cool_share": 1.9,
+          "luma_mean": 26.2,
+          "luma_p5": 0.0,
+          "luma_p95": 81.3,
+          "clipped_high": 0.13,
+          "clipped_low": 40.55,
+          "hues": [
+            "orange",
+            "red",
+            "azure"
+          ],
+          "hue_opposition": 30
+        },
+        "motion": null,
+        "grid": {
+          "cols": 10,
+          "rows": 6,
+          "width": 1536,
+          "height": 1024
+        }
+      },
+      "analysis": {
+        "shot_id": "shot_lhouette_quality_3951f28e87da0f9dc75ef7ac",
+        "user_id": "quality_online-sunset-silhouette",
+        "model": "gemini-3.7-flash",
+        "prompt_version": "1c738851cdfb",
+        "techniques": [
+          {
+            "technique_id": "silhouette",
+            "confidence": 0.933,
+            "cells": [
+              "A4",
+              "B4",
+              "B5",
+              "H1",
+              "H2",
+              "H3",
+              "H4",
+              "I2",
+              "I3",
+              "I4",
+              "A3",
+              "B3",
+              "A5",
+              "G1",
+              "G2",
+              "G3",
+              "G4",
+              "G5",
+              "H5",
+              "G6",
+              "H6"
+            ],
+            "note": "Foreground structures and palm trees render as pure black profiles against the sky.",
+            "agreement": 3,
+            "lenses": [
+              "technician",
+              "composer",
+              "storyteller"
+            ]
+          },
+          {
+            "technique_id": "backlight",
+            "confidence": 0.917,
+            "cells": [
+              "E5",
+              "F5",
+              "G5",
+              "E4",
+              "F4",
+              "G4",
+              "D4"
+            ],
+            "note": "Direct setting sun behind the horizon rim illuminates the clouds and silhouettes all foreground elements.",
+            "agreement": 3,
+            "lenses": [
+              "technician",
+              "composer",
+              "storyteller"
+            ]
+          },
+          {
+            "technique_id": "golden_hour",
+            "confidence": 0.85,
+            "cells": [
+              "C3",
+              "D4",
+              "E4",
+              "F4",
+              "G4",
+              "F5",
+              "G5",
+              "D3",
+              "E3",
+              "F3",
+              "G3"
+            ],
+            "note": "Low sun angle casts warm amber and golden tones throughout the cloud layers.",
+            "agreement": 2,
+            "lenses": [
+              "composer",
+              "storyteller"
+            ]
+          },
+          {
+            "technique_id": "low_key",
+            "confidence": 0.775,
+            "cells": [
+              "A6",
+              "B6",
+              "C6",
+              "D6",
+              "E6",
+              "F6",
+              "G6",
+              "H6",
+              "I6",
+              "J6",
+              "A1",
+              "B1",
+              "C1",
+              "D1",
+              "A5",
+              "B5",
+              "C5",
+              "D5",
+              "E5",
+              "F5",
+              "G5",
+              "H5",
+              "I5",
+              "J5"
+            ],
+            "note": "Heavy dominant shadows occupy the lower third and right side of the frame.",
+            "agreement": 2,
+            "lenses": [
+              "composer",
+              "storyteller"
+            ]
+          }
+        ],
+        "composition": {
+          "subject_cells": [
+            "F5",
+            "G5"
+          ],
+          "subject_x": 0.58,
+          "subject_y": 0.75,
+          "guide": "phi",
+          "horizon_row": 5,
+          "suggested_crop_cells": [
+            "A1",
+            "J5"
+          ],
+          "crop_tested": true,
+          "crop_before": 4,
+          "crop_after": 6,
+          "crop_rounds": 1,
+          "crop_reason": "Cropping out row 6 removes the distracting watermark and excessive empty black space at the bottom, improving overall balance.",
+          "moves": [
+            {
+              "what": "Tilt the camera up to balance sky detail against the heavy foreground.",
+              "kind": "camera",
+              "from_cells": [],
+              "to_cells": [],
+              "reason": "The entire lower sixth of the frame is uninformative pure black shadow taking space from the sunset.",
+              "warrant": "frame_edge",
+              "challenges_technique_ids": []
+            },
+            {
+              "what": "Step left to separate the palm silhouette from the central sunset glow.",
+              "kind": "camera",
+              "from_cells": [],
+              "to_cells": [],
+              "reason": "The heavy palm trunk in H1-I5 crowds close to the sun burst and weighs down the right side.",
+              "warrant": "subject_separation",
+              "challenges_technique_ids": []
+            }
+          ]
+        },
+        "observations": [
+          "A bright setting sun is positioned at F5-G5 near the horizon line.",
+          "A silhouetted architectural structure with a tower occupies A3-B5.",
+          "A silhouetted palm tree trunk and foliage occupy E1-J1 and H2-I5.",
+          "The lower portion of the frame across A6-J6 consists entirely of pure black pixels with no visible detail.",
+          "Cloud bands stretch across A2-J4, with bright edge illumination along E4-G4.",
+          "The setting sun forms a brilliant warm highlight across F5 and G5 just above the landscape horizon.",
+          "A thick palm tree silhouette rises vertically through H1-I5 with fronds spreading across E1-J1.",
+          "A dark architectural tower structure stands in silhouette across A4-B5 on the left edge.",
+          "The entire bottom row (A6-J6) is solid black shadow with an inset watermark in A6-B6.",
+          "Horizontal cloud bands reflect warm amber sunset light across rows 2 through 4.",
+          "The setting sun sits low near the horizon at F4, casting a warm yellow-orange glow and radiating subtle crepuscular rays upward into the clouds across D2-G3.",
+          "A silhouetted palm tree occupies the right foreground, spanning from F1 through I6."
+        ],
+        "findings": [],
+        "critique": "The low setting sun casts a rich amber glow through the cloud layers, framed naturally by the dark silhouettes of the palm tree on the right and the architectural tower on the left. However, with 40.55% of the frame crushed to absolute black, the dense, uninformative foreground carries too much visual dead weight and compresses the scene's emotional breathing room. Next time, tilt the camera upward to cut out the empty dark base and give the vibrant sunset gradient more room to command the frame.",
+        "panel": {
+          "technician": 42.3,
+          "composer": 48.2,
+          "storyteller": 21.3
+        },
+        "dissent": [],
+        "abstained": "",
+        "created_at": "2026-08-28T07:30:54.603834Z"
+      },
+      "teaching": {
+        "keep_title": "Silhouette",
+        "keep_proof": "Foreground structures and palm trees render as pure black profiles against the sky.",
+        "keep_technique_id": "silhouette",
+        "keep_authority": "model_read",
+        "keep_cells": [
+          "A4",
+          "B4",
+          "B5",
+          "H1",
+          "H2",
+          "H3",
+          "H4",
+          "I2",
+          "I3",
+          "I4",
+          "A3",
+          "B3",
+          "A5",
+          "G1",
+          "G2",
+          "G3",
+          "G4",
+          "G5",
+          "H5",
+          "G6",
+          "H6"
+        ],
+        "notice_title": "The lower portion of the frame across consists entirely of pure black pixels with no visible detail.",
+        "notice_proof": "One Analyst observation; not a measured Finding.",
+        "notice_finding_id": "",
+        "notice_authority": "model_read",
+        "notice_cells": [],
+        "try_text": "Tilt the camera up to balance sky detail against the heavy foreground.",
+        "try_reason": "The entire lower sixth of the frame is uninformative pure black shadow taking space from the sunset.",
+        "try_kind": "camera",
+        "try_from_cells": [],
+        "try_to_cells": [],
+        "visible_check": "After changing viewpoint, compare the subject's separation and every frame edge.",
+        "primary_layer": "guide",
+        "guide": "phi"
+      },
+      "artifacts": {
+        "crop": "C:\\Users\\fikuri\\Documents\\shoots\\docs\\test-corpus\\results\\learning-quality-assets\\users\\quality_online-sunset-silhouette\\shots\\shot_lhouette_quality_3951f28e87da0f9dc75ef7ac\\crop.jpg",
+        "annotated": "C:\\Users\\fikuri\\Documents\\shoots\\docs\\test-corpus\\results\\learning-quality-assets\\users\\quality_online-sunset-silhouette\\shots\\shot_lhouette_quality_3951f28e87da0f9dc75ef7ac\\annotated.jpg"
+      },
+      "checks": [
+        {
+          "name": "taxonomy",
+          "status": "pass",
+          "detail": "stored Technique ids: ['backlight', 'golden_hour', 'low_key', 'silhouette']"
+        },
+        {
+          "name": "receipt has no internal cells",
+          "status": "pass",
+          "detail": "visible characters: 497"
+        },
+        {
+          "name": "receipt has no clipped clause",
+          "status": "pass",
+          "detail": "visible receipt clauses are complete"
+        },
+        {
+          "name": "receipt is bounded",
+          "status": "pass",
+          "detail": "497 <= 700"
+        },
+        {
+          "name": "authority labels",
+          "status": "pass",
+          "detail": "keep=model_read, notice=model_read"
+        },
+        {
+          "name": "one supported image layer",
+          "status": "pass",
+          "detail": "guide"
+        },
+        {
+          "name": "Try preserves Keep",
+          "status": "pass",
+          "detail": "selected Move challenges []"
+        },
+        {
+          "name": "Try has corrective warrant",
+          "status": "pass",
+          "detail": "selected Move warrant: frame_edge"
+        },
+        {
+          "name": "Try has a concrete reason",
+          "status": "pass",
+          "detail": "The entire lower sixth of the frame is uninformative pure black shadow taking space from the sunset."
+        },
+        {
+          "name": "abstention policy",
+          "status": "pass",
+          "detail": "panel did not abstain"
+        },
+        {
+          "name": "required Technique group 1",
+          "status": "pass",
+          "detail": "expected any of ['silhouette']; found ['silhouette']"
+        },
+        {
+          "name": "forbidden Techniques",
+          "status": "pass",
+          "detail": "found []"
+        },
+        {
+          "name": "required Findings",
+          "status": "pass",
+          "detail": "missing []; found []"
+        },
+        {
+          "name": "forbidden Findings",
+          "status": "pass",
+          "detail": "found []"
+        },
+        {
+          "name": "forbidden Move kinds",
+          "status": "pass",
+          "detail": "forbidden []; found camera"
+        },
+        {
+          "name": "forbidden Move phrases",
+          "status": "pass",
+          "detail": "found []"
+        }
+      ],
+      "error": ""
+    },
+    {
+      "id": "online-blue-hour-city",
+      "note": "",
+      "filename": "05-blue-hour-city.jpg",
+      "input_sha256": "",
+      "elapsed_seconds": 0,
+      "model": "gemini-3.7-flash",
+      "prompt_version": "",
+      "shot_evidence": null,
+      "analysis": null,
+      "teaching": null,
+      "artifacts": {},
+      "checks": [
+        {
+          "name": "pipeline completed",
+          "status": "fail",
+          "detail": "ExceptionGroup: unhandled errors in a TaskGroup (2 sub-exceptions)"
+        }
+      ],
+      "error": "ExceptionGroup: unhandled errors in a TaskGroup (2 sub-exceptions)"
+    },
+    {
+      "id": "online-complementary-colors",
+      "note": "",
+      "filename": "06-complementary-colors.jpg",
+      "input_sha256": "",
+      "elapsed_seconds": 0,
+      "model": "gemini-3.7-flash",
+      "prompt_version": "",
+      "shot_evidence": null,
+      "analysis": null,
+      "teaching": null,
+      "artifacts": {},
+      "checks": [
+        {
+          "name": "pipeline completed",
+          "status": "fail",
+          "detail": "ExceptionGroup: unhandled errors in a TaskGroup (1 sub-exception)"
+        }
+      ],
+      "error": "ExceptionGroup: unhandled errors in a TaskGroup (1 sub-exception)"
+    },
+    {
+      "id": "online-rainy-night-street",
+      "note": "",
+      "filename": "07-rainy-night-street.jpg",
+      "input_sha256": "a6bd1825770c0fa80e45eb0a81f0ccff6862985e6c28b09c4a34b151b9e5e44f",
+      "elapsed_seconds": 220.218,
+      "model": "gemini-3.7-flash",
+      "prompt_version": "1c738851cdfb",
+      "shot_evidence": {
+        "kind": "photo",
+        "mime_type": "image/jpeg",
+        "exif": {
+          "make": "OLYMPUS IMAGING CORP.",
+          "model": "C70Z,C7000Z",
+          "lens": "",
+          "exposure_time_s": 1.0,
+          "f_number": 3.5,
+          "iso": 125,
+          "focal_length_mm": 11.2,
+          "flash_fired": false,
+          "captured_at": "2007-09-28T18:19:23Z"
+        },
+        "tone": {
+          "cct_k": 5302,
+          "cast": 33.4,
+          "saturation": 28.5,
+          "saturation_p95": 49.4,
+          "accent_share": 1.9,
+          "warm_share": 83.4,
+          "cool_share": 0.3,
+          "luma_mean": 115.7,
+          "luma_p5": 26.9,
+          "luma_p95": 234.3,
+          "clipped_high": 2.59,
+          "clipped_low": 0.15,
+          "hues": [
+            "orange",
+            "red",
+            "amber"
+          ],
+          "hue_opposition": 30
+        },
+        "motion": null,
+        "grid": {
+          "cols": 10,
+          "rows": 6,
+          "width": 1536,
+          "height": 1024
+        }
+      },
+      "analysis": {
+        "shot_id": "shot_t-street_quality_a6bd1825770c0fa80e45eb0a",
+        "user_id": "quality_online-rainy-night-street",
+        "model": "gemini-3.7-flash",
+        "prompt_version": "1c738851cdfb",
+        "techniques": [
+          {
+            "technique_id": "backlight",
+            "confidence": 0.883,
+            "cells": [
+              "A2",
+              "B2",
+              "C2",
+              "C3",
+              "D3",
+              "E3",
+              "D2",
+              "E2",
+              "A3",
+              "B3"
+            ],
+            "note": "Bright vehicle headlights behind the subjects illuminate the falling rain and create strong rim illumination.",
+            "agreement": 3,
+            "lenses": [
+              "technician",
+              "composer",
+              "storyteller"
+            ]
+          },
+          {
+            "technique_id": "reflections",
+            "confidence": 0.915,
+            "cells": [
+              "A5",
+              "B5",
+              "C5",
+              "D5",
+              "E5",
+              "G5",
+              "H6",
+              "A4",
+              "B4",
+              "C4",
+              "D4",
+              "E4",
+              "F4",
+              "G4",
+              "H4",
+              "I4",
+              "J4",
+              "F5",
+              "H5",
+              "I5",
+              "J5",
+              "A6",
+              "B6",
+              "C6",
+              "D6",
+              "E6",
+              "F6",
+              "G6",
+              "I6",
+              "J6"
+            ],
+            "note": "Puddle-soaked pavement catches warm and cool ambient reflections from streetlights and traffic.",
+            "agreement": 2,
+            "lenses": [
+              "composer",
+              "storyteller"
+            ]
+          },
+          {
+            "technique_id": "long_exposure",
+            "confidence": 0.95,
+            "cells": [
+              "A2",
+              "B3",
+              "C3",
+              "D3"
+            ],
+            "note": "A 1 s shutter blurs vehicle traffic and falling rain into streaks while the static vehicles remain sharp on a stable support.",
+            "agreement": 1,
+            "lenses": [
+              "technician"
+            ]
+          },
+          {
+            "technique_id": "diagonals",
+            "confidence": 0.75,
+            "cells": [
+              "D4",
+              "D5",
+              "E5",
+              "F5"
+            ],
+            "note": "The raised curb edge and the lean of the bicycle frame establish strong diagonal lines.",
+            "agreement": 1,
+            "lenses": [
+              "composer"
+            ]
+          },
+          {
+            "technique_id": "muted_palette",
+            "confidence": 0.75,
+            "cells": [],
+            "note": "Restrained color profile with mean saturation at 28%, letting wet textures and tonal contrast lead.",
+            "agreement": 1,
+            "lenses": [
+              "storyteller"
+            ]
+          }
+        ],
+        "composition": {
+          "subject_cells": [
+            "D2",
+            "E2",
+            "F2",
+            "G2",
+            "H2",
+            "D3",
+            "E3",
+            "F3",
+            "G3",
+            "H3",
+            "I3",
+            "J3",
+            "D4",
+            "F4",
+            "G4",
+            "H4",
+            "I4"
+          ],
+          "subject_x": 0.62,
+          "subject_y": 0.44,
+          "guide": "centre",
+          "horizon_row": null,
+          "suggested_crop_cells": [
+            "A1",
+            "J5"
+          ],
+          "crop_tested": true,
+          "crop_before": 6,
+          "crop_after": 7,
+          "crop_rounds": 1,
+          "crop_reason": "Cropping row 6 eliminates distracting dead space and stray litter on the wet pavement while maintaining sufficient grounding beneath the scooter and bicycle.",
+          "moves": [
+            {
+              "what": "Step closer to place the two-wheelers larger within the misty backlight.",
+              "kind": "camera",
+              "from_cells": [],
+              "to_cells": [],
+              "reason": "Moving closer reduces the inert dark pavement in the bottom row while emphasizing the rain texture.",
+              "warrant": "subject_separation",
+              "challenges_technique_ids": []
+            }
+          ]
+        },
+        "observations": [
+          "A parked motor scooter stands on its centre stand in cells F1 through J4 on wet ground.",
+          "A parked bicycle leans beside the scooter across D1 through F4.",
+          "Vehicle headlights in A2 through D3 create broad blown white streaks and flares across the flooded street.",
+          "The wet pavement in A5 through J6 reflects artificial light and rain runoff.",
+          "Falling rain is rendered as diffuse streaks throughout the background and midground.",
+          "A parked bicycle occupies D2-F4, paired beside a dark motor scooter spanning F1-J4 on a wet sidewalk.",
+          "Intense backlight from vehicle headlights across A2-D3 illuminates falling rain streaks and rim-lights the bike frame.",
+          "A wet sidewalk with reflective sheen fills the foreground across rows 5 and 6.",
+          "The curb creates a diagonal division starting at D4-D5 and leading across toward the right.",
+          "A dark vintage scooter on its centre stand dominates cells E1 through J5 on wet pavement.",
+          "A bicycle leans parked directly beside the scooter across C1 to F4.",
+          "Vehicle headlights in the background at A2 to D3 flare into bright, streaking horizontal highlights across a rain-soaked street."
+        ],
+        "findings": [],
+        "critique": "The dark silhouettes of the parked bicycle and motor scooter against the glowing spray of oncoming traffic headlights create a rich, atmospheric scene, beautifully enhanced by the reflections across the slick pavement. However, the long exposure has blown out the headlights into broad flares, leaving 2.59% of the frame clipped to pure white and swallowing up the texture of the falling rain on the left. Next time, shorten your shutter speed or step closer to fill the frame with the two-wheelers, reining in the highlight flare while letting the glowing mist remain the star.",
+        "panel": {
+          "technician": 131.8,
+          "composer": 145.6,
+          "storyteller": 101.1
+        },
+        "dissent": [
+          {
+            "lens": "composer",
+            "technique_id": "juxtaposition",
+            "confidence": 0.7
+          },
+          {
+            "lens": "storyteller",
+            "technique_id": "low_angle",
+            "confidence": 0.8
+          }
+        ],
+        "abstained": "",
+        "created_at": "2026-08-28T07:36:04.933453Z"
+      },
+      "teaching": {
+        "keep_title": "Backlight",
+        "keep_proof": "Bright vehicle headlights behind the subjects illuminate the falling rain and create strong rim illumination.",
+        "keep_technique_id": "backlight",
+        "keep_authority": "model_read",
+        "keep_cells": [
+          "A2",
+          "B2",
+          "C2",
+          "C3",
+          "D3",
+          "E3",
+          "D2",
+          "E2",
+          "A3",
+          "B3"
+        ],
+        "notice_title": "The wet pavement in reflects artificial light and rain runoff.",
+        "notice_proof": "One Analyst observation; not a measured Finding.",
+        "notice_finding_id": "",
+        "notice_authority": "model_read",
+        "notice_cells": [],
+        "try_text": "Step closer to place the two-wheelers larger within the misty backlight.",
+        "try_reason": "Moving closer reduces the inert dark pavement in the bottom of the frame while emphasizing the rain texture.",
+        "try_kind": "camera",
+        "try_from_cells": [],
+        "try_to_cells": [],
+        "visible_check": "After changing viewpoint, compare the subject's separation and every frame edge.",
+        "primary_layer": "guide",
+        "guide": "centre"
+      },
+      "artifacts": {
+        "crop": "C:\\Users\\fikuri\\Documents\\shoots\\docs\\test-corpus\\results\\learning-quality-assets\\users\\quality_online-rainy-night-street\\shots\\shot_t-street_quality_a6bd1825770c0fa80e45eb0a\\crop.jpg",
+        "annotated": "C:\\Users\\fikuri\\Documents\\shoots\\docs\\test-corpus\\results\\learning-quality-assets\\users\\quality_online-rainy-night-street\\shots\\shot_t-street_quality_a6bd1825770c0fa80e45eb0a\\annotated.jpg"
+      },
+      "checks": [
+        {
+          "name": "taxonomy",
+          "status": "pass",
+          "detail": "stored Technique ids: ['backlight', 'diagonals', 'long_exposure', 'muted_palette', 'reflections']"
+        },
+        {
+          "name": "receipt has no internal cells",
+          "status": "pass",
+          "detail": "visible characters: 494"
+        },
+        {
+          "name": "receipt has no clipped clause",
+          "status": "pass",
+          "detail": "visible receipt clauses are complete"
+        },
+        {
+          "name": "receipt is bounded",
+          "status": "pass",
+          "detail": "494 <= 700"
+        },
+        {
+          "name": "authority labels",
+          "status": "pass",
+          "detail": "keep=model_read, notice=model_read"
+        },
+        {
+          "name": "one supported image layer",
+          "status": "pass",
+          "detail": "guide"
+        },
+        {
+          "name": "Try preserves Keep",
+          "status": "pass",
+          "detail": "selected Move challenges []"
+        },
+        {
+          "name": "Try has corrective warrant",
+          "status": "pass",
+          "detail": "selected Move warrant: subject_separation"
+        },
+        {
+          "name": "Try has a concrete reason",
+          "status": "pass",
+          "detail": "Moving closer reduces the inert dark pavement in the bottom row while emphasizing the rain texture."
+        },
+        {
+          "name": "abstention policy",
+          "status": "pass",
+          "detail": "panel did not abstain"
+        },
+        {
+          "name": "required Technique group 1",
+          "status": "pass",
+          "detail": "expected any of ['reflections', 'blue_hour', 'low_key']; found ['reflections']"
+        },
+        {
+          "name": "forbidden Techniques",
+          "status": "pass",
+          "detail": "found []"
+        },
+        {
+          "name": "required Findings",
+          "status": "pass",
+          "detail": "missing []; found []"
+        },
+        {
+          "name": "forbidden Findings",
+          "status": "pass",
+          "detail": "found []"
+        },
+        {
+          "name": "forbidden Move kinds",
+          "status": "pass",
+          "detail": "forbidden []; found camera"
+        },
+        {
+          "name": "forbidden Move phrases",
+          "status": "pass",
+          "detail": "found []"
+        }
+      ],
+      "error": ""
+    },
+    {
+      "id": "online-window-shadow",
+      "note": "",
+      "filename": "08-window-shadow.jpg",
+      "input_sha256": "640bf10c71d5b160a7f961539ea914925ee9310d35479172686d0e2b6839ebf4",
+      "elapsed_seconds": 29.703,
+      "model": "gemini-3.7-flash",
+      "prompt_version": "1c738851cdfb",
+      "shot_evidence": {
+        "kind": "photo",
+        "mime_type": "image/jpeg",
+        "exif": {
+          "make": "",
+          "model": "",
+          "lens": "",
+          "captured_at": "2024-12-04T06:58:16Z"
+        },
+        "tone": {
+          "cct_k": 6470,
+          "cast": 2.7,
+          "saturation": 20.5,
+          "saturation_p95": 100.0,
+          "accent_share": 16.0,
+          "warm_share": 26.4,
+          "cool_share": 2.4,
+          "luma_mean": 27.7,
+          "luma_p5": 0.0,
+          "luma_p95": 159.7,
+          "clipped_high": 0.0,
+          "clipped_low": 64.9,
+          "hues": [
+            "red",
+            "orange",
+            "amber"
+          ],
+          "hue_opposition": 30
+        },
+        "motion": null,
+        "grid": {
+          "cols": 6,
+          "rows": 11,
+          "width": 640,
+          "height": 1000
+        }
+      },
+      "analysis": {
+        "shot_id": "shot_w-shadow_quality_640bf10c71d5b160a7f96153",
+        "user_id": "quality_online-window-shadow",
+        "model": "gemini-3.7-flash",
+        "prompt_version": "1c738851cdfb",
+        "techniques": [
+          {
+            "technique_id": "low_key",
+            "confidence": 0.95,
+            "cells": [
+              "A1",
+              "A7",
+              "F1",
+              "F11"
+            ],
+            "note": "Dominant deep shadow throughout the interior with a mean luminance of only 28 of 255.",
+            "agreement": 3,
+            "lenses": [
+              "technician",
+              "composer",
+              "storyteller"
+            ]
+          },
+          {
+            "technique_id": "frame_within_frame",
+            "confidence": 0.75,
+            "cells": [
+              "C2",
+              "D2",
+              "E2",
+              "C5",
+              "D5",
+              "E5",
+              "B1",
+              "F5"
+            ],
+            "note": "The architectural window casing and mullions frame the outdoor greenery.",
+            "agreement": 2,
+            "lenses": [
+              "composer",
+              "storyteller"
+            ]
+          },
+          {
+            "technique_id": "chiaroscuro",
+            "confidence": 0.85,
+            "cells": [
+              "C2",
+              "D3",
+              "E4",
+              "B9",
+              "C9",
+              "D9"
+            ],
+            "note": "Dramatic tonal contrast between the illuminated window panes, the floor projection, and the black walls.",
+            "agreement": 1,
+            "lenses": [
+              "composer"
+            ]
+          },
+          {
+            "technique_id": "muted_palette",
+            "confidence": 0.85,
+            "cells": [],
+            "note": "A restrained 20% mean saturation keeps the palette quiet and somber amidst the surrounding darkness.",
+            "agreement": 1,
+            "lenses": [
+              "storyteller"
+            ]
+          },
+          {
+            "technique_id": "hard_light",
+            "confidence": 0.8,
+            "cells": [
+              "B9",
+              "C9",
+              "D9",
+              "A10",
+              "B10"
+            ],
+            "note": "Crisp, defined rectilinear edges of the window frame projected onto the floor.",
+            "agreement": 1,
+            "lenses": [
+              "composer"
+            ]
+          },
+          {
+            "technique_id": "patterns",
+            "confidence": 0.75,
+            "cells": [
+              "C2",
+              "D2",
+              "E2",
+              "C3",
+              "D3",
+              "E3",
+              "C4",
+              "D4",
+              "E4",
+              "C5",
+              "D5",
+              "E5"
+            ],
+            "note": "Repeated rectangular grid formed by the multiple window panes.",
+            "agreement": 1,
+            "lenses": [
+              "composer"
+            ]
+          }
+        ],
+        "composition": {
+          "subject_cells": [
+            "C2",
+            "D2",
+            "E2",
+            "C3",
+            "D3",
+            "E3",
+            "C4",
+            "D4",
+            "E4",
+            "C5",
+            "D5",
+            "E5",
+            "B9",
+            "C9",
+            "D9",
+            "A10",
+            "B10"
+          ],
+          "subject_x": 0.58,
+          "subject_y": 0.36,
+          "guide": "phi",
+          "horizon_row": null,
+          "suggested_crop_cells": [],
+          "crop_tested": false,
+          "crop_before": null,
+          "crop_after": null,
+          "crop_rounds": 0,
+          "crop_reason": "",
+          "moves": [
+            {
+              "what": "Step slightly left to align squarely with the window grid.",
+              "kind": "camera",
+              "from_cells": [],
+              "to_cells": [],
+              "reason": "Squaring the perspective enhances the graphic symmetry of the window panes.",
+              "warrant": "guide",
+              "challenges_technique_ids": []
+            }
+          ]
+        },
+        "observations": [
+          "A multi-pane window structure spans from C2 to F6, set into a dark wall frame.",
+          "Green foliage and bright daylight are visible through the window panes across C2-F5.",
+          "A geometric projection of window light falls across the floor surface in A9-D10.",
+          "The wall areas spanning A1-B8, C1-F1, A7-F8, and A11-F11 render as uniform black.",
+          "A multi-pane window occupies C2 through F6, showing bright green foliage outside.",
+          "Geometric patches of direct sunlight and window shadows fall across the floor in A9-D10.",
+          "Deep black shadow fills the surrounding interior across A1-B8 and A7-F8.",
+          "The camera is positioned slightly below the window frame, looking slightly upward.",
+          "A multi-pane window occupies the upper third at B1-F5, looking out onto lush green foliage.",
+          "A small casement section of the window frame at B3-C3 is propped open.",
+          "The surrounding interior room is engulfed in deep, unbroken black shadow across the middle and edges.",
+          "Bright sunlight creates a sharp, geometric projection of the window panes across the floor at A8-D10."
+        ],
+        "findings": [],
+        "critique": "The graphic dialogue between the sunlit multi-pane window framing lush foliage and the sharp rectilinear patch of light cast across the floor creates a striking high-contrast composition. However, with 64.90% of the frame crushed to black, the surrounding room is swallowed entirely in void, severing the spatial relationship between the window and its projection. Next time, step slightly to your left to square your perspective with the window grid and lift your exposure by a stop to allow faint architectural texture to ground the scene.",
+        "panel": {
+          "technician": 16.4,
+          "composer": 18.0,
+          "storyteller": 17.7
+        },
+        "dissent": [],
+        "abstained": "",
+        "created_at": "2026-08-28T07:37:38.019105Z"
+      },
+      "teaching": {
+        "keep_title": "Low key",
+        "keep_proof": "Dominant deep shadow throughout the interior with a mean luminance of only 28 of 255.",
+        "keep_technique_id": "low_key",
+        "keep_authority": "model_read",
+        "keep_cells": [
+          "A1",
+          "A7",
+          "F1",
+          "F11"
+        ],
+        "notice_title": "Deep black shadow fills the surrounding interior.",
+        "notice_proof": "One Analyst observation; not a measured Finding.",
+        "notice_finding_id": "",
+        "notice_authority": "model_read",
+        "notice_cells": [],
+        "try_text": "",
+        "try_reason": "",
+        "try_kind": null,
+        "try_from_cells": [],
+        "try_to_cells": [],
+        "visible_check": "",
+        "primary_layer": "guide",
+        "guide": "phi"
+      },
+      "artifacts": {
+        "annotated": "C:\\Users\\fikuri\\Documents\\shoots\\docs\\test-corpus\\results\\learning-quality-assets\\users\\quality_online-window-shadow\\shots\\shot_w-shadow_quality_640bf10c71d5b160a7f96153\\annotated.jpg"
+      },
+      "checks": [
+        {
+          "name": "taxonomy",
+          "status": "pass",
+          "detail": "stored Technique ids: ['chiaroscuro', 'frame_within_frame', 'hard_light', 'low_key', 'muted_palette', 'patterns']"
+        },
+        {
+          "name": "receipt has no internal cells",
+          "status": "pass",
+          "detail": "visible characters: 192"
+        },
+        {
+          "name": "receipt has no clipped clause",
+          "status": "pass",
+          "detail": "visible receipt clauses are complete"
+        },
+        {
+          "name": "receipt is bounded",
+          "status": "pass",
+          "detail": "192 <= 700"
+        },
+        {
+          "name": "authority labels",
+          "status": "pass",
+          "detail": "keep=model_read, notice=model_read"
+        },
+        {
+          "name": "one supported image layer",
+          "status": "pass",
+          "detail": "guide"
+        },
+        {
+          "name": "Try preserves Keep",
+          "status": "pass",
+          "detail": "selected Move challenges []"
+        },
+        {
+          "name": "Try has corrective warrant",
+          "status": "pass",
+          "detail": "selected Move warrant: none"
+        },
+        {
+          "name": "Try has a concrete reason",
+          "status": "pass",
+          "detail": "no Try selected"
+        },
+        {
+          "name": "abstention policy",
+          "status": "pass",
+          "detail": "panel did not abstain"
+        },
+        {
+          "name": "required Technique group 1",
+          "status": "pass",
+          "detail": "expected any of ['hard_light', 'negative_space']; found ['hard_light']"
+        },
+        {
+          "name": "forbidden Techniques",
+          "status": "pass",
+          "detail": "found []"
+        },
+        {
+          "name": "required Findings",
+          "status": "pass",
+          "detail": "missing []; found []"
+        },
+        {
+          "name": "forbidden Findings",
+          "status": "pass",
+          "detail": "found []"
+        },
+        {
+          "name": "forbidden Move kinds",
+          "status": "pass",
+          "detail": "forbidden []; found none"
+        },
+        {
+          "name": "forbidden Move phrases",
+          "status": "pass",
+          "detail": "found []"
+        }
+      ],
+      "error": ""
+    },
+    {
+      "id": "online-flower-bokeh",
+      "note": "",
+      "filename": "09-flower-bokeh.jpg",
+      "input_sha256": "fb7ef373ed88207b5f3f1d777f137ddfee5bcfdf290bad0e2b20dcd8471550bb",
+      "elapsed_seconds": 36.0,
+      "model": "gemini-3.7-flash",
+      "prompt_version": "1c738851cdfb",
+      "shot_evidence": {
+        "kind": "photo",
+        "mime_type": "image/jpeg",
+        "exif": {
+          "make": "SONY",
+          "model": "ILCE-6000",
+          "lens": "----",
+          "exposure_time_s": 0.00625,
+          "iso": 200,
+          "flash_fired": false,
+          "captured_at": "2017-06-24T17:03:13Z"
+        },
+        "tone": {
+          "cct_k": 6472,
+          "cast": 12.6,
+          "saturation": 40.6,
+          "saturation_p95": 79.6,
+          "accent_share": 40.3,
+          "warm_share": 13.8,
+          "cool_share": 13.4,
+          "luma_mean": 104.1,
+          "luma_p5": 39.7,
+          "luma_p95": 197.0,
+          "clipped_high": 0.0,
+          "clipped_low": 0.0,
+          "hues": [
+            "violet",
+            "blue",
+            "magenta"
+          ],
+          "hue_opposition": 30
+        },
+        "motion": null,
+        "grid": {
+          "cols": 10,
+          "rows": 6,
+          "width": 1536,
+          "height": 1024
+        }
+      },
+      "analysis": {
+        "shot_id": "shot_er-bokeh_quality_fb7ef373ed88207b5f3f1d77",
+        "user_id": "quality_online-flower-bokeh",
+        "model": "gemini-3.7-flash",
+        "prompt_version": "1c738851cdfb",
+        "techniques": [
+          {
+            "technique_id": "shallow_dof",
+            "confidence": 0.95,
+            "cells": [
+              "A1",
+              "B2",
+              "C6",
+              "I2",
+              "J5",
+              "D3",
+              "E3",
+              "F3",
+              "G3",
+              "D4",
+              "E4",
+              "F4",
+              "G4"
+            ],
+            "note": "Extremely narrow focal plane with rapid falloff into soft blur across most of the floral subject.",
+            "agreement": 3,
+            "lenses": [
+              "technician",
+              "composer",
+              "storyteller"
+            ]
+          },
+          {
+            "technique_id": "macro",
+            "confidence": 0.933,
+            "cells": [
+              "C1",
+              "D2",
+              "E3",
+              "F4",
+              "G5",
+              "H6",
+              "D3",
+              "F3",
+              "G3",
+              "D4",
+              "E4",
+              "G4",
+              "E2",
+              "F2",
+              "G2",
+              "D5",
+              "E5",
+              "F5"
+            ],
+            "note": "Extreme close-up magnification filling the frame with individual florets and stamen details.",
+            "agreement": 3,
+            "lenses": [
+              "technician",
+              "composer",
+              "storyteller"
+            ]
+          },
+          {
+            "technique_id": "centre_composition",
+            "confidence": 0.775,
+            "cells": [
+              "D1",
+              "E1",
+              "F1",
+              "G1",
+              "D2",
+              "E2",
+              "F2",
+              "G2",
+              "D3",
+              "E3",
+              "F3",
+              "G3",
+              "D4",
+              "E4",
+              "F4",
+              "G4",
+              "D5",
+              "E5",
+              "F5",
+              "G5",
+              "D6",
+              "E6",
+              "F6",
+              "G6"
+            ],
+            "note": "The vertical flower spike is centred directly down the middle axis.",
+            "agreement": 2,
+            "lenses": [
+              "composer",
+              "storyteller"
+            ]
+          },
+          {
+            "technique_id": "soft_light",
+            "confidence": 0.85,
+            "cells": [],
+            "note": "Even illumination with smooth tonal gradients across the delicate petals.",
+            "agreement": 1,
+            "lenses": [
+              "composer"
+            ]
+          }
+        ],
+        "composition": {
+          "subject_cells": [
+            "D3",
+            "E3",
+            "F3",
+            "G3",
+            "D4",
+            "E4",
+            "F4",
+            "G4"
+          ],
+          "subject_x": 0.54,
+          "subject_y": 0.55,
+          "guide": "centre",
+          "horizon_row": null,
+          "suggested_crop_cells": [],
+          "crop_tested": false,
+          "crop_before": null,
+          "crop_after": null,
+          "crop_rounds": 0,
+          "crop_reason": "",
+          "moves": [
+            {
+              "what": "Stop down the aperture to expand focus across the central flower group.",
+              "kind": "camera",
+              "from_cells": [],
+              "to_cells": [],
+              "reason": "The focal plane is so razor-thin that most of the primary bloom details blur into softness.",
+              "warrant": "subject_separation",
+              "challenges_technique_ids": [
+                "shallow_dof"
+              ]
+            }
+          ]
+        },
+        "observations": [
+          "A purple and magenta floral cluster occupies columns C to H from row 1 down to row 6.",
+          "A very narrow plane of focus sits on the central petal edges and stamen near F2-G2 and F4.",
+          "The left and right margins across columns A-B and I-J consist of heavily blurred background gradients in pale green and grey tones.",
+          "The foreground and background florets in cells C1-D3 and C5-D6 fall completely out of focus with soft optical blur.",
+          "A vertical cluster of magenta and purple petals dominates the centre across columns C through H.",
+          "A very shallow plane of sharp focus falls across the petal edges and stamen in cells D3-G4.",
+          "The outer edges in columns A, B, I, and J dissolve into soft, blurred bokeh.",
+          "Diffuse, shadowless daylight illuminates the floral structure evenly from the front and above.",
+          "A vertical cluster of magenta and purple flower petals runs down the centre of the frame from C1-H1 to D6-G6.",
+          "A narrow band of sharp focus catches the crinkled texture of petals and tiny stamens around E2-G4.",
+          "The background at A1-B6 and I1-J6 is an entirely out-of-focus, neutral grey-green wash.",
+          "The palette is dominated by saturated violet and magenta tones, with 40% of the frame strongly saturated."
+        ],
+        "findings": [],
+        "critique": "The centered vertical cluster of violet and magenta blooms creates an arresting macro study, with diffuse daylight keeping petal textures smooth as saturation reaches 80% at the 95th percentile. However, the depth of field is so razor-thin that nearly the entire flower head falls into soft blur, leaving no defined anchor for the eye to rest on. Next time, stop down by two to three stops to expand critical sharpness across the central florets while keeping the background cleanly dissolved.",
+        "panel": {
+          "technician": 20.2,
+          "composer": 21.6,
+          "storyteller": 17.2
+        },
+        "dissent": [],
+        "abstained": "",
+        "created_at": "2026-08-28T07:38:13.697829Z"
+      },
+      "teaching": {
+        "keep_title": "Shallow depth of field",
+        "keep_proof": "Extremely narrow focal plane with rapid falloff into soft blur across most of the floral subject.",
+        "keep_technique_id": "shallow_dof",
+        "keep_authority": "model_read",
+        "keep_cells": [
+          "A1",
+          "B2",
+          "C6",
+          "I2",
+          "J5",
+          "D3",
+          "E3",
+          "F3",
+          "G3",
+          "D4",
+          "E4",
+          "F4",
+          "G4"
+        ],
+        "notice_title": "A very shallow plane of sharp focus falls across the petal edges and stamen.",
+        "notice_proof": "One Analyst observation; not a measured Finding.",
+        "notice_finding_id": "",
+        "notice_authority": "model_read",
+        "notice_cells": [],
+        "try_text": "",
+        "try_reason": "",
+        "try_kind": null,
+        "try_from_cells": [],
+        "try_to_cells": [],
+        "visible_check": "",
+        "primary_layer": "guide",
+        "guide": "centre"
+      },
+      "artifacts": {
+        "annotated": "C:\\Users\\fikuri\\Documents\\shoots\\docs\\test-corpus\\results\\learning-quality-assets\\users\\quality_online-flower-bokeh\\shots\\shot_er-bokeh_quality_fb7ef373ed88207b5f3f1d77\\annotated.jpg"
+      },
+      "checks": [
+        {
+          "name": "taxonomy",
+          "status": "pass",
+          "detail": "stored Technique ids: ['centre_composition', 'macro', 'shallow_dof', 'soft_light']"
+        },
+        {
+          "name": "receipt has no internal cells",
+          "status": "pass",
+          "detail": "visible characters: 246"
+        },
+        {
+          "name": "receipt has no clipped clause",
+          "status": "pass",
+          "detail": "visible receipt clauses are complete"
+        },
+        {
+          "name": "receipt is bounded",
+          "status": "pass",
+          "detail": "246 <= 700"
+        },
+        {
+          "name": "authority labels",
+          "status": "pass",
+          "detail": "keep=model_read, notice=model_read"
+        },
+        {
+          "name": "one supported image layer",
+          "status": "pass",
+          "detail": "guide"
+        },
+        {
+          "name": "Try preserves Keep",
+          "status": "pass",
+          "detail": "selected Move challenges []"
+        },
+        {
+          "name": "Try has corrective warrant",
+          "status": "pass",
+          "detail": "selected Move warrant: none"
+        },
+        {
+          "name": "Try has a concrete reason",
+          "status": "pass",
+          "detail": "no Try selected"
+        },
+        {
+          "name": "abstention policy",
+          "status": "pass",
+          "detail": "panel did not abstain"
+        },
+        {
+          "name": "required Technique group 1",
+          "status": "pass",
+          "detail": "expected any of ['shallow_dof', 'bokeh_balls']; found ['shallow_dof']"
+        },
+        {
+          "name": "forbidden Techniques",
+          "status": "pass",
+          "detail": "found []"
+        },
+        {
+          "name": "required Findings",
+          "status": "pass",
+          "detail": "missing []; found []"
+        },
+        {
+          "name": "forbidden Findings",
+          "status": "pass",
+          "detail": "found []"
+        },
+        {
+          "name": "forbidden Move kinds",
+          "status": "pass",
+          "detail": "forbidden []; found none"
+        },
+        {
+          "name": "forbidden Move phrases",
+          "status": "pass",
+          "detail": "found []"
+        }
+      ],
+      "error": ""
+    },
+    {
+      "id": "online-frame-within-frame",
+      "note": "",
+      "filename": "10-frame-within-frame.jpg",
+      "input_sha256": "0f08f687e09dcc51c45505b5bd717e9b297fc93bd442ad575c791ae4c50cd2a2",
+      "elapsed_seconds": 58.062,
+      "model": "gemini-3.7-flash",
+      "prompt_version": "1c738851cdfb",
+      "shot_evidence": {
+        "kind": "photo",
+        "mime_type": "image/jpeg",
+        "exif": {
+          "make": "SONY",
+          "model": "ILCE-6100",
+          "lens": "E PZ 16-50mm F3.5-5.6 OSS",
+          "exposure_time_s": 0.01,
+          "f_number": 7.1,
+          "iso": 100,
+          "focal_length_mm": 50.0,
+          "focal_length_35mm": 75,
+          "flash_fired": false,
+          "captured_at": "2026-02-10T14:13:20Z"
+        },
+        "tone": {
+          "cct_k": 6154,
+          "cast": 40.2,
+          "saturation": 44.2,
+          "saturation_p95": 86.7,
+          "accent_share": 33.8,
+          "warm_share": 73.9,
+          "cool_share": 3.0,
+          "luma_mean": 102.0,
+          "luma_p5": 23.6,
+          "luma_p95": 201.9,
+          "clipped_high": 0.0,
+          "clipped_low": 0.0,
+          "hues": [
+            "orange",
+            "amber",
+            "yellow"
+          ],
+          "hue_opposition": 30
+        },
+        "motion": null,
+        "grid": {
+          "cols": 7,
+          "rows": 9,
+          "width": 1024,
+          "height": 1536
+        }
+      },
+      "analysis": {
+        "shot_id": "shot_in-frame_quality_0f08f687e09dcc51c45505b5",
+        "user_id": "quality_online-frame-within-frame",
+        "model": "gemini-3.7-flash",
+        "prompt_version": "1c738851cdfb",
+        "techniques": [
+          {
+            "technique_id": "diagonals",
+            "confidence": 0.8,
+            "cells": [
+              "A3",
+              "B5",
+              "C6",
+              "D7",
+              "F4",
+              "G3",
+              "A7",
+              "B6",
+              "C5",
+              "D4",
+              "E3",
+              "F3",
+              "G2"
+            ],
+            "note": "The swooping wings and ascending arrangement of the metallic birds create strong dynamic diagonal lines across the frame.",
+            "agreement": 2,
+            "lenses": [
+              "composer",
+              "storyteller"
+            ]
+          }
+        ],
+        "composition": {
+          "subject_cells": [
+            "A3",
+            "B3",
+            "C4",
+            "D4",
+            "E4",
+            "F4",
+            "F5",
+            "G3"
+          ],
+          "subject_x": 0.52,
+          "subject_y": 0.46,
+          "guide": "diagonals",
+          "horizon_row": null,
+          "suggested_crop_cells": [],
+          "crop_tested": false,
+          "crop_before": null,
+          "crop_after": null,
+          "crop_rounds": 0,
+          "crop_reason": "",
+          "moves": [
+            {
+              "what": "Lower camera position to frame the sculpture against open sky.",
+              "kind": "camera",
+              "from_cells": [],
+              "to_cells": [],
+              "reason": "Shooting from below isolates the reflective metallic forms from the busy wall texture and dark background doorway.",
+              "warrant": "subject_separation",
+              "challenges_technique_ids": []
+            }
+          ]
+        },
+        "observations": [
+          "A sculptural cluster of stylized silver metal birds spans diagonally across cells A2 to G6.",
+          "Green shrubbery fills the foreground along the bottom of the frame from A8 to G9.",
+          "The background consists of a textured wall and yellow architectural forms across A1 to G7.",
+          "Sharpest focus is maintained along the leading edges and curves of the metal birds around C4 to F6.",
+          "Shadows and highlights are contained without clipping across the measured tonal range of 178 levels.",
+          "A sculptural arrangement of metallic bird silhouettes spans across cells A1 through G9.",
+          "A yellow textured wall and dark window opening form the architectural background from row 1 down to row 7.",
+          "Lush green bushes fill the lower foreground across cells A8 to G9.",
+          "Direct overhead daylight strikes the upper wall and birds, casting directional shadows downward onto lower surfaces.",
+          "A silver metal sculpture of flying birds sweeps diagonally across the frame from A7 through D4 to G2.",
+          "A trimmed green bush fills the lower section across A8 to G9.",
+          "The background consists of a rough pebble-dash wall in A1 through G4 and yellow painted architectural columns in A5 through G7."
+        ],
+        "findings": [
+          {
+            "finding_id": "camera_shake",
+            "what": "This shutter speed raises the risk of camera shake.",
+            "why": "1/100 s at 75 mm, under the handheld limit of 1/150 s",
+            "cells": []
+          }
+        ],
+        "critique": "The diagonal sweep of the silver bird sculpture creates dynamic upward motion, framed nicely over the green foliage at the bottom. However, the metallic silhouettes compete heavily with the textured background and yellow architectural pillars, where 74% of the frame reads warm by hue and swallows their reflective edges. Next time, drop down to a lower shooting angle to isolate the ascending birds against open sky.",
+        "panel": {
+          "technician": 48.1,
+          "composer": 36.2,
+          "storyteller": 32.2
+        },
+        "dissent": [
+          {
+            "lens": "composer",
+            "technique_id": "layering",
+            "confidence": 0.6
+          }
+        ],
+        "abstained": "",
+        "created_at": "2026-08-28T07:39:12.053704Z"
+      },
+      "teaching": {
+        "keep_title": "Diagonals",
+        "keep_proof": "The swooping wings and ascending arrangement of the metallic birds create strong dynamic diagonal lines across the frame.",
+        "keep_technique_id": "diagonals",
+        "keep_authority": "model_read",
+        "keep_cells": [
+          "A3",
+          "B5",
+          "C6",
+          "D7",
+          "F4",
+          "G3",
+          "A7",
+          "B6",
+          "C5",
+          "D4",
+          "E3",
+          "F3",
+          "G2"
+        ],
+        "notice_title": "This shutter speed raises the risk of camera shake.",
+        "notice_proof": "1/100 s at 75 mm, under the handheld limit of 1/150 s.",
+        "notice_finding_id": "camera_shake",
+        "notice_authority": "measured",
+        "notice_cells": [],
+        "try_text": "Lower camera position to frame the sculpture against open sky.",
+        "try_reason": "Shooting from below isolates the reflective metallic forms from the busy wall texture and dark background doorway.",
+        "try_kind": "camera",
+        "try_from_cells": [],
+        "try_to_cells": [],
+        "visible_check": "Zoom into one fine edge after capture; it should stay single rather than doubled or smeared.",
+        "primary_layer": "guide",
+        "guide": "diagonals"
+      },
+      "artifacts": {
+        "annotated": "C:\\Users\\fikuri\\Documents\\shoots\\docs\\test-corpus\\results\\learning-quality-assets\\users\\quality_online-frame-within-frame\\shots\\shot_in-frame_quality_0f08f687e09dcc51c45505b5\\annotated.jpg"
+      },
+      "checks": [
+        {
+          "name": "taxonomy",
+          "status": "pass",
+          "detail": "stored Technique ids: ['diagonals']"
+        },
+        {
+          "name": "receipt has no internal cells",
+          "status": "pass",
+          "detail": "visible characters: 509"
+        },
+        {
+          "name": "receipt has no clipped clause",
+          "status": "pass",
+          "detail": "visible receipt clauses are complete"
+        },
+        {
+          "name": "receipt is bounded",
+          "status": "pass",
+          "detail": "509 <= 700"
+        },
+        {
+          "name": "authority labels",
+          "status": "pass",
+          "detail": "keep=model_read, notice=measured"
+        },
+        {
+          "name": "one supported image layer",
+          "status": "pass",
+          "detail": "guide"
+        },
+        {
+          "name": "Try preserves Keep",
+          "status": "pass",
+          "detail": "selected Move challenges []"
+        },
+        {
+          "name": "Try has corrective warrant",
+          "status": "pass",
+          "detail": "selected Move warrant: subject_separation"
+        },
+        {
+          "name": "Try has a concrete reason",
+          "status": "pass",
+          "detail": "Shooting from below isolates the reflective metallic forms from the busy wall texture and dark background doorway."
+        },
+        {
+          "name": "abstention policy",
+          "status": "pass",
+          "detail": "panel did not abstain"
+        },
+        {
+          "name": "required Technique group 1",
+          "status": "fail",
+          "detail": "expected any of ['frame_within_frame']; found []"
+        },
+        {
+          "name": "forbidden Techniques",
+          "status": "pass",
+          "detail": "found []"
+        },
+        {
+          "name": "required Findings",
+          "status": "pass",
+          "detail": "missing []; found ['camera_shake']"
+        },
+        {
+          "name": "forbidden Findings",
+          "status": "pass",
+          "detail": "found []"
+        },
+        {
+          "name": "forbidden Move kinds",
+          "status": "pass",
+          "detail": "forbidden []; found camera"
+        },
+        {
+          "name": "forbidden Move phrases",
+          "status": "pass",
+          "detail": "found []"
+        }
+      ],
+      "error": ""
+    },
+    {
+      "id": "generated-doorway-hard-light",
+      "note": "Synthetic test input with written Intent outside Photographer memory.",
+      "filename": "11-intent-doorway-hard-light.png",
+      "input_sha256": "fb4188e760bb25f7f1bc1ce02d1bf40f4858867f96406322a931a9907ffd50e1",
+      "elapsed_seconds": 61.203,
+      "model": "gemini-3.7-flash",
+      "prompt_version": "1c738851cdfb",
+      "shot_evidence": {
+        "kind": "photo",
+        "mime_type": "image/png",
+        "exif": {
+          "make": "",
+          "model": "",
+          "lens": ""
+        },
+        "tone": {
+          "cast": 10.2,
+          "saturation": 39.4,
+          "saturation_p95": 100.0,
+          "accent_share": 15.8,
+          "warm_share": 83.1,
+          "cool_share": 0.8,
+          "luma_mean": 26.0,
+          "luma_p5": 0.0,
+          "luma_p95": 65.2,
+          "clipped_high": 0.02,
+          "clipped_low": 16.4,
+          "hues": [
+            "orange",
+            "red",
+            "teal"
+          ],
+          "hue_opposition": 30
+        },
+        "motion": null,
+        "grid": {
+          "cols": 7,
+          "rows": 9,
+          "width": 1122,
+          "height": 1402
+        }
+      },
+      "analysis": {
+        "shot_id": "shot_rd-light_quality_fb4188e760bb25f7f1bc1ce0",
+        "user_id": "quality_generated-doorway-hard-light",
+        "model": "gemini-3.7-flash",
+        "prompt_version": "1c738851cdfb",
+        "techniques": [
+          {
+            "technique_id": "low_key",
+            "confidence": 0.9,
+            "cells": [
+              "A1",
+              "G9"
+            ],
+            "note": "Frame is dominated by deep shadow, supported by a mean luminance of 26 of 255.",
+            "agreement": 3,
+            "lenses": [
+              "technician",
+              "composer",
+              "storyteller"
+            ]
+          },
+          {
+            "technique_id": "frame_within_frame",
+            "confidence": 0.935,
+            "cells": [
+              "A1",
+              "B9",
+              "F1",
+              "G9",
+              "B1",
+              "F9"
+            ],
+            "note": "Dark doorframe encloses the standing subject and background room.",
+            "agreement": 2,
+            "lenses": [
+              "composer",
+              "storyteller"
+            ]
+          },
+          {
+            "technique_id": "chiaroscuro",
+            "confidence": 0.89,
+            "cells": [
+              "D4",
+              "E4",
+              "D3",
+              "E3"
+            ],
+            "note": "High-contrast sliver of light carves the subject's face out of deep darkness.",
+            "agreement": 2,
+            "lenses": [
+              "composer",
+              "storyteller"
+            ]
+          },
+          {
+            "technique_id": "hard_light",
+            "confidence": 0.85,
+            "cells": [
+              "D4",
+              "F4"
+            ],
+            "note": "Direct, hard-edged shaft of sunlight cast across the jaw and doorpost.",
+            "agreement": 1,
+            "lenses": [
+              "composer"
+            ]
+          },
+          {
+            "technique_id": "single_accent",
+            "confidence": 0.85,
+            "cells": [
+              "D3",
+              "E3",
+              "E4"
+            ],
+            "note": "The 16% strongly saturated warm amber slice of sunlight forms the single vibrant anchor in an otherwise dark frame.",
+            "agreement": 1,
+            "lenses": [
+              "storyteller"
+            ]
+          }
+        ],
+        "composition": {
+          "subject_cells": [
+            "D4",
+            "E4"
+          ],
+          "subject_x": 0.58,
+          "subject_y": 0.35,
+          "guide": "thirds",
+          "horizon_row": null,
+          "suggested_crop_cells": [],
+          "crop_tested": true,
+          "crop_before": 7,
+          "crop_after": null,
+          "crop_rounds": 1,
+          "crop_reason": "Cropping column A clips the outer doorframe on the left, destroying the balanced frame-within-a-frame structure of the original composition.",
+          "moves": [
+            {
+              "what": "Step forward to reduce the excess dark space along the left edge.",
+              "kind": "camera",
+              "from_cells": [],
+              "to_cells": [],
+              "reason": "The broad expanse of near-black shadow in columns A and B dilutes the dramatic focus on the lit face.",
+              "warrant": "frame_edge",
+              "challenges_technique_ids": []
+            }
+          ]
+        },
+        "observations": [
+          "A person stands inside a dark doorway frame across D4-E9, facing toward the right.",
+          "A direct shaft of sunlight illuminates the subject's face at E4 and a vertical strip of the door casing at F4.",
+          "A window fitted with horizontal blinds is visible in the background room at C3-C5.",
+          "The flanking foreground walls across columns A-B and F-G are deeply shadowed with minimal surface texture.",
+          "A standing figure occupies cells D3 through E9, framed centrally within an interior doorway.",
+          "A sharp, narrow beam of warm sunlight strikes the figure's face in D4 and the right door jamb in F4.",
+          "A window with closed horizontal blinds is visible in the background at C3-C5, letting in cool daylight.",
+          "The foreground doorway and surrounding walls in columns A-B and G fall into deep near-black shadow.",
+          "A man stands in a shadowy doorway at D3-E8, looking towards the left edge of the frame.",
+          "A narrow shaft of warm sunlight catches his face at D3-E3 and casts a bright highlight on the doorframe at E4.",
+          "A dim interior room with slatted blinds at C3-D5 and a potted plant at C5 sits behind him.",
+          "The vertical frame of the doorway at B1-F9 encloses the subject within dark surrounding walls at A1-A9 and G1-G9."
+        ],
+        "findings": [],
+        "critique": "A sharp sliver of warm sunlight cuts across the subject's face inside a dark doorway, creating a dramatic contrast against the cool, dim room behind him. However, with 16.40% of the frame crushed to black, the broad expanse of unlit wall along the left edge deadens the composition and swallows the subject's silhouette entirely. Step closer to crop out that empty foreground shadow on the left, letting the framed doorway and the direct beam of light command the scene.",
+        "panel": {
+          "technician": 34.4,
+          "composer": 37.6,
+          "storyteller": 27.4
+        },
+        "dissent": [
+          {
+            "lens": "composer",
+            "technique_id": "warm_cool",
+            "confidence": 0.8
+          }
+        ],
+        "abstained": "",
+        "created_at": "2026-08-28T07:40:02.952359Z"
+      },
+      "teaching": {
+        "keep_title": "Low key",
+        "keep_proof": "Frame is dominated by deep shadow, supported by a mean luminance of 26 of 255.",
+        "keep_technique_id": "low_key",
+        "keep_authority": "model_read",
+        "keep_cells": [
+          "A1",
+          "G9"
+        ],
+        "notice_title": "The foreground doorway and surrounding walls and G fall into deep near-black shadow.",
+        "notice_proof": "One Analyst observation; not a measured Finding.",
+        "notice_finding_id": "",
+        "notice_authority": "model_read",
+        "notice_cells": [],
+        "try_text": "Step forward to reduce the excess dark space along the left edge.",
+        "try_reason": "The broad expanse of near-black shadow in the left of the frame dilutes the dramatic focus on the lit face.",
+        "try_kind": "camera",
+        "try_from_cells": [],
+        "try_to_cells": [],
+        "visible_check": "After changing viewpoint, compare the subject's separation and every frame edge.",
+        "primary_layer": "guide",
+        "guide": "thirds"
+      },
+      "artifacts": {
+        "annotated": "C:\\Users\\fikuri\\Documents\\shoots\\docs\\test-corpus\\results\\learning-quality-assets\\users\\quality_generated-doorway-hard-light\\shots\\shot_rd-light_quality_fb4188e760bb25f7f1bc1ce0\\annotated.jpg"
+      },
+      "checks": [
+        {
+          "name": "taxonomy",
+          "status": "pass",
+          "detail": "stored Technique ids: ['chiaroscuro', 'frame_within_frame', 'hard_light', 'low_key', 'single_accent']"
+        },
+        {
+          "name": "receipt has no internal cells",
+          "status": "fail",
+          "detail": "visible characters: 475"
+        },
+        {
+          "name": "receipt has no clipped clause",
+          "status": "pass",
+          "detail": "visible receipt clauses are complete"
+        },
+        {
+          "name": "receipt is bounded",
+          "status": "pass",
+          "detail": "475 <= 700"
+        },
+        {
+          "name": "authority labels",
+          "status": "pass",
+          "detail": "keep=model_read, notice=model_read"
+        },
+        {
+          "name": "one supported image layer",
+          "status": "pass",
+          "detail": "guide"
+        },
+        {
+          "name": "Try preserves Keep",
+          "status": "pass",
+          "detail": "selected Move challenges []"
+        },
+        {
+          "name": "Try has corrective warrant",
+          "status": "pass",
+          "detail": "selected Move warrant: frame_edge"
+        },
+        {
+          "name": "Try has a concrete reason",
+          "status": "pass",
+          "detail": "The broad expanse of near-black shadow in columns A and B dilutes the dramatic focus on the lit face."
+        },
+        {
+          "name": "abstention policy",
+          "status": "pass",
+          "detail": "panel did not abstain"
+        },
+        {
+          "name": "required Technique group 1",
+          "status": "pass",
+          "detail": "expected any of ['frame_within_frame']; found ['frame_within_frame']"
+        },
+        {
+          "name": "required Technique group 2",
+          "status": "pass",
+          "detail": "expected any of ['low_key', 'chiaroscuro']; found ['chiaroscuro', 'low_key']"
+        },
+        {
+          "name": "forbidden Techniques",
+          "status": "pass",
+          "detail": "found []"
+        },
+        {
+          "name": "required Findings",
+          "status": "pass",
+          "detail": "missing []; found []"
+        },
+        {
+          "name": "forbidden Findings",
+          "status": "pass",
+          "detail": "found []"
+        },
+        {
+          "name": "forbidden Move kinds",
+          "status": "pass",
+          "detail": "forbidden []; found camera"
+        },
+        {
+          "name": "forbidden Move phrases",
+          "status": "pass",
+          "detail": "found []"
+        },
+        {
+          "name": "human review 1",
+          "status": "review",
+          "detail": "Does advice preserve the deliberate dark frame instead of treating low key as an exposure mistake?"
+        }
+      ],
+      "error": ""
+    },
+    {
+      "id": "generated-panning-cyclist",
+      "note": "Synthetic test input with written Intent outside Photographer memory.",
+      "filename": "12-intent-panning-cyclist.png",
+      "input_sha256": "68ab244b600285aa71faf2e2eae0cab29e49036b066c250945072a64f21cb6f3",
+      "elapsed_seconds": 69.906,
+      "model": "gemini-3.7-flash",
+      "prompt_version": "1c738851cdfb",
+      "shot_evidence": {
+        "kind": "photo",
+        "mime_type": "image/png",
+        "exif": {
+          "make": "",
+          "model": "",
+          "lens": ""
+        },
+        "tone": {
+          "cct_k": 6040,
+          "cast": -10.4,
+          "saturation": 38.5,
+          "saturation_p95": 70.2,
+          "accent_share": 17.9,
+          "warm_share": 16.2,
+          "cool_share": 67.0,
+          "luma_mean": 75.9,
+          "luma_p5": 12.8,
+          "luma_p95": 182.6,
+          "clipped_high": 0.15,
+          "clipped_low": 1.89,
+          "hues": [
+            "azure",
+            "cyan",
+            "red"
+          ],
+          "hue_opposition": 30
+        },
+        "motion": null,
+        "grid": {
+          "cols": 10,
+          "rows": 6,
+          "width": 1536,
+          "height": 1024
+        }
+      },
+      "analysis": {
+        "shot_id": "shot_-cyclist_quality_68ab244b600285aa71faf2e2",
+        "user_id": "quality_generated-panning-cyclist",
+        "model": "gemini-3.7-flash",
+        "prompt_version": "1c738851cdfb",
+        "techniques": [
+          {
+            "technique_id": "panning",
+            "confidence": 0.95,
+            "cells": [
+              "A1",
+              "B1",
+              "C1",
+              "D1",
+              "E1",
+              "F1",
+              "G1",
+              "H1",
+              "I1",
+              "J1",
+              "A2",
+              "B2",
+              "C2",
+              "D2",
+              "E2",
+              "F2",
+              "G2",
+              "H2",
+              "I2",
+              "J2",
+              "A3",
+              "B3",
+              "C3",
+              "D3",
+              "E3",
+              "F3",
+              "G3",
+              "H3",
+              "I3",
+              "J3",
+              "A4",
+              "B4",
+              "C4",
+              "D4",
+              "E4",
+              "F4",
+              "G4",
+              "H4",
+              "I4",
+              "J4",
+              "A5",
+              "B5",
+              "C5",
+              "D5",
+              "E5",
+              "F5",
+              "G5",
+              "H5",
+              "I5",
+              "J5",
+              "A6",
+              "B6",
+              "C6",
+              "D6",
+              "E6",
+              "F6",
+              "G6",
+              "H6",
+              "I6",
+              "J6"
+            ],
+            "note": "Camera motion matches the cyclist's lateral speed, rendering the subject relatively stable while streaking the static background horizontally.",
+            "agreement": 3,
+            "lenses": [
+              "technician",
+              "composer",
+              "storyteller"
+            ]
+          },
+          {
+            "technique_id": "motion_blur",
+            "confidence": 0.925,
+            "cells": [
+              "A5",
+              "B5",
+              "C5",
+              "A6",
+              "B6",
+              "C6",
+              "D5",
+              "E5",
+              "D6",
+              "E6",
+              "F3",
+              "G3",
+              "H3",
+              "I3",
+              "J3",
+              "A1",
+              "J6"
+            ],
+            "note": "Wheel spokes and street highlights streak along motion vectors due to shutter speed relative to subject and background movement.",
+            "agreement": 2,
+            "lenses": [
+              "technician",
+              "composer"
+            ]
+          },
+          {
+            "technique_id": "warm_cool",
+            "confidence": 0.9,
+            "cells": [
+              "A1",
+              "D3",
+              "E5",
+              "J6"
+            ],
+            "note": "The frame balances a 67% cool blue twilight ground and sky against 16% warm amber storefront lighting and pavement reflections.",
+            "agreement": 2,
+            "lenses": [
+              "composer",
+              "storyteller"
+            ]
+          },
+          {
+            "technique_id": "reflections",
+            "confidence": 0.825,
+            "cells": [
+              "E5",
+              "G6",
+              "I5",
+              "J6",
+              "D4",
+              "I6"
+            ],
+            "note": "Wet street pavement reflects the warm shopfront and street lights into elongated surface highlights.",
+            "agreement": 2,
+            "lenses": [
+              "composer",
+              "storyteller"
+            ]
+          },
+          {
+            "technique_id": "rule_of_thirds",
+            "confidence": 0.8,
+            "cells": [
+              "C2",
+              "D4"
+            ],
+            "note": "The cyclist's head and torso align near the left vertical third, providing generous lead room to the right.",
+            "agreement": 1,
+            "lenses": [
+              "composer"
+            ]
+          }
+        ],
+        "composition": {
+          "subject_cells": [
+            "B2",
+            "C2",
+            "D2",
+            "B3",
+            "C3",
+            "D3",
+            "A4",
+            "B4",
+            "C4",
+            "D4",
+            "E4",
+            "A5",
+            "B5",
+            "C5",
+            "D5",
+            "E5",
+            "B6",
+            "C6",
+            "D6",
+            "E6"
+          ],
+          "subject_x": 0.28,
+          "subject_y": 0.52,
+          "guide": "centre",
+          "horizon_row": null,
+          "suggested_crop_cells": [],
+          "crop_tested": false,
+          "crop_before": null,
+          "crop_after": null,
+          "crop_rounds": 0,
+          "crop_reason": "",
+          "moves": []
+        },
+        "observations": [
+          "A cyclist in dark clothing rides a black bicycle from left to right across cells A4 to E6.",
+          "The cyclist's upper body, helmet, and face in C2-D4 are the sharpest elements in the frame, though showing minor motion softening.",
+          "The background buildings and shop windows across A1-J4 show strong horizontal motion streaks.",
+          "The wet asphalt in E5-J6 reflects warm indoor lighting and cool ambient sky light, smeared horizontally into directional streaks.",
+          "The bicycle wheels in A5-B6 and D5-E6 exhibit both translational and rotational motion blur.",
+          "A cyclist wearing a helmet and backpack occupies columns A to E across rows 2 to 6, moving toward the right.",
+          "The background architecture and ground show strong horizontal motion blur from panning across rows 1 to 6.",
+          "Warm artificial light shines from shopfronts in H3 to J4, casting orange reflections onto wet asphalt in E5 to G6 and I5 to J6.",
+          "Cool blue ambient light dominates the upper left sky and background in A1 to F3.",
+          "The cyclist's upper torso and face in C2 to D3 are relatively sharp compared to the blurred wheels and background.",
+          "A cyclist wearing a helmet, dark jacket, and backpack rides a bicycle across a wet asphalt street from B2 to E5.",
+          "The background architecture and streetlights across A1 to J3 are horizontally streaked with motion blur."
+        ],
+        "findings": [],
+        "critique": "The panning motion beautifully isolates the cyclist on the left side of the frame, streaking the city background into horizontal ribbons while the wet asphalt catches vibrant reflections. With 67% of the frame reading cool against 16% warm amber light from the storefronts, the atmospheric color separation delivers a compelling mood of an evening commute. The rider's face, however, has slight motion softening where your panning speed drifted just off the subject's lateral pace mid-sweep. Next time, pivot smoothly from your hips rather than your arms to keep your focus point locked dead-center on the rider's helmet throughout the entire motion.",
+        "panel": {
+          "technician": 20.3,
+          "composer": 49.4,
+          "storyteller": 23.8
+        },
+        "dissent": [
+          {
+            "lens": "storyteller",
+            "technique_id": "blue_hour",
+            "confidence": 0.85
+          }
+        ],
+        "abstained": "",
+        "created_at": "2026-08-28T07:41:23.188772Z"
+      },
+      "teaching": {
+        "keep_title": "Panning",
+        "keep_proof": "Camera motion matches the cyclist's lateral speed, rendering the subject relatively stable while streaking the static background horizontally.",
+        "keep_technique_id": "panning",
+        "keep_authority": "model_read",
+        "keep_cells": [
+          "A1",
+          "B1",
+          "C1",
+          "D1",
+          "E1",
+          "F1",
+          "G1",
+          "H1",
+          "I1",
+          "J1",
+          "A2",
+          "B2",
+          "C2",
+          "D2",
+          "E2",
+          "F2",
+          "G2",
+          "H2",
+          "I2",
+          "J2",
+          "A3",
+          "B3",
+          "C3",
+          "D3",
+          "E3",
+          "F3",
+          "G3",
+          "H3",
+          "I3",
+          "J3",
+          "A4",
+          "B4",
+          "C4",
+          "D4",
+          "E4",
+          "F4",
+          "G4",
+          "H4",
+          "I4",
+          "J4",
+          "A5",
+          "B5",
+          "C5",
+          "D5",
+          "E5",
+          "F5",
+          "G5",
+          "H5",
+          "I5",
+          "J5",
+          "A6",
+          "B6",
+          "C6",
+          "D6",
+          "E6",
+          "F6",
+          "G6",
+          "H6",
+          "I6",
+          "J6"
+        ],
+        "notice_title": "The background architecture and streetlights are horizontally streaked with motion blur.",
+        "notice_proof": "One Analyst observation; not a measured Finding.",
+        "notice_finding_id": "",
+        "notice_authority": "model_read",
+        "notice_cells": [],
+        "try_text": "",
+        "try_reason": "",
+        "try_kind": null,
+        "try_from_cells": [],
+        "try_to_cells": [],
+        "visible_check": "",
+        "primary_layer": "guide",
+        "guide": "centre"
+      },
+      "artifacts": {
+        "annotated": "C:\\Users\\fikuri\\Documents\\shoots\\docs\\test-corpus\\results\\learning-quality-assets\\users\\quality_generated-panning-cyclist\\shots\\shot_-cyclist_quality_68ab244b600285aa71faf2e2\\annotated.jpg"
+      },
+      "checks": [
+        {
+          "name": "taxonomy",
+          "status": "pass",
+          "detail": "stored Technique ids: ['motion_blur', 'panning', 'reflections', 'rule_of_thirds', 'warm_cool']"
+        },
+        {
+          "name": "receipt has no internal cells",
+          "status": "pass",
+          "detail": "visible characters: 288"
+        },
+        {
+          "name": "receipt has no clipped clause",
+          "status": "pass",
+          "detail": "visible receipt clauses are complete"
+        },
+        {
+          "name": "receipt is bounded",
+          "status": "pass",
+          "detail": "288 <= 700"
+        },
+        {
+          "name": "authority labels",
+          "status": "pass",
+          "detail": "keep=model_read, notice=model_read"
+        },
+        {
+          "name": "one supported image layer",
+          "status": "pass",
+          "detail": "guide"
+        },
+        {
+          "name": "Try preserves Keep",
+          "status": "pass",
+          "detail": "selected Move challenges []"
+        },
+        {
+          "name": "Try has corrective warrant",
+          "status": "pass",
+          "detail": "selected Move warrant: none"
+        },
+        {
+          "name": "Try has a concrete reason",
+          "status": "pass",
+          "detail": "no Try selected"
+        },
+        {
+          "name": "abstention policy",
+          "status": "pass",
+          "detail": "panel did not abstain"
+        },
+        {
+          "name": "required Technique group 1",
+          "status": "pass",
+          "detail": "expected any of ['panning', 'motion_blur']; found ['motion_blur', 'panning']"
+        },
+        {
+          "name": "required Technique group 2",
+          "status": "pass",
+          "detail": "expected any of ['warm_cool']; found ['warm_cool']"
+        },
+        {
+          "name": "forbidden Techniques",
+          "status": "pass",
+          "detail": "found []"
+        },
+        {
+          "name": "required Findings",
+          "status": "pass",
+          "detail": "missing []; found []"
+        },
+        {
+          "name": "forbidden Findings",
+          "status": "pass",
+          "detail": "found []"
+        },
+        {
+          "name": "forbidden Move kinds",
+          "status": "pass",
+          "detail": "forbidden []; found none"
+        },
+        {
+          "name": "forbidden Move phrases",
+          "status": "pass",
+          "detail": "found []"
+        },
+        {
+          "name": "human review 1",
+          "status": "review",
+          "detail": "Does the receipt ask for better subject tracking without removing the intentional streaked background?"
+        }
+      ],
+      "error": ""
+    },
+    {
+      "id": "generated-color-market",
+      "note": "Synthetic test input with written Intent outside Photographer memory.",
+      "filename": "13-intent-color-market.png",
+      "input_sha256": "1be11039fe98d8a5b7fea086784ec79610261c0fa34bf07603469a72717a85bf",
+      "elapsed_seconds": 118.187,
+      "model": "gemini-3.7-flash",
+      "prompt_version": "1c738851cdfb",
+      "shot_evidence": {
+        "kind": "photo",
+        "mime_type": "image/png",
+        "exif": {
+          "make": "",
+          "model": "",
+          "lens": ""
+        },
+        "tone": {
+          "cct_k": 7261,
+          "cast": -16.8,
+          "saturation": 38.8,
+          "saturation_p95": 94.5,
+          "accent_share": 31.2,
+          "warm_share": 19.0,
+          "cool_share": 24.1,
+          "luma_mean": 85.4,
+          "luma_p5": 24.0,
+          "luma_p95": 187.2,
+          "clipped_high": 1.54,
+          "clipped_low": 0.13,
+          "hues": [
+            "teal",
+            "green",
+            "red"
+          ],
+          "hue_opposition": 30
+        },
+        "motion": null,
+        "grid": {
+          "cols": 7,
+          "rows": 9,
+          "width": 1122,
+          "height": 1402
+        }
+      },
+      "analysis": {
+        "shot_id": "shot_r-market_quality_1be11039fe98d8a5b7fea086",
+        "user_id": "quality_generated-color-market",
+        "model": "gemini-3.7-flash",
+        "prompt_version": "1c738851cdfb",
+        "techniques": [
+          {
+            "technique_id": "reflections",
+            "confidence": 0.85,
+            "cells": [
+              "E6",
+              "E7",
+              "E8",
+              "E9",
+              "F6",
+              "F7",
+              "F8",
+              "F9",
+              "D6",
+              "D7",
+              "D8"
+            ],
+            "note": "Wet pavement mirrors the cool sky and ambient light, adding texture and sheen to the lower half.",
+            "agreement": 2,
+            "lenses": [
+              "composer",
+              "storyteller"
+            ]
+          },
+          {
+            "technique_id": "leading_lines",
+            "confidence": 0.825,
+            "cells": [
+              "E6",
+              "E7",
+              "E8",
+              "E9",
+              "F6",
+              "F7",
+              "F8",
+              "C7",
+              "D8",
+              "D5"
+            ],
+            "note": "The linear seams of the wet stone pathway guide the eye straight toward the walking figure.",
+            "agreement": 2,
+            "lenses": [
+              "composer",
+              "storyteller"
+            ]
+          },
+          {
+            "technique_id": "complementary",
+            "confidence": 0.95,
+            "cells": [
+              "D3",
+              "E3",
+              "D4",
+              "E4"
+            ],
+            "note": "The vivid red umbrella strongly opposes the dominant teal and green hues across the surrounding tarps and produce.",
+            "agreement": 1,
+            "lenses": [
+              "storyteller"
+            ]
+          },
+          {
+            "technique_id": "warm_cool",
+            "confidence": 0.88,
+            "cells": [
+              "D3",
+              "E3",
+              "G1"
+            ],
+            "note": "The warm 19% share from the red umbrella and overhead stall bulb sits directly against the cool-toned wet pavement and green coverings.",
+            "agreement": 1,
+            "lenses": [
+              "storyteller"
+            ]
+          },
+          {
+            "technique_id": "soft_light",
+            "confidence": 0.8,
+            "cells": [],
+            "note": "Even, shadowless illumination characteristic of overcast daylight at 7261 K.",
+            "agreement": 1,
+            "lenses": [
+              "composer"
+            ]
+          },
+          {
+            "technique_id": "frame_within_frame",
+            "confidence": 0.75,
+            "cells": [
+              "A1",
+              "B1",
+              "C1",
+              "D1",
+              "D2",
+              "F1",
+              "F2",
+              "G1",
+              "G2"
+            ],
+            "note": "Low-hanging tarpaulins along the top enclose the market lane, focusing attention inward.",
+            "agreement": 1,
+            "lenses": [
+              "composer"
+            ]
+          },
+          {
+            "technique_id": "shallow_dof",
+            "confidence": 0.75,
+            "cells": [
+              "D2",
+              "D3",
+              "E2",
+              "E3",
+              "F2",
+              "F3"
+            ],
+            "note": "The foreground pavement and tarp remain sharply defined while background market stalls and distant pedestrians are rendered with noticeable optical blur.",
+            "agreement": 1,
+            "lenses": [
+              "technician"
+            ]
+          }
+        ],
+        "composition": {
+          "subject_cells": [
+            "D3",
+            "E3",
+            "F3",
+            "D4",
+            "E4",
+            "F4",
+            "E5",
+            "E6"
+          ],
+          "subject_x": 0.6,
+          "subject_y": 0.41,
+          "guide": "centre",
+          "horizon_row": null,
+          "suggested_crop_cells": [],
+          "crop_tested": true,
+          "crop_before": 7,
+          "crop_after": null,
+          "crop_rounds": 1,
+          "crop_reason": "Trimming row 9 truncates the reflective wet cobblestone path that serves as the primary leading line into the scene without offering any compositional benefit.",
+          "moves": [
+            {
+              "what": "Step forward to reduce the dominant green tarp mass in the foreground.",
+              "kind": "camera",
+              "from_cells": [],
+              "to_cells": [],
+              "reason": "The expanse of tarp in A6-D9 takes up nearly a third of the frame without adding detail to the market narrative.",
+              "warrant": "guide",
+              "challenges_technique_ids": []
+            }
+          ]
+        },
+        "observations": [
+          "A person holding a red umbrella walks away down a wet market walkway centered across E3-E6.",
+          "The green plastic tarpaulin in the foreground at A6-D9 is in crisp focus, showing water droplets and surface texture.",
+          "The background figures and stalls across D2-F3 exhibit progressive optical blur.",
+          "Specular reflections from wet pavement run vertically through columns D, E, and F in rows 6 to 9.",
+          "A bare overhead light fixture is illuminated at G2.",
+          "A figure carrying a vivid red umbrella walks away down the paved market lane across D3-F6.",
+          "A large teal-green tarp covers market goods throughout the left foreground across A5-D9.",
+          "Produce stalls and hanging produce line the right side of the corridor from F4 to G8.",
+          "Overhead tarpaulins and awning structures frame the top of the scene across A1-D2 and F1-G3.",
+          "Diffuse overcast light reflects off the wet pavement in columns E, F, and G from row 6 down to row 9.",
+          "A person holding a bright red umbrella walks away down a wet market aisle at D3-E6.",
+          "Green tarpaulins cover crates and market stalls along the left foreground at A4-D9 and upper canopy at A1-D2."
+        ],
+        "findings": [],
+        "critique": "The vivid red umbrella provides an immediate visual punch against the cool, rain-soaked market corridor, guided naturally by the reflections along the wet stone pathway. Because only 19% of the frame reads warm by hue, your eye goes straight to the figure, but the massive green tarp in the bottom left occupies valuable space and pulls critical sharpness away from your walking subject. Next time, step forward past that bulky foreground tarp and lock your active focus point directly onto the figure to let the human narrative dominate.",
+        "panel": {
+          "technician": 20.0,
+          "composer": 27.3,
+          "storyteller": 94.8
+        },
+        "dissent": [
+          {
+            "lens": "composer",
+            "technique_id": "single_accent",
+            "confidence": 0.95
+          }
+        ],
+        "abstained": "",
+        "created_at": "2026-08-28T07:43:07.797571Z"
+      },
+      "teaching": {
+        "keep_title": "Reflections",
+        "keep_proof": "Wet pavement mirrors the cool sky and ambient light, adding texture and sheen to the lower half.",
+        "keep_technique_id": "reflections",
+        "keep_authority": "model_read",
+        "keep_cells": [
+          "E6",
+          "E7",
+          "E8",
+          "E9",
+          "F6",
+          "F7",
+          "F8",
+          "F9",
+          "D6",
+          "D7",
+          "D8"
+        ],
+        "notice_title": "Diffuse overcast light reflects off the wet pavement, F, and G from down to.",
+        "notice_proof": "One Analyst observation; not a measured Finding.",
+        "notice_finding_id": "",
+        "notice_authority": "model_read",
+        "notice_cells": [],
+        "try_text": "",
+        "try_reason": "",
+        "try_kind": null,
+        "try_from_cells": [],
+        "try_to_cells": [],
+        "visible_check": "",
+        "primary_layer": "guide",
+        "guide": "centre"
+      },
+      "artifacts": {
+        "annotated": "C:\\Users\\fikuri\\Documents\\shoots\\docs\\test-corpus\\results\\learning-quality-assets\\users\\quality_generated-color-market\\shots\\shot_r-market_quality_1be11039fe98d8a5b7fea086\\annotated.jpg"
+      },
+      "checks": [
+        {
+          "name": "taxonomy",
+          "status": "pass",
+          "detail": "stored Technique ids: ['complementary', 'frame_within_frame', 'leading_lines', 'reflections', 'shallow_dof', 'soft_light', 'warm_cool']"
+        },
+        {
+          "name": "receipt has no internal cells",
+          "status": "fail",
+          "detail": "visible characters: 234"
+        },
+        {
+          "name": "receipt has no clipped clause",
+          "status": "pass",
+          "detail": "visible receipt clauses are complete"
+        },
+        {
+          "name": "receipt is bounded",
+          "status": "pass",
+          "detail": "234 <= 700"
+        },
+        {
+          "name": "authority labels",
+          "status": "pass",
+          "detail": "keep=model_read, notice=model_read"
+        },
+        {
+          "name": "one supported image layer",
+          "status": "pass",
+          "detail": "guide"
+        },
+        {
+          "name": "Try preserves Keep",
+          "status": "pass",
+          "detail": "selected Move challenges []"
+        },
+        {
+          "name": "Try has corrective warrant",
+          "status": "pass",
+          "detail": "selected Move warrant: none"
+        },
+        {
+          "name": "Try has a concrete reason",
+          "status": "pass",
+          "detail": "no Try selected"
+        },
+        {
+          "name": "abstention policy",
+          "status": "pass",
+          "detail": "panel did not abstain"
+        },
+        {
+          "name": "required Technique group 1",
+          "status": "pass",
+          "detail": "expected any of ['complementary']; found ['complementary']"
+        },
+        {
+          "name": "required Technique group 2",
+          "status": "pass",
+          "detail": "expected any of ['leading_lines', 'frame_within_frame']; found ['frame_within_frame', 'leading_lines']"
+        },
+        {
+          "name": "forbidden Techniques",
+          "status": "pass",
+          "detail": "found []"
+        },
+        {
+          "name": "required Findings",
+          "status": "pass",
+          "detail": "missing []; found []"
+        },
+        {
+          "name": "forbidden Findings",
+          "status": "pass",
+          "detail": "found []"
+        },
+        {
+          "name": "forbidden Move kinds",
+          "status": "pass",
+          "detail": "forbidden []; found none"
+        },
+        {
+          "name": "forbidden Move phrases",
+          "status": "pass",
+          "detail": "found []"
+        }
+      ],
+      "error": ""
+    }
+  ]
+}

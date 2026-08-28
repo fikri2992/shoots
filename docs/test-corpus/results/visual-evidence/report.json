@@ -1,0 +1,173 @@
+{
+  "renderer_version": "visual-evidence-v2",
+  "still_techniques": 57,
+  "mapped_techniques": 57,
+  "plan_errors": [],
+  "cases": [
+    {
+      "case": "complementary",
+      "technique": "complementary",
+      "kind": "hue_mask",
+      "authority": "measured",
+      "status": "rendered",
+      "verification": "measured",
+      "refinement_count": 0,
+      "metrics": {
+        "primary_share_pct": 3.2,
+        "primary_group": "hue 0\u00b0",
+        "secondary_share_pct": 1.1,
+        "secondary_group": "hue 120\u00b0"
+      },
+      "elapsed_ms": 235.5,
+      "output": "..\\docs\\test-corpus\\results\\visual-evidence\\complementary-hue_mask.jpg"
+    },
+    {
+      "case": "warm-cool",
+      "technique": "warm_cool",
+      "kind": "hue_mask",
+      "authority": "measured",
+      "status": "rendered",
+      "verification": "measured",
+      "refinement_count": 0,
+      "metrics": {
+        "primary_share_pct": 13.5,
+        "primary_group": "warm",
+        "secondary_share_pct": 38.8,
+        "secondary_group": "cool"
+      },
+      "elapsed_ms": 165.0,
+      "output": "..\\docs\\test-corpus\\results\\visual-evidence\\warm-cool-hue_mask.jpg"
+    },
+    {
+      "case": "silhouette",
+      "technique": "silhouette",
+      "kind": "luminance_map",
+      "authority": "measured",
+      "status": "rendered",
+      "verification": "measured",
+      "refinement_count": 0,
+      "metrics": {
+        "mean_luma": 26.2,
+        "p05_luma": 0.0,
+        "p95_luma": 82.0,
+        "dark_share_pct": 64.1,
+        "bright_share_pct": 0.3,
+        "technique_context": "silhouette"
+      },
+      "elapsed_ms": 118.6,
+      "output": "..\\docs\\test-corpus\\results\\visual-evidence\\silhouette-luminance_map.jpg"
+    },
+    {
+      "case": "hard-light",
+      "technique": "hard_light",
+      "kind": "luminance_map",
+      "authority": "measured",
+      "status": "rendered",
+      "verification": "measured",
+      "refinement_count": 0,
+      "metrics": {
+        "mean_luma": 27.6,
+        "p05_luma": 0.0,
+        "p95_luma": 163.0,
+        "dark_share_pct": 79.6,
+        "bright_share_pct": 0.3,
+        "technique_context": "hard_light"
+      },
+      "elapsed_ms": 48.6,
+      "output": "..\\docs\\test-corpus\\results\\visual-evidence\\hard-light-luminance_map.jpg"
+    },
+    {
+      "case": "shallow-dof",
+      "technique": "shallow_dof",
+      "kind": "sharpness_map",
+      "authority": "measured",
+      "status": "rendered",
+      "verification": "measured",
+      "refinement_count": 0,
+      "metrics": {
+        "median_local_contrast": 4.52,
+        "p90_local_contrast": 6.5
+      },
+      "elapsed_ms": 325.6,
+      "output": "..\\docs\\test-corpus\\results\\visual-evidence\\shallow-dof-sharpness_map.jpg"
+    },
+    {
+      "case": "bokeh",
+      "technique": "bokeh_balls",
+      "kind": "sharpness_map",
+      "authority": "measured",
+      "status": "rendered",
+      "verification": "measured",
+      "refinement_count": 0,
+      "metrics": {
+        "median_local_contrast": 4.52,
+        "p90_local_contrast": 6.5
+      },
+      "elapsed_ms": 362.3,
+      "output": "..\\docs\\test-corpus\\results\\visual-evidence\\bokeh-sharpness_map.jpg"
+    },
+    {
+      "case": "noise",
+      "technique": "high_iso_night",
+      "kind": "noise_map",
+      "authority": "measured",
+      "status": "rendered",
+      "verification": "measured",
+      "refinement_count": 0,
+      "metrics": {
+        "median_residual": 1.0,
+        "p95_residual": 6.0
+      },
+      "elapsed_ms": 209.0,
+      "output": "..\\docs\\test-corpus\\results\\visual-evidence\\noise-noise_map.jpg"
+    },
+    {
+      "case": "edges",
+      "technique": "leading_lines",
+      "kind": "verified_paths",
+      "authority": "located_model_read",
+      "status": "rendered",
+      "verification": "bounded",
+      "refinement_count": 1,
+      "metrics": {
+        "path_count": 2,
+        "mean_edge_support_pct": 99.0
+      },
+      "elapsed_ms": 58.9,
+      "output": "..\\docs\\test-corpus\\results\\visual-evidence\\edges-verified_paths.jpg"
+    },
+    {
+      "case": "panning-direction",
+      "technique": "panning",
+      "kind": "blur_direction",
+      "authority": "located_model_read",
+      "status": "rendered",
+      "verification": "bounded",
+      "refinement_count": 0,
+      "metrics": {
+        "orientation_deg_from_horizontal": 179.2,
+        "orientation_coherence_pct": 65.3
+      },
+      "elapsed_ms": 70.1,
+      "output": "..\\docs\\test-corpus\\results\\visual-evidence\\panning-direction-blur_direction.jpg"
+    },
+    {
+      "case": "face-window",
+      "technique": "eye_contact_portrait",
+      "kind": "face_landmarks",
+      "authority": "located_model_read",
+      "status": "rendered",
+      "verification": "bounded",
+      "refinement_count": 0,
+      "metrics": {
+        "eye_count": 2,
+        "face_detection_confidence": 0.942,
+        "left_face_luma": 63.7,
+        "right_face_luma": 33.4,
+        "technique_context": "eye_contact_portrait"
+      },
+      "elapsed_ms": 128.6,
+      "output": "..\\docs\\test-corpus\\results\\visual-evidence\\face-window-face_landmarks.jpg"
+    }
+  ]
+}

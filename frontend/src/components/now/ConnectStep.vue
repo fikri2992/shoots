@@ -29,7 +29,9 @@ export default {
       </div>
       <div class="surface p-5 sm:p-6">
         <p class="eyebrow">Scope</p>
-        <p class="mt-3 t-body">Only the folder Shoots creates. No access to the rest of your Drive.</p>
+        <p class="mt-3 t-body">
+          The folder is only for automatic reconciliation and reviewed copies. Existing files are read only when you select them in Google Drive.
+        </p>
         <button type="button" class="btn mt-6 w-full" :disabled="busy === 'connect'" @click="connect">
           {{ busy === 'connect' ? 'Connecting…' : 'Connect optional Drive' }}
         </button>

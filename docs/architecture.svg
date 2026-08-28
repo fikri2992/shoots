@@ -1,162 +1,194 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="1000" viewBox="0 0 1600 1000" role="img" aria-labelledby="title desc">
-  <title id="title">Shoots continuous agent architecture</title>
-  <desc id="desc">Phone Camera media becomes durable Shot Runs, one revisioned Shoot Record, bounded longitudinal memory, a typed Scout decision, optional Experiments, and native Android or web artifacts. Capture Session, Run, and Shoot barriers remain independent.</desc>
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="1080" viewBox="0 0 1600 1080" role="img" aria-labelledby="title desc">
+  <title id="title">Shoots autonomous learning workflow on Google Cloud</title>
+  <desc id="desc">A Photographer takes ordinary Shots with the system Camera. Android Phone Source detects new Camera media and uploads it without another user step. Pub/Sub connects independently retryable code stages, while ADK parallel and sequential agents run in process inside the Analyst stage. The stacked per-Shot lane repeats for every media item. Settled Runs visibly converge at a Shoot barrier before one Shoot synthesis, code-gated Scout decision, and Shoot Record. A short conditional branch reaches the Scout writer and Google Search. Firestore and Cloud Storage retain the work. Read models return the receipt to Android and web, while FCM reaches Android only. The loop ends with useful learning work back in the Photographer's hands.</desc>
   <defs>
     <style>
-      .bg{fill:#11110f}.lane{fill:#181713;stroke:#353126;stroke-width:2}.box{fill:#211f19;stroke:#5a5240;stroke-width:2}.code{fill:#182126;stroke:#4d8295;stroke-width:2}.model{fill:#2a2114;stroke:#d89a3b;stroke-width:2}.person{fill:#1b251d;stroke:#75a67c;stroke-width:2}.external{fill:#1e1e1d;stroke:#77736b;stroke-width:2}.terminal{fill:#2a2419;stroke:#e2b55c;stroke-width:3}.title{fill:#f4efe3;font:700 34px system-ui,sans-serif}.subtitle{fill:#afa99c;font:18px system-ui,sans-serif}.laneTitle{fill:#d8d1c2;font:700 18px system-ui,sans-serif;letter-spacing:1px}.h{fill:#f5efe2;font:700 18px system-ui,sans-serif}.t{fill:#c8c0b2;font:15px system-ui,sans-serif}.small{fill:#a9a294;font:13px system-ui,sans-serif}.label{fill:#d4cdbf;font:13px system-ui,sans-serif}.arrow{stroke:#8a8377;stroke-width:2.5;fill:none;marker-end:url(#arrow)}.amberArrow{stroke:#d89a3b;stroke-width:3;fill:none;marker-end:url(#arrowAmber)}.dash{stroke:#8a8377;stroke-width:2;fill:none;stroke-dasharray:8 7;marker-end:url(#arrow)}.barrier{fill:#11110f;stroke:#d89a3b;stroke-width:2}.legend{font:14px system-ui,sans-serif;fill:#c8c0b2}
+      text{font-family:Inter,Roboto,"Segoe UI",Arial,sans-serif;fill:#202124}
+      .bg{fill:#fff}.cloud{fill:#4285f4;stroke:#275db2;stroke-width:2}.region{fill:#fff;stroke:#3c4043;stroke-width:1.6}
+      .external{fill:#fff;stroke:#5f6368;stroke-width:1.7}.workflow{fill:#dff3e5;stroke:#4d6655;stroke-width:1.8}
+      .code{fill:#fff;stroke:#4285f4;stroke-width:2.2}.agent{fill:#fff;stroke:#f29900;stroke-width:2.2}
+      .artifact{fill:#fff;stroke:#34a853;stroke-width:2.2}.service-area{fill:#e8f0fe;stroke:#5f6368;stroke-width:1.7;stroke-dasharray:7 5}
+      .delivery{fill:#eef8f1;stroke:#34a853;stroke-width:2}.service{fill:#fff;stroke:#5f6368;stroke-width:1.7}
+      .lane-copy{fill:#edf8f0;stroke:#9aa0a6;stroke-width:1.4}.lane{fill:#fff;stroke:#5f6368;stroke-width:1.7}.gate{fill:#5f6368}.mini-agent{fill:#fff;stroke:#f29900;stroke-width:1.5}.mini-code{fill:#fff;stroke:#4285f4;stroke-width:1.5}
+      .h1{fill:#fff;font-size:32px;font-weight:650}.h2{font-size:22px;font-weight:700}.h3{font-size:17px;font-weight:700}
+      .t{font-size:14px}.small{fill:#5f6368;font-size:12px}.tiny{fill:#5f6368;font-size:11px}.label{font-size:14px;font-weight:650}.eyebrow{font-size:13px;font-weight:750;letter-spacing:.55px}
+      .arrow{stroke:#3c4043;stroke-width:2.5;fill:none;marker-end:url(#arrow)}.event{stroke:#4285f4;stroke-width:2.5;fill:none;marker-end:url(#arrowBlue)}
+      .data{stroke:#5f6368;stroke-width:2;fill:none;stroke-dasharray:7 5;marker-end:url(#arrow)}
+      .merge{stroke:#5f6368;stroke-width:2;fill:none}.tool{stroke:#f29900;stroke-width:2.3;fill:none;stroke-dasharray:5 5;marker-end:url(#arrowGold)}
+      .deliver{stroke:#34a853;stroke-width:2.5;fill:none;marker-end:url(#arrowGreen)}.notice{stroke:#4285f4;stroke-width:2.2;fill:none;marker-end:url(#arrowBlue)}
+      .line-solid{stroke:#3c4043;stroke-width:2.5}.line-event{stroke:#4285f4;stroke-width:2.5}.line-data{stroke:#5f6368;stroke-width:2;stroke-dasharray:7 5}.line-tool{stroke:#f29900;stroke-width:2.3;stroke-dasharray:5 5}
+      .label-bg{fill:#fff;stroke:#dadce0;stroke-width:1}.step{fill:#188038}.step-text{fill:#fff;font-size:14px;font-weight:750}
+      .robot{fill:none;stroke:#f29900;stroke-width:2}.code-icon{fill:none;stroke:#4285f4;stroke-width:2}.store-icon{fill:none;stroke:#5f6368;stroke-width:2}
+      .dot-agent{fill:#f29900}.dot-code{fill:#4285f4}.dot-artifact{fill:#34a853}
     </style>
-    <marker id="arrow" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto" markerUnits="strokeWidth"><path d="M0,0 L0,6 L9,3 z" fill="#8a8377"/></marker>
-    <marker id="arrowAmber" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto" markerUnits="strokeWidth"><path d="M0,0 L0,6 L9,3 z" fill="#d89a3b"/></marker>
+    <marker id="arrow" markerWidth="11" markerHeight="11" refX="10" refY="3.5" orient="auto" markerUnits="strokeWidth"><path d="M0,0 L0,7 L10,3.5 z" fill="#3c4043"/></marker>
+    <marker id="arrowBlue" markerWidth="11" markerHeight="11" refX="10" refY="3.5" orient="auto" markerUnits="strokeWidth"><path d="M0,0 L0,7 L10,3.5 z" fill="#4285f4"/></marker>
+    <marker id="arrowGreen" markerWidth="11" markerHeight="11" refX="10" refY="3.5" orient="auto" markerUnits="strokeWidth"><path d="M0,0 L0,7 L10,3.5 z" fill="#34a853"/></marker>
+    <marker id="arrowGold" markerWidth="11" markerHeight="11" refX="10" refY="3.5" orient="auto" markerUnits="strokeWidth"><path d="M0,0 L0,7 L10,3.5 z" fill="#f29900"/></marker>
+    <symbol id="person" viewBox="0 0 24 24"><circle cx="8" cy="7" r="3" fill="#202124"/><circle cx="16" cy="7" r="3" fill="#202124"/><path d="M2 20v-4c0-3 2-5 6-5s6 2 6 5v4zM13 20v-4c0-1.8-.6-3.2-1.7-4.2 1.1-.5 2.5-.8 4.2-.8 4 0 6.5 2 6.5 5v4z" fill="#202124"/></symbol>
+    <symbol id="bot" viewBox="0 0 24 24"><rect x="4" y="7" width="16" height="11" rx="4" class="robot"/><circle cx="9" cy="12" r="1.2" fill="#f29900"/><circle cx="15" cy="12" r="1.2" fill="#f29900"/><path d="M12 7V4m-2 0h4M7 21h10" class="robot"/></symbol>
+    <symbol id="braces" viewBox="0 0 24 24"><path d="M9 4H7c-2 0-2 2-2 4v2c0 1-1 2-2 2 1 0 2 1 2 2v2c0 2 0 4 2 4h2M15 4h2c2 0 2 2 2 4v2c0 1 1 2 2 2-1 0-2 1-2 2v2c0 2 0 4-2 4h-2" class="code-icon"/></symbol>
+    <symbol id="doc" viewBox="0 0 24 24"><path d="M6 2h8l5 5v15H6zM14 2v6h5M9 12h7M9 16h7" fill="none" stroke="#34a853" stroke-width="2"/></symbol>
+    <symbol id="spark" viewBox="0 0 24 24"><path d="M12 1c1.2 6.7 4.3 9.8 11 11-6.7 1.2-9.8 4.3-11 11-1.2-6.7-4.3-9.8-11-11C7.7 10.8 10.8 7.7 12 1z" fill="#4285f4"/></symbol>
+    <symbol id="envelope" viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2" fill="#fff" stroke="#4285f4" stroke-width="2"/><path d="M4 7l8 6 8-6" fill="none" stroke="#4285f4" stroke-width="2"/></symbol>
   </defs>
 
-  <rect class="bg" width="1600" height="1000"/>
-  <text class="title" x="48" y="58">Shoots turns ordinary Camera activity into finished learning work</text>
-  <text class="subtitle" x="48" y="88">One Shot Run. Three independent barriers. One correctable Photographer record.</text>
+  <rect class="bg" width="1600" height="1080"/>
 
-  <rect class="lane" x="40" y="120" width="250" height="780" rx="24"/>
-  <rect class="lane" x="315" y="120" width="520" height="780" rx="24"/>
-  <rect class="lane" x="860" y="120" width="430" height="780" rx="24"/>
-  <rect class="lane" x="1315" y="120" width="245" height="780" rx="24"/>
-  <text class="laneTitle" x="65" y="155">EVENT SOURCES</text>
-  <text class="laneTitle" x="340" y="155">ONE SHOT</text>
-  <text class="laneTitle" x="885" y="155">ONE SHOOT</text>
-  <text class="laneTitle" x="1340" y="155">PHOTOGRAPHER</text>
+  <!-- Photographer-owned capture and clients -->
+  <rect class="external" x="50" y="20" width="220" height="76" rx="9"/>
+  <use href="#person" x="72" y="44" width="27" height="27"/><text class="h3" x="113" y="63">Photographer</text>
+  <rect class="external" x="320" y="20" width="220" height="76" rx="9"/>
+  <text class="h3" x="346" y="53">System Camera</text><text class="small" x="346" y="75">Photographer controls shutter</text>
+  <rect class="external" x="620" y="20" width="250" height="76" rx="9"/>
+  <text class="h3" x="646" y="53">Android Phone Source</text><text class="small" x="646" y="75">detects Camera media · uploads in background</text>
+  <rect class="external" x="950" y="20" width="220" height="76" rx="9"/>
+  <text class="h3" x="976" y="53">Web audit desk</text><text class="small" x="976" y="75">same Photographer record</text>
+  <path class="arrow" d="M270 58 H320"/>
+  <path class="arrow" d="M540 58 H620"/>
+  <circle class="step" cx="570" cy="58" r="18"/><text class="step-text" x="570" y="63" text-anchor="middle">1</text>
+  <rect class="label-bg" x="528" y="104" width="132" height="25" rx="12"/><text class="small" x="594" y="121" text-anchor="middle">new Camera media</text>
 
-  <rect class="external" x="70" y="185" width="190" height="80" rx="16"/>
-  <text class="h" x="95" y="218">Normal Camera</text>
-  <text class="t" x="95" y="244">Photographer owns shutter</text>
-  <rect class="code" x="70" y="305" width="190" height="105" rx="16"/>
-  <text class="h" x="95" y="338">Phone Source</text>
-  <text class="t" x="95" y="365">MediaStore + Room</text>
-  <text class="t" x="95" y="387">WorkManager outbox</text>
-  <rect class="external" x="70" y="450" width="190" height="80" rx="16"/>
-  <text class="h" x="95" y="483">Drive, optional</text>
-  <text class="t" x="95" y="508">Explicit import / output</text>
-  <rect class="person" x="70" y="570" width="190" height="105" rx="16"/>
-  <text class="h" x="95" y="603">Photographer signals</text>
-  <text class="t" x="95" y="630">Keeper, Intent, role</text>
-  <text class="t" x="95" y="652">correction, preference</text>
-  <rect class="code" x="70" y="715" width="190" height="105" rx="16"/>
-  <text class="h" x="95" y="748">Capture Session</text>
-  <text class="t" x="95" y="775">Frozen Experiment batch</text>
-  <text class="t" x="95" y="797">Never inferred from time</text>
+  <!-- Cloud boundary -->
+  <rect class="cloud" x="20" y="145" width="1560" height="915" rx="12"/>
+  <text class="h1" x="50" y="188">Google Cloud · Shoots</text>
+  <rect class="region" x="35" y="208" width="1530" height="832" rx="9"/>
+  <text class="label" x="55" y="234">Region · asia-southeast2</text>
 
-  <path class="arrow" d="M165 265 L165 305"/>
-  <path class="arrow" d="M260 357 L340 357"/>
-  <path class="dash" d="M260 490 L340 420"/>
+  <!-- Ingress, transport, model, and tool -->
+  <rect class="code" x="70" y="255" width="300" height="90" rx="9"/>
+  <use href="#braces" x="92" y="283" width="29" height="29"/><text class="h3" x="137" y="281">Cloud Run API</text><text class="t" x="137" y="307">creates Shot + durable Run atomically</text><text class="small" x="137" y="328">identity · upload · authenticated reads</text>
+  <rect class="code" x="420" y="255" width="280" height="90" rx="9"/>
+  <use href="#braces" x="442" y="283" width="29" height="29"/><text class="h3" x="487" y="281">Pub/Sub background stages</text><text class="t" x="487" y="307">independent retries · OIDC push</text><text class="small" x="487" y="328">dead-letter topics · replay-safe stage work</text>
+  <rect class="service" x="790" y="270" width="190" height="60" rx="8"/>
+  <text class="h3" x="812" y="295">Dead-letter queue</text><text class="small" x="812" y="316">poison event after 5 attempts</text>
+  <line class="line-event" x1="700" y1="315" x2="733" y2="315"/><use href="#envelope" x="733" y="303" width="24" height="24"/><path class="event" d="M757 315 H790"/>
+  <rect class="service" x="1240" y="255" width="290" height="90" rx="9"/>
+  <use href="#spark" x="1262" y="281" width="29" height="29"/><text class="h3" x="1304" y="282">Gemini 3.7 Flash</text><text class="small" x="1262" y="311">Vertex AI · global</text><text class="small" x="1262" y="329">bounded structured reads and writing</text>
 
-  <rect class="code" x="340" y="195" width="205" height="95" rx="16"/>
-  <text class="h" x="365" y="228">Shot + durable Run</text>
-  <text class="t" x="365" y="255">Stable source id</text>
-  <text class="t" x="365" y="276">Every stage accounted for</text>
-  <rect class="code" x="340" y="330" width="205" height="105" rx="16"/>
-  <text class="h" x="365" y="363">Ingest</text>
-  <text class="t" x="365" y="390">EXIF, Tone, Motion</text>
-  <text class="t" x="365" y="412">grid + display assets</text>
-  <rect class="model" x="590" y="330" width="215" height="105" rx="16"/>
-  <text class="h" x="615" y="363">Analyst panel</text>
-  <text class="t" x="615" y="390">3 disjoint lenses</text>
-  <text class="t" x="615" y="412">schema + taxonomy bound</text>
-  <rect class="code" x="340" y="490" width="205" height="105" rx="16"/>
-  <text class="h" x="365" y="523">Cartographer</text>
-  <text class="t" x="365" y="550">Technique evidence axes</text>
-  <text class="t" x="365" y="572">rebuildable projections</text>
-  <rect class="code" x="590" y="490" width="215" height="105" rx="16"/>
-  <text class="h" x="615" y="523">Judge, Reproduce only</text>
-  <text class="t" x="615" y="550">Criteria or abstention</text>
-  <text class="t" x="615" y="572">Never grades the Shot</text>
-  <rect class="code" x="340" y="650" width="205" height="105" rx="16"/>
-  <text class="h" x="365" y="683">Teaching Receipt</text>
-  <text class="t" x="365" y="710">Keep · Notice · Try · Check</text>
-  <text class="t" x="365" y="732">one image layer</text>
-  <rect class="code" x="590" y="650" width="215" height="105" rx="16"/>
-  <text class="h" x="615" y="683">Scribe</text>
-  <text class="t" x="615" y="710">reviewed output</text>
-  <text class="t" x="615" y="732">Deconstruction attempt</text>
+  <path class="arrow" d="M745 96 V220 H300 V255"/>
+  <circle class="step" cx="745" cy="160" r="18"/><text class="step-text" x="745" y="165" text-anchor="middle">2</text>
+  <rect class="label-bg" x="768" y="148" width="145" height="25" rx="12"/><text class="small" x="840" y="165" text-anchor="middle">upload + durable Run</text>
+  <path class="arrow" d="M370 300 H420"/>
+  <text class="small" x="395" y="287" text-anchor="middle">stage events</text>
 
-  <path class="arrow" d="M442 290 L442 330"/>
-  <path class="arrow" d="M545 382 L590 382"/>
-  <path class="arrow" d="M697 435 L697 490"/>
-  <path class="arrow" d="M590 420 L545 515"/>
-  <path class="arrow" d="M590 410 L510 650"/>
-  <path class="arrow" d="M697 595 L697 650"/>
+  <!-- Judge-facing workflow overview -->
+  <rect class="workflow" x="60" y="405" width="1030" height="390" rx="10"/>
+  <text class="h2" x="82" y="442">Hybrid event-driven agent workflow</text>
+  <text class="small" x="1065" y="441" text-anchor="end">Pub/Sub between code stages · ADK orchestration inside Analyst</text>
 
-  <rect class="barrier" x="480" y="800" width="185" height="58" rx="14"/>
-  <text class="h" x="510" y="825">RUN BARRIER</text>
-  <text class="small" x="505" y="846">complete or terminal</text>
-  <path class="amberArrow" d="M442 755 L520 800"/>
-  <path class="amberArrow" d="M697 755 L625 800"/>
+  <!-- The whole per-Shot lane repeats for every media item -->
+  <rect class="lane-copy" x="94" y="494" width="470" height="230" rx="9"/>
+  <rect class="lane-copy" x="87" y="487" width="470" height="230" rx="9"/>
+  <rect class="lane" x="80" y="480" width="470" height="230" rx="9"/>
+  <text class="eyebrow" x="100" y="508">EACH SHOT</text><text class="small" x="190" y="508">single media item</text>
+  <rect class="label-bg" x="410" y="490" width="120" height="25" rx="12"/><text class="small" x="470" y="507" text-anchor="middle">× N media items</text>
 
-  <rect class="code" x="885" y="195" width="180" height="95" rx="16"/>
-  <text class="h" x="910" y="228">Shoot lifecycle</text>
-  <text class="t" x="910" y="255">capture continuity</text>
-  <text class="t" x="910" y="276">revisioned late media</text>
-  <rect class="barrier" x="1095" y="205" width="165" height="75" rx="14"/>
-  <text class="h" x="1118" y="235">SHOOT BARRIER</text>
-  <text class="small" x="1118" y="258">every current Run</text>
-  <rect class="terminal" x="885" y="335" width="375" height="110" rx="18"/>
-  <text class="h" x="910" y="370">Settled Shoot Record</text>
-  <text class="t" x="910" y="397">exact members · repeated · varied · blind spots</text>
-  <text class="t" x="910" y="421">provenance · typed Scout outcome · audit trail</text>
-  <rect class="code" x="885" y="505" width="180" height="125" rx="16"/>
-  <text class="h" x="910" y="538">Memory projections</text>
-  <text class="t" x="910" y="565">Technique Map</text>
-  <text class="t" x="910" y="587">Tendency + Journey</text>
-  <text class="t" x="910" y="609">Intervention outcome</text>
-  <rect class="code" x="1095" y="505" width="165" height="125" rx="16"/>
-  <text class="h" x="1120" y="538">Scout policy</text>
-  <text class="t" x="1120" y="565">explain · ask</text>
-  <text class="t" x="1120" y="587">Explore · Reproduce</text>
-  <text class="t" x="1120" y="609">or evidenced silence</text>
-  <rect class="barrier" x="1095" y="695" width="165" height="75" rx="14"/>
-  <text class="h" x="1115" y="725">BATCH BARRIER</text>
-  <text class="small" x="1118" y="748">committed members</text>
-  <rect class="terminal" x="885" y="690" width="180" height="120" rx="18"/>
-  <text class="h" x="910" y="723">Experiment Record</text>
-  <text class="t" x="910" y="750">Variation / Criteria</text>
-  <text class="t" x="910" y="772">Verdict where allowed</text>
-  <text class="t" x="910" y="794">comparable Change</text>
+  <rect class="agent" x="100" y="525" width="195" height="135" rx="9"/>
+  <text class="h3" x="120" y="550">Analyst stage</text>
+  <rect class="mini-agent" x="110" y="565" width="48" height="28" rx="6"/><text class="tiny" x="134" y="583" text-anchor="middle">Tech</text>
+  <rect class="mini-agent" x="173" y="565" width="48" height="28" rx="6"/><text class="tiny" x="197" y="583" text-anchor="middle">Comp</text>
+  <rect class="mini-agent" x="236" y="565" width="48" height="28" rx="6"/><text class="tiny" x="260" y="583" text-anchor="middle">Story</text>
+  <path class="arrow" d="M134 593 V608 H170 V625"/>
+  <path class="arrow" d="M197 593 V625"/>
+  <path class="arrow" d="M260 593 V608 H224 V625"/>
+  <rect class="mini-agent" x="147" y="625" width="100" height="28" rx="6"/><text class="tiny" x="197" y="643" text-anchor="middle">Synthesize</text>
 
-  <path class="amberArrow" d="M665 829 L885 250"/>
-  <path class="arrow" d="M1065 242 L1095 242"/>
-  <path class="arrow" d="M1178 280 L1178 335"/>
-  <path class="arrow" d="M1072 445 L990 505"/>
-  <path class="arrow" d="M1065 567 L1095 567"/>
-  <path class="arrow" d="M1178 630 L1178 695"/>
-  <path class="arrow" d="M1095 732 L1065 750"/>
-  <path class="dash" d="M260 622 L885 567"/>
-  <path class="dash" d="M260 768 L1095 732"/>
+  <rect class="code" x="335" y="525" width="180" height="135" rx="9"/>
+  <text class="h3" x="355" y="550">Independent stages</text>
+  <circle class="dot-code" cx="359" cy="577" r="5"/><text class="small" x="372" y="582">Cartographer</text>
+  <circle class="dot-code" cx="359" cy="603" r="5"/><text class="small" x="372" y="608">Judge</text>
+  <circle class="dot-code" cx="359" cy="629" r="5"/><text class="small" x="372" y="634">Scribe</text>
+  <path class="event" d="M295 590 H335"/><use href="#envelope" x="303" y="578" width="24" height="24"/>
+  <path class="merge" d="M515 577 H530 M515 603 H530 M515 629 H530"/>
+  <rect class="gate" x="530" y="525" width="8" height="130" rx="3"/>
+  <path class="merge" d="M534 655 V657"/>
+  <rect class="label-bg" x="474" y="657" width="120" height="32" rx="9"/>
+  <text class="label" x="534" y="671" text-anchor="middle" style="font-size:12px">RUN BARRIER</text><text class="tiny" x="534" y="685" text-anchor="middle">all stages settle</text>
 
-  <rect class="terminal" x="1340" y="195" width="195" height="95" rx="18"/>
-  <text class="h" x="1365" y="228">Now</text>
-  <text class="t" x="1365" y="255">one focal receipt</text>
-  <text class="t" x="1365" y="276">cached offline</text>
-  <rect class="terminal" x="1340" y="330" width="195" height="95" rx="18"/>
-  <text class="h" x="1365" y="363">Shots</text>
-  <text class="t" x="1365" y="390">Evidence + Run detail</text>
-  <text class="t" x="1365" y="411">Keeper control</text>
-  <rect class="terminal" x="1340" y="465" width="195" height="95" rx="18"/>
-  <text class="h" x="1365" y="498">Experiments</text>
-  <text class="t" x="1365" y="525">daily or on demand</text>
-  <text class="t" x="1365" y="546">normal Camera handoff</text>
-  <rect class="terminal" x="1340" y="600" width="195" height="95" rx="18"/>
-  <text class="h" x="1365" y="633">Journey</text>
-  <text class="t" x="1365" y="660">self-comparison</text>
-  <text class="t" x="1365" y="681">evidence-bound Change</text>
-  <rect class="external" x="1340" y="735" width="195" height="80" rx="16"/>
-  <text class="h" x="1365" y="768">Web audit desk</text>
-  <text class="t" x="1365" y="793">same record, more detail</text>
+  <!-- Three settled Runs visibly fan into one Shoot gate -->
+  <path class="merge" d="M538 550 H590 V590 H630 M538 590 H630 M538 630 H590 V590 H630"/>
+  <circle cx="630" cy="590" r="5" fill="#5f6368"/>
+  <path class="arrow" d="M630 590 H645"/>
+  <rect class="gate" x="645" y="510" width="10" height="160" rx="3"/>
+  <rect class="label-bg" x="570" y="480" width="100" height="25" rx="12"/><text class="small" x="620" y="497" text-anchor="middle">N settled Runs</text>
+  <path class="merge" d="M650 670 V680 H620 V690"/>
+  <rect class="label-bg" x="565" y="690" width="110" height="44" rx="9"/>
+  <text class="label" x="620" y="708" text-anchor="middle" style="font-size:12px">SHOOT BARRIER</text><text class="tiny" x="620" y="726" text-anchor="middle">all Runs settled</text>
 
-  <path class="arrow" d="M1260 390 L1340 242"/>
-  <path class="arrow" d="M805 702 L1340 377"/>
-  <path class="arrow" d="M1260 732 L1340 512"/>
-  <path class="arrow" d="M1065 567 L1340 647"/>
-  <path class="dash" d="M1260 420 L1340 775"/>
+  <!-- One aggregate workflow starts only after the gate opens -->
+  <rect class="lane" x="680" y="480" width="400" height="230" rx="9"/>
+  <text class="eyebrow" x="700" y="508">EACH SHOOT</text><text class="small" x="801" y="508">grouped activity</text>
+  <rect class="label-bg" x="910" y="490" width="155" height="25" rx="12"/><text class="small" x="988" y="507" text-anchor="middle">settled Shoot revision</text>
+  <path class="arrow" d="M655 590 H700"/>
+  <rect class="code" x="700" y="535" width="105" height="80" rx="8"/>
+  <text class="label" x="752" y="560" text-anchor="middle">Shoot synthesis</text><text class="tiny" x="752" y="582" text-anchor="middle">repeat · vary</text><text class="tiny" x="752" y="600" text-anchor="middle">blind spots</text>
+  <rect class="code" x="835" y="535" width="105" height="80" rx="8"/>
+  <text class="label" x="887" y="560" text-anchor="middle">Scout</text><text class="tiny" x="887" y="582" text-anchor="middle">route or silence</text><text class="tiny" x="887" y="600" text-anchor="middle">code-gated</text>
+  <rect class="artifact" x="995" y="535" width="70" height="80" rx="8"/>
+  <text class="label" x="1030" y="558" text-anchor="middle">Shoot</text><text class="label" x="1030" y="577" text-anchor="middle">Record</text><text class="tiny" x="1030" y="599" text-anchor="middle">finished</text>
+  <path class="arrow" d="M805 575 H835"/><path class="arrow" d="M940 575 H995"/>
+  <path class="merge" d="M988 515 H967 V558"/>
+  <circle class="step" cx="967" cy="575" r="17"/><text class="step-text" x="967" y="580" text-anchor="middle">4</text>
+  <path class="data" d="M887 615 V650"/>
+  <rect class="agent" x="830" y="650" width="115" height="30" rx="14"/><text class="tiny" x="887" y="669" text-anchor="middle">Scout writer</text>
+  <rect class="service" x="960" y="650" width="105" height="30" rx="14"/><text class="tiny" x="1012" y="669" text-anchor="middle">Google Search</text>
+  <path class="tool" d="M945 665 H960"/>
 
-  <rect x="40" y="925" width="1520" height="50" rx="14" fill="#181713" stroke="#353126"/>
-  <circle cx="72" cy="950" r="8" fill="#4d8295"/><text class="legend" x="88" y="955">deterministic code and durable state</text>
-  <circle cx="390" cy="950" r="8" fill="#d89a3b"/><text class="legend" x="406" y="955">bounded model read / finished artifact</text>
-  <circle cx="760" cy="950" r="8" fill="#75a67c"/><text class="legend" x="776" y="955">Photographer-owned signal</text>
-  <circle cx="1050" cy="950" r="8" fill="#77736b"/><text class="legend" x="1066" y="955">external adapter</text>
-  <text class="legend" x="1280" y="955">Amber never means quality.</text>
+  <path class="event" d="M560 345 V370 H45 V590 H80"/>
+  <use href="#envelope" x="51" y="578" width="24" height="24"/>
+  <circle class="step" cx="560" cy="370" r="18"/><text class="step-text" x="560" y="375" text-anchor="middle">3</text>
+  <rect class="label-bg" x="584" y="358" width="154" height="25" rx="12"/><text class="small" x="661" y="375" text-anchor="middle">Pub/Sub stage boundary</text>
+  <rect class="label-bg" x="80" y="748" width="460" height="28" rx="14"/>
+  <use href="#envelope" x="94" y="751" width="22" height="22"/><text class="small" x="126" y="767">independent retry · idempotent consumer · replay-safe write</text>
+  <circle cx="1000" cy="405" r="4" fill="#5f6368"/>
+  <path class="data" d="M1000 405 V380 H1220 V300 H1240"/>
+  <rect class="label-bg" x="1090" y="349" width="110" height="24" rx="12"/><text class="small" x="1145" y="365" text-anchor="middle">model calls</text>
+
+  <!-- State and delivery -->
+  <rect class="service-area" x="1140" y="405" width="390" height="180" rx="10"/>
+  <text class="h2" x="1165" y="442">Durable state + proof</text>
+  <ellipse class="store-icon" cx="1178" cy="475" rx="14" ry="7"/><path class="store-icon" d="M1164 475v22c0 4 6 7 14 7s14-3 14-7v-22M1164 487c0 4 6 7 14 7s14-3 14-7"/>
+  <text class="h3" x="1210" y="480">Firestore</text><text class="small" x="1305" y="480">Run · Shoot Record</text>
+  <path d="M1165 502 H1505" stroke="#dadce0" stroke-width="1"/>
+  <text class="h3" x="1165" y="527">Cloud Storage</text><text class="small" x="1305" y="527">original media · display assets</text>
+  <path d="M1165 544 H1505" stroke="#dadce0" stroke-width="1"/>
+  <text class="h3" x="1165" y="568">Cloud Logging</text><text class="small" x="1305" y="568">stages · retries · revision evidence</text>
+
+  <path class="data" d="M1065 575 H1110 V485 H1140"/>
+  <circle class="step" cx="1110" cy="485" r="18"/><text class="step-text" x="1110" y="490" text-anchor="middle">5</text>
+  <rect class="label-bg" x="1015" y="448" width="120" height="24" rx="12"/><text class="small" x="1075" y="464" text-anchor="middle">persist receipt</text>
+
+  <rect class="delivery" x="1140" y="615" width="390" height="145" rx="10"/>
+  <text class="h2" x="1165" y="650">Value delivered to Photographer</text>
+  <circle class="dot-artifact" cx="1170" cy="680" r="6"/><text class="h3" x="1188" y="686">Read models</text>
+  <text class="small" x="1188" y="708">Shoot receipt → Android Now / Journey + web audit</text>
+  <circle class="dot-code" cx="1170" cy="733" r="6"/><text class="h3" x="1188" y="739">FCM</text><text class="small" x="1235" y="739">Capture Session + Experiment notices → Android</text>
+  <path class="arrow" d="M1335 585 V615"/>
+
+  <!-- Closed user-value loop: reads reach both clients, FCM reaches Android only -->
+  <path class="deliver" d="M1530 690 H1555 V112 H1070 C1067 104 1053 104 1050 112 H755 C752 104 738 104 735 112 H705 V96"/>
+  <path class="deliver" d="M1025 112 V96"/>
+  <path class="notice" d="M1530 735 H1540 V132 H1070 C1067 124 1053 124 1050 132 H835 V96"/>
+  <circle class="step" cx="1260" cy="112" r="18"/><text class="step-text" x="1260" y="117" text-anchor="middle">6</text>
+  <rect class="label-bg" x="1284" y="100" width="180" height="25" rx="12"/><text class="small" x="1374" y="117" text-anchor="middle">Shoot receipt delivered</text>
+  <rect class="label-bg" x="900" y="120" width="118" height="24" rx="12"/><text class="small" x="959" y="136" text-anchor="middle">FCM notice</text>
+
+  <!-- Runtime and list legend -->
+  <text class="label" x="70" y="820">Runtime</text><text class="t" x="136" y="820">Cloud Run · Pub/Sub · ADK · Gemini · Search · Firestore · Cloud Storage · FCM · Cloud Logging</text>
+  <rect class="service" x="70" y="842" width="1460" height="160" rx="10"/>
+  <text class="h3" x="92" y="872">Legend</text>
+  <text class="label" x="92" y="900">Node types</text>
+  <rect class="code" x="92" y="913" width="22" height="22" rx="4"/><text class="small" x="126" y="929">Deterministic code</text>
+  <rect class="agent" x="92" y="943" width="22" height="22" rx="4"/><text class="small" x="126" y="959">Model-backed agent</text>
+  <rect class="artifact" x="92" y="973" width="22" height="22" rx="4"/><text class="small" x="126" y="989">Durable artifact</text>
+
+  <text class="label" x="560" y="900">Connections</text>
+  <line class="line-solid" x1="560" y1="921" x2="615" y2="921"/><text class="small" x="628" y="926">Direct call or in-process ADK</text>
+  <line class="line-event" x1="560" y1="951" x2="615" y2="951"/><use href="#envelope" x="575" y="939" width="24" height="24"/><text class="small" x="628" y="956">Pub/Sub stage boundary</text>
+  <line class="line-data" x1="900" y1="921" x2="955" y2="921"/><text class="small" x="968" y="926">State or conditional route</text>
+  <line class="line-tool" x1="900" y1="951" x2="955" y2="951"/><text class="small" x="968" y="956">Scoped tool call</text>
+  <line x1="1235" y1="921" x2="1290" y2="921" stroke="#34a853" stroke-width="2.5"/><text class="small" x="1303" y="926">User-value delivery</text>
+  <line x1="1235" y1="951" x2="1290" y2="951" stroke="#4285f4" stroke-width="2.2"/><text class="small" x="1303" y="956">FCM notice</text>
+  <text class="small" x="70" y="1025">Detailed agent topology, barriers, and service cards are kept in architecture-detailed.svg.</text>
 </svg>

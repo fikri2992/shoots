@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # One-time state and identity for the Cloud Run service. Idempotent.
 #
-#   Firestore (native, asia-southeast2)   -> users, shots, analyses, skills, experiments, events, push
+#   Firestore (native, asia-southeast2)   -> users, shots, analyses, experiments, events, push
+#   The legacy `skills` collection key stores TechniqueState until migration.
 #   GCS bucket                            -> originals, gridded frames, sheets, clips
 #   Secret Manager                        -> one secret per user for the Drive refresh token,
 #                                            plus the app secrets deploy.sh mounts as env vars

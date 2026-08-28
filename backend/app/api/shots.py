@@ -7,7 +7,7 @@ from pydantic import BaseModel, Field
 
 from app.api.auth import current_user
 from app.api.deps import get_context
-from app.domain import shot_teaching, tendency
+from app.domain import shot_teaching, taxonomy, tendency
 from app.domain.entities import (
     ActivityEvent,
     Analysis,
@@ -44,6 +44,10 @@ async def me(
     return await repo.find_user(ctx.store, session_user["id"])
 
 
+class TechniqueEvidenceView(TechniqueEvidence):
+    name: str = ""
+
+
 class AnalysisView(BaseModel):
     """The Analyst's read, as a photographer may see it.
 
@@ -58,7 +62,7 @@ class AnalysisView(BaseModel):
     shot_id: str
     model: str
     prompt_version: str
-    techniques: list[TechniqueEvidence] = Field(default_factory=list)
+    techniques: list[TechniqueEvidenceView] = Field(default_factory=list)
     composition: Composition = Field(default_factory=Composition)
     observations: list[str] = Field(default_factory=list)
     findings: list[Finding] = Field(default_factory=list)
@@ -70,7 +74,21 @@ class AnalysisView(BaseModel):
 
     @classmethod
     def of(cls, analysis: Analysis | None) -> "AnalysisView | None":
-        return None if analysis is None else cls(**analysis.model_dump())
+        if analysis is None:
+            return None
+        payload = analysis.model_dump()
+        payload["techniques"] = [
+            {
+                **item.model_dump(),
+                "name": (
+                    taxonomy.BY_ID[item.technique_id].name
+                    if item.technique_id in taxonomy.BY_ID
+                    else item.technique_id.replace("_", " ").title()
+                ),
+            }
+            for item in analysis.techniques
+        ]
+        return cls(**payload)
 
 
 class ShotView(BaseModel):
