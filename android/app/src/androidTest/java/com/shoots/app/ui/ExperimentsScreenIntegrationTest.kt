@@ -3,6 +3,7 @@ package com.shoots.app.ui
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performScrollTo
 import com.shoots.app.ShootsTheme
 import com.shoots.app.data.CriteriaDto
 import com.shoots.app.data.ExperimentDto
@@ -10,6 +11,7 @@ import com.shoots.app.data.MobileSnapshotDto
 import com.shoots.app.data.ShotDto
 import com.shoots.app.data.TechniqueChoiceDto
 import com.shoots.app.data.UserDto
+import com.shoots.app.data.VerdictDto
 import com.shoots.app.data.VariationDto
 import org.junit.Assert.assertEquals
 import org.junit.Rule
@@ -57,6 +59,39 @@ class ExperimentsScreenIntegrationTest {
         compose.onNodeWithText("REPRODUCE").assertExists()
         compose.onNodeWithText("Try with normal camera").assertExists()
         compose.onNodeWithText("OLDER EXPERIMENT").assertDoesNotExist()
+    }
+
+    @Test
+    fun openReproduceShowsWhatTheLastBatchLearnedBeforeOfferingAnotherTry() {
+        val keeper = ShotDto(id = "keeper-1", status = "analyzed", keptAt = "2026-08-26T00:00:00Z")
+        val result = ShotDto(id = "result-2", status = "analyzed")
+        val snapshot = snapshotWith(
+            experiment = ExperimentDto(
+                id = "reproduce-1",
+                type = "reproduce",
+                title = "Lead straight to subject",
+                referenceShotId = keeper.id,
+                criteria = CriteriaDto(text = listOf("A line reaches the subject")),
+                resultShotIds = listOf("result-1", result.id),
+                verdicts = listOf(
+                    VerdictDto(
+                        shotId = result.id,
+                        criteriaMet = false,
+                        feedback = "The line ended in empty space.\n\nNext: Lower the camera beside a curb and place the subject where it ends.",
+                    )
+                ),
+            ),
+            shots = listOf(keeper, result),
+        )
+
+        compose.setContent { ExperimentsTestContent(snapshot) }
+
+        compose.onNodeWithText("RESULTS SO FAR").performScrollTo().assertExists()
+        compose.onNodeWithText("1 of 2 result Shots were judged; 1 could not be resolved.").assertExists()
+        compose.onNodeWithText(
+            "Lower the camera beside a curb and place the subject where it ends.",
+        ).assertExists()
+        compose.onNodeWithText("Try again with normal camera").assertExists()
     }
 
     @Test

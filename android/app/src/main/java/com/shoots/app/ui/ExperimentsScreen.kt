@@ -19,6 +19,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.OutlinedTextField
@@ -108,6 +109,7 @@ fun ExperimentsScreen(
                 busy = busy,
                 onStart = { onStartExperiment(open.id, "") },
                 onKeeper = { open.referenceShotId.takeIf(String::isNotBlank)?.let(onShot) },
+                onResult = { open.resultShotIds.lastOrNull()?.let(onShot) },
                 onAnother = { replaceConfirm = true },
             )
             open?.canStartExplore == true -> ActiveExploreCard(
@@ -261,6 +263,7 @@ private fun ActiveExperimentCard(
     busy: Boolean,
     onStart: () -> Unit,
     onKeeper: () -> Unit,
+    onResult: () -> Unit,
     onAnother: () -> Unit,
 ) {
     var details by remember(experiment.id) { mutableStateOf(false) }
@@ -282,8 +285,48 @@ private fun ActiveExperimentCard(
             Spacer(Modifier.height(7.dp))
             Text("YOUR KEEPER · REFERENCE", color = Amber, fontSize = 10.sp, fontWeight = FontWeight.Bold, modifier = Modifier.clickable(onClick = onKeeper))
         }
+        if (experiment.resultShotIds.isNotEmpty()) {
+            val judged = experiment.verdicts.size
+            val met = experiment.verdicts.count { it.criteriaMet }
+            val abstained = (experiment.resultShotIds.size - judged).coerceAtLeast(0)
+            val latest = experiment.verdicts.lastOrNull()
+            Spacer(Modifier.height(16.dp))
+            Column(
+                Modifier
+                    .fillMaxWidth()
+                    .background(InkRaised, RoundedCornerShape(14.dp))
+                    .padding(16.dp),
+            ) {
+                Text("RESULTS SO FAR", color = Amber, fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                Spacer(Modifier.height(7.dp))
+                Text(
+                    reproduceOutcome(experiment.resultShotIds.size, judged, met, abstained),
+                    color = WarmWhite,
+                    fontSize = 15.sp,
+                    lineHeight = 21.sp,
+                    fontWeight = FontWeight.SemiBold,
+                )
+                latest?.let { verdict ->
+                    val move = verdictNextMove(verdict.feedback)
+                    if (move.isNotBlank()) {
+                        Spacer(Modifier.height(11.dp))
+                        Text("TRY NEXT", color = MutedWhite, fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                        Spacer(Modifier.height(4.dp))
+                        Text(move, color = WarmWhite, fontSize = 13.sp, lineHeight = 19.sp)
+                    }
+                }
+                Spacer(Modifier.height(9.dp))
+                TextButton(onClick = onResult, modifier = Modifier.align(Alignment.End)) {
+                    Text("Inspect latest result", color = Amber, fontSize = 12.sp)
+                }
+            }
+        }
         Spacer(Modifier.height(16.dp))
-        PrimaryAction("Try with normal camera", enabled = !busy, onClick = onStart)
+        PrimaryAction(
+            if (experiment.resultShotIds.isEmpty()) "Try with normal camera" else "Try again with normal camera",
+            enabled = !busy,
+            onClick = onStart,
+        )
         Spacer(Modifier.height(10.dp))
         Row(
             Modifier
@@ -326,6 +369,22 @@ private fun ActiveExperimentCard(
             Text("Another direction", color = MutedWhite, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
         }
     }
+}
+
+private fun reproduceOutcome(results: Int, judged: Int, met: Int, abstained: Int): String = when {
+    met > 0 -> "$met of $results explicit result Shots met the declared Criteria."
+    judged == results && results == 1 -> "Not yet — this Shot did not meet the declared Criteria."
+    judged == results -> "Not yet — none of these $results Shots met the declared Criteria."
+    abstained == results -> "Shoots could not judge any of these $results result Shots."
+    else -> "$judged of $results result Shots were judged; $abstained could not be resolved."
+}
+
+private fun verdictNextMove(feedback: String): String {
+    val cleaned = feedback.trim()
+    val marker = cleaned.lastIndexOf("Next:")
+    if (marker >= 0) return cleaned.substring(marker + 5).trim()
+    val stop = cleaned.indexOf(". ")
+    return if (stop >= 0) cleaned.substring(0, stop + 1) else cleaned
 }
 
 @Composable
