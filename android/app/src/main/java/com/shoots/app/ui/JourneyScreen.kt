@@ -546,6 +546,7 @@ private fun ExperimentHero(
         .ifBlank { experiment.verdicts.firstOrNull { it.criteriaMet }?.shotId.orEmpty() }
         .ifBlank { experiment.resultShotIds.lastOrNull().orEmpty() }
     val result = snapshot.recentShots.firstOrNull { it.id == representativeId }
+    val isExplore = experiment.type == "explore"
     Column(Modifier.padding(horizontal = 20.dp)) {
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
             StatusPill(experiment.type, amber = true)
@@ -553,19 +554,37 @@ private fun ExperimentHero(
         }
         Spacer(Modifier.height(10.dp))
         Text(experiment.title, color = WarmWhite, fontSize = 21.sp, lineHeight = 26.sp, fontWeight = FontWeight.Bold)
-        Spacer(Modifier.height(13.dp))
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            JourneyImage("KEEPER REFERENCE", reference, imageUrl, onShot, Modifier.weight(1f))
-            JourneyImage("REPRESENTATIVE RESULT", result, imageUrl, onShot, Modifier.weight(1f))
+        if (isExplore) {
+            Spacer(Modifier.height(8.dp))
+            Text(
+                "${experiment.variationObservations.map { it.variationId }.distinct().size} " +
+                    "VARIATIONS OBSERVED · NO VERDICT",
+                color = MutedWhite,
+                fontSize = 10.sp,
+                fontWeight = FontWeight.Bold,
+            )
+        } else {
+            Spacer(Modifier.height(13.dp))
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                JourneyImage("KEEPER REFERENCE", reference, imageUrl, onShot, Modifier.weight(1f))
+                JourneyImage("REPRESENTATIVE RESULT", result, imageUrl, onShot, Modifier.weight(1f))
+            }
         }
         if (experiment.resultShotIds.isNotEmpty()) {
             Spacer(Modifier.height(16.dp))
-            Text("ALL BATCH RESULTS", color = MutedWhite, fontSize = 10.sp, fontWeight = FontWeight.Bold)
+            Text(
+                if (isExplore) "EXPLICIT RESULT SHOTS" else "ALL BATCH RESULTS",
+                color = MutedWhite,
+                fontSize = 10.sp,
+                fontWeight = FontWeight.Bold,
+            )
             Spacer(Modifier.height(7.dp))
             LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 items(experiment.resultShotIds) { id ->
                     val shot = snapshot.recentShots.firstOrNull { it.id == id }
                     val verdict = experiment.verdicts.firstOrNull { it.shotId == id }
+                    val observation = experiment.variationObservations.firstOrNull { it.shotId == id }
+                    val variation = experiment.variations.firstOrNull { it.id == observation?.variationId }
                     Column(Modifier.width(112.dp)) {
                         AsyncImage(
                             model = shot?.let(imageUrl),
@@ -576,6 +595,8 @@ private fun ExperimentHero(
                         Spacer(Modifier.height(5.dp))
                         Text(
                             when {
+                                isExplore && !observation?.abstained.isNullOrBlank() -> "UNREADABLE"
+                                isExplore -> variation?.title?.uppercase() ?: "EXPLORE RESULT"
                                 verdict == null -> "ABSTENTION"
                                 verdict.criteriaMet -> "CRITERIA MET"
                                 else -> "NOT MET"

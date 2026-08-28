@@ -1,6 +1,8 @@
 package com.shoots.app.ui
 
 import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.test.assertCountEquals
+import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
@@ -16,6 +18,8 @@ import com.shoots.app.data.ShootRecordDto
 import com.shoots.app.data.ShotDto
 import com.shoots.app.data.TechniqueNodeDto
 import com.shoots.app.data.UserDto
+import com.shoots.app.data.VariationDto
+import com.shoots.app.data.VariationObservationDto
 import org.junit.Assert.assertEquals
 import org.junit.Rule
 import org.junit.Test
@@ -206,6 +210,45 @@ class JourneyScreenIntegrationTest {
             .assertExists()
         compose.onNodeWithText("Create Deconstruction").performScrollTo().performClick()
         assertEquals("experiment:experiment-1:1:keeper-1", prepared)
+    }
+
+    @Test
+    fun exploreRecordShowsVariationsWithoutAReproduceReferenceOrAbstention() {
+        val experiment = ExperimentDto(
+            id = "explore-1",
+            techniqueId = "frame_within_frame",
+            type = "explore",
+            title = "Explore Frame within a frame",
+            referenceShotId = "legacy-reference-that-must-not-render",
+            resultShotIds = listOf("result-1"),
+            status = "completed",
+            variations = listOf(
+                VariationDto("obvious", "Make it obvious", "Let the frame dominate."),
+                VariationDto("quiet", "Use it quietly", "Let the frame support."),
+            ),
+            variationObservations = listOf(
+                VariationObservationDto("obvious", "result-1"),
+            ),
+        )
+        val snapshot = MobileSnapshotDto(
+            user = UserDto(id = "user-1", email = "photographer@example.com"),
+            recentShots = listOf(
+                ShotDto(id = "legacy-reference-that-must-not-render"),
+                ShotDto(id = "result-1"),
+            ),
+            experiments = listOf(experiment),
+        )
+        compose.setContent {
+            ShootsTheme {
+                JourneyScreen(snapshot, imageUrl = { _ -> "" }, onShot = { _ -> })
+            }
+        }
+
+        compose.onNodeWithText("1 VARIATIONS OBSERVED · NO VERDICT").performScrollTo().assertExists()
+        compose.onNodeWithText("EXPLICIT RESULT SHOTS").performScrollTo().assertExists()
+        compose.onNodeWithText("MAKE IT OBVIOUS").performScrollTo().assertExists()
+        compose.onAllNodesWithText("KEEPER REFERENCE").assertCountEquals(0)
+        compose.onAllNodesWithText("ABSTENTION").assertCountEquals(0)
     }
 
     @Test
