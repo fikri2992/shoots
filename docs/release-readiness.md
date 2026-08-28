@@ -6,7 +6,7 @@
 ## Candidate
 
 `main` is pushed through Android commit
-`54e9e067401726941c91f4809352b0fac91e55c1`. Cloud Run remains at runtime commit
+`3e0bdd6b782b86d27786d532b912750265b797f7`. Cloud Run remains at runtime commit
 `e535a48db3de8f8d435c350517d1595dc1888505`, deployed after the complete local
 gate and clean native-Windows Cloud preflight. The later commit changes only the
 Android Phone Source and its contract, so no service redeploy is required.
@@ -65,7 +65,7 @@ The current dependency order and acceptance boundaries are recorded in
 | Web client | 37 integration and domain checks plus production build | pass |
 | Android debug build | `:app:assembleDebug` | pass |
 | Android static analysis | `:app:lintDebug` | pass |
-| Android instrumentation | 43 tests finished with zero failures and two explicit environment-only skips; the real MediaStore tests include learning a non-`DCIM/Camera/` album from an explicit Camera visit. The seven-case Journey class then passed with no skips after the live Explore record exposed and fixed Reproduce-only labels | pass |
+| Android instrumentation | 43 tests finished with zero failures and two explicit environment-only skips; the real MediaStore tests include learning a non-`DCIM/Camera/` album from an explicit Camera visit. The seven-case Journey class and five-case Experiments class then passed with no skips after live Experiment records exposed type and retry-feedback defects | pass |
 | Android release guard | `verifyReleaseConfiguration` rejects blank OAuth, Firebase, HTTPS origin, App Link, and external signing inputs by name without printing values | pass; debug App Link fingerprint is deployed, production signing values remain absent |
 | Android/backend integration | The signed-in emulator opened the normal system Camera, learned its `Pictures/` output album, automatically uploaded `IMG_20260828_215316.jpg`, and read the completed production Analysis back into Room after restart | pass on emulator; physical pending |
 | 390 dp Now | receipt, processing, stale-revision, and Experiment focus tests | pass |

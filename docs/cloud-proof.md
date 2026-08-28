@@ -111,8 +111,16 @@ folder still visible, then reconnected with a replacement offline code. The fres
 snapshot reported 17 readable Shots, a settled three-Shot/two-Scene Shoot Record, and the
 settled two-member Capture Session. The web archive independently showed the same 17
 Shots plus the separate Inspiration, and its Experiment Record showed one Variation
-across two readable results with no Verdict. Physical Xiaomi proof, all barriers in one
-run, and FCM remain separate gates.
+across two readable results with no Verdict.
+
+A following Reproduce reserved a fresh Capture Session around the normal Camera,
+committed two ordered members, completed both Runs, and settled with two readable
+Criteria-not-met Verdicts and zero abstentions. The Experiment correctly remained open.
+Android now shows that neither result met the frozen Criteria and leads with the latest
+Judge-supported next move before “Try again”; the production web Now surface independently
+shows the same latest result, next move, exact earlier Keeper, and two-result count.
+Physical Xiaomi proof, a Criteria-met device case, all barriers in one run, and FCM remain
+separate gates.
 
 Use disposable records and one ordinary phone Shoot:
 
