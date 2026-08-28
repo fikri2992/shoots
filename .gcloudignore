@@ -16,9 +16,10 @@
 
 .gradle/**
 .kotlin/**
-android/.gradle/**
-android/build/**
-android/app/build/**
+.claude/**
+.blobs/**
+android/**
+data/**
 
 backend/.blobs/**
 backend/tests/**
@@ -26,3 +27,4 @@ docs/**
 eval/images/**
 eval/output/**
 .github/**
+infra/**
