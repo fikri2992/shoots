@@ -37,6 +37,42 @@ export function center(box) {
   return { x: box.x + box.w / 2, y: box.y + box.h / 2 }
 }
 
+/**
+ * Derive one honest straight axis only when every supplied cell centre is on
+ * the same row, column, or 45-degree diagonal. An arbitrary cloud is not a
+ * line and must stay out of visual narration until explicit path points exist.
+ */
+export function collinearLine(refs) {
+  const cells = [
+    ...new Map(
+      (refs || [])
+        .map(parseRef)
+        .filter(Boolean)
+        .map((cell) => [`${cell.col}:${cell.row}`, cell]),
+    ).values(),
+  ]
+  if (cells.length < 2) return null
+  const sameRow = cells.every((cell) => cell.row === cells[0].row)
+  const sameColumn = cells.every((cell) => cell.col === cells[0].col)
+  const sameDownDiagonal = cells.every(
+    (cell) => cell.col - cell.row === cells[0].col - cells[0].row,
+  )
+  const sameUpDiagonal = cells.every(
+    (cell) => cell.col + cell.row === cells[0].col + cells[0].row,
+  )
+  if (!sameRow && !sameColumn && !sameDownDiagonal && !sameUpDiagonal) return null
+  const ordered = [...cells].sort((a, b) =>
+    sameColumn ? a.row - b.row : a.col - b.col || a.row - b.row,
+  )
+  return {
+    start: { x: ordered[0].col + 0.5, y: ordered[0].row + 0.5 },
+    end: {
+      x: ordered[ordered.length - 1].col + 0.5,
+      y: ordered[ordered.length - 1].row + 0.5,
+    },
+  }
+}
+
 /** Arrow geometry from one span to another: line plus a triangular head. */
 export function arrow(fromRefs, toRefs, headSize = 0.35) {
   const a = spanBox(fromRefs)

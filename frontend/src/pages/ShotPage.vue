@@ -6,6 +6,7 @@ import MeasuredStrip from '@/components/MeasuredStrip.vue'
 import ShotCanvas from '@/components/ShotCanvas.vue'
 import { plain, spanBox } from '@/domain/cells'
 import { GUIDE_LABELS, verdict as guideVerdict } from '@/domain/guides'
+import { artifactIsRenderable, buildVisualStory } from '@/domain/visualStory'
 import { useCoachStore } from '@/stores/coach'
 import { useShootsStore } from '@/stores/shoots'
 
@@ -41,6 +42,7 @@ export default {
     return {
       showRead: true,
       picked: '',
+      storyIndex: 0,
       guides: PICKABLE,
       labels: GUIDE_LABELS,
       keeping: false,
@@ -62,6 +64,24 @@ export default {
     teaching() {
       return this.view?.teaching
     },
+    visualStory() {
+      return buildVisualStory(this.view)
+    },
+    currentStory() {
+      return this.visualStory[this.storyIndex] || this.visualStory[0] || null
+    },
+    currentArtifactPath() {
+      const artifact = this.currentStory?.mark?.visual_artifact
+      return artifact?.status === 'rendered' ? artifact.blob_path || '' : ''
+    },
+    currentArtifactRendered() {
+      return artifactIsRenderable(this.currentStory?.mark?.visual_artifact)
+    },
+    canvasMark() {
+      return this.showRead && !this.picked && !this.currentArtifactRendered
+        ? this.currentStory?.mark || null
+        : null
+    },
     src() {
       const blobs = this.shot?.blobs || {}
       const key = blobs.sheet ? 'sheet' : 'original'
@@ -70,10 +90,14 @@ export default {
     canvasLayer() {
       if (!this.showRead) return 'clean'
       if (this.picked) return 'guide'
-      return this.teaching?.primary_layer || 'all'
+      if (this.currentArtifactRendered) return 'clean'
+      return this.currentStory?.layer || 'all'
     },
     canvasSrc() {
       const marked = this.shot?.blobs?.finding_marked
+      if (this.showRead && !this.picked && this.currentArtifactPath) {
+        return `/api/blobs/${this.currentArtifactPath}`
+      }
       return this.canvasLayer === 'finding' && marked ? `/api/blobs/${marked}` : this.src
     },
     /** The guide the frame's own technique implies, until the user picks one. */
@@ -204,11 +228,41 @@ export default {
     if (!this.view) await this.fetchShot(this.shotId)
     if (this.$route.hash === '#coach') this.openFor(this.shotId, {})
   },
+  watch: {
+    shotId() {
+      this.storyIndex = 0
+      this.picked = ''
+      this.showRead = true
+    },
+    visualStory(story) {
+      this.storyIndex = Math.min(this.storyIndex, Math.max(0, story.length - 1))
+    },
+  },
   methods: {
     ...mapActions(useShootsStore, ['fetchShot', 'setKeeper', 'moveShotToInspiration']),
     ...mapActions(useCoachStore, ['openFor']),
     talk(opener) {
       this.openFor(this.shotId, { opener })
+    },
+    nextStory() {
+      if (this.storyIndex < this.visualStory.length - 1) this.storyIndex += 1
+      this.picked = ''
+      this.showRead = true
+    },
+    previousStory() {
+      if (this.storyIndex > 0) this.storyIndex -= 1
+      this.picked = ''
+      this.showRead = true
+    },
+    selectGuide(guide) {
+      this.picked = guide
+      this.showRead = true
+    },
+    artifactMetrics(artifact) {
+      return Object.entries(artifact?.metrics || {})
+        .slice(0, 3)
+        .map(([key, value]) => `${key.replace(/_/g, ' ')} ${String(value).replace(/^"|"$/g, '')}`)
+        .join(' · ')
     },
     /**
      * One optional tap. The only thing in Shoots that carries the
@@ -265,6 +319,7 @@ export default {
             :guide="guide"
             :show-findings="showRead"
             :layer="canvasLayer"
+            :mark="canvasMark"
           />
           <button
             type="button"
@@ -272,7 +327,7 @@ export default {
             :class="showRead ? 'text-paper' : 'text-muted'"
             @click="showRead = !showRead"
           >
-            {{ showRead ? 'Hide read' : 'Show read' }}
+            {{ showRead ? 'See clean' : 'Show visual' }}
           </button>
         </div>
 
@@ -284,10 +339,13 @@ export default {
             type="button"
             class="t-meta"
               :class="guide === g ? 'text-accent' : 'text-muted hover:text-paper'"
-            @click="picked = g"
+            @click="selectGuide(g)"
           >
             {{ labels[g] }}
           </button>
+            <button v-if="picked" type="button" class="t-meta text-accent" @click="picked = ''">
+              Back to story
+            </button>
             <span v-if="fit" class="ml-auto t-meta text-neutral-300">{{ fit }}</span>
           </div>
         </div>
@@ -297,32 +355,56 @@ export default {
             <p class="eyebrow">Shot read</p>
             <p class="mt-2 t-meta">{{ camera.slice(-2).join(' · ') || shot.filename }}</p>
 
-            <section v-if="teaching" class="surface mt-5 p-5 sm:p-6">
-              <p class="eyebrow">This Shot · one read</p>
-              <div class="mt-4 divide-y divide-edge">
-                <div v-if="teaching.keep_title" class="pb-4">
-                  <p class="eyebrow text-accent">Keep · model read</p>
-                  <h1 class="mt-2 text-[24px] leading-8 font-semibold tracking-[-0.025em] text-paper">
-                    {{ teaching.keep_title }}
-                  </h1>
-                  <p v-if="teaching.keep_proof" class="mt-2 t-body text-neutral-300">{{ teaching.keep_proof }}</p>
-                </div>
-                <div v-if="teaching.notice_title" class="py-4">
-                  <p class="eyebrow" :class="teaching.notice_authority === 'measured' ? 'text-bad' : 'text-accent'">
-                    Notice · {{ teaching.notice_authority === 'measured' ? 'measured' : 'model read' }}
-                  </p>
-                  <p class="mt-2 text-[17px] leading-6 font-medium text-paper">{{ teaching.notice_title }}</p>
-                  <p v-if="teaching.notice_proof" class="mt-2 t-meta">{{ teaching.notice_proof }}</p>
-                </div>
-                <div v-if="teaching.try_text" class="py-4">
-                  <p class="eyebrow text-accent">{{ teaching.try_kind === 'camera' ? 'Try · move camera' : 'Try next' }}</p>
-                  <p class="mt-2 text-[18px] leading-6 font-medium text-paper">{{ teaching.try_text }}</p>
-                  <p v-if="teaching.try_reason" class="mt-2 t-body">{{ teaching.try_reason }}</p>
-                </div>
-                <div v-if="teaching.visible_check" class="rounded-xl border border-accent/35 bg-accent/5 p-4" :class="teaching.keep_title || teaching.notice_title || teaching.try_text ? 'mt-4' : ''">
-                  <p class="eyebrow text-accent">Check on the next Shot</p>
-                  <p class="mt-2 t-body text-paper">{{ teaching.visible_check }}</p>
-                </div>
+            <section v-if="currentStory" class="surface mt-5 p-5 sm:p-6">
+              <div class="flex items-center justify-between gap-4">
+                <p class="eyebrow">Visual story</p>
+                <p class="t-num text-[11px] text-muted">{{ storyIndex + 1 }} of {{ visualStory.length }}</p>
+              </div>
+              <div v-if="visualStory.length > 1" class="mt-3 flex gap-2" aria-hidden="true">
+                <span
+                  v-for="(_, index) in visualStory"
+                  :key="index"
+                  class="h-1.5 w-1.5 rounded-full"
+                  :class="index === storyIndex ? 'bg-accent' : 'bg-neutral-700'"
+                />
+              </div>
+              <p
+                class="eyebrow mt-5"
+                :class="currentStory.layer === 'finding' ? 'text-bad' : currentStory.layer === 'action' ? 'text-accent' : 'text-muted'"
+              >
+                {{ currentStory.label }}
+              </p>
+              <h1 class="mt-2 text-[24px] leading-8 font-semibold tracking-[-0.025em] text-paper">
+                {{ currentStory.title }}
+              </h1>
+              <p v-if="currentStory.body" class="mt-2 t-body text-neutral-300">{{ currentStory.body }}</p>
+              <template v-if="currentStory.mark?.visual_artifact?.status === 'rendered'">
+                <p class="mt-4 t-meta text-paper">
+                  {{ (currentStory.mark.visual_artifact.authority || '').replace(/_/g, ' ') }} ·
+                  {{ currentStory.mark.visual_artifact.label }}
+                </p>
+                <p v-if="currentStory.mark.visual_artifact.legend" class="mt-1 t-meta">
+                  {{ currentStory.mark.visual_artifact.legend }}
+                </p>
+                <p v-if="artifactMetrics(currentStory.mark.visual_artifact)" class="mt-1 t-num text-[11px] text-muted">
+                  {{ artifactMetrics(currentStory.mark.visual_artifact) }}
+                </p>
+              </template>
+              <div class="mt-5 grid grid-cols-3 items-center gap-2">
+                <button type="button" class="t-meta disabled:opacity-35" :disabled="storyIndex === 0" @click="previousStory">
+                  Previous
+                </button>
+                <button type="button" class="t-meta text-accent" @click="showRead = !showRead">
+                  {{ showRead ? 'See clean' : 'Show visual' }}
+                </button>
+                <button
+                  type="button"
+                  class="t-meta text-right text-accent disabled:text-muted disabled:opacity-35"
+                  :disabled="storyIndex >= visualStory.length - 1"
+                  @click="nextStory"
+                >
+                  Next
+                </button>
               </div>
             </section>
 

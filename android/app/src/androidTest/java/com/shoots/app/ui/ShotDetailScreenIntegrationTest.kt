@@ -23,6 +23,7 @@ import com.shoots.app.data.VisualEvidenceArtifactDto
 import com.shoots.app.data.VisualMarkDto
 import com.shoots.app.data.VisualPathDto
 import com.shoots.app.data.VisualRegionDto
+import kotlinx.serialization.json.JsonPrimitive
 import org.junit.Rule
 import org.junit.Test
 import android.graphics.Bitmap
@@ -374,6 +375,119 @@ class ShotDetailScreenIntegrationTest {
             "Check that the corridor reaches the subject without the tarp dominating it."
         ).assertExists()
         compose.onNodeWithContentDescription("Visual mark region").assertExists()
+    }
+
+    @Test
+    fun broadLegacyCellCloudDoesNotMasqueradeAsALine() {
+        val view = ShotViewDto(
+            shot = ShotDto(
+                id = "legacy-line",
+                filename = "legacy-market.jpg",
+                status = "analyzed",
+                grid = GridSpecDto(cols = 7, rows = 9, width = 700, height = 900),
+            ),
+            analysis = AnalysisDto(
+                shotId = "legacy-line",
+                composition = CompositionDto(
+                    subjectCells = listOf("D3", "E3", "D4", "E4"),
+                    subjectX = 0.6,
+                    subjectY = 0.4,
+                ),
+            ),
+            teaching = ShotTeachingReceiptDto(
+                keepTitle = "Leading lines",
+                keepProof = "The wet corridor draws the eye toward the subject.",
+                keepTechniqueId = "leading_lines",
+                keepCells = listOf("D6", "E6", "F6", "D7", "E7", "F7", "D8", "E8", "F8"),
+                keepMark = VisualMarkDto(
+                    kind = "line",
+                    cells = listOf("D6", "E6", "F6", "D7", "E7", "F7", "D8", "E8", "F8"),
+                    techniqueId = "leading_lines",
+                ),
+            ),
+        )
+
+        compose.setContent {
+            ShootsTheme {
+                ShotDetailScreen(
+                    view = view,
+                    imageUrl = { _, _ -> marketFixtureUrl },
+                    blobUrl = { "" },
+                    onBack = {},
+                    onKeeper = {},
+                    onRetry = {},
+                    onOpenDrive = {},
+                )
+            }
+        }
+
+        compose.onNodeWithText("Leading lines").assertDoesNotExist()
+        compose.onNodeWithText("Start with the main subject.").assertExists()
+        compose.onNodeWithContentDescription("Visual mark region").assertExists()
+    }
+
+    @Test
+    fun exifReceiptSupportsTheStoryWithoutDrawingUnrelatedCells() {
+        val artifact = VisualEvidenceArtifactDto(
+            kind = "exif_receipt",
+            authority = "measured",
+            status = "rendered",
+            verification = "measured",
+            label = "Camera receipt",
+            legend = "Recorded by the camera; it does not grade the result.",
+            metrics = mapOf("focal_mm" to JsonPrimitive(15)),
+        )
+        val view = ShotViewDto(
+            shot = ShotDto(
+                id = "exif-story",
+                filename = "wide.jpg",
+                status = "analyzed",
+                grid = GridSpecDto(cols = 8, rows = 6, width = 800, height = 600),
+            ),
+            analysis = AnalysisDto(
+                shotId = "exif-story",
+                composition = CompositionDto(
+                    subjectCells = listOf("D4", "E4"),
+                    moves = listOf(
+                        MoveDto(
+                            what = "Move upward.",
+                            kind = "move",
+                            fromCells = listOf("D4"),
+                            toCells = listOf("D2"),
+                        )
+                    ),
+                ),
+            ),
+            teaching = ShotTeachingReceiptDto(
+                keepTitle = "Wide-angle drama",
+                keepProof = "The camera recorded a 15 mm equivalent focal length.",
+                keepTechniqueId = "wide_angle",
+                keepMark = VisualMarkDto(
+                    kind = "line",
+                    cells = listOf("A6", "B6", "H6"),
+                    visualArtifact = artifact,
+                    techniqueId = "wide_angle",
+                ),
+            ),
+        )
+
+        compose.setContent {
+            ShootsTheme {
+                ShotDetailScreen(
+                    view = view,
+                    imageUrl = { _, _ -> fixtureUrl },
+                    blobUrl = { "" },
+                    onBack = {},
+                    onKeeper = {},
+                    onRetry = {},
+                    onOpenDrive = {},
+                )
+            }
+        }
+
+        compose.onNodeWithContentDescription("wide.jpg").assertExists()
+        compose.onNodeWithContentDescription("Visual mark line").assertDoesNotExist()
+        compose.onNodeWithText("Measured · Camera receipt").assertExists()
     }
 
     @Test

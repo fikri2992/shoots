@@ -20,6 +20,7 @@ import com.shoots.app.data.CompositionDto
 import com.shoots.app.data.FindingDto
 import com.shoots.app.data.GridSpecDto
 import com.shoots.app.data.VisualMarkDto
+import com.shoots.app.data.VisualPathDto
 import kotlin.math.atan2
 import kotlin.math.cos
 import kotlin.math.exp
@@ -113,11 +114,17 @@ private fun DrawScope.drawMarkedLine(
     composition: CompositionDto,
     mark: VisualMarkDto,
 ) {
-    val paths = mark.paths.mapNotNull { visualPath ->
+    val explicit: List<Pair<List<Offset>, VisualPathDto?>> = mark.paths.mapNotNull { visualPath ->
         cellCentres(visualPath.points, grid).takeIf { it.size >= 2 }?.let { it to visualPath }
     }
+    val paths = explicit.ifEmpty {
+        collinearCellPath(mark.cells)
+            ?.let { cellCentres(it, grid) }
+            ?.takeIf { it.size >= 2 }
+            ?.let { listOf(it to null) }
+            .orEmpty()
+    }
     if (paths.isEmpty()) {
-        drawMarkedRegion(grid, mark.cells)
         return
     }
     val stroke = 3.dp.toPx()
@@ -130,12 +137,12 @@ private fun DrawScope.drawMarkedLine(
         drawPath(path, EvidenceCyan, style = Stroke(stroke))
         drawCircle(EvidenceCyan, radius = 4.dp.toPx(), center = points.first())
         drawCircle(EvidenceCyan, radius = 4.dp.toPx(), center = points.last())
-        spanRect(visualPath.leadsTo, grid)?.center?.let { target ->
+        visualPath?.let { spanRect(it.leadsTo, grid) }?.center?.let { target ->
             drawCircle(EvidenceCyan.copy(alpha = 0.2f), radius = 13.dp.toPx(), center = target)
             drawCircle(EvidenceCyan, radius = 8.dp.toPx(), center = target, style = Stroke(2.dp.toPx()))
         }
     }
-    if (mark.techniqueId == "leading_lines" && paths.none { it.second.leadsTo.isNotEmpty() }) {
+    if (mark.techniqueId == "leading_lines" && paths.none { it.second?.leadsTo?.isNotEmpty() == true }) {
         drawSubjectPoint(grid, composition)
     }
 }

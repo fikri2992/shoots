@@ -54,10 +54,10 @@ The current dependency order and acceptance boundaries are recorded in
 | Backend format and lint | Ruff over `app` and `tests` | pass |
 | Backend behavior | 618-test complete pytest suite plus continuous Shoot, abandoned-Run recovery, and Drive-selection acceptance | pass |
 | Real-agent quality | 11 real Shot cases under report SHA-256 `5c161d5c760345e900a3b4b8307e4b90ca771c6958d794d1adc81c2b8bb1f4e3`, plus two real Journey-writer overclaim cases under prompt version `ddabb4791f14`; developer review against the locked hobbyist perspective | pass locally |
-| Web client | 35 integration and domain checks plus production build | pass |
+| Web client | 37 integration and domain checks plus production build | pass |
 | Android debug build | `:app:assembleDebug` | pass |
 | Android static analysis | `:app:lintDebug` | pass |
-| Android instrumentation | full emulator suite passed with two explicit human/device gates skipped; the updated two-case source-authority UI class passed separately | pass |
+| Android instrumentation | 42-case emulator suite finished with 39 passed and three explicit environment/device gates skipped; the updated nine-case Shot visual-story class passed separately with no skips | pass |
 | Android release guard | `verifyReleaseConfiguration` rejects blank OAuth, Firebase, HTTPS origin, App Link, and external signing inputs by name without printing values | pass; debug App Link fingerprint is deployed, production signing values remain absent |
 | Android/backend integration | production-origin `RefreshSnapshotWorker` used a disposable bearer token, fetched the deployed mobile snapshot into Room, and the device was immediately revoked | pass separately |
 | 390 dp Now | receipt, processing, stale-revision, and Experiment focus tests | pass |

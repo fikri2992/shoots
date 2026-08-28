@@ -5,6 +5,7 @@ import com.shoots.app.data.CompositionDto
 import com.shoots.app.data.GridSpecDto
 import com.shoots.app.data.ShotTeachingReceiptDto
 import com.shoots.app.data.TechniqueEvidenceDto
+import com.shoots.app.data.VisualEvidenceArtifactDto
 import com.shoots.app.data.VisualMarkDto
 
 data class ShotStoryStep(
@@ -158,16 +159,11 @@ fun hasCompositionAction(composition: CompositionDto): Boolean =
     }
 
 fun hasDrawableMark(mark: VisualMarkDto): Boolean {
-    val artifact = mark.visualArtifact
-    if (
-        artifact?.status == "rendered" &&
-        (artifact.blobPath.isNotBlank() ||
-            (artifact.kind == "exif_receipt" && artifact.metrics.isNotEmpty()))
-    ) return true
+    if (visualArtifactOwnsLayer(mark.visualArtifact)) return true
     return when (mark.kind) {
     "finding", "whole_frame" -> true
     "move" -> mark.cells.isNotEmpty() && mark.toCells.isNotEmpty()
-    "line" -> mark.paths.any { it.points.size >= 2 } || mark.cells.isNotEmpty()
+    "line" -> mark.paths.any { it.points.size >= 2 } || collinearCellPath(mark.cells) != null
     "pair" -> mark.regions.size >= 2
     "instances" -> mark.regions.isNotEmpty()
     "planes" -> mark.regions.size >= 2
@@ -176,6 +172,13 @@ fun hasDrawableMark(mark: VisualMarkDto): Boolean {
     else -> false
     }
 }
+
+internal fun visualArtifactOwnsLayer(artifact: VisualEvidenceArtifactDto?): Boolean =
+    artifact?.status == "rendered" &&
+        (
+            artifact.blobPath.isNotBlank() ||
+                (artifact.kind == "exif_receipt" && artifact.metrics.isNotEmpty())
+        )
 
 private fun layerFor(mark: VisualMarkDto): ReviewLayer = when (mark.kind) {
     "finding" -> ReviewLayer.FINDING

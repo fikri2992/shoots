@@ -570,6 +570,7 @@ private fun ShotImage(
             ) { rendered ->
                 Box(Modifier.fillMaxSize()) {
                     val artifactPath = rendered.mark.visualArtifact?.blobPath.orEmpty()
+                    val artifactOwnsLayer = visualArtifactOwnsLayer(rendered.mark.visualArtifact)
                     val renderedSource = when {
                         rendered.showClean -> source
                         artifactPath.isNotBlank() -> artifactSource(artifactPath)
@@ -592,7 +593,7 @@ private fun ShotImage(
                     )
                     if (
                         !rendered.showClean &&
-                        artifactPath.isBlank() &&
+                        !artifactOwnsLayer &&
                         grid != null &&
                         composition != null
                     ) {
