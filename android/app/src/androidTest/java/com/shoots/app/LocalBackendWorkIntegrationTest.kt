@@ -18,9 +18,9 @@ import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeout
 
 /**
- * Runs only in the disposable physical-device acceptance invocation:
- * adb reverse tcp:8000 tcp:8000
- * connectedAndroidTest -Pandroid.testInstrumentationRunnerArguments.shootsDeviceToken=...
+ * Runs only with a disposable device token. Local acceptance uses adb reverse.
+ * Production acceptance also supplies SHOOTS_DEBUG_SERVICE_ORIGIN so a debug
+ * build does not intentionally use its localhost default.
  */
 @RunWith(AndroidJUnit4::class)
 class LocalBackendWorkIntegrationTest {

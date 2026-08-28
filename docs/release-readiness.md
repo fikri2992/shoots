@@ -1,14 +1,13 @@
 # Release readiness
 
-> Verified 2026-08-27. This records evidence, not intended configuration. Never put
+> Verified 2026-08-28. This records evidence, not intended configuration. Never put
 > credential values in this document.
 
 ## Candidate
 
-The protected Shoot workflow remains available at `6ea693f` on
-`codex/shoot-record`. `main` is pushed through runtime commit
-`6e6096221cc09cfcb688e3f47dd9e957c040ef89`, which is deployed to Cloud Run after
-the complete local gate and clean Cloud preflight. The image uses the immutable short
+`main` is pushed through runtime commit
+`c1068727a65535c876469e6657cf1738242cc999`, deployed after the complete local
+gate and clean native-Windows Cloud preflight. The image uses the immutable short
 SHA tag and the service stores the full SHA as deployment evidence.
 
 Implemented and locally proven:
@@ -31,6 +30,10 @@ Implemented and locally proven:
   automatic route adaptation after repeated comparable unchanged outcomes;
 - one deterministic Shot Teaching Receipt that keeps Keep, Notice, Try, Check, and a
   single matching image layer together on Android and web;
+- inspectable Visual Evidence strategies for all 57 still Techniques, including
+  measured maps, bounded geometry, explicit verification state, and honest fallback;
+- explicit Google Picker import as Mine or Inspiration, canonical Drive-file
+  idempotency across Picker and folder reconciliation, and Android Files/Drive selection;
 - one 11-case real-agent report under prompt digest `1c738851cdfb`: 180 automatic
   checks passed, zero failed, 12 remained explicit human-review questions, and no
   case errored;
@@ -47,22 +50,23 @@ The current dependency order and acceptance boundaries are recorded in
 | Gate | Evidence | State |
 |---|---|---|
 | Backend format and lint | Ruff over `app` and `tests` | pass |
-| Backend behavior | complete pytest suite plus continuous Shoot acceptance | pass |
+| Backend behavior | 617-test complete pytest suite plus continuous Shoot and Drive-selection acceptance | pass |
 | Real-agent quality | 11 real Shot cases under report SHA-256 `5c161d5c760345e900a3b4b8307e4b90ca771c6958d794d1adc81c2b8bb1f4e3`, plus two real Journey-writer overclaim cases under prompt version `ddabb4791f14`; developer review against the locked hobbyist perspective | pass locally |
 | Web client | 35 integration and domain checks plus production build | pass |
 | Android debug build | `:app:assembleDebug` | pass |
 | Android static analysis | `:app:lintDebug` | pass |
-| Android instrumentation | 35 emulator tests passed after a clean emulator reboot; two hardware-only tests skipped. One prior run ended in an emulator system crash during Activity teardown; both interrupted cases and later full suites passed unchanged | pass |
+| Android instrumentation | full emulator suite passed with two explicit human/device gates skipped; the updated two-case source-authority UI class passed separately | pass |
 | Android release guard | `verifyReleaseConfiguration` rejects blank OAuth, Firebase, HTTPS origin, App Link, and external signing inputs by name without printing values | pass; debug App Link fingerprint is deployed, production signing values remain absent |
-| Android/backend integration | authenticated `RefreshSnapshotWorker` produced a real `GET /api/mobile/snapshot` and cached it | pass separately |
+| Android/backend integration | production-origin `RefreshSnapshotWorker` used a disposable bearer token, fetched the deployed mobile snapshot into Room, and the device was immediately revoked | pass separately |
 | 390 dp Now | receipt, processing, stale-revision, and Experiment focus tests | pass |
-| Cloud Run | `shoots-00002-chw`, image digest `sha256:af9f321df5412baa54ba2fe663c4e9c45f35d768ece689a86c22d18e02497f6e`, 100% traffic; Google sign-in plus Now, Shots, Journey, `/api/mobile/snapshot`, `/api/health`, and two Scheduler tick requests verified live; no final-revision errors | pass |
+| Cloud Run | `shoots-00003-hr5`, image digest `sha256:58efd3daba80e0a7142499c5a0c810507418e989ad07d6944904ea4b56b2c01a`, 100% traffic; health, authenticated web, production mobile snapshot, and Picker verified live; no revision errors | pass |
+| Google Drive selection | authenticated production Picker opened; one selected file became exactly one `drive_picker` Inspiration and never a Photographer Shot | pass |
 | Physical Xiaomi | current Shoot workflow not installed or exercised | not verified |
 | Signed internal APK | Firebase Android app, OAuth, FCM, production origin, and debug certificate are configured; external release keystore and passwords remain absent | not buildable yet |
 
 ### Cloud preflight and state
 
-The native Windows preflight passed against `agentic-system-505405` on 2026-08-27.
+The native Windows preflight passed against `agentic-system-505405` on 2026-08-28.
 Required APIs, Firestore, `gs://agentic-system-505405-shoots`, the runtime service
 account, and four mounted Secret Manager values are present. Pub/Sub stage pushes
 have OIDC, retries, and dead-letter routes; `shoots-tick`, `shoots-daily`, and
@@ -74,13 +78,13 @@ certificate fingerprint, not an internal-release identity.
 
 Shoots is live at
 `https://shoots-718560154436.asia-southeast2.run.app`. Cloud Run reports revision
-`shoots-00002-chw` ready with 100% traffic and `SOURCE_SHA` equal to the recorded
-runtime commit. Google OAuth was completed with the deployed callback. Authenticated
-browser reads returned 200 for all initial resources and the first mobile snapshot;
-the repeated snapshot returned 304 from its ETag. Eight stage push subscriptions and
-three Scheduler jobs remain enabled; both the scheduled and manually requested tick
-returned 200. No Cloud Run error was recorded for the final revision. Revision
-`shoots-00001-j4d` remains available as the live rollback target.
+`shoots-00003-hr5` ready with 100% traffic and `SOURCE_SHA` equal to the recorded
+runtime commit. Authenticated browser reads returned the new Drive actions and current
+archive. Picker configuration returned enabled without exposing its token, and a real
+selection produced one separate Inspiration receipt. A disposable Android device
+session fetched `/api/mobile/snapshot` through WorkManager and was revoked. No Cloud
+Run error was recorded for the revision. Revision `shoots-00002-chw` remains available
+as the immediate rollback target.
 
 This does not prove the full continuous Shot workflow. Phone Source ingestion,
 Firestore Run advancement, Shoot closure, Shoot Record settlement, FCM, optional
@@ -93,16 +97,10 @@ The exact setup, source of each value, release-build guard, and physical verific
 commands are in [Android setup](android-setup.md). The approved Cloud sequence and
 readback evidence are in [Cloud proof](cloud-proof.md).
 
-These values were absent from both process environment and checked Gradle property
-locations during the audit:
+OAuth, Firebase, HTTPS origin, and App Link values are configured outside the
+repository in the user Gradle profile. These signing values remain absent:
 
 ```text
-SHOOTS_GOOGLE_SERVER_CLIENT_ID
-SHOOTS_FIREBASE_APPLICATION_ID
-SHOOTS_FIREBASE_API_KEY
-SHOOTS_FIREBASE_PROJECT_ID
-SHOOTS_FIREBASE_SENDER_ID
-SHOOTS_SERVICE_ORIGIN
 SHOOTS_SIGNING_STORE_FILE
 SHOOTS_SIGNING_STORE_PASSWORD
 SHOOTS_SIGNING_KEY_ALIAS
@@ -115,7 +113,7 @@ Drive AuthorizationClient remains a separate optional grant.
 
 ## Physical acceptance still required
 
-After Cloud and Android credentials exist:
+After the release signing identity and physical Xiaomi are available:
 
 1. native Google sign-in;
 2. full Camera media permission and automatic free Shot ingestion;
