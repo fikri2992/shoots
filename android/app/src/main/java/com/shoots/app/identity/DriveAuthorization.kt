@@ -17,6 +17,7 @@ data class DriveAuthorizationStart(
 class DriveAuthorization(private val activity: Activity) {
     private val client = Identity.getAuthorizationClient(activity)
 
+    @Suppress("DEPRECATION")
     suspend fun start(): DriveAuthorizationStart {
         check(BuildConfig.GOOGLE_SERVER_CLIENT_ID.isNotBlank()) {
             "This build has no Google server client ID"
@@ -29,7 +30,10 @@ class DriveAuthorization(private val activity: Activity) {
                     Scope("email"),
                 )
             )
-            .requestOfflineAccess(BuildConfig.GOOGLE_SERVER_CLIENT_ID)
+            // Disconnect deliberately deletes the server refresh token without
+            // revoking the photographer's broader Google grant. The explicit
+            // reconnect action must therefore replace the lost offline token.
+            .requestOfflineAccess(BuildConfig.GOOGLE_SERVER_CLIENT_ID, true)
             .setPrompt(AuthorizationRequest.Prompt.CONSENT)
             .build()
         val result = client.authorize(request).await()
