@@ -20,6 +20,7 @@ from pydantic import BaseModel
 from app.agents.retry import with_retry
 
 APP_NAME = "shoots"
+MODEL_USAGE_LOG_PREFIX = "SHOOTS_MODEL_USAGE "
 
 logger = logging.getLogger(__name__)
 
@@ -72,9 +73,11 @@ async def run_agent[T: BaseModel](
         )
 
         final_text: str | None = None
+        usage_events: set[str] = set()
         async for event in runner.run_async(
             user_id=user_id, session_id=session.id, new_message=message
         ):
+            _log_model_usage(event, user_id, agent.name, usage_events)
             if event.is_final_response() and event.content and event.content.parts:
                 final_text = "".join(part.text or "" for part in event.content.parts)
 
@@ -129,9 +132,11 @@ async def run_workflow(
         )
         started = time.monotonic()
         last_seen: dict[str, float] = {}
+        usage_events: set[str] = set()
         async for event in runner.run_async(
             user_id=user_id, session_id=session.id, new_message=message
         ):
+            _log_model_usage(event, user_id, agent.name, usage_events)
             if event.author:
                 last_seen[event.author] = time.monotonic() - started
         stored = await runner.session_service.get_session(
@@ -140,6 +145,7 @@ async def run_workflow(
         return (dict(stored.state) if stored else {}), last_seen
 
     if timeout:
+
         def run_isolated() -> tuple[dict[str, Any], dict[str, float]]:
             return asyncio.run(execute())
 
@@ -183,6 +189,48 @@ def _consume_background_task(task: asyncio.Task) -> None:
         return
     except Exception:
         logger.exception("timed-out ADK workflow failed during background cleanup")
+
+
+def _log_model_usage(
+    event: Any,
+    user_id: str,
+    workflow: str,
+    seen: set[str],
+) -> None:
+    """Write one machine-readable receipt for each billable model response.
+
+    ADK may deliver several event shapes for one invocation. ``event.id`` is
+    the response identifier, so keeping it once prevents a streamed response
+    from being counted twice. Retries use a fresh invocation and remain
+    visible because they are real billable calls.
+    """
+    usage = getattr(event, "usage_metadata", None)
+    if usage is None:
+        return
+    event_id = str(getattr(event, "id", "") or "")
+    invocation_id = str(getattr(event, "invocation_id", "") or "")
+    receipt_id = event_id or f"{invocation_id}:{getattr(event, 'author', '')}"
+    if receipt_id in seen:
+        return
+    seen.add(receipt_id)
+    grounding = getattr(event, "grounding_metadata", None)
+    payload = {
+        "receipt_id": receipt_id,
+        "user_id": user_id,
+        "workflow": workflow,
+        "agent": str(getattr(event, "author", "") or workflow),
+        "invocation_id": invocation_id,
+        "model_version": str(getattr(event, "model_version", "") or ""),
+        "prompt_tokens": int(usage.prompt_token_count or 0),
+        "cached_tokens": int(usage.cached_content_token_count or 0),
+        "tool_tokens": int(usage.tool_use_prompt_token_count or 0),
+        "candidate_tokens": int(usage.candidates_token_count or 0),
+        "thought_tokens": int(usage.thoughts_token_count or 0),
+        "total_tokens": int(usage.total_token_count or 0),
+        "web_grounding_queries": len(getattr(grounding, "web_search_queries", None) or []),
+        "image_grounding_queries": len(getattr(grounding, "image_search_queries", None) or []),
+    }
+    logger.info("%s%s", MODEL_USAGE_LOG_PREFIX, json.dumps(payload, separators=(",", ":")))
 
 
 def _loads(text: str) -> dict:

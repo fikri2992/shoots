@@ -57,6 +57,9 @@ class Settings(BaseSettings):
     panel_quorum: int = 2
     #: The whole panel plus synthesis must finish within this.
     panel_timeout_seconds: float = 180.0
+    #: Panels admitted concurrently by one Cloud Run process. Pub/Sub owns the
+    #: remaining backlog; each admitted panel still runs its three lenses in parallel.
+    analyst_max_concurrency: int = 2
     #: Below this the Judge will not count a vision tag as evidence.
     judge_min_confidence: float = 0.6
     #: An experiment nobody shoots for expires after this many days.

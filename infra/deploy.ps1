@@ -124,7 +124,7 @@ try {
         "--allow-unauthenticated",
         "--min-instances", "0",
         "--max-instances", "3",
-        "--concurrency", "40",
+        "--concurrency", "8",
         "--cpu", "2",
         "--memory", "2Gi",
         "--timeout", "600",

@@ -18,6 +18,7 @@ rest of the stage needs — is treated as dead and taken over.
 import asyncio
 import hashlib
 import logging
+import time
 from datetime import timedelta
 
 from app.agents import analyst as agent
@@ -71,6 +72,20 @@ def _in_flight(shot) -> bool:
 
 
 async def analyse(ctx: Context, message: dict) -> None:
+    """Admit one panel while Pub/Sub retains the remaining backlog."""
+    queued_at = time.monotonic()
+    async with ctx.analyst_gate.slot():
+        waited = time.monotonic() - queued_at
+        if waited >= 0.05:
+            logger.info(
+                "analyst: %s waited %.2fs for a panel slot",
+                message["shot_id"],
+                waited,
+            )
+        await _analyse(ctx, message)
+
+
+async def _analyse(ctx: Context, message: dict) -> None:
     shot = await repo.get_shot(ctx.store, message["shot_id"])
     if shot.status is ShotStatus.ANALYZED:
         logger.info("analyst: %s already analysed, skipping", shot.id)
