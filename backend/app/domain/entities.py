@@ -98,6 +98,13 @@ class PhotographerSignal(BaseModel):
     expires_at: datetime | None = None
 
 
+class RecordMode(StrEnum):
+    """Whether this account is a real Photographer record or a read-only fixture."""
+
+    REAL = "real"
+    SAMPLE = "sample"
+
+
 class MemoryRecall(BaseModel):
     """Bounded Photographer memory assembled for one agent purpose."""
 
@@ -116,6 +123,7 @@ class User(BaseModel):
     email: str
     name: str = ""
     picture: str = ""
+    record_mode: RecordMode = RecordMode.REAL
     constraints: Constraints = Field(default_factory=Constraints)
     drive_folder_id: str = ""
     drive_channel: DriveChannel | None = None
@@ -178,6 +186,12 @@ class ShotStatus(StrEnum):
     FAILED = "failed"
 
 
+class CaptureTimeAuthority(StrEnum):
+    UNKNOWN = "unknown"
+    EXIF_OFFSET = "exif_offset"
+    ANDROID_SOURCE = "android_source"
+
+
 class Exif(BaseModel):
     """Hard evidence. Every field optional: phones and exports drop things."""
 
@@ -191,6 +205,10 @@ class Exif(BaseModel):
     focal_length_35mm: int | None = None
     flash_fired: bool | None = None
     captured_at: datetime | None = None
+    #: Civil offset recorded beside DateTimeOriginal. Absent means the wall
+    #: clock must not support sunrise, sunset, or night claims.
+    capture_utc_offset_minutes: int | None = Field(default=None, ge=-840, le=840)
+    capture_time_authority: CaptureTimeAuthority = CaptureTimeAuthority.UNKNOWN
     #: From the GPS block when the camera wrote one. Feeds experiment timing.
     latitude: float | None = None
     longitude: float | None = None
@@ -437,6 +455,7 @@ class VisualArtifactAuthority(StrEnum):
     MEASURED = "measured"
     LOCATED_MODEL_READ = "located_model_read"
     RELATIONAL_MODEL_READ = "relational_model_read"
+    MANUAL_FIXTURE = "manual_fixture"
     UNRESOLVED = "unresolved"
 
 
@@ -572,7 +591,7 @@ class Composition(BaseModel):
     subject_x: float | None = None
     subject_y: float | None = None
     #: Which compositional guide a human should see over this frame
-    #: (``domain/guides.py``), chosen from the techniques the panel agreed on.
+    #: (``domain/guides.py``), chosen from the retained spatial Techniques.
     guide: str = ""
     horizon_row: int | None = None
     #: After the crop loop: only a crop that scored higher on the rendered
@@ -1002,6 +1021,37 @@ class ExperimentTiming(BaseModel):
     anchor_at: datetime | None = None
 
 
+class ExperimentDirectionState(StrEnum):
+    """What the Photographer chose before any Experiment exists."""
+
+    SAVED = "saved"
+    LEFT = "left"
+    STARTED = "started"
+
+
+class ExperimentDirection(BaseModel):
+    """One optional later question grounded in existing Photographer Evidence.
+
+    A Direction deliberately stops short of an Experiment. It carries no
+    Criteria, deadline, Capture Session, Verdict, or inferred Intent.
+    """
+
+    id: str
+    user_id: str
+    source_shot_id: str
+    technique_id: str
+    technique_name: str
+    question: str
+    warrant_shot_ids: list[str] = Field(default_factory=list)
+    reference_shot_id: str = ""
+    corroborated_shots: int = 0
+    distinct_shoots: int = 0
+    state: ExperimentDirectionState = ExperimentDirectionState.SAVED
+    started_experiment_id: str = ""
+    created_at: datetime = Field(default_factory=now)
+    updated_at: datetime = Field(default_factory=now)
+
+
 class Experiment(BaseModel):
     """One bounded thing to try, and the durable record of how it went.
 
@@ -1202,6 +1252,7 @@ class ShootReceipt(BaseModel):
 class ScoutRoute(StrEnum):
     EXPLAIN = "explain"
     ASK = "ask"
+    RECOMMEND = "recommend"
     EXPLORE = "explore"
     REPRODUCE = "reproduce"
     SILENCE = "silence"
@@ -1216,6 +1267,7 @@ class ScoutExecutionState(StrEnum):
 class InterventionAttemptState(StrEnum):
     NOT_APPLICABLE = "not_applicable"
     OFFERED = "offered"
+    ACCEPTED = "accepted"
     ENTERED = "entered"
     LEFT = "left"
     COMPLETED = "completed"
@@ -1238,6 +1290,8 @@ class InterventionRecord(BaseModel):
     route: ScoutRoute
     technique_id: str = ""
     question_id: str = ""
+    recommendation_id: str = ""
+    recommendation_option_id: str = ""
     experiment_id: str = ""
     warrant_shot_ids: list[str] = Field(default_factory=list)
     attempt_state: InterventionAttemptState = InterventionAttemptState.NOT_APPLICABLE
@@ -1282,6 +1336,33 @@ class ScoutQuestion(BaseModel):
     options: list[ScoutQuestionOption] = Field(default_factory=list)
 
 
+class ScoutRecommendationOption(BaseModel):
+    """One supported Experiment Direction Scout may recommend."""
+
+    id: str
+    technique_id: str
+    technique_name: str
+    experiment_type: ExperimentType
+    title: str
+    why_now: str
+    warrant_shot_ids: list[str] = Field(default_factory=list)
+    reference_shot_id: str = ""
+
+
+class ScoutRecommendation(BaseModel):
+    """One ranked suggestion that stops before an Experiment exists."""
+
+    id: str = ""
+    primary_option_id: str = ""
+    options: list[ScoutRecommendationOption] = Field(default_factory=list)
+
+
+class ScoutRecommendationAction(StrEnum):
+    ACCEPT = "accept"
+    NOT_TODAY = "not_today"
+    JUST_SHOOTING = "just_shooting"
+
+
 class ScoutDecision(BaseModel):
     """Code-gated intervention choice stored with one Shoot Record."""
 
@@ -1300,6 +1381,7 @@ class ScoutDecision(BaseModel):
     attempt_state: InterventionAttemptState = InterventionAttemptState.NOT_APPLICABLE
     observable_outcome: InterventionOutcome = InterventionOutcome.NOT_APPLICABLE
     question: ScoutQuestion = Field(default_factory=ScoutQuestion)
+    recommendation: ScoutRecommendation = Field(default_factory=ScoutRecommendation)
     decided_at: datetime = Field(default_factory=now)
     executed_at: datetime | None = None
 
@@ -1491,6 +1573,10 @@ class JourneyUpdate(BaseModel):
     #: True when the photographer had marked enough Keepers for the update to
     #: speak about taste rather than only about change.
     taste_is_known: bool = False
+    #: Keeper state at the time of this update. Stored separately from the
+    #: Shot distribution because an unmarked Shot is unknown, not disliked.
+    keepers: int = 0
+    keeper_counts: dict[str, dict[str, int]] = Field(default_factory=dict)
     #: Which Shots, how many, which arithmetic, which model and prompt.
     provenance: Provenance = Field(default_factory=Provenance)
     created_at: datetime = Field(default_factory=now)

@@ -8,6 +8,7 @@ depth of field was intentional or successful.
 
 from __future__ import annotations
 
+from contextlib import suppress
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -426,11 +427,11 @@ def _verified_paths(
         if support < 0.42:
             continue
         targets: list[tuple[int, int]] = []
-        for ref in visual_path.leads_to:
-            try:
-                targets.append(grid.cell_bounds(ref).center)
-            except GridError:
-                continue
+        if visual_path.leads_to:
+            with suppress(GridError):
+                targets.append(grid.span_bounds(visual_path.leads_to).center)
+        if evidence.technique_id == "leading_lines" and not targets:
+            continue
         accepted.append((snapped, targets, support))
     if not accepted:
         return None
@@ -439,6 +440,17 @@ def _verified_paths(
     draw = ImageDraw.Draw(out, "RGBA")
     stroke = max(3, round(min(width, height) / 260))
     for points, targets, _ in accepted:
+        for target in targets:
+            draw.line(
+                (points[-1], target),
+                fill=(0, 0, 0, 150),
+                width=max(2, stroke * 2),
+            )
+            draw.line(
+                (points[-1], target),
+                fill=(245, 240, 231, 210),
+                width=max(1, stroke // 2),
+            )
         draw.line(points, fill=(0, 0, 0, 170), width=stroke * 3, joint="curve")
         draw.line(points, fill=(54, 196, 220, 245), width=stroke, joint="curve")
         radius = stroke * 2
@@ -462,7 +474,7 @@ def _verified_paths(
             label="Visible paths supporting the composition",
             legend=(
                 "Cyan follows contrast edges inside the Analyst's bounded path corridors; "
-                "separate paths remain separate."
+                "separate paths remain separate, and the pale connector points to the target."
             ),
             metrics={
                 "path_count": len(accepted),

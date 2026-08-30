@@ -34,7 +34,7 @@ from app.infra import repository as repo
 from app.infra.bus import TOPICS
 from app.infra.drive import DriveClient, DriveFile, UserDrive, picker_access_token, user_credentials
 from app.infra.storage import ORIGINAL, blob_path, extension_for
-from app.services import ingest, runs, shoots, source_authority, watch
+from app.services import ingest, runs, source_authority, watch
 from app.services.context import Context
 
 logger = logging.getLogger(__name__)
@@ -252,7 +252,6 @@ async def import_files(
                 if existing is not None:
                     duplicates += 1
                     await runs.ensure(ctx, existing)
-                    await shoots.observe_shot(ctx, existing.id)
                     await ingest.resume(ctx, existing)
                     continue
             else:
@@ -323,7 +322,6 @@ async def import_files(
                 SourceRole.MINE.value,
             )
             await runs.ensure(ctx, shot)
-            await shoots.observe_shot(ctx, shot.id)
             await repo.record(
                 ctx.store,
                 user.id,

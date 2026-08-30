@@ -24,7 +24,7 @@ from dataclasses import dataclass
 from datetime import UTC, timedelta
 
 from app.domain import sun
-from app.domain.entities import Exif, Tone
+from app.domain.entities import CaptureTimeAuthority, Exif, Tone
 
 #: Reference points on the daylight locus, warmest first.
 TEMPERATURE_BANDS: tuple[tuple[int, str], ...] = (
@@ -123,7 +123,12 @@ def solar_context(exif: Exif) -> str:
     enough to say. Golden hour and blue hour are claims about the sun's
     position, so they are the two light techniques that can be checked rather
     than believed — the same NOAA equations the Scout times experiments with."""
-    if exif.captured_at is None or exif.latitude is None or exif.longitude is None:
+    if (
+        exif.captured_at is None
+        or exif.latitude is None
+        or exif.longitude is None
+        or exif.capture_time_authority is CaptureTimeAuthority.UNKNOWN
+    ):
         return ""
     when = exif.captured_at
     if when.tzinfo is None:

@@ -223,3 +223,71 @@ async def test_mobile_snapshot_exposes_current_shoot_and_newest_record_in_etag(t
             assert "overall_score" not in body["latest_shoot_record"]["receipt"]
     finally:
         main.app.dependency_overrides.clear()
+
+
+async def test_mobile_snapshot_pairs_latest_shoot_with_its_record_when_older_shoot_finishes_last(
+    tmp_path,
+):
+    ctx = Context(
+        store=InMemoryStore(),
+        blobs=LocalBlobStore(tmp_path / "blobs"),
+        bus=InProcessBus(),
+        drive=None,
+        tokens=None,
+    )
+    user_id = "out-of-order-shoot-reader"
+    await repo.put_user(ctx.store, User(id=user_id, email="out-of-order@example.test"))
+    at = now()
+    older = Shoot(
+        id="shoot_older",
+        user_id=user_id,
+        status=ShootStatus.SETTLED,
+        started_at=at - timedelta(days=1),
+        last_capture_at=at - timedelta(days=1, minutes=-2),
+        current_record_revision=1,
+        closed_at=at + timedelta(minutes=10),
+    )
+    newer = Shoot(
+        id="shoot_newer",
+        user_id=user_id,
+        status=ShootStatus.SETTLED,
+        started_at=at,
+        last_capture_at=at + timedelta(minutes=2),
+        current_record_revision=1,
+        closed_at=at + timedelta(minutes=5),
+    )
+    await repo.put_shoot(ctx.store, older)
+    await repo.put_shoot(ctx.store, newer)
+
+    def record(shoot: Shoot, settled_at) -> ShootRecord:
+        return ShootRecord(
+            shoot_id=shoot.id,
+            user_id=user_id,
+            revision=1,
+            receipt=ShootReceipt(
+                calc_version="shoot-receipt-1+tendency-2",
+                summary="This outing is ready.",
+            ),
+            scout=ScoutDecision(
+                route=ScoutRoute.SILENCE,
+                reason="Nothing needs attention.",
+                policy_version="shoot-scout-3",
+            ),
+            settled_at=settled_at,
+        )
+
+    await repo.put_shoot_record_once(ctx.store, record(newer, newer.closed_at))
+    await repo.put_shoot_record_once(ctx.store, record(older, older.closed_at))
+
+    main.app.dependency_overrides[deps.get_context] = lambda: ctx
+    main.app.dependency_overrides[current_user] = lambda: {"id": user_id}
+    try:
+        with TestClient(main.app) as client:
+            response = client.get("/api/mobile/snapshot")
+    finally:
+        main.app.dependency_overrides.clear()
+
+    assert response.status_code == 200, response.text
+    body = response.json()
+    assert body["latest_shoot"]["id"] == newer.id
+    assert body["latest_shoot_record"]["shoot_id"] == newer.id

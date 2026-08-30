@@ -110,12 +110,12 @@ async def test_useful_shoot_without_keeper_direction_routes_to_explain():
     assert record.scout.warrant[0].shoot_id == membership.shoot_id
     rejected = {item.route: item.reason for item in record.scout.rejected_routes}
     assert "marked Keeper" in rejected[ScoutRoute.REPRODUCE]
-    assert "No supported Tendency Direction" in rejected[ScoutRoute.EXPLORE]
-    assert "Fewer than two" in rejected[ScoutRoute.ASK]
+    assert "No clear pattern" in rejected[ScoutRoute.EXPLORE]
+    assert "No supported Technique" in rejected[ScoutRoute.RECOMMEND]
     assert await repo.open_experiment(ctx.store, "scout_user") is None
 
 
-async def test_supported_tendency_without_keeper_offers_corrected_explore():
+async def test_supported_tendency_without_keeper_prepares_explore_recommendation():
     ctx = context()
     await repo.put_user(ctx.store, User(id="scout_user", email="scout@example.test"))
     start = datetime(2026, 8, 26, 8, 30, tzinfo=UTC)
@@ -134,16 +134,13 @@ async def test_supported_tendency_without_keeper_offers_corrected_explore():
 
     record = await repo.find_shoot_record(ctx.store, membership.shoot_id, 1)
     assert record is not None
-    assert record.scout.route is ScoutRoute.EXPLORE
+    assert record.scout.route is ScoutRoute.RECOMMEND
     assert record.scout.execution_state is ScoutExecutionState.COMPLETED
-    assert record.scout.policy_version == "shoot-scout-3"
-    experiment = await repo.get_experiment(ctx.store, record.scout.experiment_id)
-    assert experiment.type is ExperimentType.EXPLORE
-    assert len(experiment.variations) == 3
-    assert experiment.criteria.text == []
-    assert experiment.verdicts == []
-    assert experiment.baseline is not None
-    assert record.scout.warrant[0].kind == "tendency_direction"
+    assert record.scout.policy_version == "shoot-scout-4"
+    assert record.scout.recommendation.options[0].experiment_type is ExperimentType.EXPLORE
+    assert record.scout.recommendation.options[0].technique_id
+    assert record.scout.experiment_id == ""
+    assert await repo.open_experiment(ctx.store, "scout_user") is None
 
 
 async def test_sparse_shoot_records_evidenced_silence():
@@ -158,11 +155,11 @@ async def test_sparse_shoot_records_evidenced_silence():
     record = await repo.find_shoot_record(ctx.store, membership.shoot_id, 1)
     assert record is not None
     assert record.scout.route is ScoutRoute.SILENCE
-    assert "not enough repeated or varied Evidence" in record.scout.reason
+    assert "Nothing here is clear enough" in record.scout.reason
     assert record.scout.execution_state is ScoutExecutionState.COMPLETED
 
 
-async def test_keeper_backed_shoot_creates_one_deterministic_reproduce():
+async def test_keeper_backed_shoot_prepares_reproduce_without_starting_it():
     ctx = context()
     await repo.put_user(ctx.store, User(id="scout_user", email="scout@example.test"))
     start = datetime(2026, 8, 26, 10, 0, tzinfo=UTC)
@@ -179,21 +176,21 @@ async def test_keeper_backed_shoot_creates_one_deterministic_reproduce():
 
     record = await repo.find_shoot_record(ctx.store, membership.shoot_id, 1)
     assert record is not None
-    assert record.scout.route is ScoutRoute.REPRODUCE
+    assert record.scout.route is ScoutRoute.RECOMMEND
     assert record.scout.execution_state is ScoutExecutionState.COMPLETED
-    assert record.scout.experiment_id == f"experiment_{membership.shoot_id}_r1"
-    experiment = await repo.get_experiment(ctx.store, record.scout.experiment_id)
-    assert experiment.type is ExperimentType.REPRODUCE
-    assert experiment.technique_id == "backlight"
-    assert experiment.reference_shot_id == shot.id
-    assert experiment.warrant_shot_ids == [shot.id]
-    assert experiment.criteria.vision == ["backlight"]
-    assert "1 marked Keeper" in experiment.why_now
+    option = record.scout.recommendation.options[0]
+    assert option.experiment_type is ExperimentType.REPRODUCE
+    assert option.technique_id == "backlight"
+    assert option.reference_shot_id == shot.id
+    assert option.warrant_shot_ids == [shot.id]
+    assert "You marked 1 Shot with Backlight as a Keeper" in option.why_now
+    assert record.scout.experiment_id == ""
+    assert await repo.open_experiment(ctx.store, shot.user_id) is None
 
     replay = await shoots.on_run_settled(ctx, shot.id)
     assert replay == record
     experiments = await repo.list_experiments(ctx.store, shot.user_id)
-    assert [item.id for item in experiments] == [record.scout.experiment_id]
+    assert experiments == []
     events = await repo.list_events(ctx.store, shot.user_id)
     assert sum(event.stage == "shoot_decision" for event in events) == 1
 

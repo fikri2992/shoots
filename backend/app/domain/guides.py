@@ -7,8 +7,8 @@ a photographer teaches nothing.
 
 What a photographer reads is a guide — thirds, the phi grid, the diagonal
 method, a centre axis — and what they want to know is whether the frame is
-sitting on it. So the guide is chosen from the technique the panel actually
-agreed the frame is built on, and the app draws that one, not the mesh.
+sitting on it. So the guide is chosen from the strongest retained spatial
+Technique, and the app draws that one, not the mesh.
 
 Pure. The renderers (SVG in the browser, PIL for the Drive review) own the
 geometry; this owns only the choice.
@@ -43,7 +43,7 @@ BY_TECHNIQUE = {
     "minimalism": THIRDS,
 }
 
-#: With nothing spatial agreed, thirds is the guide every photographer already
+#: With no retained spatial Technique, thirds is the guide every photographer already
 #: has in their head — drawn dimmed, as a reference rather than a claim.
 FALLBACK = THIRDS
 
@@ -79,7 +79,7 @@ def choose(
     subject_x: float | None = None,
     subject_y: float | None = None,
 ) -> str:
-    """The guide for the strongest spatial technique the panel agreed on,
+    """The guide for the strongest retained spatial Technique,
     refined to the grid the subject is actually nearer."""
     best: tuple[float, str] | None = None
     for evidence in techniques:

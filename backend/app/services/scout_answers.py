@@ -80,7 +80,7 @@ async def answer(
     await photographer_memory.apply_photographer_signal(ctx, signal)
 
     experiment_id = ""
-    detail = "Intent recorded; no Experiment was requested."
+    detail = "Shoots saved your answer for this outing. It did not start an Experiment."
     if option.technique_id:
         experiment = await experiment_scout.issue_explore(
             ctx,
@@ -103,9 +103,9 @@ async def answer(
         )
         if experiment is not None:
             experiment_id = experiment.id
-            detail = "Intent recorded and corrected Explore offered."
+            detail = "Shoots saved your answer and made an optional Explore for it."
         else:
-            detail = "Intent recorded; another Experiment currently owns the open slot."
+            detail = "Shoots saved your answer. Your current Experiment stays open."
 
     claimed.intent_signal_id = signal.id
     claimed.experiment_id = experiment_id

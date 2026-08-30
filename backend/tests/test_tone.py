@@ -174,10 +174,14 @@ def test_a_frame_with_no_colour_gets_no_hue_relationship():
 # --- the sun --------------------------------------------------------------
 
 
-def _exif_at(when: str, gps: tuple[float, float] | None = (51.5, -0.12)) -> Exif:
+def _exif_at(
+    when: str,
+    gps: tuple[float, float] | None = (51.5, -0.12),
+    utc_offset: str | None = "+00:00",
+) -> Exif:
     from app.imaging.exif import read_exif
 
-    return read_exif(jpeg_with_exif(when=when, gps=gps))
+    return read_exif(jpeg_with_exif(when=when, gps=gps, utc_offset=utc_offset))
 
 
 def test_golden_hour_is_checked_against_the_sun_not_believed():
@@ -189,6 +193,7 @@ def test_golden_hour_is_checked_against_the_sun_not_believed():
 
 def test_the_sun_says_nothing_without_a_time_and_a_place():
     assert rules.solar_context(_exif_at("2026:06:21 12:00:00", gps=None)) == ""
+    assert rules.solar_context(_exif_at("2026:07:21 14:41:28", utc_offset=None)) == ""
     assert rules.solar_context(Exif()) == ""
 
 

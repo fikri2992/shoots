@@ -19,8 +19,10 @@ from PIL import Image, UnidentifiedImageError
 
 from app.config import settings
 from app.domain import motion as motion_rules
+from app.domain import shoots as shoot_rules
 from app.domain import tone as tone_rules
 from app.domain.entities import (
+    CaptureTimeAuthority,
     GridSpec,
     Shot,
     ShotKind,
@@ -40,7 +42,7 @@ from app.infra import repository as repo
 from app.infra.bus import TOPICS
 from app.infra.drive import DriveFile
 from app.infra.storage import GRIDDED, ORIGINAL, SHEET, THUMB, blob_path, extension_for
-from app.services import runs
+from app.services import runs, shoots
 from app.services.context import Context
 
 logger = logging.getLogger(__name__)
@@ -116,7 +118,14 @@ async def ingest(ctx: Context, message: dict) -> None:
     if not claimed and shot.status is ShotStatus.INGESTED:
         # The status commit may have succeeded while the downstream publish
         # was lost. Replaying is safe: every later stage is idempotent.
+        await shoots.observe_shot(ctx, shot.id)
         await ctx.bus.publish(TOPICS["media.ingested"], {"shot_id": shot.id})
+        return
+    if not claimed and shot.status is ShotStatus.FAILED:
+        # A prior attempt may have proved the media unreadable, then lost the
+        # capture-membership write. Retry that durable write without pretending
+        # the media itself became readable.
+        await shoots.observe_shot(ctx, shot.id)
         return
     if not claimed:
         logger.info("ingest: %s already %s, skipping", shot.id, shot.status)
@@ -155,6 +164,10 @@ async def ingest(ctx: Context, message: dict) -> None:
         shot.ingesting_at = None
         shot.error = ""
         await repo.put_shot(ctx.store, shot)
+        # EXIF or Android source time is now authoritative enough for capture
+        # continuity. Grouping before this point creates one timeless Shoot per
+        # manual or Picker import and cannot repair itself later.
+        await shoots.observe_shot(ctx, shot.id)
     except PermanentMediaError as error:
         shot.status = ShotStatus.FAILED
         shot.ingesting_at = None
@@ -163,6 +176,7 @@ async def ingest(ctx: Context, message: dict) -> None:
         await repo.record(
             ctx.store, shot.user_id, AGENT, "failed", {"error": shot.error}, shot_id=shot.id
         )
+        await shoots.observe_shot(ctx, shot.id)
         return
     except Exception as error:
         # Delivery, storage, and missing-dependency failures are retryable. The
@@ -189,12 +203,19 @@ async def resume(ctx: Context, shot: Shot) -> None:
     if shot.status in {ShotStatus.NEW, ShotStatus.INGESTING}:
         await ctx.bus.publish(TOPICS["media.new"], {"shot_id": shot.id})
     elif shot.status in {ShotStatus.INGESTED, ShotStatus.ANALYSING}:
+        await shoots.observe_shot(ctx, shot.id)
         await ctx.bus.publish(TOPICS["media.ingested"], {"shot_id": shot.id})
 
 
 async def _ingest_photo(ctx: Context, shot: Shot, data: bytes) -> Shot:
+    source_instant = shoot_rules.capture_instant(shot)
     shot.exif = read_exif(data)
-    shot.captured_at = shot.exif.captured_at
+    if shot.source is ShotSource.ANDROID and source_instant is not None:
+        shot.exif.captured_at = source_instant
+        shot.exif.capture_time_authority = CaptureTimeAuthority.ANDROID_SOURCE
+        shot.captured_at = source_instant
+    else:
+        shot.captured_at = shot.exif.captured_at
     try:
         image = canvas.load_bytes(data)
     except (UnidentifiedImageError, OSError, ValueError) as error:
@@ -322,6 +343,8 @@ async def _remember_location(ctx: Context, shot: Shot) -> None:
     """The newest Shot with GPS tells Scout where the photographer shoots, so an
     experiment can be timed to the light there (domain/timing.py)."""
     if shot.exif.latitude is None or shot.exif.longitude is None:
+        return
+    if shot.exif.capture_time_authority is CaptureTimeAuthority.UNKNOWN:
         return
     user = await repo.find_user(ctx.store, shot.user_id)
     if user is None:

@@ -114,7 +114,8 @@ async def receive_shot(
         # the same media as a different result. Resume from durable state in
         # case the previous request committed the Shot but lost its publish.
         await runs.ensure(ctx, existing)
-        await shoots.observe_shot(ctx, existing.id)
+        if existing.source is ShotSource.ANDROID:
+            await shoots.observe_shot(ctx, existing.id)
         if capture_session_id:
             await repo.accept_capture_session_member(
                 ctx.store, capture_session_id, source_id, existing.id
@@ -224,7 +225,10 @@ async def receive_shot(
             SourceRole.MINE.value,
         )
     await runs.ensure(ctx, shot)
-    await shoots.observe_shot(ctx, shot.id)
+    if source is ShotSource.ANDROID:
+        # Phone Source carries an authoritative Camera instant in source_id,
+        # so it can preserve immediate capture grouping before image Ingest.
+        await shoots.observe_shot(ctx, shot.id)
     if capture_session_id:
         await repo.accept_capture_session_member(ctx.store, capture_session_id, source_id, shot.id)
     await repo.record(

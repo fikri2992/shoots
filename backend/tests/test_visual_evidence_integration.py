@@ -17,6 +17,8 @@ from app.domain.entities import (
     ShotStatus,
     TechniqueEvidence,
     User,
+    VisualPath,
+    VisualPathRole,
 )
 from app.domain.grid import Grid
 from app.infra import repository as repo
@@ -83,6 +85,16 @@ def _radial_fixture() -> tuple[Image.Image, bytes]:
     return image, buffer.getvalue()
 
 
+def _leading_path_fixture() -> tuple[Image.Image, bytes]:
+    image = Image.new("RGB", (800, 600), (0, 0, 0))
+    draw = ImageDraw.Draw(image)
+    draw.line((250, 550, 350, 350), fill=(255, 255, 255), width=9)
+    draw.line((650, 550, 550, 350), fill=(255, 255, 255), width=9)
+    buffer = io.BytesIO()
+    image.save(buffer, format="JPEG", quality=95)
+    return image, buffer.getvalue()
+
+
 async def test_visual_artifacts_survive_real_blob_and_api_boundaries(tmp_path):
     ctx = Context(
         store=InMemoryStore(),
@@ -145,6 +157,49 @@ async def test_visual_artifacts_survive_real_blob_and_api_boundaries(tmp_path):
     assert artifacts["bokeh_balls"].kind.value == "bokeh_instances"
     assert artifacts["fill_the_frame"].kind.value == "subject_contour"
     assert all(item and item.blob_path for item in artifacts.values())
+
+    path_image, path_bytes = _leading_path_fixture()
+    path_shot = shot.model_copy(update={"id": "path_shot", "filename": "path.jpg"})
+    path_analysis = Analysis(
+        shot_id=path_shot.id,
+        user_id=user.id,
+        model="gemini-integration",
+        techniques=[
+            TechniqueEvidence(
+                technique_id="leading_lines",
+                confidence=0.9,
+                agreement=2,
+                cells=["C6", "D4", "G6", "F4"],
+                paths=[
+                    VisualPath(
+                        points=["C6", "D4"],
+                        leads_to=["E2"],
+                        role=VisualPathRole.BOUNDARY,
+                    ),
+                    VisualPath(
+                        points=["G6", "F4"],
+                        leads_to=["E2"],
+                        role=VisualPathRole.BOUNDARY,
+                    ),
+                ],
+            )
+        ],
+    )
+    await analyst.render_visual_evidence(
+        ctx,
+        path_shot,
+        path_analysis,
+        path_image,
+        path_bytes,
+    )
+    path_artifact = path_analysis.techniques[0].visual_artifact
+    assert path_artifact.kind.value == "verified_paths"
+    assert path_artifact.metrics["path_count"] == 2
+    rendered_path = Image.open(io.BytesIO(await ctx.blobs.read(path_artifact.blob_path))).convert(
+        "RGB"
+    )
+    connector_patch = rendered_path.crop((394, 244, 407, 257))
+    assert max(maximum for _, maximum in connector_patch.getextrema()) > 80
 
     radial_image, radial_bytes = _radial_fixture()
     radial_shot = shot.model_copy(update={"id": "radial_shot", "filename": "radial.jpg"})

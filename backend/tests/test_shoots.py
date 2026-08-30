@@ -420,7 +420,9 @@ async def test_settled_shoot_receipt_reports_exact_decisions_and_blind_spots():
     placement = next(item for item in record.receipt.dimensions if item.dimension_id == "placement")
     assert placement.authority == "model_read"
     assert placement.counts == {"centred": 3}
-    assert any("3 of 3" in line and "centred" in line for line in record.receipt.repeated)
+    assert any(
+        "3 of 3" in line and "centred" in line.lower() for line in record.receipt.repeated
+    )
     assert any("portrait" in line and "landscape" in line for line in record.receipt.varied)
     assert any("height" in item.lower() for item in record.receipt.blind_spots)
 

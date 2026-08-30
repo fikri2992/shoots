@@ -7,7 +7,7 @@ from pydantic import BaseModel, Field
 
 from app.api.auth import current_user
 from app.api.deps import get_context
-from app.domain import shot_teaching, taxonomy, tendency
+from app.domain import shot_teaching, taxonomy, technique_map, tendency
 from app.domain.entities import (
     ActivityEvent,
     Analysis,
@@ -22,6 +22,8 @@ from app.domain.entities import (
     ShotStatus,
     ShotTeachingReceipt,
     TechniqueEvidence,
+    TechniqueState,
+    TechniqueStatus,
     User,
     now,
 )
@@ -96,17 +98,71 @@ class ShotView(BaseModel):
     analysis: AnalysisView | None = None
     run: Run | None = None
     teaching: ShotTeachingReceipt | None = None
+    technique_context: dict[str, "ShotTechniqueContext"] = Field(default_factory=dict)
 
 
-async def _shot_view(ctx: Context, shot: Shot, *, analysis_hint: bool = True) -> ShotView:
+class ShotTechniqueContext(BaseModel):
+    """Current Technique Map evidence beside one corroborated Shot Technique."""
+
+    technique_id: str
+    status: TechniqueStatus
+    corroborated_shots: int
+    distinct_scenes: int
+    distinct_shoots: int
+    reproduce_sessions: int
+    evaluable_reproduce_sessions: int
+    criteria_met_sessions: int
+    positive_keeper_shots: int
+
+
+async def _shot_view(
+    ctx: Context,
+    shot: Shot,
+    *,
+    analysis_hint: bool = True,
+    technique_states: dict[str, TechniqueState] | None = None,
+) -> ShotView:
     analysis = await repo.find_analysis(ctx.store, shot.id) if analysis_hint else None
     run = await repo.find_run_for_shot(ctx.store, shot.id)
+    if analysis is not None and technique_states is None:
+        technique_states = {
+            state.technique_id: state
+            for state in await repo.list_technique_states(ctx.store, shot.user_id)
+        }
     return ShotView(
         shot=shot,
         analysis=AnalysisView.of(analysis),
         run=run,
         teaching=shot_teaching.build(shot, analysis) if analysis is not None else None,
+        technique_context=_shot_technique_context(analysis, technique_states or {}),
     )
+
+
+def _shot_technique_context(
+    analysis: Analysis | None,
+    states: dict[str, TechniqueState],
+) -> dict[str, ShotTechniqueContext]:
+    if analysis is None:
+        return {}
+    context: dict[str, ShotTechniqueContext] = {}
+    for evidence in analysis.techniques:
+        if not technique_map.corroborated(evidence):
+            continue
+        state = states.get(evidence.technique_id)
+        if state is None:
+            continue
+        context[evidence.technique_id] = ShotTechniqueContext(
+            technique_id=evidence.technique_id,
+            status=state.status,
+            corroborated_shots=state.corroborated_shots,
+            distinct_scenes=state.distinct_scenes,
+            distinct_shoots=state.distinct_shoots,
+            reproduce_sessions=state.reproduce_sessions,
+            evaluable_reproduce_sessions=state.evaluable_reproduce_sessions,
+            criteria_met_sessions=state.criteria_met_sessions,
+            positive_keeper_shots=state.positive_keeper_shots,
+        )
+    return context
 
 
 @router.get("/shots", response_model=list[ShotView])
@@ -125,9 +181,20 @@ async def list_shots(
         raise HTTPException(400, str(exc)) from exc
     if next_cursor:
         response.headers["X-Next-Cursor"] = next_cursor
+    technique_states = {
+        state.technique_id: state
+        for state in await repo.list_technique_states(ctx.store, session_user["id"])
+    }
     views = []
     for shot in shots:
-        views.append(await _shot_view(ctx, shot, analysis_hint=bool(shot.analyzed_at)))
+        views.append(
+            await _shot_view(
+                ctx,
+                shot,
+                analysis_hint=bool(shot.analyzed_at),
+                technique_states=technique_states,
+            )
+        )
     return views
 
 
@@ -278,6 +345,7 @@ class ProfileView(BaseModel):
     shots: int
     keepers: int
     taste_is_known: bool
+    taste_threshold: int
     #: Which arithmetic produced these figures. Two profiles under different
     #: versions are not comparable and must not be diffed.
     calc_version: str
@@ -299,6 +367,7 @@ async def profile(
         shots=built.shots,
         keepers=built.keepers,
         taste_is_known=built.taste_is_known,
+        taste_threshold=tendency.MIN_KEEPERS_FOR_TASTE,
         calc_version=built.calc_version,
         scenes=built.dwell.scenes,
         shots_per_scene=round(built.dwell.per_scene, 2),

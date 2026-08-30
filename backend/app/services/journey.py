@@ -92,8 +92,24 @@ async def maybe_write(ctx: Context, user_id: str) -> JourneyUpdate | None:
     # comparison even when the counts do not.
     fresh = [t for t in recurring if t not in (previous.became_recurring if previous else [])]
     retracted = sorted(set(previous.became_recurring if previous else []) - set(recurring))
+    keeper_counts = {
+        dimension.id: dict(profile.dimensions[dimension.id].keepers)
+        for dimension in tendency.DIMENSIONS
+    }
+    keeper_changed = previous is not None and (
+        previous.keepers != profile.keepers or previous.keeper_counts != keeper_counts
+    )
+    meaningful_keeper_change = keeper_changed and (
+        profile.taste_is_known or bool(previous and previous.taste_is_known)
+    )
 
-    if comparable and not movements and not fresh and not retracted:
+    if (
+        comparable
+        and not movements
+        and not fresh
+        and not retracted
+        and not meaningful_keeper_change
+    ):
         return None
 
     # On a first update every bucket diffs against an empty profile, so every
@@ -125,6 +141,8 @@ async def maybe_write(ctx: Context, user_id: str) -> JourneyUpdate | None:
         became_recurring=recurring,
         shots=profile.shots,
         taste_is_known=profile.taste_is_known,
+        keepers=profile.keepers,
+        keeper_counts=keeper_counts,
         provenance=provenance,
     )
     await repo.put_journey_update(ctx.store, update)
@@ -140,6 +158,7 @@ async def maybe_write(ctx: Context, user_id: str) -> JourneyUpdate | None:
             "retracted_recurring": retracted,
             "evidence": len(evidence),
             "taste_is_known": profile.taste_is_known,
+            "keepers": profile.keepers,
             "calc_version": profile.calc_version,
         },
     )
@@ -194,33 +213,33 @@ def _evidence(
     """Every fact the writer is allowed to use, in plain sentences with their
     figures attached. Nothing about quality: the panel's score is not here, on
     purpose (decision 39)."""
-    lines = [f"{profile.shots} shots read in total."]
+    lines = [f"Shoots read {profile.shots} Shots."]
 
     for dim in tendency.DIMENSIONS:
         p = profile.dimensions[dim.id]
         if not p.n:
             continue
-        counts = ", ".join(f"{b} {p.counts[b]}" for b in dim.buckets if p.counts.get(b))
-        line = f"{dim.label}: {counts} (of {p.n} readable)"
+        counts = ", ".join(f"{p.counts[b]} {b}" for b in dim.buckets if p.counts.get(b))
+        authority = "visually read" if dim.source == "model read" else "measured"
+        line = f"For {dim.label}, Shoots {authority} {counts} across {p.n} readable Shots."
         if p.readable and p.narrow:
-            line += f" — barely varies, {p.dominant_share:.0%} of them {p.dominant}"
+            line += f" {p.dominant.capitalize()} appears in {p.counts[p.dominant]} of them."
         if p.readable and p.never_used:
-            line += f"; never {', '.join(p.never_used)}"
+            line += f" None are {', '.join(p.never_used)} yet."
         lines.append(line)
 
     dwell = profile.dwell
     if dwell.readable:
         lines.append(
-            f"scenes: {dwell.shots} shots across {dwell.scenes} scenes, "
-            f"{dwell.per_scene:.1f} Shots each, longest {dwell.longest}"
-            + (" — usually one Shot and on" if dwell.walks_on else " — stays with a Scene")
+            f"You made {dwell.shots} Shots across {dwell.scenes} Scenes, averaging "
+            f"{dwell.per_scene:.1f} per Scene. The longest Scene has {dwell.longest} Shots."
         )
 
     for movement in movements:
-        direction = "widened" if movement.delta > 0 else "narrowed"
-        line = f"{movement.dimension.label} {direction} since the last update"
+        direction = "spread wider" if movement.delta > 0 else "became more consistent"
+        line = f"Since the last update, {movement.dimension.label} {direction}."
         if movement.newly_used:
-            line += f", first time shooting {', '.join(movement.newly_used)}"
+            line += f" {', '.join(movement.newly_used).capitalize()} appears for the first time."
         lines.append(line)
 
     if fresh_recurring:
@@ -228,15 +247,15 @@ def _evidence(
         # Said without the machinery: the writer is told not to mention lenses
         # or confidences, and it will happily repeat any that appear here.
         lines.append(
-            "now recurring in the record, seen clearly in at least three separate Shots: "
-            f"{names}; recurrence does not prove deliberate control"
+            f"Shoots' visual reads find {names} in at least three separate Shots. "
+            "It keeps returning, but has not been tested on purpose."
         )
 
     if retracted_recurring:
         names = ", ".join(t.replace("_", " ") for t in retracted_recurring)
         lines.append(
-            "system correction — the current corroboration counts no longer support "
-            f"calling these Techniques recurring: {names}"
+            f"Shoots corrected an earlier label for {names}. The current visual-read "
+            "counts no longer reach the recurring threshold."
         )
 
     # Two facts side by side, never joined: what they were offered, and what
@@ -245,12 +264,12 @@ def _evidence(
     if last_change is not None and last_change.baseline is not None:
         technique = last_change.technique_id.replace("_", " ")
         lines.append(
-            f"was offered {technique} to try, after {last_change.baseline.citation}; "
-            f"in their shots since: {last_change.change.outcome}"
+            f"Shoots offered {technique} as an Experiment. {last_change.baseline.citation}"
         )
+        lines.append(last_change.change.outcome)
 
     if profile.taste_is_known:
-        lines.append(f"{profile.keepers} Shots marked as Keepers by the photographer themselves.")
+        lines.append(f"You marked {profile.keepers} Shots as Keepers.")
         for dim in tendency.DIMENSIONS:
             p = profile.dimensions[dim.id]
             if p.readable_keepers < tendency.MIN_KEEPERS_FOR_TASTE:
@@ -259,17 +278,18 @@ def _evidence(
                 marked = p.keepers.get(bucket, 0)
                 if marked:
                     lines.append(
-                        f"{marked} of {p.readable_keepers} readable marked Keepers are "
-                        f"{bucket} ({dim.label})"
+                        f"{marked} of {p.readable_keepers} readable Keepers are {bucket} "
+                        f"for {dim.label}."
                     )
     else:
         lines.append(
-            "the photographer has not marked enough keepers to say what they value — "
-            "do not speak about taste"
+            f"You marked {profile.keepers} Shots as Keepers. With "
+            f"{tendency.MIN_KEEPERS_FOR_TASTE}, Shoots can start finding where those "
+            "choices gather."
         )
 
     for spot in profile.blind_spots:
-        lines.append(f"cannot see: {spot}")
+        lines.append(f"Still unclear: {spot}.")
     return lines
 
 
@@ -278,8 +298,7 @@ def _correction_body(retracted: list[str]) -> str:
     examples = ", ".join(item.replace("_", " ") for item in retracted[:3])
     more = f", and {len(retracted) - 3} others" if len(retracted) > 3 else ""
     return (
-        f"Shoots corrected an earlier record: {examples}{more} no longer meet the current "
-        "corroboration rule for recurring Techniques. Their sightings remain observed, but the "
-        "Evidence no longer supports the recurring label. This corrects Shoots' "
-        "interpretation, not your eye."
+        f"Shoots corrected an earlier label for {examples}{more}. Those Techniques no longer "
+        "reach the current recurring threshold. The sightings are still here. The earlier label, "
+        "not your photography, was wrong."
     )

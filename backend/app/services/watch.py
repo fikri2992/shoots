@@ -71,7 +71,7 @@ async def ensure(ctx: Context, user: User, force: bool = False) -> DriveChannel 
 async def renew_all(ctx: Context) -> int:
     """Scheduler entry point. Returns how many channels were (re)opened."""
     renewed = 0
-    for user in await repo.list_users(ctx.store):
+    for user in await repo.list_writable_users(ctx.store):
         before = user.drive_channel.channel_id if user.drive_channel else ""
         try:
             after = await ensure(ctx, user)

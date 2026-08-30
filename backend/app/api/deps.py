@@ -46,7 +46,7 @@ def wire(ctx: Context) -> None:
     """Register every stage handler. Same registrations on either bus."""
     from app.domain.entities import ExperimentType, RunStage, ShotStatus
     from app.infra import repository
-    from app.services import analyst, cartographer, ingest, judge, runs, scout, scribe
+    from app.services import analyst, cartographer, ingest, journey, judge, runs, scout, scribe
 
     async def on_media_new(message: dict) -> None:
         try:
@@ -186,8 +186,7 @@ def wire(ctx: Context) -> None:
 
     async def on_keeper_changed(message: dict) -> None:
         await cartographer.rebuild(ctx, message["user_id"])
-        if message.get("keeper"):
-            await scout.issue(ctx, message["user_id"])
+        await journey.maybe_write(ctx, message["user_id"])
 
     async def on_account_delete(message: dict) -> None:
         from app.services import account

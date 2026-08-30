@@ -1,6 +1,10 @@
 """Photographer-controlled Deconstruction preparation and retrieval."""
 
+from io import BytesIO
+from zipfile import ZIP_STORED, ZipFile
+
 from fastapi import APIRouter, Depends, HTTPException
+from fastapi.responses import Response
 from pydantic import BaseModel, Field
 
 from app.api.auth import current_user
@@ -51,3 +55,32 @@ async def get_draft(
     if draft is None or draft.user_id != session_user["id"]:
         raise HTTPException(404, "Deconstruction not found")
     return draft
+
+
+@router.get("/{draft_id}/download")
+async def download_story(
+    draft_id: str,
+    session_user: dict = Depends(current_user),
+    ctx: Context = Depends(get_context),
+) -> Response:
+    draft = await repo.find_deconstruction(ctx.store, draft_id)
+    if draft is None or draft.user_id != session_user["id"]:
+        raise HTTPException(404, "Story not found")
+    if not draft.pages or any(not page.blob_path for page in draft.pages):
+        raise HTTPException(409, "Story pages are not ready")
+
+    output = BytesIO()
+    with ZipFile(output, "w", compression=ZIP_STORED) as archive:
+        for index, page in enumerate(draft.pages, 1):
+            if not await ctx.blobs.exists(page.blob_path):
+                raise HTTPException(409, "One or more story pages are unavailable")
+            archive.writestr(f"story-{index:02d}.jpg", await ctx.blobs.read(page.blob_path))
+        archive.writestr("caption.txt", draft.suggested_caption)
+    return Response(
+        output.getvalue(),
+        media_type="application/zip",
+        headers={
+            "Content-Disposition": f'attachment; filename="shoots-story-{draft.id}.zip"',
+            "Cache-Control": "private, no-store",
+        },
+    )

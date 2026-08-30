@@ -38,7 +38,14 @@ from math import log, sqrt
 
 from app.domain import sun
 from app.domain import tone as tone_rules
-from app.domain.entities import Analysis, Change, ChangeState, Comparability, Shot
+from app.domain.entities import (
+    Analysis,
+    CaptureTimeAuthority,
+    Change,
+    ChangeState,
+    Comparability,
+    Shot,
+)
 
 #: The version of the arithmetic in this module. Bump it whenever a bucket
 #: edge, a threshold or a formula moves, because every stored claim records the
@@ -181,6 +188,8 @@ def _light(shot: Shot, analysis: Analysis | None) -> str | None:
     with. Golden and blue hour are claims about the sun's position, which is
     why they can be bucketed at all."""
     exif = shot.exif
+    if exif.capture_time_authority is CaptureTimeAuthority.UNKNOWN:
+        return None
     when = exif.captured_at or shot.captured_at
     if when is None or exif.latitude is None or exif.longitude is None:
         return None
@@ -396,7 +405,7 @@ class Profile:
             profile = self.dimensions.get(dim.id)
             if profile and profile.n >= MIN_SHOTS_FOR_TENDENCY:
                 continue
-            reason = dim.blind or "not measured on enough shots yet"
+            reason = dim.blind or "not available in enough Shots yet"
             out.append(f"{dim.label}: {reason}")
         return tuple(out)
 
@@ -619,8 +628,8 @@ def direction_for(profile: Profile) -> ExperimentDirection | None:
         dwell = profile.dwell
         return ExperimentDirection(
             citation=(
-                f"{dwell.shots} shots across {dwell.scenes} scenes — "
-                f"{dwell.per_scene:.1f} Shots before you move on"
+                f"You made {dwell.shots} Shots across {dwell.scenes} Scenes, about "
+                f"{dwell.per_scene:.1f} Shots before you moved on."
             ),
             prefers=DWELL_SUGGESTS,
             source="dwell",
@@ -631,9 +640,12 @@ def direction_for(profile: Profile) -> ExperimentDirection | None:
         return None
     bucket = narrowest.dominant
     count = narrowest.counts.get(bucket, 0)
-    citation = f"{count} of {narrowest.n} readable shots: {bucket}"
+    authority = (
+        "Shoots saw" if narrowest.dimension.source == "model read" else "Shoots read from the files"
+    )
+    citation = f"{authority} {bucket} in {count} of {narrowest.n} Shots."
     if narrowest.never_used:
-        citation += f" — never {', '.join(narrowest.never_used)}"
+        citation += f" It has not seen {', '.join(narrowest.never_used)} yet."
     return ExperimentDirection(
         citation=citation,
         prefers=PUSHES_AGAINST.get((narrowest.dimension.id, bucket), ()),
@@ -700,7 +712,9 @@ def change(
     if fresh:
         return Change(
             state=ChangeState.CHANGED,
-            outcome=f"first {', '.join(fresh)} in {_shots(shots_since)} since",
+            outcome=(
+                f"Your next {_shots(shots_since)} included {', '.join(fresh)} for the first time."
+            ),
             new_buckets=fresh,
             added=shots_since,
         )
@@ -708,13 +722,14 @@ def change(
         return Change(
             state=ChangeState.CHANGED,
             outcome=(
-                f"spread wider over {_shots(shots_since)} since ({before:.2f} to {after:.2f})"
+                f"Across your next {_shots(shots_since)}, you used a wider mix of "
+                f"{dimension.label}."
             ),
             added=shots_since,
         )
     return Change(
         state=ChangeState.UNCHANGED,
-        outcome=f"{_shots(shots_since)} since, same distribution",
+        outcome=f"Your next {_shots(shots_since)} kept the same mix.",
         added=shots_since,
     )
 
@@ -738,7 +753,10 @@ def dwell_change(at_issue: dict[str, int], current: Dwell) -> Change:
         return Change(
             state=ChangeState.INSUFFICIENT,
             comparability=Comparability.TOO_FEW_SHOTS,
-            outcome=f"{added} shots since, but across {_scenes(scenes_since)} - nothing to average",
+            outcome=(
+                f"You made {_shots(added)} across {_scenes(scenes_since)}. "
+                "That is too little to compare."
+            ),
             added=added,
         )
 
@@ -747,12 +765,18 @@ def dwell_change(at_issue: dict[str, int], current: Dwell) -> Change:
     if per_scene >= was + DWELL_ROSE_BY:
         return Change(
             state=ChangeState.CHANGED,
-            outcome=f"{per_scene:.1f} Shots a Scene since, up from {was:.1f}",
+            outcome=(
+                f"In the newer Scenes, you averaged {per_scene:.1f} Shots per Scene, "
+                f"up from {was:.1f}."
+            ),
             added=added,
         )
     return Change(
         state=ChangeState.UNCHANGED,
-        outcome=f"{per_scene:.1f} Shots a Scene since, was {was:.1f}",
+        outcome=(
+            f"In the newer Scenes, you averaged {per_scene:.1f} Shots per Scene, "
+            f"close to {was:.1f} before."
+        ),
         added=added,
     )
 
@@ -766,15 +790,18 @@ def _too_few(shots_since: int, readable_since: int, dimension: Dimension | None)
     is no longer all there.
     """
     if shots_since < 0 or readable_since < 0:
-        outcome = "the shots this was frozen against are no longer all there"
+        outcome = "Some Baseline Shots are no longer here, so the comparison stops."
     elif shots_since == 0:
-        outcome = "nothing shot since"
+        outcome = "No new Shots yet."
     elif readable_since == 0 and dimension is not None:
-        outcome = f"{_shots(shots_since)} since, none of them showing {dimension.label}"
+        outcome = (
+            f"You made {_shots(shots_since)}, but none include what Shoots needs to read "
+            f"{dimension.label}."
+        )
     else:
         outcome = (
-            f"{_shots(shots_since)} since, {readable_since} of them readable — "
-            f"{MIN_SHOTS_FOR_CHANGE} needed to compare"
+            f"Shoots can read {readable_since} of your next {_shots(shots_since)} here. "
+            f"It needs {MIN_SHOTS_FOR_CHANGE} to compare."
         )
     return Change(
         state=ChangeState.INSUFFICIENT,

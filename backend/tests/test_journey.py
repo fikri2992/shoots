@@ -8,7 +8,10 @@ and none of which a model is allowed to touch.
 from datetime import UTC, datetime, timedelta
 
 import pytest
+from fastapi.testclient import TestClient
 
+from app.api import deps, main
+from app.api.auth import current_user
 from app.domain.entities import (
     Analysis,
     Composition,
@@ -95,7 +98,7 @@ async def test_the_first_update_reports_the_whole_body_of_work():
     assert update is not None
     assert update.shots == 12
     assert update.body == "You keep finding quiet corners."
-    assert any("12 shots read in total" in line for line in update.evidence)
+    assert any("Shoots read 12 Shots" in line for line in update.evidence)
 
 
 async def test_nothing_moved_writes_nothing():
@@ -116,7 +119,7 @@ async def test_a_dimension_that_widened_earns_the_next_update():
     update = await journey.maybe_write(c, "u1")
     assert update is not None
     assert "placement" in update.widened
-    assert any("first time shooting near the edge" in line for line in update.evidence)
+    assert any("Near the edge appears for the first time" in line for line in update.evidence)
 
 
 async def test_the_second_update_diffs_against_the_first_not_against_nothing():
@@ -148,8 +151,8 @@ async def test_a_technique_becoming_recurring_earns_an_update_without_claiming_c
     update = await journey.maybe_write(c, "u1")
     assert update is not None
     assert "backlight" in update.became_recurring
-    recurrence = next(line for line in update.evidence if "now recurring" in line)
-    assert "recurrence does not prove deliberate control" in recurrence
+    recurrence = next(line for line in update.evidence if "at least three separate Shots" in line)
+    assert "has not been tested on purpose" in recurrence
     assert all(word not in recurrence for word in ("reliably", "repeatable", "corroborat"))
 
 
@@ -183,19 +186,24 @@ async def test_retracted_recurrence_writes_a_code_authored_correction(no_model):
     correction = await journey.maybe_write(c, "u1")
 
     assert correction is not None
-    assert "corrected an earlier record" in correction.body
+    assert "corrected an earlier label" in correction.body
     assert "repeatable" not in correction.body
-    assert any("system correction" in line and "backlight" in line for line in correction.evidence)
+    assert any(
+        "corrected an earlier label" in line and "backlight" in line
+        for line in correction.evidence
+    )
     assert correction.provenance.model == "" and correction.provenance.prompt_version == ""
     assert len(no_model) == writer_calls
 
 
-async def test_without_keepers_the_writer_is_told_not_to_speak_about_taste():
+async def test_without_keepers_keeps_prompt_control_out_of_visible_evidence(no_model):
     c = ctx()
     await seed(c, 12)
     update = await journey.maybe_write(c, "u1")
     assert update is not None and update.taste_is_known is False
-    assert any("do not speak about taste" in line for line in update.evidence)
+    assert no_model[-1]["taste"] is False
+    assert any("You marked 0 Shots as Keepers" in line for line in update.evidence)
+    assert not any("do not speak about taste" in line for line in update.evidence)
     assert not any("keep" in line and "times as often" in line for line in update.evidence)
 
 
@@ -204,9 +212,54 @@ async def test_keeper_distribution_reaches_the_writer_as_positive_marks():
     await seed(c, 12, keepers=6)
     update = await journey.maybe_write(c, "u1")
     assert update is not None and update.taste_is_known is True
-    marked = "marked as Keepers by the photographer themselves"
+    marked = "You marked 6 Shots as Keepers"
     assert any(marked in line for line in update.evidence)
-    assert any("6 of 6 readable marked Keepers" in line for line in update.evidence)
+    assert any("6 of 6 readable Keepers" in line for line in update.evidence)
+
+
+async def test_fifth_keeper_writes_a_current_taste_update():
+    c = ctx()
+    await seed(c, 12)
+    first = await journey.maybe_write(c, "u1")
+    assert first is not None and first.taste_is_known is False
+
+    for index in range(4):
+        shot = await repo.find_shot(c.store, f"s{index}")
+        shot.kept_at = now()
+        await repo.put_shot(c.store, shot)
+    assert await journey.maybe_write(c, "u1") is None
+
+    fifth = await repo.find_shot(c.store, "s4")
+    fifth.kept_at = now()
+    await repo.put_shot(c.store, fifth)
+    update = await journey.maybe_write(c, "u1")
+
+    assert update is not None and update.id != first.id
+    assert update.taste_is_known is True
+    assert update.keepers == 5
+    assert update.keeper_counts["placement"] == {"centred": 5}
+
+
+async def test_keeper_event_refreshes_the_journey_update():
+    c = ctx()
+    await seed(c, 12, keepers=5)
+    first = await journey.maybe_write(c, "u1")
+    assert first is not None and first.taste_is_known is True
+    deps.wire(c)
+    main.app.dependency_overrides[deps.get_context] = lambda: c
+    main.app.dependency_overrides[current_user] = lambda: {"id": "u1"}
+    try:
+        with TestClient(main.app) as client:
+            response = client.put("/api/shots/s0/keeper", json={"keeper": False})
+            assert response.status_code == 200, response.text
+        await c.bus.drain()
+    finally:
+        main.app.dependency_overrides.clear()
+
+    latest = await repo.latest_journey_update(c.store, "u1")
+    assert latest is not None and latest.id != first.id
+    assert latest.taste_is_known is False
+    assert latest.keepers == 4
 
 
 async def test_the_evidence_never_carries_a_score(no_model):
@@ -226,7 +279,7 @@ async def test_blind_spots_reach_the_writer():
     await seed(c, 12)
     update = await journey.maybe_write(c, "u1")
     assert update is not None
-    assert any("cannot see" in line and "height" in line for line in update.evidence)
+    assert any("Still unclear" in line and "height" in line for line in update.evidence)
 
 
 async def test_the_paragraph_failing_does_not_lose_the_figures(monkeypatch):

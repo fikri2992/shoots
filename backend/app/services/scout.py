@@ -51,11 +51,18 @@ async def issue(
     force: bool = False,
     technique_id: str = "",
     requested_reason: str = "",
+    experiment_id: str = "",
 ) -> Experiment | None:
     """Issue one experiment for the user if none is open. Returns it, or None.
     ``technique_id`` names an explicitly requested Technique; otherwise a supported
     Direction chooses. With ``force`` the existing Experiment is skipped only after
     a replacement candidate is ready."""
+    if experiment_id:
+        recovered = await repo.find_experiment(ctx.store, experiment_id)
+        if recovered is not None:
+            if recovered.user_id != user_id:
+                raise repo.UnknownEntity(f"experiment {experiment_id}")
+            return recovered
     open_experiment = await repo.open_experiment(ctx.store, user_id)
     if open_experiment and not force:
         logger.info("scout: %s already has open experiment %s", user_id, open_experiment.id)
@@ -70,7 +77,12 @@ async def issue(
         for q in await repo.list_experiments(ctx.store, user_id, limit=RECENT_EXPERIMENTS)
     ]
     user = await repo.get_user(ctx.store, user_id)
-    constraints = await photographer_memory.constraints_for(ctx, user_id)
+    constraints = await photographer_memory.constraints_for(
+        ctx,
+        user_id,
+        role="scout",
+        purpose="experiment_selection",
+    )
     patterns = await keeper_patterns(ctx, user_id)
     if technique_id:
         requested = taxonomy.BY_ID.get(technique_id)
@@ -89,11 +101,11 @@ async def issue(
         )
     if technique is None:
         reason = (
-            "No marked Keeper has corroborated Technique Evidence yet."
+            "No marked Keeper has a Technique that appears clearly enough to repeat yet."
             if not patterns
             else (
-                "Every supported Keeper Technique was offered recently or conflicts "
-                "with a constraint."
+                "Every supported Keeper Technique was offered recently or does not fit "
+                "a saved constraint."
             )
         )
         await repo.record(
@@ -108,8 +120,8 @@ async def issue(
     pattern = patterns[technique.id]
     count = pattern.count
     why = (
-        f"{count} marked Keeper{'s' if count != 1 else ''} include {technique.name}; "
-        "test whether you can make that decision deliberately."
+        f"You marked {count} Shot{'s' if count != 1 else ''} with {technique.name} as "
+        f"{'Keepers' if count != 1 else 'a Keeper'}. Try making that choice again on purpose."
     )
     critiques = await _recent_critiques(ctx, user_id)
 
@@ -125,7 +137,7 @@ async def issue(
     )
 
     experiment = Experiment(
-        id=new_id("experiment"),
+        id=experiment_id or new_id("experiment"),
         user_id=user_id,
         technique_id=technique.id,
         type=ExperimentType.REPRODUCE,
@@ -159,7 +171,8 @@ async def issue(
             "type": experiment.type.value,
             "title": experiment.title,
             "why": why,
-            "selection_basis": "keeper",
+            "selection_basis": "explicit_request" if technique_id else "keeper",
+            "requested_reason": requested_reason.strip() if technique_id else "",
             "reference_shot_id": experiment.reference_shot_id,
             "references": len(experiment.references),
             "hard_criteria": agent.hard_criteria_text(technique),
@@ -218,6 +231,68 @@ async def issue_explore(
     opened = await repo.open_experiment(ctx.store, user_id)
     if opened is not None and not force:
         return None
+    experiment = await plan_explore(
+        ctx,
+        user_id,
+        technique_id=technique_id,
+        requested_reason=requested_reason,
+        experiment_id=experiment_id,
+        warrant_shot_ids=warrant_shot_ids,
+        exclude_technique_ids=exclude_technique_ids,
+    )
+    if experiment is None:
+        recent = [
+            item.technique_id
+            for item in await repo.list_experiments(ctx.store, user_id, limit=RECENT_EXPERIMENTS)
+        ]
+        await repo.record(
+            ctx.store,
+            user_id,
+            AGENT,
+            "nothing_to_issue",
+            {
+                "recent": recent,
+                "reason": "No supported Tendency Direction is available for Explore.",
+                "type": "explore",
+            },
+        )
+        return None
+    if opened is not None and force:
+        await leave(ctx, user_id, opened.id)
+    if not await repo.create_open_experiment(ctx.store, experiment):
+        return None
+    await repo.record(
+        ctx.store,
+        user_id,
+        AGENT,
+        "issued",
+        {
+            "technique_id": experiment.technique_id,
+            "type": "explore",
+            "title": experiment.title,
+            "why": experiment.why_now,
+            "selection_basis": selection_basis
+            or ("tendency" if experiment.baseline else "explicit_request"),
+            "variations": [variation.id for variation in experiment.variations],
+            "deliver_at": experiment.deliver_at.isoformat() if experiment.deliver_at else "",
+        },
+        experiment_id=experiment.id,
+    )
+    await deliver_if_due(ctx, experiment)
+    return experiment
+
+
+async def plan_explore(
+    ctx: Context,
+    user_id: str,
+    *,
+    technique_id: str = "",
+    requested_reason: str = "",
+    experiment_id: str = "",
+    warrant_shot_ids: list[str] | None = None,
+    exclude_technique_ids: set[str] | None = None,
+) -> Experiment | None:
+    """Prepare a supported Explore without storing or opening it."""
     profile = await profile_for(ctx, user_id)
     direction = tendency.direction_for(profile)
     recent = [
@@ -226,7 +301,12 @@ async def issue_explore(
     ]
     if not technique_id:
         recent.extend(sorted(exclude_technique_ids or set()))
-    constraints = await photographer_memory.constraints_for(ctx, user_id)
+    constraints = await photographer_memory.constraints_for(
+        ctx,
+        user_id,
+        role="scout",
+        purpose="experiment_selection",
+    )
     if technique_id:
         requested = taxonomy.BY_ID.get(technique_id)
         technique = (
@@ -245,17 +325,6 @@ async def issue_explore(
             else None
         )
     if technique is None:
-        await repo.record(
-            ctx.store,
-            user_id,
-            AGENT,
-            "nothing_to_issue",
-            {
-                "recent": recent,
-                "reason": "No supported Tendency Direction is available for Explore.",
-                "type": "explore",
-            },
-        )
         return None
 
     supported_direction = direction is not None and technique.id in direction.prefers
@@ -285,7 +354,7 @@ async def issue_explore(
         technique_id=technique.id,
         type=ExperimentType.EXPLORE,
         title=f"Explore {technique.name}",
-        brief="Choose one Variation. Make as many Shots as you want, then try another.",
+        brief="Pick the version that makes you curious. Try another only if you want to compare.",
         why_now=why[:500],
         variations=explore.variations_for(technique),
         baseline=baseline,
@@ -302,27 +371,6 @@ async def issue_explore(
             anchor_at=when.anchor_at,
         ),
     )
-    if opened is not None and force:
-        await leave(ctx, user_id, opened.id)
-    if not await repo.create_open_experiment(ctx.store, experiment):
-        return None
-    await repo.record(
-        ctx.store,
-        user_id,
-        AGENT,
-        "issued",
-        {
-            "technique_id": technique.id,
-            "type": "explore",
-            "title": experiment.title,
-            "why": why,
-            "selection_basis": selection_basis or ("tendency" if baseline else "explicit_request"),
-            "variations": [variation.id for variation in experiment.variations],
-            "deliver_at": experiment.deliver_at.isoformat() if experiment.deliver_at else "",
-        },
-        experiment_id=experiment.id,
-    )
-    await deliver_if_due(ctx, experiment)
     return experiment
 
 
@@ -471,8 +519,8 @@ def _change_for(
             state=ChangeState.INSUFFICIENT,
             comparability=Comparability.DIFFERENT_ARITHMETIC,
             outcome=(
-                f"measured by {baseline.calc_version}, and the profile now uses "
-                f"{profile.calc_version} — the two do not compare"
+                "Shoots changed how it calculates this pattern, so the old and new "
+                "numbers cannot be compared."
             ),
         )
     baseline_ids = set(baseline.provenance.shot_ids)
@@ -480,7 +528,10 @@ def _change_for(
         return Change(
             state=ChangeState.INSUFFICIENT,
             comparability=Comparability.UNRECORDED_SAMPLE,
-            outcome="this was set before the record kept what it was measured over",
+            outcome=(
+                "Shoots did not keep the original comparison group, so it cannot "
+                "compare this fairly."
+            ),
         )
     current_ids = set(profile.shot_ids)
     missing = baseline_ids - current_ids
@@ -488,7 +539,10 @@ def _change_for(
         return Change(
             state=ChangeState.INSUFFICIENT,
             comparability=Comparability.BASELINE_SHOTS_MISSING,
-            outcome=f"{len(missing)} Baseline Shots are no longer in the archive",
+            outcome=(
+                f"{len(missing)} {'Shot is' if len(missing) == 1 else 'Shots are'} missing from "
+                "the original comparison, so Shoots stopped here."
+            ),
         )
     if baseline.source == "dwell":
         return tendency.dwell_change(baseline.at_issue, profile.dwell)
@@ -497,7 +551,9 @@ def _change_for(
         return Change(
             state=ChangeState.INSUFFICIENT,
             comparability=Comparability.UNKNOWN_DIMENSION,
-            outcome=f"nothing measures {baseline.source} any more",
+            outcome=(
+                f"Shoots no longer reads {baseline.source}, so this comparison cannot continue."
+            ),
         )
     if dimension.source == "model read":
         baseline_inputs = {(item.model, item.prompt_version) for item in baseline.provenance.inputs}
@@ -515,8 +571,8 @@ def _change_for(
                 state=ChangeState.INSUFFICIENT,
                 comparability=Comparability.DIFFERENT_MODEL_READING,
                 outcome=(
-                    "the Analyst model or prompt changed, so this model-read "
-                    "dimension was re-baselined"
+                    "Shoots changed how it visually reads this pattern, so it started "
+                    "a fresh comparison."
                 ),
             )
     return tendency.change(
@@ -547,7 +603,7 @@ async def consider_after_shot(ctx: Context, user_id: str, shot_id: str) -> str:
     """Settle the per-Shot Run without choosing the Shoot intervention early."""
     opened = await repo.open_experiment(ctx.store, user_id)
     if opened is not None:
-        outcome = f'Existing Reproduce Experiment "{opened.title}" remains open.'
+        outcome = f'Your Experiment "{opened.title}" is still open.'
         await repo.record(
             ctx.store,
             user_id,
@@ -558,7 +614,7 @@ async def consider_after_shot(ctx: Context, user_id: str, shot_id: str) -> str:
             experiment_id=opened.id,
         )
         return outcome
-    outcome = "Scout will choose help after the natural Shoot settles."
+    outcome = "Shoots will look across the whole outing before suggesting anything."
     await repo.record(
         ctx.store,
         user_id,
@@ -598,7 +654,7 @@ async def deliver_if_due(ctx: Context, experiment: Experiment) -> bool:
 async def deliver_due(ctx: Context) -> int:
     """The frequent tick: every open, undelivered experiment whose time has come."""
     delivered = 0
-    for user in await repo.list_users(ctx.store):
+    for user in await repo.list_writable_users(ctx.store):
         experiment = await repo.open_experiment(ctx.store, user.id)
         if experiment and await deliver_if_due(ctx, experiment):
             delivered += 1
@@ -710,8 +766,8 @@ async def on_experiment_closed(ctx: Context, message: dict) -> str:
     await journey.maybe_write(ctx, message["user_id"])
     created = await issue(ctx, message["user_id"])
     if created is not None:
-        return f'Scout issued "{created.title}" after the Experiment result settled.'
-    return "Scout checked the settled result and stayed silent."
+        return f'Shoots prepared "{created.title}" after reading the Experiment result.'
+    return "Shoots checked the result and found no useful next idea."
 
 
 async def _recent_critiques(ctx: Context, user_id: str, limit: int = 5) -> list[str]:

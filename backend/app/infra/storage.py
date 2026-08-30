@@ -126,10 +126,18 @@ def experiment_blob_path(
 
 
 def deconstruction_blob_path(
-    user_id: str, deconstruction_id: str, page: int, extension: str = "jpg"
+    user_id: str,
+    deconstruction_id: str,
+    page: int,
+    version: str = "",
+    extension: str = "jpg",
 ) -> str:
-    """Stable page path so replay replaces a draft instead of duplicating it."""
-    return f"{user_prefix(user_id)}deconstructions/{deconstruction_id}/page-{page:02d}.{extension}"
+    """Stable per-input page path so clients never cache an older explicit rerender."""
+    suffix = f"-{version[:12]}" if version else ""
+    return (
+        f"{user_prefix(user_id)}deconstructions/{deconstruction_id}/"
+        f"page-{page:02d}{suffix}.{extension}"
+    )
 
 
 def deconstruction_blob_prefix(user_id: str, deconstruction_id: str) -> str:

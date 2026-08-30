@@ -49,12 +49,32 @@ async def latest(ctx: Context, user_id: str) -> Shoot | None:
 
 
 async def latest_record(ctx: Context, user_id: str) -> ShootRecord | None:
-    """Newest immutable Shoot Record, including an earlier settled Shoot."""
+    """Newest immutable Shoot Record by its Shoot's capture time."""
     records = await repo.list_shoot_records(ctx.store, user_id)
-    for record in records:
-        if not await _has_superseded_member(ctx, record.shot_ids):
-            return record
-    return None
+    shoots_by_id = {
+        shoot.id: shoot for shoot in await repo.list_shoots(ctx.store, user_id)
+    }
+    eligible = [
+        record
+        for record in records
+        if not await _has_superseded_member(ctx, record.shot_ids)
+    ]
+
+    def capture_order(record: ShootRecord) -> tuple[datetime, int, datetime, str]:
+        shoot = shoots_by_id.get(record.shoot_id)
+        captured_at = (
+            (shoot.last_capture_at or shoot.started_at)
+            if shoot is not None
+            else None
+        )
+        return (
+            captured_at or datetime.min.replace(tzinfo=UTC),
+            record.revision,
+            record.settled_at,
+            record.shoot_id,
+        )
+
+    return max(eligible, key=capture_order, default=None)
 
 
 async def _has_superseded_member(ctx: Context, shot_ids: list[str]) -> bool:
@@ -161,7 +181,10 @@ async def close_inactive(ctx: Context, at: datetime | None = None) -> list[str]:
     at = at or now()
     cutoff = at - timedelta(minutes=settings.shoot_gap_minutes)
     changed: list[str] = []
+    writable_user_ids = {user.id for user in await repo.list_writable_users(ctx.store)}
     for shoot in await repo.list_all_shoots(ctx.store):
+        if shoot.user_id not in writable_user_ids:
+            continue
         if shoot.status is ShootStatus.CLOSING:
             await _settle_if_ready(ctx, shoot)
             continue
@@ -277,7 +300,7 @@ async def _settle_if_ready(ctx: Context, shoot: Shoot) -> ShootRecord | None:
         candidate.deconstruction = DeconstructionAttempt(
             deconstruction_id=draft.id,
             status=draft.status,
-            detail="Waiting for the Photographer to choose a marked Keeper cover.",
+            detail="Waiting for the Photographer to choose a cover from the Shots they marked.",
         )
     except Exception as exc:  # Deconstruction failure cannot erase the Shoot Record.
         candidate.deconstruction = DeconstructionAttempt(

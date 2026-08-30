@@ -10,7 +10,7 @@ from pydantic import BaseModel
 
 from app.api.deps import get_context
 from app.config import settings
-from app.domain.entities import User, now
+from app.domain.entities import RecordMode, User, now
 from app.infra import repository as repo
 from app.services.context import Context
 
@@ -204,6 +204,7 @@ async def current_user(
     """
     user = request.session.get(SESSION_USER_KEY)
     if user:
+        await _refuse_sample_write(request, ctx, user["id"])
         return user
 
     header = request.headers.get("authorization", "")
@@ -218,6 +219,7 @@ async def current_user(
                 await repo.delete_device(ctx.store, device["fingerprint"])
                 raise HTTPException(401, "device session expired")
             user = await repo.find_user(ctx.store, device["user_id"])
+            await _refuse_sample_write(request, ctx, device["user_id"])
             return {
                 "id": device["user_id"],
                 "email": user.email if user else "",
@@ -228,3 +230,11 @@ async def current_user(
             }
 
     raise HTTPException(401, "not signed in")
+
+
+async def _refuse_sample_write(request: Request, ctx: Context, user_id: str) -> None:
+    if request.method in {"GET", "HEAD", "OPTIONS"}:
+        return
+    user = await repo.find_user(ctx.store, user_id)
+    if user is not None and user.record_mode is RecordMode.SAMPLE:
+        raise HTTPException(409, "Sample Records are read-only interface fixtures")

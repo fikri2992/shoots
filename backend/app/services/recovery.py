@@ -58,7 +58,7 @@ async def repair_retrying(ctx: Context) -> int:
     at = now()
     cutoff = at - timedelta(minutes=settings.run_repair_after_minutes)
     candidates: list[tuple[Run, Shot, RunStage]] = []
-    for user in await repo.list_users(ctx.store):
+    for user in await repo.list_writable_users(ctx.store):
         for run in await repo.list_runs(ctx.store, user.id, limit=1000):
             if run.status is not RunStatus.RETRYING or run.updated_at > cutoff:
                 continue

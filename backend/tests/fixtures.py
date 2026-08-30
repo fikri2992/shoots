@@ -24,6 +24,7 @@ def jpeg_with_exif(
     make: str = "TestCam",
     model: str = "T1",
     when: str = "2026:08:22 18:30:00",
+    utc_offset: str | None = None,
     gps: tuple[float, float] | None = None,
 ) -> bytes:
     """A real JPEG whose EXIF block Pillow wrote, so the reader is tested
@@ -41,6 +42,8 @@ def jpeg_with_exif(
     detail[0x829D] = f_number  # FNumber
     detail[0x8827] = iso  # ISOSpeedRatings
     detail[0x9003] = when  # DateTimeOriginal
+    if utc_offset is not None:
+        detail[0x9011] = utc_offset  # OffsetTimeOriginal
     detail[0x9209] = flash  # Flash
     detail[0x920A] = focal  # FocalLength
     detail[0xA405] = focal35  # FocalLengthIn35mmFilm

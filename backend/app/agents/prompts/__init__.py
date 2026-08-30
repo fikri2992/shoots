@@ -6,10 +6,30 @@ from pathlib import Path
 
 _DIR = Path(__file__).parent
 
+_HUMAN_VOICE_PROMPTS = frozenset(
+    {
+        "coach",
+        "composer",
+        "crop",
+        "judge",
+        "journey",
+        "preflight",
+        "scout",
+        "scrub",
+        "storyteller",
+        "synthesizer",
+        "technician",
+    }
+)
+
 
 @cache
 def load(name: str) -> str:
-    return (_DIR / f"{name}.md").read_text(encoding="utf-8").strip()
+    source = (_DIR / f"{name}.md").read_text(encoding="utf-8").strip()
+    if name not in _HUMAN_VOICE_PROMPTS:
+        return source
+    voice = (_DIR / "human_voice.md").read_text(encoding="utf-8").strip()
+    return f"{source}\n\n{voice}"
 
 
 @cache

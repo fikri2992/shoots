@@ -13,6 +13,7 @@ from app.domain.entities import (
     Shot,
     ShotKind,
     TechniqueEvidence,
+    TechniqueState,
     User,
 )
 from app.infra import repository as repo
@@ -304,9 +305,7 @@ async def test_reproduce_freezes_and_uses_one_exact_keeper_reference(tmp_path):
             user_id="u1",
             model="reader",
             techniques=[
-                TechniqueEvidence(
-                    technique_id="golden_hour", confidence=0.78, agreement=2
-                )
+                TechniqueEvidence(technique_id="golden_hour", confidence=0.78, agreement=2)
             ],
         ),
     )
@@ -317,9 +316,7 @@ async def test_reproduce_freezes_and_uses_one_exact_keeper_reference(tmp_path):
             user_id="u1",
             model="reader",
             techniques=[
-                TechniqueEvidence(
-                    technique_id="golden_hour", confidence=0.93, agreement=3
-                )
+                TechniqueEvidence(technique_id="golden_hour", confidence=0.93, agreement=3)
             ],
         ),
     )
@@ -341,3 +338,70 @@ async def test_reproduce_freezes_and_uses_one_exact_keeper_reference(tmp_path):
     )
     reference = await judge_service._previous_best(ctx, result, experiment)
     assert reference is not None and reference[0].id == strongest.id
+
+
+async def test_previous_best_orders_legacy_naive_and_current_aware_capture_times(tmp_path):
+    ctx = Context(
+        store=InMemoryStore(),
+        blobs=LocalBlobStore(tmp_path / "blobs"),
+        bus=InProcessBus(),
+        drive=LocalDriveClient(tmp_path),
+        tokens=LocalTokenStore(tmp_path / "tokens"),
+    )
+    legacy = Shot(
+        id="legacy",
+        user_id="u1",
+        kind=ShotKind.PHOTO,
+        filename="legacy.jpg",
+        mime_type="image/jpeg",
+        captured_at=datetime(2026, 8, 27, 8, 0),
+    )
+    current = Shot(
+        id="current",
+        user_id="u1",
+        kind=ShotKind.PHOTO,
+        filename="current.jpg",
+        mime_type="image/jpeg",
+        captured_at=datetime(2026, 8, 27, 9, 0, tzinfo=UTC),
+    )
+    result = Shot(
+        id="result",
+        user_id="u1",
+        kind=ShotKind.PHOTO,
+        filename="result.jpg",
+        mime_type="image/jpeg",
+    )
+    for candidate in (legacy, current, result):
+        await repo.put_shot(ctx.store, candidate)
+    for candidate in (legacy, current):
+        await repo.put_analysis(
+            ctx.store,
+            Analysis(
+                shot_id=candidate.id,
+                user_id="u1",
+                model="reader",
+                techniques=[TechniqueEvidence(technique_id="panning", confidence=0.9, agreement=2)],
+            ),
+        )
+    await repo.put_technique_state(
+        ctx.store,
+        TechniqueState(
+            user_id="u1",
+            technique_id="panning",
+            shot_ids=[legacy.id, current.id],
+        ),
+    )
+    experiment = Experiment(
+        id="reproduce_panning",
+        user_id="u1",
+        technique_id="panning",
+        type=ExperimentType.REPRODUCE,
+        title="Repeat the motion",
+        brief="Try the motion again.",
+        why_now="The record supports it.",
+        criteria=Criteria(vision=["panning"]),
+    )
+
+    reference = await judge_service._previous_best(ctx, result, experiment)
+
+    assert reference is not None and reference[0].id == current.id

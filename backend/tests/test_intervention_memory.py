@@ -151,5 +151,5 @@ async def test_two_comparable_unchanged_outcomes_deprioritize_only_automatic_rou
 
     assert decision.route is not ScoutRoute.REPRODUCE
     rejected = {item.route: item.reason for item in decision.rejected_routes}
-    assert "two comparable unchanged outcomes" in rejected[ScoutRoute.REPRODUCE].lower()
+    assert "two similar tries stay unchanged" in rejected[ScoutRoute.REPRODUCE].lower()
     assert await interventions.deprioritized_technique_ids(ctx, user.id) == {"panning"}

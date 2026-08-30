@@ -8,10 +8,31 @@ from app.config import settings
 from app.domain.entities import User
 from app.infra import repository as repo
 from app.infra.bus import InProcessBus
+from app.infra.drive import user_credentials
 from app.infra.secrets import LocalTokenStore
 from app.infra.storage import LocalBlobStore
 from app.infra.store import InMemoryStore
 from app.services.context import Context
+
+
+def test_user_credentials_refresh_with_the_tokens_granted_scopes(monkeypatch):
+    drive_scope = "https://www.googleapis.com/auth/drive.file"
+    stored_scopes = f"https://www.googleapis.com/auth/userinfo.email openid {drive_scope}"
+    monkeypatch.setattr(
+        settings,
+        "oauth_scopes",
+        f"openid email profile {drive_scope}",
+    )
+
+    credentials = user_credentials(
+        {
+            "access_token": "short-lived",
+            "refresh_token": "refresh-token",
+            "scope": stored_scopes,
+        }
+    )
+
+    assert credentials.scopes == stored_scopes.split()
 
 
 async def test_native_drive_code_must_match_and_disconnect_preserves_files(tmp_path, monkeypatch):

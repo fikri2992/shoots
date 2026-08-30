@@ -107,7 +107,7 @@ async def notify_mobile(
 
 
 async def experiment_issued(ctx: Context, experiment: Experiment) -> None:
-    title = f"Today's experiment: {experiment.title}"
+    title = f"A Shot idea for today: {experiment.title}"
     body = experiment.why_now or experiment.brief.split("\n", 1)[0]
     tag = f"experiment-{experiment.id}"
     await notify(
@@ -137,7 +137,7 @@ async def verdict_given(ctx: Context, experiment: Experiment, verdict: Verdict) 
     await notify(
         ctx,
         experiment.user_id,
-        f"{'Criteria met' if verdict.criteria_met else 'Not yet'}: {experiment.title}",
+        f"{'Matched every check' if verdict.criteria_met else 'Not yet'}: {experiment.title}",
         first_line,
         url=f"/shots/{verdict.shot_id}",
         tag=f"verdict-{verdict.shot_id}",
@@ -148,15 +148,15 @@ async def capture_session_settled(ctx: Context, session: CaptureSession) -> int:
     total = session.summary.get("members", len(session.members))
     met = session.summary.get("criteria_met", 0)
     terminal = session.summary.get("terminal", 0)
-    body = f"{total} Shots accounted for"
+    body = f"Shoots finished reading {total} {'Shot' if total == 1 else 'Shots'}"
     if met:
-        body += f" · {met} met the Reproduce Criteria"
+        body += f" · {met} matched every check"
     if terminal:
-        body += f" · {terminal} unreadable"
+        body += f" · {terminal} could not be read"
     return await notify_mobile(
         ctx,
         session.user_id,
-        "Capture Session ready",
+        "Your results are ready",
         body,
         route="journey",
         tag=f"capture-session-{session.id}",

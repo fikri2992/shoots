@@ -10,6 +10,7 @@ from datetime import datetime
 
 from app.agents import judge as agent
 from app.config import settings
+from app.domain import datetimes
 from app.domain import judge as rules
 from app.domain.entities import (
     Analysis,
@@ -43,13 +44,15 @@ async def judge(ctx: Context, message: dict) -> str:
 async def _judge(ctx: Context, message: dict) -> str:
     shot = await repo.get_shot(ctx.store, message["shot_id"])
     if not shot.experiment_id:
-        return "free Shot; no Experiment judgment"
+        return "This is a free Shot, so there was nothing to check against an Experiment."
     experiment = await repo.find_experiment(ctx.store, shot.experiment_id)
     if experiment is None or experiment.user_id != shot.user_id:
-        return "associated Experiment is unavailable"
+        return "Shoots could not find the Experiment linked to this Shot."
     if experiment.type is ExperimentType.EXPLORE:
         if not shot.capture_session_id or not shot.variation_id:
-            return "Explore result has no Variation Capture Session; no record was inferred"
+            return (
+                "This Explore Shot was not tied to a chosen Variation, so Shoots left it ungraded."
+            )
         analysis = await repo.find_analysis(ctx.store, shot.id)
         if analysis is None:
             return "Explore result has no Analysis yet"
@@ -68,9 +71,9 @@ async def _judge(ctx: Context, message: dict) -> str:
         verdict.shot_id == shot.id for verdict in experiment.verdicts
     ):
         logger.info("judge: %s already recorded for %s", shot.id, experiment.id)
-        return "Reproduce result already recorded"
+        return "Shoots already checked this Reproduce result."
     if not shot.capture_session_id and experiment.status is not ExperimentStatus.OPEN:
-        return "Experiment settled before this result was read"
+        return "The Experiment finished before Shoots read this result."
 
     analysis = await repo.find_analysis(ctx.store, shot.id)
     met, exif_checks, vision_checks = rules.evaluate(
@@ -97,7 +100,10 @@ async def _judge(ctx: Context, message: dict) -> str:
                 ctx.store, experiment.id, shot.id, None, now()
             )
             if not recorded:
-                return "Experiment settled before abstention was recorded"
+                return (
+                    "The Experiment finished before Shoots could record why this result "
+                    "was unreadable."
+                )
         await repo.record(
             ctx.store,
             shot.user_id,
@@ -128,7 +134,12 @@ async def _judge(ctx: Context, message: dict) -> str:
     except Exception:  # the verdict must land even if the model does not
         logger.exception("judge: feedback model failed for %s", shot.id)
         lines = rules.describe_checks(exif_checks, vision_checks, settings.judge_min_confidence)
-        text = ("Criteria met. " if met else "Not yet. ") + "; ".join(lines)
+        opening = (
+            "This Shot matched the checks you set before shooting."
+            if met
+            else "This Shot missed one or more checks you set before shooting."
+        )
+        text = f"{opening} {'. '.join(lines)}".strip()
 
     verdict = Verdict(
         shot_id=shot.id,
@@ -148,7 +159,7 @@ async def _judge(ctx: Context, message: dict) -> str:
         )
         if not recorded:
             logger.info("judge: %s lost the Experiment transition", shot.id)
-            return "Experiment settled before Verdict was recorded"
+            return "The Experiment finished before Shoots could save this result."
         if met:
             await repo.release_open_experiment(ctx.store, shot.user_id, experiment.id)
 
@@ -177,7 +188,7 @@ async def _judge(ctx: Context, message: dict) -> str:
                 "shot_id": shot.id,
             },
         )
-    return "Reproduce Criteria met" if met else "Reproduce Criteria not met"
+    return "This result matched every check." if met else "This result missed at least one check."
 
 
 async def _previous_best(
@@ -239,5 +250,5 @@ def _comparable_rank(
         1 if candidate.kept_at else 0,
         evidence.agreement if evidence else 0,
         evidence.confidence if evidence else 0.0,
-        candidate.captured_at or candidate.ingested_at,
+        datetimes.as_utc(candidate.captured_at or candidate.ingested_at),
     )

@@ -38,6 +38,8 @@ async def record_decision(
         route=decision.route,
         technique_id=technique_id,
         question_id=decision.question.id,
+        recommendation_id=decision.recommendation.id,
+        recommendation_option_id=decision.recommendation.primary_option_id,
         experiment_id=decision.experiment_id,
         warrant_shot_ids=warrant_shot_ids,
         attempt_state=decision.attempt_state,
@@ -68,9 +70,12 @@ async def mark_entered(ctx: Context, user_id: str, experiment_id: str) -> Interv
     intervention = await repo.find_intervention_for_experiment(ctx.store, user_id, experiment_id)
     if intervention is None:
         return None
-    if intervention.attempt_state is InterventionAttemptState.OFFERED:
+    if intervention.attempt_state in {
+        InterventionAttemptState.OFFERED,
+        InterventionAttemptState.ACCEPTED,
+    }:
         intervention.attempt_state = InterventionAttemptState.ENTERED
-        intervention.outcome_reason = "A Capture Session was reserved for this Experiment."
+        intervention.outcome_reason = "You opened the Experiment and started a Camera session."
         intervention.updated_at = now()
         await repo.put_intervention(ctx.store, intervention)
     return intervention
@@ -103,21 +108,31 @@ async def refresh_for_experiment(
     )
     if experiment.status is ExperimentStatus.OPEN:
         intervention.attempt_state = (
-            InterventionAttemptState.ENTERED if sessions else InterventionAttemptState.OFFERED
+            InterventionAttemptState.ENTERED
+            if sessions
+            else (
+                InterventionAttemptState.ACCEPTED
+                if intervention.attempt_state is InterventionAttemptState.ACCEPTED
+                else InterventionAttemptState.OFFERED
+            )
         )
         intervention.outcome_reason = (
-            "The Experiment has explicit Capture Session participation."
+            "You started trying this Experiment with the Camera."
             if sessions
-            else "The Experiment remains offered."
+            else (
+                "You accepted the Experiment. No Camera session has started yet."
+                if intervention.attempt_state is InterventionAttemptState.ACCEPTED
+                else "The Experiment is still waiting if you want it."
+            )
         )
     elif experiment.status in {ExperimentStatus.LEFT, ExperimentStatus.SKIPPED}:
         intervention.attempt_state = InterventionAttemptState.LEFT
-        intervention.outcome_reason = (
-            "The Photographer ended the Experiment without an outcome claim."
-        )
+        intervention.outcome_reason = "You left the Experiment. Shoots did not guess why."
     elif experiment.status is ExperimentStatus.EXPIRED:
         intervention.attempt_state = InterventionAttemptState.LEFT
-        intervention.outcome_reason = "The Experiment expired without an outcome claim."
+        intervention.outcome_reason = (
+            "The Experiment ran out of time. Shoots did not treat that as a result."
+        )
     else:
         intervention.attempt_state = InterventionAttemptState.COMPLETED
         if experiment.change is not None:
@@ -132,7 +147,7 @@ async def refresh_for_experiment(
         else:
             intervention.observable_outcome = InterventionOutcome.NOT_APPLICABLE
             intervention.outcome_reason = (
-                "The Experiment completed, but no comparable Change is available."
+                "You finished the Experiment, but there are no similar later Shots to compare yet."
             )
     intervention.updated_at = now()
     await repo.put_intervention(ctx.store, intervention)

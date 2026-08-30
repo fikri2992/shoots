@@ -4,7 +4,7 @@ The renderer can draw one layer for the teaching receipt or all layers for a
 legacy audit view:
 
 1. **Guide** — thirds, phi, the diagonal method, a centre axis: thin, dim,
-   unlabelled. Chosen by the technique the panel agreed on (``domain/guides``),
+   unlabelled. Chosen by the strongest retained Technique (``domain/guides``),
    never the model's cell mesh, which is an addressing system and not a
    compositional idea.
 2. **Findings** — what the panel saw: the subject, the horizon. Thin.
@@ -61,8 +61,10 @@ def render_overlay(
 
     # The subject box steps aside for a crop: two rectangles over one frame
     # read as an argument. The subject dot still says where the centre landed.
-    if layer in {"all", "finding"} and composition.subject_cells and not (
-        layer == "all" and composition.suggested_crop_cells
+    if (
+        layer in {"all", "finding"}
+        and composition.subject_cells
+        and not (layer == "all" and composition.suggested_crop_cells)
     ):
         box = grid.span_bounds(composition.subject_cells)
         draw.rectangle(box.as_tuple(), outline=SUBJECT + (200,), width=stroke)

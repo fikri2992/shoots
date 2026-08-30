@@ -26,6 +26,7 @@ from app.api import (
     pubsub,
     push,
     scout_answers,
+    scout_recommendations,
     shots,
     tasks,
 )
@@ -72,6 +73,7 @@ app.include_router(experiments.router)
 app.include_router(tasks.router)
 app.include_router(push.router)
 app.include_router(scout_answers.router)
+app.include_router(scout_recommendations.router)
 app.include_router(live.router)
 app.include_router(memory.router)
 app.include_router(mobile.router)

@@ -7,9 +7,15 @@ from app.api.auth import current_user
 from app.api.deps import get_context
 from app.domain import scout as scout_rules
 from app.domain import taxonomy
-from app.domain.entities import Experiment, TechniqueState, TechniqueStatus
+from app.domain.entities import (
+    Experiment,
+    ExperimentDirection,
+    ExperimentDirectionState,
+    TechniqueState,
+    TechniqueStatus,
+)
 from app.infra import repository as repo
-from app.services import photographer_memory, scout
+from app.services import experiment_directions, photographer_memory, scout
 from app.services.context import Context
 
 router = APIRouter(prefix="/api", tags=["experiments"])
@@ -48,6 +54,12 @@ class TechniqueChoice(BaseModel):
     observed: bool
     recurring: bool
     corroborated_shots: int
+
+
+class ExperimentDirectionChoice(BaseModel):
+    source_shot_id: str
+    technique_id: str
+    state: ExperimentDirectionState
 
 
 @router.get("/techniques", response_model=list[TechniqueNode])
@@ -128,7 +140,12 @@ async def technique_catalogue(
         state.technique_id: state
         for state in await repo.list_technique_states(ctx.store, session_user["id"])
     }
-    constraints = await photographer_memory.constraints_for(ctx, session_user["id"])
+    constraints = await photographer_memory.constraints_for(
+        ctx,
+        session_user["id"],
+        role="scout",
+        purpose="experiment_catalogue",
+    )
     choices = []
     for technique in taxonomy.TECHNIQUES:
         if not scout_rules.available(
@@ -188,11 +205,54 @@ async def open_experiment(
 @router.post("/experiments/issue", response_model=Experiment | None)
 async def issue_experiment(
     force: bool = False,
+    technique_id: str = "",
     session_user: dict[str, str] = Depends(current_user),
     ctx: Context = Depends(get_context),
 ) -> Experiment | None:
     """Ask Scout to check for a supported Direction now. Silence returns null."""
-    return await scout.issue(ctx, session_user["id"], force=force)
+    return await scout.issue(
+        ctx,
+        session_user["id"],
+        force=force,
+        technique_id=technique_id,
+        requested_reason="shot_technique" if technique_id else "",
+    )
+
+
+@router.put("/experiment-directions", response_model=ExperimentDirection)
+async def choose_experiment_direction(
+    choice: ExperimentDirectionChoice,
+    session_user: dict[str, str] = Depends(current_user),
+    ctx: Context = Depends(get_context),
+) -> ExperimentDirection:
+    """Save or leave a later question. This does not create an Experiment."""
+    try:
+        return await experiment_directions.choose(
+            ctx,
+            session_user["id"],
+            choice.source_shot_id,
+            choice.technique_id,
+            choice.state,
+        )
+    except repo.UnknownEntity as exc:
+        raise HTTPException(404, "Shot not found") from exc
+    except ValueError as exc:
+        raise HTTPException(409, str(exc)) from exc
+
+
+@router.post("/experiment-directions/{direction_id}/start", response_model=Experiment)
+async def start_experiment_direction(
+    direction_id: str,
+    session_user: dict[str, str] = Depends(current_user),
+    ctx: Context = Depends(get_context),
+) -> Experiment:
+    """Explicitly create Reproduce from one saved Direction."""
+    try:
+        return await experiment_directions.start(ctx, session_user["id"], direction_id)
+    except repo.UnknownEntity as exc:
+        raise HTTPException(404, "Experiment Direction not found") from exc
+    except ValueError as exc:
+        raise HTTPException(409, str(exc)) from exc
 
 
 @router.post("/experiments/explore", response_model=Experiment | None)

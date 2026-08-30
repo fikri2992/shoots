@@ -17,6 +17,7 @@ from app.domain.entities import (
     ExperimentType,
     GridSpec,
     RunStage,
+    ScoutRecommendationAction,
     ScoutRoute,
     Shot,
     ShotKind,
@@ -28,7 +29,7 @@ from app.domain.entities import (
 from app.infra import repository as repo
 from app.infra.bus import InProcessBus
 from app.infra.store import InMemoryStore
-from app.services import runs, shoots
+from app.services import runs, scout_recommendations, shoots
 from app.services.context import Context
 
 
@@ -164,10 +165,20 @@ async def test_one_camera_period_becomes_a_revisioned_learning_record_and_action
     assert first.receipt.scene_count == 2
     assert first.receipt.shots_per_scene == [2, 1]
     assert first.receipt.unreadable_shot_ids == [terminal.id]
-    assert first.scout.route is ScoutRoute.REPRODUCE
+    assert first.scout.route is ScoutRoute.RECOMMEND
     assert first.scout.warrant[0].reference_shot_id == keeper.id
     assert first.scout.warrant[0].shot_ids == [keeper.id]
-    offered = await repo.get_experiment(ctx.store, first.scout.experiment_id)
+    assert await repo.open_experiment(ctx.store, user.id) is None
+    intervention, offered = await scout_recommendations.respond(
+        ctx,
+        user.id,
+        first.shoot_id,
+        first.revision,
+        ScoutRecommendationAction.ACCEPT,
+        first.scout.recommendation.primary_option_id,
+    )
+    assert intervention.attempt_state.value == "accepted"
+    assert offered is not None
     assert offered.reference_shot_id == keeper.id
     assert offered.type is ExperimentType.REPRODUCE
     assert "overall_score" not in first.receipt.model_dump()

@@ -18,6 +18,19 @@ def test_reads_the_fields_the_judge_uses():
     assert exif.make == "TestCam" and exif.model == "T1"
     assert exif.lens == "Test 50mm f/1.8"
     assert exif.captured_at == datetime(2026, 8, 22, 18, 30, tzinfo=UTC)
+    assert exif.capture_utc_offset_minutes is None
+
+
+def test_reads_the_recorded_capture_offset_and_converts_the_instant():
+    exif = read_exif(
+        jpeg_with_exif(
+            when="2026:07:21 14:41:28",
+            utc_offset="+07:00",
+            gps=(-6.843942, 107.224344),
+        )
+    )
+    assert exif.captured_at == datetime(2026, 7, 21, 7, 41, 28, tzinfo=UTC)
+    assert exif.capture_utc_offset_minutes == 420
 
 
 def test_long_exposure_and_flash():

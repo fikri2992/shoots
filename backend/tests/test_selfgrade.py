@@ -27,7 +27,7 @@ def test_shooting_something_never_shot_before_is_unambiguous():
     )
     assert changed.state is ChangeState.CHANGED
     assert changed.new_buckets == ["near the edge"]
-    assert "first near the edge in 6 shots since" in changed.outcome
+    assert "next 6 shots included near the edge for the first time" in changed.outcome
 
 
 def test_a_distribution_that_merely_evened_out_counts_when_it_moved_enough():
@@ -37,7 +37,7 @@ def test_a_distribution_that_merely_evened_out_counts_when_it_moved_enough():
         now_counts={"centred": 12, "off centre": 8},
         shots_since=7,
     )
-    assert changed.state is ChangeState.CHANGED and "spread wider" in changed.outcome
+    assert changed.state is ChangeState.CHANGED and "used a wider mix" in changed.outcome
 
 
 def test_more_of_the_same_is_unchanged():
@@ -47,7 +47,7 @@ def test_more_of_the_same_is_unchanged():
     )
     assert changed.state is ChangeState.UNCHANGED
     assert changed.comparability is Comparability.COMPARABLE
-    assert "8 shots since, same distribution" in changed.outcome
+    assert "next 8 shots kept the same mix" in changed.outcome
 
 
 def test_a_narrowing_dimension_is_not_a_change():
@@ -71,7 +71,7 @@ def test_nothing_shot_since_is_told_apart_from_advice_that_failed():
     )
     assert changed.state is ChangeState.INSUFFICIENT
     assert changed.comparability is Comparability.TOO_FEW_SHOTS
-    assert changed.outcome == "nothing shot since"
+    assert changed.outcome == "No new Shots yet."
     assert changed.added == 0
 
 
@@ -87,7 +87,7 @@ def test_one_frame_cannot_carry_a_change():
     )
     assert changed.state is ChangeState.INSUFFICIENT
     assert changed.settled is False
-    assert "1 shot since" in changed.outcome
+    assert "next 1 shot" in changed.outcome
 
 
 def test_shots_that_the_dimension_cannot_read_are_reported_as_shots():
@@ -102,8 +102,8 @@ def test_shots_that_the_dimension_cannot_read_are_reported_as_shots():
         shots_since=40,
     )
     assert changed.state is ChangeState.INSUFFICIENT
-    assert "40 shots since" in changed.outcome
-    assert "none of them showing the height you shoot from" in changed.outcome
+    assert "You made 40 shots" in changed.outcome
+    assert "none include what Shoots needs" in changed.outcome
 
 
 def test_a_corpus_that_shrank_says_so_rather_than_reporting_negative_shooting():
@@ -113,7 +113,7 @@ def test_a_corpus_that_shrank_says_so_rather_than_reporting_negative_shooting():
         PLACEMENT, at_issue={"centred": 100}, now_counts={"centred": 20}, shots_since=-80
     )
     assert changed.state is ChangeState.INSUFFICIENT
-    assert "no longer all there" in changed.outcome
+    assert "Baseline Shots are no longer here" in changed.outcome
 
 
 def test_only_a_sample_that_can_still_grow_is_left_open():
@@ -194,7 +194,7 @@ def every_outcome() -> list[str]:
 def test_no_outcome_claims_the_experiment_caused_anything(outcome: str):
     lowered = outcome.lower()
     assert not any(word in lowered for word in CAUSAL), outcome
-    assert outcome and outcome[0].islower() or outcome[0].isdigit()
+    assert outcome and (outcome[0].isupper() or outcome[0].isdigit())
 
 
 def test_a_change_is_reproducible_from_counts_alone():
@@ -308,7 +308,7 @@ async def test_a_baseline_frozen_by_older_arithmetic_is_not_compared_across():
     current = (await repo.get_experiment(ctx.store, "current")).change
     assert stale.state is ChangeState.INSUFFICIENT
     assert stale.comparability is Comparability.DIFFERENT_ARITHMETIC
-    assert "do not compare" in stale.outcome
+    assert "cannot be compared" in stale.outcome
     assert current.comparability is not Comparability.DIFFERENT_ARITHMETIC
 
 

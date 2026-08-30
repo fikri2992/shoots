@@ -105,7 +105,7 @@ async def test_review_lands_in_the_folder_with_caption_and_verdict():
         with Image.open(path) as image:
             assert image.height > 600  # the caption band was added
         sidecar = path.with_suffix(".txt").read_text(encoding="utf-8")
-        assert sidecar.startswith("CRITERIA MET · Follow the rider")
+        assert sidecar.startswith("MATCHED · Follow the rider")
         # Places, not coordinates: the reader has no grid in front of them.
         assert "rider: the left of the frame → the centre of the frame" in sidecar
         assert "Clean pan." in sidecar and "C3" not in sidecar
@@ -205,10 +205,10 @@ def test_the_fault_is_never_dropped_only_moved():
 
 def test_an_abstention_is_said_before_anything_else_is_read():
     found = analysis_with(abstained="3 lenses each saw something and no two agreed")
-    assert scribe.review_finding(found) == "not called"
-    assert scribe.review_title(found, None, None).startswith("Not called")
+    assert scribe.review_finding(found) == "could not read"
+    assert scribe.review_title(found, None, None).startswith("Could not read this Shot")
     body = scribe.review_body(found, None, GRID)
-    assert body[0].startswith("The panel could not call this one")
+    assert body[0].startswith("Shoots could not read this one confidently")
 
 
 def test_an_abstention_does_not_silence_the_arithmetic():

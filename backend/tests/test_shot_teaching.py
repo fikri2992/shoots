@@ -17,11 +17,14 @@ from app.domain.entities import (
     ShotKind,
     ShotStatus,
     TechniqueEvidence,
+    TechniqueState,
+    TechniqueStatus,
     User,
     VisualPath,
     VisualPathRole,
     VisualRegion,
     VisualRegionRole,
+    now,
 )
 from app.infra import repository as repo
 from app.infra.bus import InProcessBus
@@ -243,7 +246,7 @@ async def test_located_measured_finding_owns_the_default_visual_layer():
     assert receipt["notice_cells"] == ["B3", "C3"]
     assert receipt["notice_mark"]["kind"] == "finding"
     assert receipt["check_mark"] == receipt["notice_mark"]
-    assert "deliberately reject" in receipt["visible_check"]
+    assert "Ignoring it can be a choice too" in receipt["visible_check"]
 
 
 async def test_uncertain_analysis_does_not_invent_a_lesson_or_image_layer():
@@ -437,6 +440,79 @@ async def test_every_visible_story_claim_carries_its_own_supported_mark():
                 )
             ],
         ),
+        "pair_missing": Analysis(
+            shot_id="pair_missing",
+            user_id=user.id,
+            model="gemini-test",
+            techniques=[
+                TechniqueEvidence(
+                    technique_id="warm_cool",
+                    confidence=0.9,
+                    agreement=2,
+                    cells=["A1", "B1", "G1", "H1"],
+                    note="Warm light and cool shadow remain separate.",
+                )
+            ],
+        ),
+        "planes": Analysis(
+            shot_id="planes",
+            user_id=user.id,
+            model="gemini-test",
+            techniques=[
+                TechniqueEvidence(
+                    technique_id="layering",
+                    confidence=0.91,
+                    agreement=2,
+                    cells=["A6", "D5", "D3"],
+                    regions=[
+                        VisualRegion(
+                            cells=["A6", "B6", "C6", "D6"],
+                            role=VisualRegionRole.FOREGROUND,
+                            order=0,
+                        ),
+                        VisualRegion(
+                            cells=["C5", "D5", "E5", "F5"],
+                            role=VisualRegionRole.MIDGROUND,
+                            order=1,
+                        ),
+                        VisualRegion(
+                            cells=["C3", "D3", "E3", "F3"],
+                            role=VisualRegionRole.BACKGROUND,
+                            order=2,
+                        ),
+                    ],
+                    note="Foreground, cloud, and ridge form three depth planes.",
+                )
+            ],
+        ),
+        "planes_missing": Analysis(
+            shot_id="planes_missing",
+            user_id=user.id,
+            model="gemini-test",
+            techniques=[
+                TechniqueEvidence(
+                    technique_id="layering",
+                    confidence=0.91,
+                    agreement=2,
+                    cells=["A6", "D5", "D3"],
+                    note="Foreground, cloud, and ridge form three depth planes.",
+                )
+            ],
+        ),
+        "instances_missing": Analysis(
+            shot_id="instances_missing",
+            user_id=user.id,
+            model="gemini-test",
+            techniques=[
+                TechniqueEvidence(
+                    technique_id="patterns",
+                    confidence=0.88,
+                    agreement=2,
+                    cells=["B2", "D2", "F2"],
+                    note="Three windows repeat across the wall.",
+                )
+            ],
+        ),
         "move": Analysis(
             shot_id="move",
             user_id=user.id,
@@ -514,8 +590,156 @@ async def test_every_visible_story_claim_carries_its_own_supported_mark():
         "warm",
         "cool",
     ]
+    assert receipts["pair_missing"]["keep_mark"]["kind"] == "pair"
+    assert receipts["pair_missing"]["keep_mark"]["regions"] == []
+    assert receipts["planes"]["keep_mark"]["kind"] == "planes"
+    assert [region["role"] for region in receipts["planes"]["keep_mark"]["regions"]] == [
+        "foreground",
+        "midground",
+        "background",
+    ]
+    assert receipts["planes_missing"]["keep_mark"]["kind"] == "planes"
+    assert receipts["planes_missing"]["keep_mark"]["regions"] == []
+    assert receipts["instances_missing"]["keep_mark"]["kind"] == "instances"
+    assert receipts["instances_missing"]["keep_mark"]["regions"] == []
     assert receipts["move"]["try_mark"]["kind"] == "move"
     assert receipts["move"]["try_mark"]["cells"] == ["B4"]
     assert receipts["move"]["try_mark"]["to_cells"] == ["D4"]
     assert receipts["crop"]["try_mark"]["kind"] == "crop"
     assert receipts["crop"]["try_mark"]["cells"] == ["C1", "H6"]
+
+
+async def test_shot_detail_places_current_technique_map_context_beside_exact_evidence():
+    ctx = Context(store=InMemoryStore(), blobs=None, bus=InProcessBus(), drive=None, tokens=None)
+    user = User(id="context_user", email="context@example.test")
+    shot = Shot(
+        id="context_shot",
+        user_id=user.id,
+        kind=ShotKind.PHOTO,
+        filename="context.jpg",
+        mime_type="image/jpeg",
+        status=ShotStatus.ANALYZED,
+        grid=GridSpec(cols=8, rows=6, width=800, height=600),
+    )
+    await repo.put_user(ctx.store, user)
+    await repo.put_shot(ctx.store, shot)
+    await repo.put_analysis(
+        ctx.store,
+        Analysis(
+            shot_id=shot.id,
+            user_id=user.id,
+            model="gemini-test",
+            techniques=[
+                TechniqueEvidence(
+                    technique_id="leading_lines",
+                    confidence=0.91,
+                    agreement=2,
+                    cells=["D6", "D4", "D2"],
+                ),
+                TechniqueEvidence(
+                    technique_id="complementary",
+                    confidence=0.95,
+                    agreement=1,
+                    cells=["A1", "H6"],
+                ),
+            ],
+        ),
+    )
+    await repo.put_technique_state(
+        ctx.store,
+        TechniqueState(
+            user_id=user.id,
+            technique_id="leading_lines",
+            status=TechniqueStatus.RECURRING,
+            attempts=8,
+            corroborated=6,
+            sightings=8,
+            corroborated_shots=6,
+            distinct_scenes=4,
+            distinct_shoots=3,
+            reproduce_sessions=2,
+            evaluable_reproduce_sessions=2,
+            criteria_met_sessions=1,
+            positive_keeper_shots=2,
+        ),
+    )
+    await repo.put_technique_state(
+        ctx.store,
+        TechniqueState(
+            user_id=user.id,
+            technique_id="complementary",
+            status=TechniqueStatus.OBSERVED,
+            attempts=1,
+            sightings=1,
+        ),
+    )
+
+    main.app.dependency_overrides[deps.get_context] = lambda: ctx
+    main.app.dependency_overrides[current_user] = lambda: {"id": user.id}
+    try:
+        with TestClient(main.app) as client:
+            response = client.get(f"/api/shots/{shot.id}")
+    finally:
+        main.app.dependency_overrides.clear()
+
+    assert response.status_code == 200
+    assert response.json()["technique_context"] == {
+        "leading_lines": {
+            "technique_id": "leading_lines",
+            "status": "recurring",
+            "corroborated_shots": 6,
+            "distinct_scenes": 4,
+            "distinct_shoots": 3,
+            "reproduce_sessions": 2,
+            "evaluable_reproduce_sessions": 2,
+            "criteria_met_sessions": 1,
+            "positive_keeper_shots": 2,
+        }
+    }
+
+
+async def test_targeted_reproduce_does_not_substitute_another_keeper_technique():
+    ctx = Context(store=InMemoryStore(), blobs=None, bus=InProcessBus(), drive=None, tokens=None)
+    user = User(id="target_user", email="target@example.test")
+    keeper = Shot(
+        id="target_keeper",
+        user_id=user.id,
+        kind=ShotKind.PHOTO,
+        filename="keeper.jpg",
+        mime_type="image/jpeg",
+        status=ShotStatus.ANALYZED,
+        kept_at=now(),
+        grid=GridSpec(cols=8, rows=6, width=800, height=600),
+    )
+    await repo.put_user(ctx.store, user)
+    await repo.put_shot(ctx.store, keeper)
+    await repo.put_analysis(
+        ctx.store,
+        Analysis(
+            shot_id=keeper.id,
+            user_id=user.id,
+            model="gemini-test",
+            techniques=[
+                TechniqueEvidence(
+                    technique_id="negative_space",
+                    confidence=0.9,
+                    agreement=2,
+                )
+            ],
+        ),
+    )
+
+    main.app.dependency_overrides[deps.get_context] = lambda: ctx
+    main.app.dependency_overrides[current_user] = lambda: {"id": user.id}
+    try:
+        with TestClient(main.app) as client:
+            response = client.post(
+                "/api/experiments/issue",
+                params={"technique_id": "leading_lines"},
+            )
+    finally:
+        main.app.dependency_overrides.clear()
+
+    assert response.status_code == 200
+    assert response.json() is None
+    assert await repo.open_experiment(ctx.store, user.id) is None

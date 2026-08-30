@@ -48,7 +48,7 @@ async def daily(
     """
     _authorised(x_tasks_token)
     report = DailyReport(users=0, synced=0, expired=0, issued=0, errors=[])
-    for user in await repo.list_users(ctx.store):
+    for user in await repo.list_writable_users(ctx.store):
         report.users += 1
         try:
             report.synced += len(await ingest.sync(ctx, user))
@@ -86,7 +86,7 @@ async def tick(
     _authorised(x_tasks_token)
     queued = 0
     capture_sessions_expired = 0
-    for user in await repo.list_users(ctx.store):
+    for user in await repo.list_writable_users(ctx.store):
         queued += len(await ingest.sync(ctx, user))
         capture_sessions_expired += await capture_sessions.expire_reserved(ctx, user.id)
     shoots_closed = len(await shoots.close_inactive(ctx))

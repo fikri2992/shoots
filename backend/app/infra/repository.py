@@ -22,12 +22,15 @@ from app.domain.entities import (
     CaptureSessionStatus,
     Deconstruction,
     Experiment,
+    ExperimentDirection,
+    ExperimentDirectionState,
     ExperimentStatus,
     ExperimentType,
     Inspiration,
     InterventionRecord,
     JourneyUpdate,
     PhotographerSignal,
+    RecordMode,
     Run,
     RunStage,
     RunStatus,
@@ -55,6 +58,7 @@ INSPIRATIONS = "inspirations"
 ANALYSES = "analyses"
 TECHNIQUE_STATES = "skills"  # legacy Firestore collection key; decision 62
 EXPERIMENTS = "experiments"
+EXPERIMENT_DIRECTIONS = "experiment_directions"
 OPEN_EXPERIMENTS = "open_experiments"
 EVENTS = "events"
 RUNS = "runs"
@@ -104,6 +108,11 @@ async def list_users(store: Store) -> list[User]:
     return [User.model_validate(d) for d in await store.query(USERS)]
 
 
+async def list_writable_users(store: Store) -> list[User]:
+    """Accounts that background work may mutate; Sample Records are inert."""
+    return [user for user in await list_users(store) if user.record_mode is RecordMode.REAL]
+
+
 # --- photographer signals ------------------------------------------------
 
 
@@ -139,6 +148,8 @@ async def list_photographer_signals(
     user_id: str,
     *,
     include_superseded: bool = False,
+    include_expired: bool = False,
+    current_at: datetime | None = None,
 ) -> list[PhotographerSignal]:
     rows = await store.query(
         PHOTOGRAPHER_SIGNALS,
@@ -149,6 +160,13 @@ async def list_photographer_signals(
     signals = [PhotographerSignal.model_validate(row) for row in rows]
     if not include_superseded:
         signals = [signal for signal in signals if signal.superseded_at is None]
+    if not include_expired:
+        current_at = current_at or now()
+        signals = [
+            signal
+            for signal in signals
+            if signal.expires_at is None or signal.expires_at > current_at
+        ]
     return signals
 
 
@@ -517,6 +535,65 @@ async def list_technique_states(store: Store, user_id: str) -> list[TechniqueSta
 
 
 # --- experiments ---------------------------------------------------------------
+
+
+def experiment_direction_id_for(user_id: str, source_shot_id: str, technique_id: str) -> str:
+    stable = f"{user_id}\0{source_shot_id}\0{technique_id}".encode()
+    return f"direction_{hashlib.sha256(stable).hexdigest()[:24]}"
+
+
+async def put_experiment_direction(store: Store, direction: ExperimentDirection) -> None:
+    await store.put(EXPERIMENT_DIRECTIONS, direction.id, _dump(direction))
+
+
+async def find_experiment_direction(
+    store: Store,
+    direction_id: str,
+) -> ExperimentDirection | None:
+    data = await store.get(EXPERIMENT_DIRECTIONS, direction_id)
+    return ExperimentDirection.model_validate(data) if data else None
+
+
+async def list_experiment_directions(
+    store: Store,
+    user_id: str,
+    limit: int | None = 50,
+) -> list[ExperimentDirection]:
+    rows = await store.query(
+        EXPERIMENT_DIRECTIONS,
+        where={"user_id": user_id},
+        order_by="updated_at",
+        descending=True,
+        limit=limit,
+    )
+    return [ExperimentDirection.model_validate(row) for row in rows]
+
+
+async def mark_experiment_direction_started(
+    store: Store,
+    direction_id: str,
+    experiment_id: str,
+    updated_at: datetime,
+) -> tuple[ExperimentDirection, bool]:
+    """Link one saved Direction to at most one Experiment atomically."""
+
+    def start(data: dict[str, Any]) -> dict[str, Any] | None:
+        direction = ExperimentDirection.model_validate(data)
+        if direction.state is ExperimentDirectionState.STARTED:
+            if direction.started_experiment_id != experiment_id:
+                raise ValueError("Experiment Direction already started another Experiment")
+            return None
+        if direction.state is not ExperimentDirectionState.SAVED:
+            return None
+        direction.state = ExperimentDirectionState.STARTED
+        direction.started_experiment_id = experiment_id
+        direction.updated_at = updated_at
+        return _dump(direction)
+
+    data, changed = await store.mutate(EXPERIMENT_DIRECTIONS, direction_id, start)
+    if data is None:
+        raise UnknownEntity(f"Experiment Direction {direction_id}")
+    return ExperimentDirection.model_validate(data), changed
 
 
 async def put_experiment(store: Store, experiment: Experiment) -> None:
@@ -1473,6 +1550,7 @@ async def delete_user_records(store: Store, user_id: str) -> None:
         (INSPIRATIONS, "id"),
         (PHOTOGRAPHER_SIGNALS, "id"),
         (ANALYSES, "shot_id"),
+        (EXPERIMENT_DIRECTIONS, "id"),
         (EXPERIMENTS, "id"),
         (EVENTS, "id"),
         (RUNS, "id"),

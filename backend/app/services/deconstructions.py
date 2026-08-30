@@ -107,12 +107,15 @@ async def _prepare_loaded(
     ]
     draft_id = _draft_id(source_type, source_id, source_revision)
     existing = await repo.find_deconstruction(ctx.store, draft_id)
+    source_digest = _digest({"source": source, "plan_version": rules.PLAN_VERSION})
     if not cover_shot_id:
         if existing is not None and (
             existing.status is DeconstructionStatus.DRAFTED
             or (
                 existing.status is DeconstructionStatus.NEEDS_COVER
                 and existing.candidate_cover_shot_ids == candidates
+                and existing.input_digest == source_digest
+                and existing.rendering_version == renderer.RENDER_VERSION
             )
         ):
             return existing
@@ -123,34 +126,40 @@ async def _prepare_loaded(
             source_id=source_id,
             source_revision=source_revision,
             candidate_cover_shot_ids=candidates,
-            input_digest=_digest(source),
+            input_digest=source_digest,
+            rendering_version=renderer.RENDER_VERSION,
         )
         await repo.put_deconstruction(ctx.store, draft)
         await _event(ctx, draft, "needs_cover")
         return draft
     if cover_shot_id not in candidates:
-        raise DeconstructionConflict(
-            "The cover must be a marked Keeper from this Deconstruction source"
-        )
+        label = "Shoot" if source_type is DeconstructionSourceType.SHOOT else "Experiment"
+        raise DeconstructionConflict(f"Choose a cover from the Shots you marked in this {label}")
 
     analyses = await repo.list_analyses(ctx.store, user_id)
     member_ids = {shot.id for shot in shots}
     analyses = [analysis for analysis in analyses if analysis.shot_id in member_ids]
     if isinstance(source, ShootRecord):
         pages = rules.shoot_pages(source, shots, analyses, cover_shot_id)
-        caption = (
-            f"How I worked this Shoot: {source.receipt.shot_count} Shots across "
-            f"{source.receipt.scene_count} Scenes."
-        )
+        caption = rules.shoot_caption(source)
     else:
         pages = rules.experiment_pages(source, shots, cover_shot_id)
-        caption = f"What I tried in {source.title}."
-    digest = _digest({"source": source, "cover": cover_shot_id, "pages": pages})
+        caption = rules.experiment_caption(source)
+    digest = _digest(
+        {
+            "source": source,
+            "cover": cover_shot_id,
+            "pages": pages,
+            "plan_version": rules.PLAN_VERSION,
+            "rendering_version": renderer.RENDER_VERSION,
+        }
+    )
     if (
         existing is not None
         and existing.status is DeconstructionStatus.DRAFTED
         and existing.input_digest == digest
         and all(page.blob_path for page in existing.pages)
+        and all(digest[:12] in page.blob_path for page in existing.pages)
     ):
         return existing
 
@@ -167,7 +176,7 @@ async def _prepare_loaded(
                 path = shot.blobs.get(kind) or shot.blobs[ORIGINAL]
                 images.append(canvas.load_bytes(await ctx.blobs.read(path)))
             rendered = renderer.render(page, images, index, len(pages))
-            path = deconstruction_blob_path(user_id, draft_id, index)
+            path = deconstruction_blob_path(user_id, draft_id, index, digest)
             await ctx.blobs.write(path, canvas.to_jpeg_bytes(rendered, quality=90), "image/jpeg")
             page.blob_path = path
     except Exception as exc:
@@ -182,6 +191,7 @@ async def _prepare_loaded(
             candidate_cover_shot_ids=candidates,
             cover_shot_id=cover_shot_id,
             input_digest=digest,
+            rendering_version=renderer.RENDER_VERSION,
             created_at=existing.created_at if existing else now(),
             updated_at=now(),
         )
@@ -201,6 +211,7 @@ async def _prepare_loaded(
         pages=pages,
         suggested_caption=caption,
         input_digest=digest,
+        rendering_version=renderer.RENDER_VERSION,
         created_at=existing.created_at if existing else now(),
         updated_at=now(),
     )

@@ -5,7 +5,16 @@ from datetime import UTC, datetime, timedelta
 import pytest
 
 from app.domain import tendency
-from app.domain.entities import Analysis, Composition, Exif, GridSpec, Shot, ShotKind, Tone
+from app.domain.entities import (
+    Analysis,
+    CaptureTimeAuthority,
+    Composition,
+    Exif,
+    GridSpec,
+    Shot,
+    ShotKind,
+    Tone,
+)
 
 JAKARTA = (-6.2, 106.8)
 
@@ -21,9 +30,10 @@ def shot(
     size: tuple[int, int] = (800, 600),
     captured: datetime | None = None,
     located: bool = False,
+    time_authority: CaptureTimeAuthority = CaptureTimeAuthority.UNKNOWN,
     pitch: float | None = None,
 ) -> tuple[Shot, Analysis | None]:
-    exif = Exif(captured_at=captured)
+    exif = Exif(captured_at=captured, capture_time_authority=time_authority)
     if located:
         exif.latitude, exif.longitude = JAKARTA
     s = Shot(
@@ -91,12 +101,31 @@ def test_an_unmeasured_dimension_is_absent_not_guessed():
 def test_light_needs_the_time_and_the_place():
     midday = datetime(2026, 8, 25, 5, 0, tzinfo=UTC)  # noon in Jakarta
     assert "light" not in tendency.read_shot(*shot(captured=midday))
-    assert tendency.read_shot(*shot(captured=midday, located=True))["light"] == "open day"
+    assert "light" not in tendency.read_shot(*shot(captured=midday, located=True))
+    assert (
+        tendency.read_shot(
+            *shot(
+                captured=midday,
+                located=True,
+                time_authority=CaptureTimeAuthority.ANDROID_SOURCE,
+            )
+        )["light"]
+        == "open day"
+    )
 
 
 def test_golden_hour_is_a_claim_about_the_sun():
     dusk = datetime(2026, 8, 25, 10, 55, tzinfo=UTC)  # ~17:55 local, near sunset
-    assert tendency.read_shot(*shot(captured=dusk, located=True))["light"] == "golden hour"
+    assert (
+        tendency.read_shot(
+            *shot(
+                captured=dusk,
+                located=True,
+                time_authority=CaptureTimeAuthority.ANDROID_SOURCE,
+            )
+        )["light"]
+        == "golden hour"
+    )
 
 
 def test_height_is_silent_without_the_camera():
@@ -300,15 +329,15 @@ def test_walking_on_beats_every_other_tendency():
     rows = [shot(f"s{i}", subject=(0.5, 0.5), captured=at(i * 30)) for i in range(16)]
     direction = tendency.direction_for(tendency.build(rows))
     assert direction is not None and direction.source == "dwell"
-    assert "1.0 Shots before you move on" in direction.citation
+    assert "1.0 Shots before you moved on" in direction.citation
 
 
 def test_an_experiment_direction_cites_the_count_that_earned_it():
     rows = [shot(f"s{i}", subject=(0.5, 0.5), captured=at(i)) for i in range(10)]
     direction = tendency.direction_for(tendency.build(rows))
     assert direction is not None and direction.source == "placement"
-    assert "10 of 10 readable shots: centred" in direction.citation
-    assert "never off centre, near the edge" in direction.citation
+    assert "centred in 10 of 10 Shots" in direction.citation
+    assert "has not seen off centre, near the edge yet" in direction.citation
     assert "rule_of_thirds" in direction.prefers
 
 

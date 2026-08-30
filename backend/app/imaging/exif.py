@@ -7,15 +7,17 @@ becomes ``None``; the Judge treats ``None`` as "cannot check", never as a pass.
 
 import io
 import math
-from datetime import UTC, datetime
+import re
+from datetime import UTC, datetime, timedelta, timezone
 from fractions import Fraction
 from typing import Any
 
 from PIL import ExifTags, Image
 
-from app.domain.entities import Exif
+from app.domain.entities import CaptureTimeAuthority, Exif
 
 _DATETIME_FORMATS = ("%Y:%m:%d %H:%M:%S", "%Y-%m-%d %H:%M:%S")
+_OFFSET = re.compile(r"^([+-])(\d{2}):(\d{2})$")
 
 
 def _num(value: Any) -> float | None:
@@ -40,13 +42,32 @@ def _text(value: Any) -> str:
     return str(value).strip().strip("\x00")
 
 
-def _when(value: Any) -> datetime | None:
-    """EXIF times carry no zone. Treat them as UTC so every datetime in the
-    system is comparable; the error is hours, the use is days."""
+def _utc_offset_minutes(value: Any) -> int | None:
+    match = _OFFSET.fullmatch(_text(value))
+    if match is None:
+        return None
+    hours, minutes = int(match.group(2)), int(match.group(3))
+    if hours > 14 or minutes >= 60 or (hours == 14 and minutes):
+        return None
+    total = hours * 60 + minutes
+    return -total if match.group(1) == "-" else total
+
+
+def _when(value: Any, utc_offset_minutes: int | None = None) -> datetime | None:
+    """Parse the wall clock while keeping unknown timezone authority explicit.
+
+    Legacy storage expects comparable aware datetimes, so a timezone-less wall
+    clock keeps the old UTC carrier. ``capture_utc_offset_minutes`` tells every
+    time-sensitive consumer that this carrier is not a known instant.
+    """
     text = _text(value)
     for fmt in _DATETIME_FORMATS:
         try:
-            return datetime.strptime(text, fmt).replace(tzinfo=UTC)
+            parsed = datetime.strptime(text, fmt)
+            if utc_offset_minutes is None:
+                return parsed.replace(tzinfo=UTC)
+            zone = timezone(timedelta(minutes=utc_offset_minutes))
+            return parsed.replace(tzinfo=zone).astimezone(UTC)
         except ValueError:
             continue
     return None
@@ -76,6 +97,13 @@ def read_exif(data: bytes) -> Exif:
 
     focal35 = _num(detail.get(ExifTags.Base.FocalLengthIn35mmFilm))
 
+    original_offset = _utc_offset_minutes(detail.get(0x9011))
+    original_time = _when(detail.get(ExifTags.Base.DateTimeOriginal), original_offset)
+    fallback_offset = _utc_offset_minutes(root.get(0x9010))
+    fallback_time = _when(root.get(ExifTags.Base.DateTime), fallback_offset)
+    captured_at = original_time or fallback_time
+    used_offset = original_offset if original_time is not None else fallback_offset
+
     return Exif(
         make=_text(root.get(ExifTags.Base.Make)),
         model=_text(root.get(ExifTags.Base.Model)),
@@ -86,8 +114,13 @@ def read_exif(data: bytes) -> Exif:
         focal_length_mm=_num(detail.get(ExifTags.Base.FocalLength)),
         focal_length_35mm=int(focal35) if focal35 else None,
         flash_fired=_flash(detail.get(ExifTags.Base.Flash)),
-        captured_at=_when(detail.get(ExifTags.Base.DateTimeOriginal))
-        or _when(root.get(ExifTags.Base.DateTime)),
+        captured_at=captured_at,
+        capture_utc_offset_minutes=used_offset if captured_at is not None else None,
+        capture_time_authority=(
+            CaptureTimeAuthority.EXIF_OFFSET
+            if captured_at is not None and used_offset is not None
+            else CaptureTimeAuthority.UNKNOWN
+        ),
         latitude=_coordinate(gps, 2, 1, "S", 90),
         longitude=_coordinate(gps, 4, 3, "W", 180),
     )

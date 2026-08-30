@@ -2,6 +2,7 @@
 
 from datetime import timedelta
 
+import pytest
 from fastapi.testclient import TestClient
 
 from app.api import deps, main
@@ -146,6 +147,8 @@ async def test_recall_is_scope_bounded_and_reports_missing_intent():
     constraints = await photographer_memory.constraints_for(
         ctx,
         user.id,
+        role="coach",
+        purpose="discuss_shot",
         scope=SignalScope.SHOT,
         scope_id="shot_a",
     )
@@ -190,17 +193,89 @@ async def test_live_remember_requires_literal_support_and_announces_exact_storag
         },
         transcript=transcript,
     )
-    remembered = await photographer_memory.constraints_for(ctx, user.id)
+    remembered = await photographer_memory.constraints_for(
+        ctx,
+        user.id,
+        role="coach",
+        purpose="remembered_constraints",
+    )
 
     assert result["ok"] is True
     assert result["remembered"] == ["tripod", "Shoots after work"]
     assert "flash" not in result["remembered"]
-    assert coach.summarise_tool("remember", result) == (
-        "remembered: tripod · Shoots after work"
-    )
+    assert coach.summarise_tool("remember", result) == ("remembered: tripod · Shoots after work")
     assert unsupported["ok"] is False
     assert remembered.missing_gear == ["tripod"]
     assert remembered.notes == ["Shoots after work"]
     stored = await repo.list_photographer_signals(ctx.store, user.id)
     assert all(signal.transcript_digest for signal in stored)
     assert all(signal.source is SignalSource.DIRECT_STATEMENT for signal in stored)
+
+
+async def test_current_signal_reads_filter_expiry_rank_exact_scope_and_reject_unknown_roles():
+    ctx = memory_context()
+    user = User(id="memory_user", email="memory@example.test")
+    await repo.put_user(ctx.store, user)
+    created = now()
+    expired = PhotographerSignal(
+        id="expired_intent",
+        user_id=user.id,
+        scope=SignalScope.SHOOT,
+        scope_id="shoot_a",
+        kind=PhotographerSignalKind.INTENT,
+        value="Old intent",
+        source=SignalSource.PHOTOGRAPHER_ACTION,
+        source_event_id="expired_intent_action",
+        created_at=created - timedelta(days=2),
+        expires_at=created - timedelta(days=1),
+    )
+    exact = PhotographerSignal(
+        id="exact_intent",
+        user_id=user.id,
+        scope=SignalScope.SHOOT,
+        scope_id="shoot_a",
+        kind=PhotographerSignalKind.INTENT,
+        value="Keep the frame quiet",
+        source=SignalSource.PHOTOGRAPHER_ACTION,
+        source_event_id="exact_intent_action",
+        created_at=created - timedelta(days=1),
+    )
+    globals_ = [
+        PhotographerSignal(
+            id=f"global_constraint_{index}",
+            user_id=user.id,
+            kind=PhotographerSignalKind.CONSTRAINT,
+            value=f"Constraint {index}",
+            source=SignalSource.PHOTOGRAPHER_ACTION,
+            source_event_id=f"global_constraint_action_{index}",
+            created_at=created + timedelta(seconds=index),
+        )
+        for index in range(photographer_memory.MAX_RECALL_SIGNALS)
+    ]
+    for signal in [expired, exact, *globals_]:
+        await photographer_memory.apply_photographer_signal(ctx, signal)
+
+    current = await repo.list_photographer_signals(ctx.store, user.id)
+    history = await repo.list_photographer_signals(
+        ctx.store,
+        user.id,
+        include_expired=True,
+    )
+    recalled = await photographer_memory.recall(
+        ctx,
+        user.id,
+        "shoot_scout",
+        "shoot_intervention",
+        SignalScope.SHOOT,
+        "shoot_a",
+    )
+
+    assert expired.id not in {signal.id for signal in current}
+    assert expired.id in {signal.id for signal in history}
+    assert recalled.input_signal_ids[0] == exact.id
+    assert len(recalled.signals) == photographer_memory.MAX_RECALL_SIGNALS
+    assert expired.id not in recalled.input_signal_ids
+    with pytest.raises(
+        photographer_memory.SignalConflict, match="Unknown Photographer memory role"
+    ):
+        await photographer_memory.recall(ctx, user.id, "shoot_scout_typo", "shoot_intervention")

@@ -16,6 +16,7 @@ from app.domain.entities import (
     CaptureSession,
     Deconstruction,
     Experiment,
+    ExperimentDirection,
     Inspiration,
     InterventionRecord,
     JourneyUpdate,
@@ -52,6 +53,7 @@ class MobileSnapshot(BaseModel):
     techniques: list[experiment_api.TechniqueNode]
     technique_catalogue: list[experiment_api.TechniqueChoice]
     experiments: list[Experiment]
+    experiment_directions: list[ExperimentDirection]
     latest_deconstruction: Deconstruction | None
     recent_scout_answers: list[ScoutAnswer]
     recent_interventions: list[InterventionRecord]
@@ -67,6 +69,7 @@ async def snapshot(
     sessions = await repo.list_capture_sessions(ctx.store, user.id, limit=1)
     runs = await repo.list_runs(ctx.store, user.id, limit=1)
     experiments = await repo.list_experiments(ctx.store, user.id, limit=20)
+    directions = await repo.list_experiment_directions(ctx.store, user.id, limit=50)
     deconstructions = await repo.list_deconstructions(ctx.store, user.id, limit=1)
     shots = await repo.list_shots(ctx.store, user.id, limit=30)
     included = {shot.id for shot in shots}
@@ -76,6 +79,11 @@ async def snapshot(
         for shot_id in [experiment.reference_shot_id, *experiment.result_shot_ids]
         if shot_id
     }
+    required.update(
+        direction.source_shot_id
+        for direction in directions
+        if direction.source_shot_id
+    )
     if sessions and sessions[0].representative_result_shot_id:
         required.add(sessions[0].representative_result_shot_id)
     for shot_id in sorted(required - included):
@@ -104,6 +112,7 @@ async def snapshot(
         techniques=await experiment_api.technique_map(session_user, ctx),
         technique_catalogue=await experiment_api.technique_catalogue(session_user, ctx),
         experiments=experiments,
+        experiment_directions=directions,
         latest_deconstruction=deconstructions[0] if deconstructions else None,
         recent_scout_answers=await repo.list_scout_answers(ctx.store, user.id, limit=20),
         recent_interventions=await repo.list_interventions(ctx.store, user.id, limit=20),

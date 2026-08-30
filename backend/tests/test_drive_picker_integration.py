@@ -92,6 +92,56 @@ async def test_selected_drive_files_enter_mine_or_inspiration_once(tmp_path, mon
     assert await ingest.sync(ctx, user) == []
 
 
+async def test_drive_picker_groups_by_exif_after_ingest(tmp_path, monkeypatch):
+    drive_root = tmp_path / "drive"
+    drive_root.mkdir()
+    (drive_root / "first.jpg").write_bytes(
+        jpeg_with_exif(when="2026:08:22 18:30:00", width=640)
+    )
+    (drive_root / "second.jpg").write_bytes(
+        jpeg_with_exif(when="2026:08:22 18:33:00", width=641)
+    )
+    drive = LocalDriveClient(drive_root)
+    files = await drive.list_media("local")
+    ctx = Context(
+        store=InMemoryStore(),
+        blobs=LocalBlobStore(tmp_path / "blobs"),
+        bus=InProcessBus(),
+        drive=drive,
+        tokens=None,
+    )
+    user_id = "dev:picker-grouping@example.test"
+    await repo.put_user(ctx.store, User(id=user_id, email="picker-grouping@example.test"))
+    ctx.bus.subscribe(TOPICS["media.new"], lambda message: ingest.ingest(ctx, message))
+    main.app.dependency_overrides[deps.get_context] = lambda: ctx
+    main.app.dependency_overrides[current_user] = lambda: {"id": user_id}
+    monkeypatch.setattr(settings, "drive_local_folder", str(drive_root))
+
+    try:
+        async with httpx.AsyncClient(
+            transport=httpx.ASGITransport(app=main.app),
+            base_url="http://test",
+        ) as client:
+            response = await client.post(
+                "/drive/import",
+                json={
+                    "file_ids": [item.id for item in files],
+                    "source_role": "mine",
+                },
+            )
+            await ctx.bus.drain()
+    finally:
+        main.app.dependency_overrides.clear()
+
+    assert response.status_code == 200, response.text
+    stored_shoots = await repo.list_shoots(ctx.store, user_id)
+    assert len(stored_shoots) == 1
+    assert len(stored_shoots[0].ordered_shot_ids) == 2
+    stored_scenes = await repo.list_scenes_for_shoot(ctx.store, stored_shoots[0].id)
+    assert len(stored_scenes) == 1
+    assert len(stored_scenes[0].ordered_shot_ids) == 2
+
+
 async def test_browser_upload_has_distinct_provenance(tmp_path):
     ctx = Context(
         store=InMemoryStore(),

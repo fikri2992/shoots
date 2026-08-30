@@ -15,7 +15,7 @@ beats a convention wearing the label "measured".
 Each finding is also excused by intent. A two-second exposure is not camera shake
 when the frame is a light trail, and a subject filling the frame is not a
 missing centre of interest when the technique *is* filling the frame. The
-technique the panel agreed on is what tells them apart, which is why detection
+strongest retained Technique is what tells them apart, which is why detection
 runs after the vote and not before it.
 """
 

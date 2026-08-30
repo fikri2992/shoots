@@ -87,7 +87,7 @@ def build(shot: Shot, analysis: Analysis) -> ShotTeachingReceipt:
         )
         receipt.keep_proof = _compact(
             evidence.note
-            or f"{evidence.agreement} independent Analyst lenses corroborated this Technique.",
+            or f"{evidence.agreement} independent visual reads point to the same choice.",
             grid,
             180,
         )
@@ -125,7 +125,7 @@ def build(shot: Shot, analysis: Analysis) -> ShotTeachingReceipt:
         receipt.notice_title = _sentence(
             _compact(_without_grid_locators(aligned_observation), None, 160, first_clause=True)
         )
-        receipt.notice_proof = "One Analyst observation; not a measured Finding."
+        receipt.notice_proof = "One visual read, not a camera measurement."
         receipt.notice_authority = TeachingAuthority.MODEL_READ
         receipt.notice_mark = _cells_mark(receipt.notice_cells, grid)
 
@@ -164,11 +164,14 @@ def _technique_mark(evidence: TechniqueEvidence, grid: Grid | None) -> VisualMar
             regions=list(evidence.regions),
             visual_artifact=evidence.visual_artifact,
         )
-    if evidence.regions and technique_id in _PAIR_TECHNIQUES:
+    # Keep the Technique's visual grammar even when old or incomplete Evidence
+    # has only a merged cell cloud. Clients can then reject an undrawable pair,
+    # plane sequence, or instance set instead of mistaking it for one region.
+    if technique_id in _PAIR_TECHNIQUES:
         kind = VisualMarkKind.PAIR
-    elif evidence.regions and technique_id in _PLANE_TECHNIQUES:
+    elif technique_id in _PLANE_TECHNIQUES:
         kind = VisualMarkKind.PLANES
-    elif evidence.regions and technique_id in _INSTANCE_TECHNIQUES:
+    elif technique_id in _INSTANCE_TECHNIQUES:
         kind = VisualMarkKind.INSTANCES
     elif technique_id in _LINE_TECHNIQUES:
         kind = VisualMarkKind.LINE
@@ -328,7 +331,7 @@ def _visible_check(finding_id: str, move: Move | None, grid: Grid | None) -> str
             "Check that the horizon no longer cuts through the subject or the frame's middle."
         ),
         findings.OFF_GUIDE_SUBJECT: (
-            "Check that the subject meets the selected guide—or that you deliberately reject it."
+            "Check whether the subject meets the guide. Ignoring it can be a choice too."
         ),
         findings.NO_CENTRE_OF_INTEREST: (
             "Name the first subject your eye should land on; it should be visually distinct."

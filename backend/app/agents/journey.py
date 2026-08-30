@@ -34,7 +34,7 @@ _UNSUPPORTED_CONTROL_WORDS = (
 
 
 class JourneyOut(BaseModel):
-    body: str = Field(description="One paragraph, three to five sentences, under 90 words.")
+    body: str = Field(description="One paragraph, two to four short sentences, under 70 words.")
 
 
 def journey_agent() -> LlmAgent:

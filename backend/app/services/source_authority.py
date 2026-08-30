@@ -14,7 +14,7 @@ from app.domain.entities import (
 )
 from app.infra import repository as repo
 from app.infra.bus import TOPICS
-from app.services import cartographer, ingest, photographer_memory, runs, shoots
+from app.services import cartographer, ingest, photographer_memory, runs
 from app.services.context import Context
 
 
@@ -128,7 +128,6 @@ async def inspiration_to_shot(ctx: Context, user_id: str, inspiration_id: str) -
         await runs.ensure(ctx, shot)
     await cartographer.rebuild(ctx, user_id)
     if created:
-        await shoots.observe_shot(ctx, shot.id)
         await ctx.bus.publish(TOPICS["media.new"], {"shot_id": shot.id})
     else:
         if shot.status is not ShotStatus.ANALYZED:

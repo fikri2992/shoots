@@ -280,6 +280,23 @@ async def test_rebuild_keeps_each_evidence_axis_separate_and_exposes_it():
     assert "score" not in node
 
 
+async def test_rebuild_orders_legacy_naive_and_current_aware_capture_times():
+    """Old local rows have naive camera times; newer rows carry UTC offsets."""
+    ctx = context()
+    user = User(id="projection_user", email="projection@example.test")
+    await repo.put_user(ctx.store, user)
+    await add_shot(ctx, "legacy", datetime(2026, 8, 27, 8, 0))
+    await add_shot(ctx, "current_1", datetime(2026, 8, 27, 9, 0, tzinfo=UTC))
+    await add_shot(ctx, "current_2", datetime(2026, 8, 27, 10, 0, tzinfo=UTC))
+
+    rebuilt = await cartographer.rebuild(ctx, user.id)
+    state = rebuilt["panning"]
+
+    assert state.status is TechniqueStatus.RECURRING
+    assert state.shot_ids == ["legacy", "current_1", "current_2"]
+    assert state.last_observed == datetime(2026, 8, 27, 10, 0, tzinfo=UTC)
+
+
 async def test_rebuild_retracts_a_projection_when_its_analysis_no_longer_supports_it():
     ctx = context()
     user = User(id="projection_user", email="projection@example.test")

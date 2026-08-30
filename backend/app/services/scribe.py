@@ -91,14 +91,14 @@ def review_finding(analysis: Analysis) -> str:
     A frame with nothing corroborated and nothing wrong says exactly that.
     """
     if analysis.abstained:
-        return "not called"
+        return "could not read"
     strong = _corroborated(analysis)
     if strong:
         return ", ".join(strong[:2]).lower()
     if analysis.findings:
         return findings.FINDINGS.get(analysis.findings[0].finding_id, "worth another look").lower()
     seen = _seen(analysis)
-    return ", ".join(seen[:2]).lower() if seen else "read, nothing to report"
+    return ", ".join(seen[:2]).lower() if seen else "nothing clear enough to call"
 
 
 def review_name(shot: Shot, analysis: Analysis, verdict: Verdict | None) -> str:
@@ -114,13 +114,13 @@ def review_title(analysis: Analysis, experiment: Experiment | None, verdict: Ver
     with proof, the finding after and with its figure.
     """
     if analysis.abstained:
-        return f"Not called — {analysis.abstained}"
+        return f"Could not read this Shot: {analysis.abstained}"
     seen = ", ".join(_seen(analysis))
     wrong = findings.FINDINGS.get(analysis.findings[0].finding_id, "") if analysis.findings else ""
-    title = " · ".join(part for part in (seen, wrong) if part) or "Read, nothing to report"
+    title = " · ".join(part for part in (seen, wrong) if part) or "Nothing clear enough to call"
     if verdict and experiment:
-        met = "CRITERIA MET" if verdict.criteria_met else "NOT YET"
-        title = f"{met} · {experiment.title}  —  {title}"
+        met = "MATCHED" if verdict.criteria_met else "NOT YET"
+        title = f"{met} · {experiment.title} · {title}"
     return title
 
 
@@ -131,7 +131,7 @@ def review_body(analysis: Analysis, verdict: Verdict | None, grid: Grid) -> list
     # saw the same thing, so nothing below is a verdict (decision 38). The
     # findings are the exception and stay exactly as true - they are arithmetic.
     if analysis.abstained:
-        body.append(f"The panel could not call this one: {analysis.abstained}.")
+        body.append(f"Shoots could not read this one confidently: {analysis.abstained}.")
     if analysis.critique.strip():
         body.append(analysis.critique.strip())
     # Findings before advice: each carries the figure it was computed from, which

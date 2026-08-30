@@ -7,7 +7,7 @@ import json
 from dataclasses import dataclass, field
 from datetime import datetime
 
-from app.domain import taxonomy
+from app.domain import datetimes, taxonomy
 from app.domain import technique_map as rules
 from app.domain.entities import (
     Analysis,
@@ -95,7 +95,9 @@ def _state(
     ordered = sorted(
         evidence_rows,
         key=lambda row: (
-            inputs.shots.get(row[0].shot_id, ShotFact(row[0].created_at)).observed_at,
+            datetimes.as_utc(
+                inputs.shots.get(row[0].shot_id, ShotFact(row[0].created_at)).observed_at
+            ),
             row[0].shot_id,
         ),
     )
@@ -155,7 +157,12 @@ def _state(
     }
     last_observed = max(
         (
-            inputs.shots.get(analysis.shot_id, ShotFact(analysis.created_at)).observed_at
+            datetimes.as_utc(
+                inputs.shots.get(
+                    analysis.shot_id,
+                    ShotFact(analysis.created_at),
+                ).observed_at
+            )
             for analysis, _ in ordered
         ),
         default=None,

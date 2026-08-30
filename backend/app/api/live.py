@@ -64,6 +64,8 @@ async def live(websocket: WebSocket, shot_id: str):
     constraints = await photographer_memory.constraints_for(
         ctx,
         shot.user_id,
+        role="coach",
+        purpose="discuss_shot",
         scope=SignalScope.SHOT,
         scope_id=shot.id,
     )

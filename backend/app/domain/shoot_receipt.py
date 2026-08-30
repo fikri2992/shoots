@@ -58,7 +58,11 @@ def synthesize(
         blind_spot = ""
         if missing:
             reason = dimension.blind or "not available on every member Shot"
-            blind_spot = f"{dimension.label}: {missing} of {len(exact_ids)} unreadable; {reason}"
+            blind_spot = (
+                f"{dimension.label.capitalize()} is still unclear. "
+                f"{missing} of {len(exact_ids)} Shots have no reading. "
+                f"{reason[:1].upper()}{reason[1:]}."
+            )
             blind_spots.append(blind_spot)
         figure = ShootDimensionFigure(
             dimension_id=dimension.id,
@@ -75,14 +79,20 @@ def synthesize(
         dimensions.append(figure)
         if dimension_profile.n < 2:
             continue
-        authority_copy = "model read" if authority is EvidenceAuthority.MODEL_READ else "measured"
+        authority_copy = (
+            "Shoots saw this in the images"
+            if authority is EvidenceAuthority.MODEL_READ
+            else "Shoots read this from the files"
+        )
         if len(counts) > 1 and dimension_profile.exploration >= VARIED_AT:
-            buckets = ", ".join(f"{name} {count}" for name, count in counts.items())
-            varied.append(f"{dimension.label.capitalize()} varied: {buckets} ({authority_copy}).")
+            buckets = ", ".join(f"{count} {name}" for name, count in counts.items())
+            varied.append(
+                f"{dimension.label.capitalize()} moved around: {buckets}. {authority_copy}."
+            )
         elif figure.dominant_count >= 2 and dimension_profile.dominant_share >= REPEATED_SHARE:
             repeated.append(
-                f"{figure.dominant_count} of {dimension_profile.n} readable Shots used "
-                f"{figure.dominant} for {dimension.label} ({authority_copy})."
+                f"{figure.dominant.capitalize()} kept returning in {figure.dominant_count} of "
+                f"{dimension_profile.n} Shots for {dimension.label}. {authority_copy}."
             )
 
     techniques = _technique_figures(exact_ids, analysis_by_id)
@@ -90,13 +100,13 @@ def synthesize(
         if len(technique.corroborated_shot_ids) < 2:
             continue
         repeated.append(
-            f"{technique.name} was corroborated in "
-            f"{len(technique.corroborated_shot_ids)} Shots (model read)."
+            f"{technique.name} kept returning in "
+            f"{len(technique.corroborated_shot_ids)} Shots. Shoots saw this in the images."
         )
 
-    summary = f"{len(exact_ids)} Shots across {len(scene_shot_ids)} Scenes"
+    summary = f"You made {len(exact_ids)} Shots across {len(scene_shot_ids)} Scenes"
     if terminal_ids:
-        summary += f"; {len(terminal_ids)} could not be analysed"
+        summary += f". Shoots could not read {len(terminal_ids)} of them"
     summary += "."
     return ShootReceipt(
         calc_version=CALC_VERSION,

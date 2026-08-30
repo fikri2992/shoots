@@ -97,19 +97,19 @@ async def recall(
     scope: SignalScope = SignalScope.PHOTOGRAPHER,
     scope_id: str = "",
 ) -> MemoryRecall:
-    current = now()
     allowed_kinds = _allowed_kinds(role)
-    candidates = []
+    exact_candidates = []
+    global_candidates = []
     for signal in await repo.list_photographer_signals(ctx.store, user_id):
-        if signal.expires_at is not None and signal.expires_at <= current:
-            continue
         if signal.kind not in allowed_kinds:
             continue
         global_signal = signal.scope is SignalScope.PHOTOGRAPHER
         exact_signal = signal.scope is scope and signal.scope_id == scope_id
-        if global_signal or exact_signal:
-            candidates.append(signal)
-    candidates = candidates[:MAX_RECALL_SIGNALS]
+        if exact_signal:
+            exact_candidates.append(signal)
+        elif global_signal:
+            global_candidates.append(signal)
+    candidates = [*exact_candidates, *global_candidates][:MAX_RECALL_SIGNALS]
     blind_spots = []
     if not any(signal.kind is PhotographerSignalKind.INTENT for signal in candidates):
         blind_spots.append("No explicit Intent is stored for this scope.")
@@ -129,11 +129,13 @@ async def constraints_for(
     ctx: Context,
     user_id: str,
     *,
+    role: str,
+    purpose: str,
     scope: SignalScope = SignalScope.PHOTOGRAPHER,
     scope_id: str = "",
 ) -> Constraints:
     user = await repo.get_user(ctx.store, user_id)
-    remembered = await recall(ctx, user_id, "scout", "experiment_selection", scope, scope_id)
+    remembered = await recall(ctx, user_id, role, purpose, scope, scope_id)
     missing_gear = list(user.constraints.missing_gear)
     notes = list(user.constraints.notes)
     for signal in reversed(remembered.signals):
@@ -202,4 +204,4 @@ def _allowed_kinds(role: str) -> set[PhotographerSignalKind]:
             PhotographerSignalKind.CONSTRAINT,
             PhotographerSignalKind.PREFERENCE,
         }
-    return set(PhotographerSignalKind)
+    raise SignalConflict(f"Unknown Photographer memory role: {role}")

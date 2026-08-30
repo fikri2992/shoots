@@ -12,13 +12,13 @@ def variations_for(technique: Technique) -> list[Variation]:
     return [
         Variation(
             id=f"{technique.id}:clear",
-            title=f"Make {name} obvious",
-            instruction=f"Let {name} be the main decision in the frame.",
+            title=f"Let {name} lead",
+            instruction=f"Make {name} the first thing the eye notices.",
         ),
         Variation(
             id=f"{technique.id}:restrained",
             title=f"Use {name} quietly",
-            instruction=f"Use {name} as support without letting it dominate the frame.",
+            instruction=f"Let {name} support the Shot without taking over.",
         ),
         Variation(
             id=f"{technique.id}:invert",
@@ -37,9 +37,7 @@ def observe(
     variation_id: str,
 ) -> VariationObservation:
     evidence = [
-        item
-        for item in analysis.techniques
-        if item.confidence >= technique_map.MIN_CONFIDENCE
+        item for item in analysis.techniques if item.confidence >= technique_map.MIN_CONFIDENCE
     ]
     return VariationObservation(
         variation_id=variation_id,

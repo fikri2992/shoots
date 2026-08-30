@@ -2,6 +2,7 @@
 
 import re
 from io import BytesIO
+from zipfile import ZipFile
 
 from fastapi.testclient import TestClient
 from PIL import Image
@@ -36,6 +37,11 @@ from app.infra.storage import ORIGINAL, LocalBlobStore, blob_path
 from app.infra.store import InMemoryStore
 from app.services import deconstructions, scout
 from app.services.context import Context
+
+VISIBLE_STORY_JARGON = re.compile(
+    r"\b(keeper|criteria|verdict|record|corroborated|analyst|evidence|revision|score)\b",
+    re.IGNORECASE,
+)
 
 
 async def seed(tmp_path) -> tuple[Context, str]:
@@ -142,7 +148,8 @@ async def test_deconstruction_requires_photographer_cover_then_renders_idempoten
                 },
             )
             assert refused.status_code == 409
-            assert "marked Keeper" in refused.json()["detail"]
+            assert "marked" in refused.json()["detail"]
+            assert "Keeper" not in refused.json()["detail"]
 
             drafted = client.post(
                 "/api/deconstructions",
@@ -160,13 +167,21 @@ async def test_deconstruction_requires_photographer_cover_then_renders_idempoten
             assert 4 <= len(body["pages"]) <= 7
             assert body["suggested_caption"]
             assert all(page["evidence_refs"] for page in body["pages"])
+            assert all(body["input_digest"][:12] in page["blob_path"] for page in body["pages"])
             composition = next(page for page in body["pages"] if page["kind"] == "composition")
             assert composition["visual_layer"] == "annotated"
             visible_words = " ".join(
                 [body["suggested_caption"]]
                 + [part for page in body["pages"] for part in (page["title"], page["claim"])]
             )
-            assert "score" not in visible_words.lower()
+            assert [page["title"] for page in body["pages"]] == [
+                "The opening",
+                "The setting",
+                "The turn",
+                "The thread",
+                "The ending",
+            ]
+            assert VISIBLE_STORY_JARGON.search(visible_words) is None
             assert re.search(r"\b[A-H][1-6]\b", visible_words) is None
             for page in body["pages"]:
                 data = await ctx.blobs.read(page["blob_path"])
@@ -187,6 +202,20 @@ async def test_deconstruction_requires_photographer_cover_then_renders_idempoten
             assert [page["blob_path"] for page in repeated.json()["pages"]] == [
                 page["blob_path"] for page in body["pages"]
             ]
+
+            download = client.get(f"/api/deconstructions/{body['id']}/download")
+            assert download.status_code == 200
+            assert download.headers["content-type"] == "application/zip"
+            with ZipFile(BytesIO(download.content)) as story:
+                assert story.namelist() == [
+                    "story-01.jpg",
+                    "story-02.jpg",
+                    "story-03.jpg",
+                    "story-04.jpg",
+                    "story-05.jpg",
+                    "caption.txt",
+                ]
+                assert story.read("caption.txt").decode() == body["suggested_caption"]
 
             snapshot = client.get("/api/mobile/snapshot")
             assert snapshot.status_code == 200
@@ -278,7 +307,18 @@ async def test_terminal_experiment_requires_cover_then_renders_its_record(tmp_pa
         "reproduce",
         "record",
     ]
-    assert "1 of 1 recorded Verdicts met" in body["pages"][2]["claim"]
+    assert [page["title"] for page in body["pages"]] == [
+        "The opening",
+        "The idea",
+        "What returned",
+        "The ending",
+    ]
+    assert "1 of 1 checked Shots matched" in body["pages"][2]["claim"]
+    visible_words = " ".join(
+        [body["suggested_caption"]]
+        + [part for page in body["pages"] for part in (page["title"], page["claim"])]
+    )
+    assert VISIBLE_STORY_JARGON.search(visible_words) is None
     assert all(page["evidence_refs"] for page in body["pages"])
     for page in body["pages"]:
         with Image.open(BytesIO(await ctx.blobs.read(page["blob_path"]))) as rendered:
@@ -306,7 +346,7 @@ async def test_closed_experiment_event_prepares_the_needs_cover_artifact(tmp_pat
     )
 
     drafts = await repo.list_deconstructions(ctx.store, user_id)
-    assert outcome == "Scout checked the settled result and stayed silent."
+    assert outcome == "Shoots checked the result and found no useful next idea."
     assert len(drafts) == 1
     assert drafts[0].source_id == experiment.id
     assert drafts[0].source_type.value == "experiment"
@@ -359,8 +399,9 @@ async def test_explore_deconstruction_preserves_variations_without_a_grade(tmp_p
         main.app.dependency_overrides.clear()
 
     assert all(page["kind"] != "reproduce" for page in pages)
-    observation = next(page for page in pages if page["title"] == "Variations observed")
-    assert "2 result observations across 2 Variations" in observation["claim"]
-    assert "No result was graded" in observation["claim"]
-    visible = " ".join(page["claim"] for page in pages).lower()
-    assert "met criteria" not in visible and "winner" not in visible
+    observation = next(page for page in pages if page["title"] == "The attempts")
+    assert "2 ways across 2 result Shots" in observation["claim"]
+    assert "None is ranked" in observation["claim"]
+    visible = " ".join(part for page in pages for part in (page["title"], page["claim"]))
+    assert VISIBLE_STORY_JARGON.search(visible) is None
+    assert "winner" not in visible.lower()

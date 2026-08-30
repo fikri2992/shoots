@@ -403,13 +403,14 @@ def user_credentials(token: dict) -> Any:
     """Build google-auth credentials from the OAuth token authlib handed us."""
     from google.oauth2.credentials import Credentials
 
+    granted_scopes = str(token.get("scope", "")).split() or None
     return Credentials(
         token=token.get("access_token"),
         refresh_token=token.get("refresh_token"),
         token_uri="https://oauth2.googleapis.com/token",
         client_id=settings.google_client_id,
         client_secret=settings.google_client_secret,
-        scopes=settings.oauth_scopes.split(),
+        scopes=granted_scopes,
     )
 
 
