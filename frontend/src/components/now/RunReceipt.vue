@@ -1,6 +1,7 @@
 <script>
 import { mapState } from 'pinia'
 
+import { humanizeLegacyText } from '@/domain/copy'
 import { useShootsStore } from '@/stores/shoots'
 
 const SETTLED = new Set(['completed', 'skipped', 'terminal'])
@@ -8,7 +9,7 @@ const SETTLED = new Set(['completed', 'skipped', 'terminal'])
 export default {
   name: 'RunReceipt',
   computed: {
-    ...mapState(useShootsStore, ['experiments', 'orderedShots', 'runs']),
+    ...mapState(useShootsStore, ['experiments', 'orderedShots', 'runs', 'mobile']),
     run() {
       return this.runs[0] || null
     },
@@ -30,9 +31,14 @@ export default {
       const step = (name) => this.run?.steps?.[name] || { state: 'pending', outcome: '' }
       const row = (name, waiting) => {
         const current = step(name)
+        const settledRecommendation = name === 'scout' && ['recommend', 'ask'].includes(
+          this.shootRecord?.scout?.route,
+        )
         return {
           name,
-          label: current.outcome || waiting,
+          label: settledRecommendation
+            ? 'Shoots finished the Shoot and prepared one optional idea.'
+            : humanizeLegacyText(current.outcome) || waiting,
           state: current.state,
           done: SETTLED.has(current.state),
           bad: current.state === 'terminal',
@@ -41,11 +47,11 @@ export default {
       }
       return [
         row('ingest', `${this.source} is preparing the Shot`),
-        row('analyst', 'Analyst is reading the Shot'),
-        row('cartographer', 'Cartographer is checking the longitudinal record'),
-        row('judge', this.experiment ? 'Judge is checking the result contract' : 'No Experiment judgment needed'),
-        row('scribe', 'Scribe is accounting for the external write'),
-        row('scout', 'Scout is deciding whether the record supports another Experiment'),
+        row('analyst', 'Shoots is looking closely at the Shot'),
+        row('cartographer', 'Shoots is checking what has appeared before'),
+        row('judge', this.experiment ? 'Shoots is checking what you set before shooting' : 'No Experiment check needed'),
+        row('scribe', 'Shoots is preparing the finished copy'),
+        row('scout', 'Shoots is deciding whether another idea would help'),
       ]
     },
     complete() {
@@ -63,7 +69,24 @@ export default {
       return 'text-accent'
     },
     scoutOutcome() {
-      return this.run?.steps?.scout?.outcome || ''
+      if (['recommend', 'ask'].includes(this.shootRecord?.scout?.route)) {
+        return 'Shoots finished the Shoot Record and prepared one optional idea. Nothing started.'
+      }
+      return humanizeLegacyText(this.run?.steps?.scout?.outcome)
+    },
+    shootRecord() {
+      const record = this.mobile?.latest_shoot_record
+      return record?.shot_ids?.includes(this.run?.shot_id) ? record : null
+    },
+    shootRecordTarget() {
+      if (!this.shootRecord) return null
+      return {
+        name: 'shoot-record',
+        params: {
+          shootId: this.shootRecord.shoot_id,
+          revision: this.shootRecord.revision,
+        },
+      }
     },
   },
 }
@@ -91,7 +114,7 @@ export default {
               class="mt-1.5 h-2 w-2 shrink-0 rounded-full"
               :class="item.bad ? 'bg-bad' : item.retrying ? 'animate-pulse bg-accent' : item.done ? 'bg-neutral-400' : 'bg-edge-strong'"
             />
-            <span class="t-body" :class="item.done ? 'text-neutral-300' : 'text-neutral-600'">
+            <span class="t-body" :class="item.done ? 'text-neutral-300' : 'text-muted'">
               {{ item.label }}
             </span>
           </li>
@@ -101,13 +124,13 @@ export default {
           <p class="eyebrow">What it left</p>
           <p v-if="scoutOutcome" class="mt-3 t-body text-neutral-300">{{ scoutOutcome }}</p>
           <p v-else class="mt-3 t-body text-muted">
-            The Shot, Evidence, and stage outcomes stay in one checkable Run.
+            The Shot and every background step stay together here.
           </p>
-          <RouterLink
-            :to="{ name: 'shot', params: { shotId: shot.id } }"
-            class="mt-4 inline-block t-meta text-accent hover:text-paper"
-          >
-            Inspect the Evidence →
+          <RouterLink v-if="shootRecordTarget" :to="shootRecordTarget" class="mt-4 block t-meta text-accent hover:text-paper">
+            Open Shoot Record →
+          </RouterLink>
+          <RouterLink :to="{ name: 'shot', params: { shotId: shot.id } }" class="mt-2 block t-meta text-muted hover:text-paper">
+            Inspect this Shot →
           </RouterLink>
         </div>
       </div>

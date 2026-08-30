@@ -52,14 +52,24 @@ export default {
     storyPaths() {
       if (!this.storyActive || this.mark.kind !== 'line') return []
       const explicit = (this.mark.paths || [])
-        .map((path) => ({
-          points: this.cellPoints(path.points),
-          targets: this.cellPoints(path.leads_to),
-        }))
-        .filter((path) => path.points.length >= 2)
+        .map((path) => {
+          const targetBox = spanBox(path.leads_to)
+          const target = targetBox ? center(targetBox) : null
+          return {
+            points: this.cellPoints(path.points),
+            targets: target ? [target] : [],
+            target,
+          }
+        })
+        .filter(
+          (path) =>
+            path.points.length >= 2 &&
+            (this.mark.technique_id !== 'leading_lines' || Boolean(path.target)),
+        )
       if (explicit.length) return explicit
+      if (this.mark.technique_id === 'leading_lines') return []
       const line = collinearLine(this.mark.cells)
-      return line ? [{ points: [line.start, line.end], targets: [] }] : []
+      return line ? [{ points: [line.start, line.end], targets: [], target: null }] : []
     },
     storyBoxes() {
       if (!this.storyActive) return []
@@ -163,6 +173,9 @@ export default {
     },
   },
   methods: {
+    planeLabel(box, index) {
+      return box.role ? box.role.replace(/_/g, ' ') : `layer ${index + 1}`
+    },
     cellPoints(refs = []) {
       return refs
         .map(parseRef)
@@ -209,6 +222,18 @@ export default {
               stroke-linejoin="round"
               stroke-linecap="round"
             />
+            <line
+              v-if="path.target"
+              data-story-lead-connector
+              :x1="path.points[path.points.length - 1].x"
+              :y1="path.points[path.points.length - 1].y"
+              :x2="path.target.x"
+              :y2="path.target.y"
+              stroke="rgba(245,240,231,0.82)"
+              :stroke-width="stroke * 0.7"
+              :stroke-dasharray="`${stroke * 2} ${stroke * 1.4}`"
+              stroke-linecap="round"
+            />
             <circle
               v-for="(target, j) in path.targets"
               :key="`target-${i}-${j}`"
@@ -250,11 +275,15 @@ export default {
           <text
             v-for="(box, i) in mark.kind === 'planes' ? storyBoxes : []"
             :key="`plane-label-${i}`"
+            data-story-plane-label
             :x="box.x + stroke"
             :y="box.y + fontSize"
             fill="#f5f0e7"
-            :font-size="fontSize"
-          >{{ i + 1 }}</text>
+            stroke="rgba(0,0,0,0.72)"
+            :stroke-width="stroke * 1.6"
+            paint-order="stroke"
+            :font-size="fontSize * 0.8"
+          >{{ planeLabel(box, i) }}</text>
         </template>
 
         <template v-if="mark.kind === 'frame' && storyBoxes[0]">

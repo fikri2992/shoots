@@ -221,6 +221,15 @@ class MainActivity : ComponentActivity() {
                                     ?.let(::launchCamera)
                             }
                         },
+                        startSavedDirection = { directionId ->
+                            scope.launch {
+                                viewModel.startExperimentDirection(directionId)
+                                    ?.let { experimentId ->
+                                        viewModel.reserveCaptureSession(experimentId)
+                                    }
+                                    ?.let(::launchCamera)
+                            }
+                        },
                         completeExplore = { experimentId ->
                             scope.launch { viewModel.completeExplore(experimentId) }
                         },
@@ -257,14 +266,14 @@ class MainActivity : ComponentActivity() {
                                             putExtra(Intent.EXTRA_TEXT, draft.suggestedCaption)
                                             clipData = ClipData.newUri(
                                                 contentResolver,
-                                                "Shoots Deconstruction",
+                                                "Shoots story",
                                                 uris.first(),
                                             ).also { clips ->
                                                 uris.drop(1).forEach { clips.addItem(ClipData.Item(it)) }
                                             }
                                             addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
                                         }
-                                        startActivity(Intent.createChooser(share, "Share Deconstruction"))
+                                        startActivity(Intent.createChooser(share, "Share story"))
                                     }
                                     .onFailure {
                                         viewModel.error.value =

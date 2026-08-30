@@ -2,6 +2,7 @@
 import { mapState } from 'pinia'
 
 import DisclosureRow from '@/components/DisclosureRow.vue'
+import { humanizeLegacyText } from '@/domain/copy'
 import { useShootsStore } from '@/stores/shoots'
 
 /**
@@ -21,6 +22,9 @@ export default {
     latest() {
       return this.journey[0] || null
     },
+    latestBody() {
+      return humanizeLegacyText(this.latest?.body)
+    },
     earlier() {
       return this.journey.slice(1)
     },
@@ -32,14 +36,19 @@ export default {
       return this.latest?.provenance?.sample_size ? this.latest.provenance : null
     },
   },
+  methods: {
+    humanize(value) {
+      return humanizeLegacyText(value)
+    },
+  },
 }
 </script>
 
 <template>
   <section v-if="latest">
-    <p v-if="latest.body" class="t-hero text-balance text-neutral-100">{{ latest.body }}</p>
+    <p v-if="latestBody" class="t-hero text-balance text-neutral-100">{{ latestBody }}</p>
     <p v-else class="t-body text-neutral-400">
-      Read {{ latest.shots }} Shots. The figures are below; the words did not come back this time.
+      Shoots read {{ latest.shots }} Shots, but could not turn the pattern into a clear note this time.
     </p>
     <p class="mt-3 t-meta">{{ when }} · from {{ latest.shots }} Shots</p>
 
@@ -48,7 +57,7 @@ export default {
         <ul class="space-y-1.5">
           <li v-for="line in latest.evidence" :key="line" class="t-meta text-neutral-400">{{ line }}</li>
         </ul>
-        <p v-if="provenance" class="mt-4 t-meta text-neutral-600">
+        <p v-if="provenance" class="mt-4 t-meta text-muted">
           Computed from {{ provenance.sample_size }} Shots by {{ provenance.calc_version }}<template
             v-if="provenance.prompt_version"
           >, written by {{ provenance.model }} under prompt {{ provenance.prompt_version }}</template>.
@@ -64,7 +73,7 @@ export default {
       <DisclosureRow v-if="earlier.length" label="Earlier" :count="earlier.length">
         <ul class="space-y-4">
           <li v-for="u in earlier" :key="u.id">
-            <p class="t-body text-neutral-300">{{ u.body }}</p>
+            <p class="t-body text-neutral-300">{{ humanize(u.body) }}</p>
             <p class="mt-1 t-meta">{{ new Date(u.created_at).toLocaleDateString() }}</p>
           </li>
         </ul>

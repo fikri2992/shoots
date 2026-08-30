@@ -2,6 +2,7 @@
 import { mapState } from 'pinia'
 
 import VerdictNote from '@/components/VerdictNote.vue'
+import { scoutStory, shootSummary } from '@/domain/copy'
 import { useShootsStore } from '@/stores/shoots'
 
 /**
@@ -12,7 +13,26 @@ export default {
   name: 'IdleStep',
   components: { VerdictNote },
   computed: {
-    ...mapState(useShootsStore, ['lastVerdict', 'orderedShots', 'profile']),
+    ...mapState(useShootsStore, ['lastVerdict', 'orderedShots', 'profile', 'mobile']),
+    latestRecord() {
+      return this.mobile?.latest_shoot_record || null
+    },
+    scoutCopy() {
+      return scoutStory(this.latestRecord?.scout)
+    },
+    shootSummary() {
+      return shootSummary(this.latestRecord?.receipt)
+    },
+    recordTarget() {
+      if (!this.latestRecord) return { name: 'shots' }
+      return {
+        name: 'shoot-record',
+        params: {
+          shootId: this.latestRecord.shoot_id,
+          revision: this.latestRecord.revision,
+        },
+      }
+    },
     /**
      * One earlier Shot worth looking at again. A Keeper first, because that
      * is the photographer's own verdict; failing that the one the panel
@@ -47,16 +67,21 @@ export default {
     <p class="eyebrow">Now · Quiet</p>
     <div class="mt-6 grid gap-5 lg:grid-cols-[1fr_380px]">
       <div class="surface p-6 sm:p-9">
-        <p class="eyebrow text-accent">Scout checked the record</p>
-        <h1 class="mt-4 max-w-2xl t-hero lg:text-[48px]">No open Reproduce Experiment right now.</h1>
-        <p v-if="profile?.keepers" class="mt-5 max-w-2xl text-[16px] leading-7 text-neutral-300">
-          Scout checked the current Keeper record and stayed silent because no new supported direction won.
+        <p class="eyebrow text-accent">{{ latestRecord ? 'Your latest outing' : 'Shoots checked your work' }}</p>
+        <h1 class="mt-4 max-w-2xl t-hero lg:text-[48px]">
+          {{ latestRecord ? 'Your latest outing is ready.' : 'Nothing is asking for your attention.' }}
+        </h1>
+        <p v-if="latestRecord" class="mt-5 max-w-2xl text-[16px] leading-7 text-neutral-300">
+          {{ shootSummary }} {{ scoutCopy }}
+        </p>
+        <p v-else-if="profile?.keepers" class="mt-5 max-w-2xl text-[16px] leading-7 text-neutral-300">
+          Shoots checked your Keepers. No new question was clear enough to interrupt you with.
         </p>
         <p v-else class="mt-5 max-w-2xl text-[16px] leading-7 text-neutral-300">
-          Reproduce needs corroborated Evidence inside a Shot you marked as a Keeper. Shoots stays silent instead of turning generic advice into homework.
+          Mark a Keeper when a Shot matters to you. Until then, Shoots will not invent an assignment.
         </p>
-        <RouterLink :to="{ name: 'shots' }" class="btn-quiet mt-7 inline-flex">
-          {{ profile?.keepers ? 'Review your Keeper Shots' : 'Mark a Shot you value' }}
+        <RouterLink :to="recordTarget" class="btn-quiet mt-7 inline-flex">
+          {{ latestRecord ? 'Open the outing' : profile?.keepers ? 'Review your Keeper Shots' : 'Mark a Shot you value' }}
         </RouterLink>
       </div>
 

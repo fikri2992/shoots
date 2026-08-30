@@ -1,9 +1,8 @@
 <script>
-import { mapActions, mapState } from 'pinia'
+import { mapState } from 'pinia'
 
 import DisclosureRow from '@/components/DisclosureRow.vue'
 import { plain } from '@/domain/cells'
-import { useCoachStore } from '@/stores/coach'
 import { useShootsStore } from '@/stores/shoots'
 
 /**
@@ -32,16 +31,6 @@ export default {
       return { lead: text.slice(at + 5).trim(), body: text.slice(0, at).trim() }
     },
   },
-  methods: {
-    ...mapActions(useCoachStore, ['openFor']),
-    askWhy() {
-      this.openFor(this.verdict.shot_id, {
-        opener: this.verdict.criteria_met
-          ? 'What made this one work, and what would take it further?'
-          : 'Which of the Criteria did this miss, and why? Point at the Shot.',
-      })
-    },
-  },
 }
 </script>
 
@@ -51,14 +40,13 @@ export default {
          and nothing else. "Passed" graded them for it. -->
     <p class="t-meta">
       <span :class="verdict.criteria_met ? 'text-paper' : 'text-muted'">
-        {{ verdict.criteria_met ? 'Criteria met' : 'Not yet' }}
+        {{ verdict.criteria_met ? 'Matched every check' : 'Not yet' }}
       </span>
       <span v-if="title"> · {{ title }}</span>
     </p>
     <p class="mt-2 t-body text-neutral-100">{{ parts.lead }}</p>
 
     <div class="mt-3 flex flex-wrap items-center gap-4 t-meta">
-      <button type="button" class="text-neutral-400 hover:text-neutral-100" @click="askWhy">Ask the Coach ▸</button>
       <RouterLink :to="{ name: 'shot', params: { shotId: verdict.shot_id } }" class="hover:text-neutral-200">
         See the Shot ▸
       </RouterLink>
@@ -72,7 +60,7 @@ export default {
     </div>
 
     <div v-if="parts.body" class="mt-2">
-      <DisclosureRow label="What it looked at">
+      <DisclosureRow label="Why Shoots said that">
         <p class="t-body text-neutral-400">{{ parts.body }}</p>
       </DisclosureRow>
     </div>

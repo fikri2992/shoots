@@ -31,6 +31,14 @@ The original Claude Desktop conversation is stored locally at:
 - The conversation ends with Claude asking Fikri for three concrete memories.
   Fikri had not answered them in that session.
 
+A later ChatGPT repository and memory review is distilled in
+[chatgpt-analysis-2026-08-29.md](chatgpt-analysis-2026-08-29.md). It adds a useful
+positioning correction: lead with the missing learning record, use the Shot Teaching
+Receipt as the readable trust bridge, and make the later Experiment outcome changing
+Scout's next action the climax. Its recommendation to rename the submission-facing
+product to `Shoots` conflicts with this brief's current `ShootsAI` choice. Do not
+resolve that conflict without Fikri's decision.
+
 ## The personal truth
 
 Fikri is a beginner phone photographer with some Technique knowledge. He shoots

@@ -32,6 +32,16 @@ input {
   -webkit-tap-highlight-color: transparent;
 }
 
+button:focus-visible,
+a:focus-visible,
+input:focus-visible,
+textarea:focus-visible,
+select:focus-visible,
+[tabindex]:focus-visible {
+  outline: 3px solid var(--color-accent);
+  outline-offset: 3px;
+}
+
 ::selection {
   background: rgb(240 180 41 / 0.26);
   color: #f5f0e7;
@@ -82,6 +92,9 @@ input {
   }
   .btn-quiet {
     @apply inline-flex min-h-12 items-center justify-center gap-2 rounded-xl border border-edge-strong px-4 py-3 text-[15px] text-neutral-300 transition hover:border-neutral-500 hover:text-paper disabled:opacity-40;
+  }
+  .tap-target {
+    @apply inline-flex min-h-11 min-w-11 items-center;
   }
   .rule {
     @apply border-t border-edge;

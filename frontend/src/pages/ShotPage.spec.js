@@ -104,23 +104,24 @@ describe('ShotPage teaching receipt', () => {
     })
 
     const canvas = wrapper.findComponent(ShotCanvas)
-    expect(wrapper.text()).toContain('Visual story')
+    expect(wrapper.text()).toContain('A closer look')
     expect(wrapper.text()).toContain('1 of 4')
     expect(wrapper.text()).toContain('Negative space')
+    expect(wrapper.text()).not.toContain('Ask about this Shot')
     expect(canvas.props('mark').kind).toBe('region')
     expect(canvas.props('src')).toContain('/original.jpg')
 
     await wrapper.findAll('button').find((button) => button.text() === 'Next').trigger('click')
-    expect(wrapper.text()).toContain('WHAT SHOOTS MEASURED')
+    expect(wrapper.text()).toContain('WHAT THE CAMERA FOUND')
     expect(canvas.props('mark').kind).toBe('finding')
     expect(canvas.props('src')).toContain('/finding.jpg')
 
     await wrapper.findAll('button').find((button) => button.text() === 'Next').trigger('click')
-    expect(wrapper.text()).toContain('WHAT TO CHANGE')
+    expect(wrapper.text()).toContain('TRY THIS')
     expect(canvas.props('mark').kind).toBe('move')
 
     await wrapper.findAll('button').find((button) => button.text() === 'Next').trigger('click')
-    expect(wrapper.text()).toContain('CHECK THE NEXT SHOT')
+    expect(wrapper.text()).toContain('CHECK NEXT TIME')
     expect(canvas.props('mark').kind).toBe('move')
 
     const thirds = wrapper.findAll('button').find((button) => button.text() === 'thirds')
@@ -130,7 +131,7 @@ describe('ShotPage teaching receipt', () => {
     expect(canvas.props('src')).toContain('/original.jpg')
   })
 
-  it('draws explicit leading paths and refuses a broad legacy cell cloud', async () => {
+  it('draws leading lines only from a rendered artifact', async () => {
     const store = useShootsStore()
     const base = {
       shot: {
@@ -153,10 +154,11 @@ describe('ShotPage teaching receipt', () => {
         keep_title: 'Leading lines',
         keep_proof: 'Two pavement boundaries lead toward the subject.',
         keep_technique_id: 'leading_lines',
-        keep_mark: {
-          kind: 'line',
-          cells: ['D9', 'D7', 'D5', 'G9', 'F7', 'E5'],
-          paths: [
+          keep_mark: {
+            kind: 'line',
+            cells: ['D9', 'D7', 'D5', 'G9', 'F7', 'E5'],
+            technique_id: 'leading_lines',
+            paths: [
             { points: ['D9', 'D7', 'D5'], leads_to: ['D4', 'E4'] },
             { points: ['G9', 'F7', 'E5'], leads_to: ['D4', 'E4'] },
           ],
@@ -164,13 +166,46 @@ describe('ShotPage teaching receipt', () => {
       },
     }
     store.shots = [base]
-    const located = mount(ShotPage, {
+    const unverified = mount(ShotPage, {
       props: { shotId: 'path-shot' },
       global: { plugins: [pinia, router] },
     })
-    expect(located.text()).toContain('Leading lines')
-    expect(located.findAll('[data-story-line]')).toHaveLength(2)
-    located.unmount()
+    expect(unverified.text()).not.toContain('Leading lines')
+    expect(unverified.text()).toContain('Start with what catches your eye first.')
+    expect(unverified.find('[data-story-line]').exists()).toBe(false)
+    unverified.unmount()
+
+    store.shots = [
+      {
+        ...base,
+        teaching: {
+          ...base.teaching,
+          keep_mark: {
+            ...base.teaching.keep_mark,
+            technique_id: 'leading_lines',
+            visual_artifact: {
+              kind: 'verified_paths',
+              authority: 'located_model_read',
+              status: 'rendered',
+              verification: 'bounded',
+              label: 'Edge-checked visual path',
+              legend: 'The path follows visible edges; the Technique name remains a visual read.',
+              blob_path: 'users/u/shots/path/visual-evidence/leading-lines.jpg',
+              metrics: { path_count: 2 },
+            },
+          },
+        },
+      },
+    ]
+    const verified = mount(ShotPage, {
+      props: { shotId: 'path-shot' },
+      global: { plugins: [pinia, router] },
+    })
+    expect(verified.text()).toContain('Leading lines')
+    expect(verified.text()).toContain("Shoots' visual read")
+    expect(verified.findComponent(ShotCanvas).props('src')).toContain('leading-lines.jpg')
+    expect(verified.find('[data-story-line]').exists()).toBe(false)
+    verified.unmount()
 
     store.shots = [
       {
@@ -190,8 +225,117 @@ describe('ShotPage teaching receipt', () => {
       global: { plugins: [pinia, router] },
     })
     expect(legacy.text()).not.toContain('Leading lines')
-    expect(legacy.text()).toContain('Start with the main subject.')
+    expect(legacy.text()).toContain('Start with what catches your eye first.')
     expect(legacy.find('[data-story-line]').exists()).toBe(false)
+    legacy.unmount()
+
+    store.shots = [
+      {
+        ...base,
+        teaching: {
+          ...base.teaching,
+          keep_mark: {
+            kind: 'line',
+            cells: ['D9', 'D7', 'D5'],
+            paths: [],
+            technique_id: 'leading_lines',
+          },
+        },
+      },
+    ]
+    const untargeted = mount(ShotPage, {
+      props: { shotId: 'path-shot' },
+      global: { plugins: [pinia, router] },
+    })
+    expect(untargeted.text()).not.toContain('Leading lines')
+    expect(untargeted.text()).toContain('Start with what catches your eye first.')
+    expect(untargeted.find('[data-story-line]').exists()).toBe(false)
+  })
+
+  it('requires a rendered artifact before narrating foreground, midground, and background', () => {
+    const store = useShootsStore()
+    const base = {
+      shot: {
+        id: 'teaching-shot',
+        filename: 'ridge.jpg',
+        status: 'analyzed',
+        blobs: { original: 'users/u/shots/ridge/original.jpg' },
+        grid: { cols: 8, rows: 6, width: 800, height: 600 },
+        exif: {},
+      },
+      analysis: {
+        shot_id: 'teaching-shot',
+        techniques: [],
+        observations: ['The ridge sits beyond a bank of cloud.'],
+        findings: [],
+        composition: { subject_cells: ['D4', 'E4'], moves: [] },
+        panel: {},
+      },
+      teaching: {
+        keep_title: 'Foreground, midground, background',
+        keep_proof: 'Foreground, cloud, and ridge form three depth planes.',
+        keep_technique_id: 'layering',
+        keep_mark: {
+          kind: 'region',
+          technique_id: 'layering',
+          cells: ['B3', 'D3', 'F3', 'B5', 'D5', 'F5'],
+          regions: [],
+        },
+      },
+    }
+    store.shots = [base]
+
+    const unsupported = mount(ShotPage, {
+      props: { shotId: 'teaching-shot' },
+      global: { plugins: [pinia, router] },
+    })
+    expect(unsupported.text()).not.toContain('Foreground, midground, background')
+    expect(unsupported.text()).toContain('Start with what catches your eye first.')
+    expect(unsupported.findAll('[data-story-region]')).toHaveLength(1)
+    unsupported.unmount()
+
+    store.shots = [
+      {
+        ...base,
+        teaching: {
+          ...base.teaching,
+          keep_mark: {
+            kind: 'planes',
+            technique_id: 'layering',
+            cells: ['A6', 'D5', 'D3'],
+            regions: [
+              { cells: ['A6', 'B6', 'C6', 'D6'], role: 'foreground', order: 0 },
+              { cells: ['C5', 'D5', 'E5', 'F5'], role: 'midground', order: 1 },
+              { cells: ['C3', 'D3', 'E3', 'F3'], role: 'background', order: 2 },
+            ],
+          },
+        },
+      },
+    ]
+    const regionsOnly = mount(ShotPage, {
+      props: { shotId: 'teaching-shot' },
+      global: { plugins: [pinia, router] },
+    })
+    expect(regionsOnly.text()).not.toContain('Foreground, midground, background')
+    regionsOnly.unmount()
+
+    store.shots[0].teaching.keep_mark.visual_artifact = {
+      kind: 'geometry',
+      authority: 'relational_model_read',
+      status: 'rendered',
+      verification: 'bounded',
+      label: 'Checked depth regions',
+      legend: 'The regions are a checked visual read, not a depth measurement.',
+      blob_path: 'users/u/shots/ridge/visual-evidence/layering.jpg',
+      metrics: { region_count: 3 },
+    }
+    const supported = mount(ShotPage, {
+      props: { shotId: 'teaching-shot' },
+      global: { plugins: [pinia, router] },
+    })
+    expect(supported.text()).toContain('Foreground, midground, background')
+    expect(supported.findComponent(ShotCanvas).props('src')).toContain('layering.jpg')
+    expect(supported.findAll('[data-story-region]')).toHaveLength(0)
   })
 
   it('uses an EXIF receipt as proof without drawing unrelated geometry', () => {
@@ -254,5 +398,166 @@ describe('ShotPage teaching receipt', () => {
     expect(canvas.props('mark')).toBe(null)
     expect(wrapper.find('[data-story-line]').exists()).toBe(false)
     expect(wrapper.find('[data-story-move]').exists()).toBe(false)
+  })
+
+  it('turns Keeper-backed Technique Evidence into a saved question, not an Experiment', async () => {
+    const store = useShootsStore()
+    store.shots = [
+      {
+        shot: {
+          id: 'teaching-shot',
+          filename: 'market.jpg',
+          status: 'analyzed',
+          blobs: { original: 'users/u/shots/market/original.jpg' },
+          grid: { cols: 7, rows: 9, width: 700, height: 900 },
+          exif: {},
+        },
+        analysis: {
+          shot_id: 'teaching-shot',
+          techniques: [],
+          observations: [],
+          findings: [],
+          composition: { subject_cells: ['D4', 'E4'], moves: [] },
+          panel: {},
+        },
+        teaching: {
+          keep_title: 'Leading lines',
+          keep_proof: 'Two corridor edges converge toward the subject.',
+          keep_technique_id: 'leading_lines',
+          keep_mark: {
+            kind: 'line',
+            cells: ['D9', 'D7', 'D5', 'G9', 'F7', 'E5'],
+            technique_id: 'leading_lines',
+            paths: [
+              { points: ['D9', 'D7', 'D5'], leads_to: ['D4', 'E4'] },
+              { points: ['G9', 'F7', 'E5'], leads_to: ['D4', 'E4'] },
+            ],
+            visual_artifact: {
+              kind: 'verified_paths',
+              authority: 'located_model_read',
+              status: 'rendered',
+              verification: 'bounded',
+              label: 'Edge-checked visual path',
+              blob_path: 'users/u/shots/path/visual-evidence/leading-lines.jpg',
+              metrics: { path_count: 2 },
+            },
+          },
+        },
+        technique_context: {
+          leading_lines: {
+            technique_id: 'leading_lines',
+            status: 'recurring',
+            corroborated_shots: 6,
+            distinct_scenes: 4,
+            distinct_shoots: 3,
+            reproduce_sessions: 0,
+            evaluable_reproduce_sessions: 0,
+            criteria_met_sessions: 0,
+            positive_keeper_shots: 2,
+          },
+        },
+      },
+    ]
+    store.mobile = { experiment_directions: [] }
+
+    const wrapper = mount(ShotPage, {
+      props: { shotId: 'teaching-shot' },
+      global: { plugins: [pinia, router] },
+    })
+
+    expect(wrapper.text()).toContain('Shoots has seen this clearly in 6 Shots from 3 Shoots')
+    expect(wrapper.text()).toContain('2 Keepers are part of that')
+    expect(wrapper.text()).toContain('You have not tried to repeat this on purpose yet')
+    expect(wrapper.text()).toContain('Want to try this same choice in a different Scene?')
+    expect(wrapper.text()).toContain('Try another day')
+    expect(wrapper.text()).toContain('Leave it')
+    expect(store.experiment).toBe(null)
+
+    store.mobile = {
+      experiment_directions: [
+        {
+          id: 'direction-1',
+          source_shot_id: 'teaching-shot',
+          technique_id: 'leading_lines',
+          question: 'Could you use Leading lines deliberately in a different Scene?',
+          state: 'saved',
+        },
+      ],
+    }
+    await wrapper.vm.$nextTick()
+
+    expect(wrapper.text()).toContain('Saved for another day')
+    expect(wrapper.text()).toContain('Nothing has started yet')
+    expect(wrapper.text()).toContain('Delete saved question')
+    expect(wrapper.text()).not.toContain('Try another day')
+  })
+
+  it('opens a large tested-crop comparison with one slider control', async () => {
+    const store = useShootsStore()
+    store.shots = [
+      {
+        shot: {
+          id: 'teaching-shot',
+          filename: 'crop-test.jpg',
+          status: 'analyzed',
+          blobs: {
+            original: 'users/u/shots/crop-test/original.jpg',
+            crop: 'users/u/shots/crop-test/crop.jpg',
+          },
+          grid: { cols: 8, rows: 6, width: 800, height: 600 },
+          exif: {},
+        },
+        analysis: {
+          shot_id: 'teaching-shot',
+          techniques: [],
+          observations: [],
+          findings: [],
+          composition: {
+            subject_cells: ['D3', 'E3'],
+            moves: [
+              {
+                kind: 'crop',
+                what: 'Remove the empty left edge.',
+                to_cells: ['B1', 'H6'],
+              },
+            ],
+            suggested_crop_cells: ['B1', 'H6'],
+            crop_tested: true,
+            crop_reason: 'The tighter frame keeps the subject relationship while removing an empty edge.',
+          },
+          panel: {},
+        },
+        teaching: {},
+      },
+    ]
+
+    const wrapper = mount(ShotPage, {
+      props: { shotId: 'teaching-shot' },
+      attachTo: document.body,
+      global: { plugins: [pinia, router] },
+    })
+
+    const cropDisclosure = wrapper.findAll('button').find((button) => button.text().includes('A crop it tested'))
+    await cropDisclosure.trigger('click')
+    const preview = wrapper.find('[data-tested-crop-preview]')
+    expect(preview.exists()).toBe(true)
+    await preview.trigger('click')
+
+    expect(wrapper.find('[role="dialog"]').exists()).toBe(true)
+    expect(document.body.style.overflow).toBe('hidden')
+    expect(wrapper.find('[data-crop-comparison-stage]').exists()).toBe(true)
+    expect(wrapper.get('img[alt="Original Shot"]').attributes('src')).toContain('/original.jpg')
+    expect(wrapper.get('img[alt="Tested crop"]').attributes('src')).toContain('/crop.jpg')
+    expect(wrapper.text()).not.toContain('Flicker')
+    expect(wrapper.find('[aria-label="Comparison mode"]').exists()).toBe(false)
+    const slider = wrapper.get('input[aria-label="Before and after position"]')
+    await slider.setValue(72)
+    expect(wrapper.find('[data-crop-comparison-stage] span[style]').attributes('style')).toContain('72%')
+
+    window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }))
+    await wrapper.vm.$nextTick()
+    expect(wrapper.find('[role="dialog"]').exists()).toBe(false)
+    expect(document.body.style.overflow).not.toBe('hidden')
+    wrapper.unmount()
   })
 })

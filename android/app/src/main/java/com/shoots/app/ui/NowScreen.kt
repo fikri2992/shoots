@@ -27,6 +27,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -55,6 +56,7 @@ import com.shoots.app.R
 import com.shoots.app.WarmWhite
 import com.shoots.app.data.LocalCaptureSessionEntity
 import com.shoots.app.data.LocalCaptureState
+import com.shoots.app.data.ExperimentDirectionDto
 import com.shoots.app.data.MobileSnapshotDto
 import com.shoots.app.data.ShootDto
 import com.shoots.app.data.ShootRecordDto
@@ -84,6 +86,8 @@ fun NowScreen(
     onOpenShot: (String) -> Unit,
     onOpenShots: () -> Unit,
     onOpenExperiments: () -> Unit,
+    onStartSavedDirection: (String) -> Unit,
+    onLeaveSavedDirection: (String, String) -> Unit,
     onAnswerScoutQuestion: (String, Int, String) -> Unit,
     onOpenSettings: () -> Unit,
 ) {
@@ -91,6 +95,11 @@ fun NowScreen(
     val latest = snapshot?.recentShots?.firstOrNull()
     val latestView = snapshot?.latestShot
     val latestShoot = snapshot?.latestShoot
+    val readOnlySample = snapshot?.user?.recordMode == "sample"
+    val savedDirection = snapshot?.experimentDirections?.firstOrNull { it.state == "saved" }
+    val directionSource = savedDirection?.let { direction ->
+        snapshot.recentShots.firstOrNull { it.id == direction.sourceShotId }
+    }
     val latestRecord = snapshot?.latestShootRecord?.takeIf { record ->
         latestShoot == null || (
             latestShoot.status == "settled" &&
@@ -99,8 +108,10 @@ fun NowScreen(
             )
     }
     val focus = when {
+        readOnlySample && latestRecord != null -> "sample-receipt"
         active != null -> "session"
         latestShoot?.status in setOf("open", "closing") -> "shoot-processing"
+        snapshot?.openExperiment == null && savedDirection != null -> "saved-direction"
         latestRecord != null -> "shoot-receipt"
         latestView?.analysis != null -> "legacy-insight"
         else -> "camera"
@@ -115,7 +126,7 @@ fun NowScreen(
             .padding(horizontal = 20.dp)
             .padding(top = 18.dp, bottom = 92.dp),
     ) {
-        NowHeader(snapshot, onOpenSettings)
+        NowHeader(snapshot, onOpenSettings, readOnlySample)
         Spacer(Modifier.height(26.dp))
 
         AnimatedContent(
@@ -124,6 +135,10 @@ fun NowScreen(
             label = "Now focus",
         ) { state ->
             when (state) {
+                "sample-receipt" -> SampleShootReceiptHero(
+                    record = requireNotNull(latestRecord),
+                    onOpenShots = onOpenShots,
+                )
                 "session" -> CaptureSessionCard(
                     session = requireNotNull(active),
                     busy = busy,
@@ -137,6 +152,15 @@ fun NowScreen(
                     lastSyncedAt = source?.lastSuccessfulSyncAt.orEmpty(),
                     onOpenCamera = onOpenFreeCamera,
                     onOpenShots = onOpenShots,
+                )
+                "saved-direction" -> SavedDirectionHero(
+                    direction = requireNotNull(savedDirection),
+                    sourceShot = directionSource,
+                    imageUrl = imageUrl,
+                    busy = busy,
+                    onTryToday = onStartSavedDirection,
+                    onShootFreely = onOpenFreeCamera,
+                    onLeave = onLeaveSavedDirection,
                 )
                 "shoot-receipt" -> ShootReceiptHero(
                     record = requireNotNull(latestRecord),
@@ -172,7 +196,7 @@ fun NowScreen(
             }
         }
 
-        snapshot?.openExperiment?.takeIf { it.canStartReproduce }?.let { experiment ->
+        snapshot?.openExperiment?.takeIf { !readOnlySample && it.canStartReproduce }?.let { experiment ->
             Spacer(Modifier.height(16.dp))
             InkCard(onClick = onOpenExperiments) {
                 Row(
@@ -222,6 +246,120 @@ fun NowScreen(
 }
 
 @Composable
+private fun SampleShootReceiptHero(
+    record: ShootRecordDto,
+    onOpenShots: () -> Unit,
+) {
+    val receipt = record.receipt
+    Column(
+        Modifier
+            .fillMaxWidth()
+            .background(InkRaised, RoundedCornerShape(24.dp))
+            .border(1.dp, Hairline, RoundedCornerShape(24.dp))
+            .padding(20.dp),
+    ) {
+        Text("SAMPLE SHOOT LAYOUT", color = Amber, fontSize = 10.sp, fontWeight = FontWeight.Bold)
+        Spacer(Modifier.height(9.dp))
+        Text(
+            "${receipt.shotCount} Shot cards across ${receipt.sceneCount} sample Scene groups.",
+            color = WarmWhite,
+            fontSize = 23.sp,
+            lineHeight = 29.sp,
+            fontWeight = FontWeight.Bold,
+        )
+        Spacer(Modifier.height(9.dp))
+        Text(
+            "These values were hand-authored. No ingestion, Analysis, grouping, settlement, or Scout decision ran.",
+            color = MutedWhite,
+            fontSize = 14.sp,
+            lineHeight = 20.sp,
+        )
+        Spacer(Modifier.height(16.dp))
+        SecondaryAction("Inspect Sample Shots", onClick = onOpenShots)
+        Text(
+            "READ ONLY · KEEPER AND EXPERIMENT ACTIONS DISABLED",
+            color = MutedWhite,
+            fontSize = 9.sp,
+            modifier = Modifier.align(Alignment.CenterHorizontally).padding(top = 10.dp),
+        )
+    }
+}
+
+@Composable
+private fun SavedDirectionHero(
+    direction: ExperimentDirectionDto,
+    sourceShot: ShotDto?,
+    imageUrl: (ShotDto) -> String,
+    busy: Boolean,
+    onTryToday: (String) -> Unit,
+    onShootFreely: () -> Unit,
+    onLeave: (String, String) -> Unit,
+) {
+    Column(
+        Modifier
+            .fillMaxWidth()
+            .background(InkRaised, RoundedCornerShape(24.dp))
+            .border(1.dp, Hairline, RoundedCornerShape(24.dp))
+            .padding(18.dp),
+    ) {
+        Text("BEFORE OPENING THE CAMERA", color = Amber, fontSize = 10.sp, fontWeight = FontWeight.Bold)
+        Spacer(Modifier.height(7.dp))
+        Text(
+            "Does this question fit today?",
+            color = WarmWhite,
+            fontSize = 25.sp,
+            lineHeight = 29.sp,
+            fontWeight = FontWeight.Bold,
+        )
+        Spacer(Modifier.height(7.dp))
+        Text("Try it, or shoot normally. Neither choice is a failure.", color = MutedWhite, fontSize = 13.sp, lineHeight = 19.sp)
+        Spacer(Modifier.height(16.dp))
+        Row(
+            Modifier
+                .fillMaxWidth()
+                .background(InkSoft, RoundedCornerShape(18.dp))
+                .border(1.dp, Hairline, RoundedCornerShape(18.dp)),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            if (sourceShot != null) {
+                AsyncImage(
+                    model = imageUrl(sourceShot),
+                    contentDescription = "Source Shot for saved question",
+                    modifier = Modifier.size(94.dp).clip(RoundedCornerShape(topStart = 18.dp, bottomStart = 18.dp)),
+                    contentScale = ContentScale.Crop,
+                )
+            }
+            Column(Modifier.weight(1f).padding(14.dp)) {
+                Text("SAVED QUESTION", color = MutedWhite, fontSize = 9.sp, fontWeight = FontWeight.Bold)
+                Spacer(Modifier.height(5.dp))
+                Text(direction.question, color = WarmWhite, fontSize = 14.sp, lineHeight = 19.sp)
+                Spacer(Modifier.height(5.dp))
+                Text(
+                    "Shoots saw this clearly in ${direction.corroboratedShots} Shots across ${direction.distinctShoots} Shoots.",
+                    color = MutedWhite,
+                    fontSize = 10.sp,
+                )
+            }
+        }
+        Spacer(Modifier.height(16.dp))
+        PrimaryAction("Try it today", enabled = !busy) { onTryToday(direction.id) }
+        Spacer(Modifier.height(9.dp))
+        SecondaryAction("Shoot freely", enabled = !busy, onClick = onShootFreely)
+        Text(
+            "Only Try it today creates an Experiment.",
+            color = MutedWhite,
+            fontSize = 10.sp,
+            modifier = Modifier.align(Alignment.CenterHorizontally).padding(top = 10.dp),
+        )
+        TextButton(
+            onClick = { onLeave(direction.sourceShotId, direction.techniqueId) },
+            enabled = !busy,
+            modifier = Modifier.align(Alignment.CenterHorizontally),
+        ) { Text("Delete saved question", color = MutedWhite) }
+    }
+}
+
+@Composable
 private fun ShootProcessingHero(
     shoot: ShootDto,
     lastSyncedAt: String,
@@ -240,7 +378,7 @@ private fun ShootProcessingHero(
         Text("THIS SHOOT", color = MutedWhite, fontSize = 10.sp, fontWeight = FontWeight.Bold)
         Spacer(Modifier.height(9.dp))
         Text(
-            if (shoot.status == "closing") "Accounting for every Shot."
+            if (shoot.status == "closing") "Finishing this Shoot."
             else "Still watching this Shoot.",
             color = WarmWhite,
             fontSize = 24.sp,
@@ -251,7 +389,7 @@ private fun ShootProcessingHero(
         Text(
             "$shots ${countLabel(shots, "Shot")} across $scenes ${countLabel(scenes, "Scene")}. " +
                 if (shoot.status == "closing") {
-                    "The receipt settles after every member is accounted for."
+                    "Your summary appears after Shoots finishes reading every Shot."
                 } else {
                     "New Camera media may still join it."
                 },
@@ -283,7 +421,7 @@ private fun ShootReceiptHero(
     val receipt = record.receipt
     val lead = receipt.repeated.firstOrNull()
         ?: receipt.varied.firstOrNull()
-        ?: "Every member Shot is accounted for."
+            ?: "Every Shot from this outing is here."
     Column(
         Modifier
             .fillMaxWidth()
@@ -381,8 +519,8 @@ private fun ShootReceiptHero(
                     receipt.varied.filter { it != secondary }.forEach { EvidenceLine("Varied", it) }
                     receipt.techniques.filter { it.corroboratedShotIds.isNotEmpty() }.forEach {
                         EvidenceLine(
-                            "Technique · model read",
-                            "${it.name} was corroborated in ${it.corroboratedShotIds.size} " +
+                            "Shoots' visual read",
+                            "${it.name} appeared clearly in ${it.corroboratedShotIds.size} " +
                                 countLabel(it.corroboratedShotIds.size, "Shot") + ".",
                         )
                     }
@@ -486,7 +624,11 @@ private fun LatestInsightHero(
 }
 
 @Composable
-private fun NowHeader(snapshot: MobileSnapshotDto?, onOpenSettings: () -> Unit) {
+private fun NowHeader(
+    snapshot: MobileSnapshotDto?,
+    onOpenSettings: () -> Unit,
+    readOnlySample: Boolean,
+) {
     val name = snapshot?.user?.name.orEmpty().trim().substringBefore(' ').ifBlank { "there" }
     Row(
         Modifier.fillMaxWidth(),
@@ -496,24 +638,34 @@ private fun NowHeader(snapshot: MobileSnapshotDto?, onOpenSettings: () -> Unit) 
         Column {
             Text("SHOOTS", color = Amber, fontSize = 11.sp, fontWeight = FontWeight.Bold)
             Spacer(Modifier.height(4.dp))
-            Text("Ready when you are, $name.", color = WarmWhite, fontSize = 23.sp, lineHeight = 28.sp, fontWeight = FontWeight.Bold)
-        }
-        Box(
-            Modifier
-                .size(42.dp)
-                .clip(CircleShape)
-                .background(InkSoft)
-                .border(1.dp, Hairline, CircleShape)
-                .semantics { contentDescription = "Open settings" }
-                .clickable(role = Role.Button, onClick = onOpenSettings),
-            contentAlignment = Alignment.Center,
-        ) {
-            Icon(
-                painter = painterResource(R.drawable.ic_settings),
-                contentDescription = null,
-                tint = WarmWhite,
-                modifier = Modifier.size(20.dp),
+            Text(
+                if (readOnlySample) "Sample Record · read only." else "Ready when you are, $name.",
+                color = WarmWhite,
+                fontSize = 23.sp,
+                lineHeight = 28.sp,
+                fontWeight = FontWeight.Bold,
             )
+        }
+        if (readOnlySample) {
+            Text("FIXTURE", color = Amber, fontSize = 10.sp, fontWeight = FontWeight.Bold)
+        } else {
+            Box(
+                Modifier
+                    .size(42.dp)
+                    .clip(CircleShape)
+                    .background(InkSoft)
+                    .border(1.dp, Hairline, CircleShape)
+                    .semantics { contentDescription = "Open settings" }
+                    .clickable(role = Role.Button, onClick = onOpenSettings),
+                contentAlignment = Alignment.Center,
+            ) {
+                Icon(
+                    painter = painterResource(R.drawable.ic_settings),
+                    contentDescription = null,
+                    tint = WarmWhite,
+                    modifier = Modifier.size(20.dp),
+                )
+            }
         }
     }
 }

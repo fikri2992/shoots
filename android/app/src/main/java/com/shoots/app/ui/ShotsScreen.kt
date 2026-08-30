@@ -63,11 +63,22 @@ fun ShotsScreen(
     onRestoreInspiration: (String) -> Unit,
     onReauthenticate: () -> Unit,
     onAdd: () -> Unit,
+    readOnlySample: Boolean = false,
 ) {
     Column(Modifier.fillMaxSize().background(Ink).statusBarsPadding()) {
         Column(Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 22.dp)) {
-            ScreenTitle("Archive", "Shots", "Your work and Inspiration stay separate.")
-            SecondaryAction("Add from gallery, Files, or Google Drive", onClick = onAdd)
+            ScreenTitle(
+                if (readOnlySample) "Sample Record" else "Archive",
+                "Shots",
+                if (readOnlySample) {
+                    "Hand-authored Shot cards for inspecting the interface. Actions are disabled."
+                } else {
+                    "Your work and Inspiration stay separate."
+                },
+            )
+            if (!readOnlySample) {
+                SecondaryAction("Add from gallery, Files, or Google Drive", onClick = onAdd)
+            }
         }
         if (shots.isEmpty() && inspirations.isEmpty() && pendingImports.isEmpty()) {
             Column(
@@ -100,7 +111,7 @@ fun ShotsScreen(
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                 verticalArrangement = Arrangement.spacedBy(8.dp),
             ) {
-                items(pendingImports, key = { "local:${it.sourceId}" }) { item ->
+                items(pendingImports.filter { !readOnlySample }, key = { "local:${it.sourceId}" }) { item ->
                     PendingImportTile(item) {
                         if (item.state == ImportState.AUTH_REQUIRED) {
                             onReauthenticate()
@@ -112,7 +123,7 @@ fun ShotsScreen(
                 items(shots, key = { it.id }) { shot ->
                     ShotTile(shot, imageUrl(shot)) { onShot(shot.id) }
                 }
-                if (inspirations.isNotEmpty()) {
+                if (inspirations.isNotEmpty() && !readOnlySample) {
                     item(span = { GridItemSpan(maxLineSpan) }) {
                         Column(Modifier.fillMaxWidth().padding(top = 22.dp, bottom = 4.dp)) {
                             Text(

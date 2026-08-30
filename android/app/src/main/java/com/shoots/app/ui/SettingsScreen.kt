@@ -93,6 +93,17 @@ fun SettingsScreen(
             Text("SETTINGS", color = Amber, fontSize = 11.sp, fontWeight = FontWeight.Bold)
         }
         Spacer(Modifier.height(18.dp))
+        if (snapshot?.user?.recordMode == "sample") {
+            Text("Sample Record", color = WarmWhite, fontSize = 26.sp, lineHeight = 31.sp, fontWeight = FontWeight.Bold)
+            Spacer(Modifier.height(7.dp))
+            Text(
+                "This fixture is read-only. Account, Phone Source, Drive, notification, memory, and deletion controls are unavailable.",
+                color = MutedWhite,
+                fontSize = 14.sp,
+                lineHeight = 20.sp,
+            )
+            return@Column
+        }
         Text("Account and access", color = WarmWhite, fontSize = 26.sp, lineHeight = 31.sp, fontWeight = FontWeight.Bold)
         Spacer(Modifier.height(7.dp))
         Text(
@@ -186,7 +197,7 @@ fun SettingsScreen(
                 onToggle = { expanded = expanded.toggle("notifications") },
             ) {
                 Text(
-                    "One notification arrives after every member of an Experiment Capture Session settles. There is no alert for every Shot.",
+                    "Shoots sends one summary after it finishes the whole Experiment group. It will not interrupt you for every Shot.",
                     color = MutedWhite,
                     fontSize = 13.sp,
                     lineHeight = 19.sp,

@@ -15,13 +15,13 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
@@ -44,10 +44,12 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
@@ -62,7 +64,9 @@ import com.shoots.app.data.AnalysisDto
 import com.shoots.app.data.CompositionDto
 import com.shoots.app.data.FindingDto
 import com.shoots.app.data.GridSpecDto
+import com.shoots.app.data.ExperimentDirectionDto
 import com.shoots.app.data.ShotDto
+import com.shoots.app.data.ShotTechniqueContextDto
 import com.shoots.app.data.ShotViewDto
 import com.shoots.app.data.VisualMarkDto
 
@@ -76,6 +80,11 @@ fun ShotDetailScreen(
     onMoveToInspiration: () -> Unit = {},
     onRetry: () -> Unit,
     onOpenDrive: (String) -> Unit,
+    experimentDirections: List<ExperimentDirectionDto> = emptyList(),
+    onChooseExperimentDirection: (String, String, Boolean) -> Unit = { _, _, _ -> },
+    onOpenJourney: () -> Unit = {},
+    onOpenExperiment: () -> Unit = {},
+    readOnlySample: Boolean = false,
 ) {
     val shot = view?.shot
     Column(
@@ -144,9 +153,26 @@ fun ShotDetailScreen(
             guideRotation = guideRotation,
             onPrevious = { if (storyIndex > 0) storyIndex -= 1 },
             onNext = { if (storyIndex < story.lastIndex) storyIndex += 1 },
+            onSelectStory = { storyIndex = it.coerceIn(0, maxOf(0, story.lastIndex)) },
             onCompareGuides = { showGuidePicker = true },
             onBackToStory = { guideMode = false },
             onRotateGuide = { guideRotation = (guideRotation + 1) % 4 },
+            techniqueContext = currentStep?.mark?.techniqueId
+                ?.takeIf(String::isNotBlank)
+                ?.let(view.techniqueContext::get),
+            experimentDirection = currentStep?.mark?.techniqueId
+                ?.takeIf(String::isNotBlank)
+                ?.let { techniqueId ->
+                    experimentDirections.firstOrNull {
+                        it.sourceShotId == shot.id && it.techniqueId == techniqueId
+                    }
+                },
+            onChooseExperimentDirection = { techniqueId, save ->
+                onChooseExperimentDirection(shot.id, techniqueId, save)
+            },
+            onOpenJourney = onOpenJourney,
+            onOpenExperiment = onOpenExperiment,
+            readOnlySample = readOnlySample,
         )
 
         Column(Modifier.padding(horizontal = 20.dp, vertical = 20.dp)) {
@@ -160,8 +186,17 @@ fun ShotDetailScreen(
             Spacer(Modifier.height(5.dp))
             Text(displayTime(shot.displayTime), color = MutedWhite, fontSize = 12.sp)
             Spacer(Modifier.height(15.dp))
-            PrimaryAction(if (shot.keptAt == null) "Mark as Keeper" else "Keeper · remove mark") {
-                onKeeper(shot.keptAt == null)
+            if (readOnlySample) {
+                Text(
+                    "SAMPLE · ACTIONS DISABLED",
+                    color = Amber,
+                    fontSize = 10.sp,
+                    fontWeight = FontWeight.Bold,
+                )
+            } else {
+                PrimaryAction(if (shot.keptAt == null) "Mark as Keeper" else "Keeper · remove mark") {
+                    onKeeper(shot.keptAt == null)
+                }
             }
             Spacer(Modifier.height(22.dp))
 
@@ -200,18 +235,21 @@ fun ShotDetailScreen(
                     view = view,
                     expanded = provenance,
                     onToggle = { provenance = !provenance },
+                    readOnlySample = readOnlySample,
                 )
             }
             if (shot.driveReviewUrl.isNotBlank()) {
                 Spacer(Modifier.height(20.dp))
                 SecondaryAction("Open reviewed copy in Drive") { onOpenDrive(shot.driveReviewUrl) }
             }
-            Spacer(Modifier.height(20.dp))
-            SecondaryAction("This is Inspiration, not my Shot") {
-                confirmInspiration = true
+            if (!readOnlySample) {
+                Spacer(Modifier.height(20.dp))
+                SecondaryAction("This is Inspiration, not my Shot") {
+                    confirmInspiration = true
+                }
             }
         }
-        if (confirmInspiration) {
+        if (!readOnlySample && confirmInspiration) {
             AlertDialog(
                 onDismissRequest = { confirmInspiration = false },
                 title = { Text("Move to Inspiration?") },
@@ -296,11 +334,11 @@ private fun AnalysisDisclosure(
 ) {
     InkCard {
         DisclosureHeader(
-            title = "Full Analysis",
+            title = "Behind the read",
             summary = buildList {
-                if (analysis.findings.isNotEmpty()) add("${analysis.findings.size} Findings")
-                if (corroborated.isNotEmpty()) add("${corroborated.size} corroborated")
-            }.joinToString(" · ").ifBlank { "Evidence and model read" },
+                if (analysis.findings.isNotEmpty()) add("${analysis.findings.size} camera checks")
+                if (corroborated.isNotEmpty()) add("${corroborated.size} clear choices")
+            }.joinToString(" · ").ifBlank { "How Shoots read it" },
             expanded = expanded,
             onToggle = onToggle,
         )
@@ -308,13 +346,13 @@ private fun AnalysisDisclosure(
             Column(Modifier.fillMaxWidth().padding(top = 16.dp)) {
                 if (corroborated.isEmpty()) {
                     Text(
-                        "The panel did not corroborate a Technique in this Shot.",
+                        "Shoots did not see a Technique clearly enough to name here.",
                         color = MutedWhite,
                         fontSize = 13.sp,
                         lineHeight = 19.sp,
                     )
                 } else if (corroborated.size > 1) {
-                    Text("OTHER CORROBORATED TECHNIQUES", color = MutedWhite, fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                    Text("OTHER CLEAR TECHNIQUES", color = MutedWhite, fontSize = 10.sp, fontWeight = FontWeight.Bold)
                     Spacer(Modifier.height(7.dp))
                     corroborated.drop(1).forEach { evidence ->
                         Text(
@@ -328,7 +366,7 @@ private fun AnalysisDisclosure(
 
                 if (analysis.findings.isNotEmpty()) {
                     Spacer(Modifier.height(17.dp))
-                    Text("MEASURED FINDINGS", color = MutedWhite, fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                    Text("CAMERA MEASUREMENTS", color = MutedWhite, fontSize = 10.sp, fontWeight = FontWeight.Bold)
                     Spacer(Modifier.height(4.dp))
                     Text("Tap one to mark its location on the Shot.", color = MutedWhite, fontSize = 12.sp)
                     Spacer(Modifier.height(9.dp))
@@ -417,14 +455,19 @@ private fun ProvenanceDisclosure(
     view: ShotViewDto,
     expanded: Boolean,
     onToggle: () -> Unit,
+    readOnlySample: Boolean,
 ) {
     val shot = view.shot
     val run = view.run
     val analysis = view.analysis
     InkCard {
         DisclosureHeader(
-            title = "Run and provenance",
-            summary = run?.status?.let(::humanLabel).orEmpty().ifBlank { "Technical record" },
+            title = if (readOnlySample) "Sample workflow layout" else "Run and provenance",
+            summary = if (readOnlySample) {
+                "Fixture · no agents ran"
+            } else {
+                run?.status?.let(::humanLabel).orEmpty().ifBlank { "Technical record" }
+            },
             expanded = expanded,
             onToggle = onToggle,
         )
@@ -508,9 +551,16 @@ private fun ShotImage(
     guideRotation: Int,
     onPrevious: () -> Unit,
     onNext: () -> Unit,
+    onSelectStory: (Int) -> Unit,
     onCompareGuides: () -> Unit,
     onBackToStory: () -> Unit,
     onRotateGuide: () -> Unit,
+    techniqueContext: ShotTechniqueContextDto?,
+    experimentDirection: ExperimentDirectionDto?,
+    onChooseExperimentDirection: (String, Boolean) -> Unit,
+    onOpenJourney: () -> Unit,
+    onOpenExperiment: () -> Unit,
+    readOnlySample: Boolean,
 ) {
     val grid = shot.grid
     val composition = analysis?.composition
@@ -525,20 +575,23 @@ private fun ShotImage(
         ?.takeIf { it.width > 0 && it.height > 0 }
         ?.let { it.width.toFloat() / it.height.toFloat() }
         ?: (4f / 3f)
+    val configuration = LocalConfiguration.current
+    val naturalHeight = configuration.screenWidthDp / ratio
+    val imageHeight = minOf(
+        naturalHeight,
+        (configuration.screenHeightDp - 360).coerceIn(320, 500).toFloat(),
+    )
+    val imageWidth = imageHeight * ratio
     var horizontalDrag by remember { mutableFloatStateOf(0f) }
     var showClean by remember(storyIndex, guideMode) { mutableStateOf(false) }
-    Column(Modifier.fillMaxWidth().background(InkRaised)) {
-        if (step != null) {
-            StoryHeader(
-                current = storyIndex,
-                total = story.size,
-                guideMode = guideMode,
-            )
-        }
+    Column(
+        Modifier.fillMaxWidth().background(InkRaised),
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
         Box(
             Modifier
-                .fillMaxWidth()
-                .aspectRatio(ratio)
+                .width(imageWidth.dp)
+                .height(imageHeight.dp)
                 .pointerInput(storyIndex, story.size, guideMode) {
                     if (!guideMode) {
                         detectHorizontalDragGestures(
@@ -608,16 +661,13 @@ private fun ShotImage(
                             modifier = Modifier.fillMaxSize(),
                         )
                     }
-                    if (guideMode) {
-                        Text(
-                            "GUIDE · ${guideLabel(selectedGuide).uppercase()}",
-                            color = WarmWhite,
-                            fontSize = 10.sp,
-                            fontWeight = FontWeight.Bold,
-                            modifier = Modifier
-                                .align(Alignment.TopEnd)
-                                .background(Ink.copy(alpha = 0.78f))
-                                .padding(horizontal = 8.dp, vertical = 6.dp),
+                    if (step != null) {
+                        StoryHeader(
+                            current = storyIndex,
+                            total = story.size,
+                            guideMode = guideMode,
+                            onSelect = onSelectStory,
+                            modifier = Modifier.align(Alignment.TopStart),
                         )
                     }
                 }
@@ -641,6 +691,12 @@ private fun ShotImage(
                 onCompareGuides = onCompareGuides,
                 showClean = showClean,
                 onToggleClean = { showClean = !showClean },
+                techniqueContext = techniqueContext,
+                experimentDirection = experimentDirection,
+                onChooseExperimentDirection = onChooseExperimentDirection,
+                onOpenJourney = onOpenJourney,
+                onOpenExperiment = onOpenExperiment,
+                readOnlySample = readOnlySample,
             )
         }
     }
@@ -651,8 +707,15 @@ private fun StoryHeader(
     current: Int,
     total: Int,
     guideMode: Boolean,
+    onSelect: (Int) -> Unit,
+    modifier: Modifier = Modifier,
 ) {
-    Column(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 13.dp)) {
+    Column(
+        modifier
+            .fillMaxWidth()
+            .background(Ink.copy(alpha = 0.78f))
+            .padding(horizontal = 14.dp, vertical = 10.dp),
+    ) {
         Row(
             Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween,
@@ -662,17 +725,27 @@ private fun StoryHeader(
             Text(if (guideMode) "INSPECTION ONLY" else "${current + 1} of $total", color = MutedWhite, fontSize = 10.sp)
         }
         if (!guideMode && total > 1) {
-            Spacer(Modifier.height(9.dp))
-            Row(horizontalArrangement = Arrangement.spacedBy(7.dp)) {
+            Spacer(Modifier.height(3.dp))
+            Row(horizontalArrangement = Arrangement.spacedBy(1.dp)) {
                 repeat(total) { index ->
                     Box(
                         Modifier
-                            .size(if (index == current) 7.dp else 6.dp)
-                            .background(
-                                if (index == current) Amber else MutedWhite.copy(alpha = 0.4f),
-                                RoundedCornerShape(99.dp),
-                            )
-                    )
+                            .size(28.dp)
+                            .clickable(role = Role.Button) { onSelect(index) }
+                            .semantics {
+                                stateDescription = if (index == current) "Selected" else "Not selected"
+                            },
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        Box(
+                            Modifier
+                                .size(if (index == current) 7.dp else 6.dp)
+                                .background(
+                                    if (index == current) Amber else MutedWhite.copy(alpha = 0.4f),
+                                    RoundedCornerShape(99.dp),
+                                )
+                        )
+                    }
                 }
             }
         }
@@ -689,22 +762,110 @@ private fun VisualStoryCard(
     onCompareGuides: () -> Unit,
     showClean: Boolean,
     onToggleClean: () -> Unit,
+    techniqueContext: ShotTechniqueContextDto?,
+    experimentDirection: ExperimentDirectionDto?,
+    onChooseExperimentDirection: (String, Boolean) -> Unit,
+    onOpenJourney: () -> Unit,
+    onOpenExperiment: () -> Unit,
+    readOnlySample: Boolean,
 ) {
-    Column(Modifier.fillMaxWidth().padding(16.dp)) {
+    Column(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 13.dp)) {
         val labelColour = when (step.layer) {
             ReviewLayer.FINDING -> FindingRed
             ReviewLayer.ACTION -> Amber
             else -> MutedWhite
         }
         Text(step.label, color = labelColour, fontSize = 10.sp, fontWeight = FontWeight.Bold)
-        Spacer(Modifier.height(6.dp))
-        Text(step.title, color = WarmWhite, fontSize = 18.sp, lineHeight = 24.sp, fontWeight = FontWeight.Bold)
+        Spacer(Modifier.height(4.dp))
+        Text(step.title, color = WarmWhite, fontSize = 18.sp, lineHeight = 22.sp, fontWeight = FontWeight.Bold)
         if (step.body.isNotBlank()) {
-            Spacer(Modifier.height(6.dp))
-            Text(step.body, color = MutedWhite, fontSize = 13.sp, lineHeight = 19.sp)
+            Spacer(Modifier.height(4.dp))
+            Text(
+                step.body,
+                color = MutedWhite,
+                fontSize = 12.sp,
+                lineHeight = 17.sp,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
+            )
+        }
+        techniqueContext?.let { context ->
+            Spacer(Modifier.height(9.dp))
+            Text(
+                techniqueHistoryLine(context),
+                color = WarmWhite,
+                fontSize = 12.sp,
+                lineHeight = 17.sp,
+                fontWeight = FontWeight.SemiBold,
+            )
+            Text(repeatabilityLine(context), color = if (context.criteriaMetSessions > 0) Amber else MutedWhite, fontSize = 11.sp, lineHeight = 16.sp)
+            when {
+                readOnlySample -> {
+                    Text(
+                        "Sample layout only. No Keeper or Experiment can be saved.",
+                        color = MutedWhite,
+                        fontSize = 10.sp,
+                        lineHeight = 14.sp,
+                    )
+                }
+                context.reproduceSessions > 0 -> {
+                    TextButton(onClick = onOpenJourney) { Text("See where it appears again") }
+                }
+                experimentDirection?.state == "started" -> {
+                    TextButton(onClick = onOpenExperiment) { Text("Open Experiment") }
+                }
+                experimentDirection?.state == "saved" -> {
+                    Spacer(Modifier.height(9.dp))
+                    Text("SAVED FOR ANOTHER DAY", color = Amber, fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                    Text(
+                        experimentDirection.question,
+                        color = WarmWhite,
+                        fontSize = 13.sp,
+                        lineHeight = 18.sp,
+                    )
+                    Text("Nothing has started yet.", color = MutedWhite, fontSize = 10.sp)
+                    TextButton(
+                        onClick = { onChooseExperimentDirection(context.techniqueId, false) },
+                    ) { Text("Delete saved question") }
+                }
+                experimentDirection?.state == "left" -> {
+                    Text(
+                        "You left this question. No Experiment was created.",
+                        color = MutedWhite,
+                        fontSize = 10.sp,
+                        lineHeight = 14.sp,
+                    )
+                }
+                context.positiveKeeperShots > 0 -> {
+                    Spacer(Modifier.height(9.dp))
+                    Text("A QUESTION FOR ANOTHER DAY", color = Amber, fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                    Text(
+                        "Want to try this same choice in a different Scene?",
+                        color = WarmWhite,
+                        fontSize = 13.sp,
+                        lineHeight = 18.sp,
+                    )
+                    Spacer(Modifier.height(8.dp))
+                    PrimaryAction("Try another day") {
+                        onChooseExperimentDirection(context.techniqueId, true)
+                    }
+                    TextButton(
+                        onClick = { onChooseExperimentDirection(context.techniqueId, false) },
+                        modifier = Modifier.align(Alignment.CenterHorizontally),
+                    ) { Text("Leave it", color = MutedWhite) }
+                }
+                else -> {
+                    Text(
+                        "Mark a Keeper if this is a choice you may want to try again.",
+                        color = MutedWhite,
+                        fontSize = 10.sp,
+                        lineHeight = 14.sp,
+                    )
+                }
+            }
         }
         step.mark.visualArtifact?.takeIf { it.status != "unresolved" }?.let { artifact ->
-            Spacer(Modifier.height(10.dp))
+            Spacer(Modifier.height(7.dp))
             val authorityLine = buildList {
                 add(humanLabel(artifact.authority))
                 if (
@@ -719,22 +880,29 @@ private fun VisualStoryCard(
                 fontWeight = FontWeight.SemiBold,
             )
             if (artifact.legend.isNotBlank()) {
-                Spacer(Modifier.height(3.dp))
-                Text(artifact.legend, color = MutedWhite, fontSize = 11.sp, lineHeight = 16.sp)
+                Text(
+                    artifact.legend,
+                    color = MutedWhite,
+                    fontSize = 10.sp,
+                    lineHeight = 14.sp,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
             }
             if (artifact.metrics.isNotEmpty()) {
-                Spacer(Modifier.height(5.dp))
                 Text(
                     artifact.metrics.entries.take(3).joinToString(" · ") { (key, value) ->
-                        "${humanLabel(key)} ${value.toString().trim('"')}"
+                        "${metricLabel(key)} ${value.toString().trim('"')}"
                     },
                     color = MutedWhite,
                     fontSize = 10.sp,
                     lineHeight = 14.sp,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
                 )
             }
         }
-        Spacer(Modifier.height(13.dp))
+        Spacer(Modifier.height(8.dp))
         Row(
             Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween,
@@ -750,8 +918,48 @@ private fun VisualStoryCard(
                 Text(if (hasNext) "Next" else "End")
             }
         }
-        SecondaryAction("Compare guides", onClick = onCompareGuides)
+        TextButton(onClick = onCompareGuides, modifier = Modifier.align(Alignment.CenterHorizontally)) {
+            Text("Compare guides")
+        }
     }
+}
+
+private fun techniqueHistoryLine(context: ShotTechniqueContextDto): String {
+    val keepers = context.positiveKeeperShots.takeIf { it > 0 }?.let {
+        " $it ${if (it == 1) "Keeper is" else "Keepers are"} part of that."
+    }.orEmpty()
+    return when (context.corroboratedShots) {
+        0 -> "Shoots has not seen this clearly in another Shot yet.$keepers"
+        1 -> "This is the first clear sighting in your Shoots record.$keepers"
+        2 -> "Shoots has seen this clearly in 2 Shots. It becomes recurring at 3.$keepers"
+        else -> buildList {
+            add("Shoots has seen this clearly in ${context.corroboratedShots} Shots")
+            if (context.distinctShoots > 0) {
+                add("from ${context.distinctShoots} ${if (context.distinctShoots == 1) "Shoot" else "Shoots"}")
+            }
+        }.joinToString(" ") + "." + keepers
+    }
+}
+
+private fun repeatabilityLine(context: ShotTechniqueContextDto): String = when {
+    context.reproduceSessions == 0 -> "You have not tried to repeat this on purpose yet."
+    context.evaluableReproduceSessions == 0 ->
+        "You tried this in ${context.reproduceSessions} ${if (context.reproduceSessions == 1) "session" else "sessions"}, but none could be checked."
+    context.criteriaMetSessions == 0 ->
+        "${context.evaluableReproduceSessions} ${if (context.evaluableReproduceSessions == 1) "session was" else "sessions were"} checked. None matched every check yet."
+    else ->
+        "${context.criteriaMetSessions} of ${context.evaluableReproduceSessions} checked ${if (context.evaluableReproduceSessions == 1) "session" else "sessions"} matched what you set before shooting."
+}
+
+private fun metricLabel(key: String): String = when (key) {
+    "mean_luma" -> "average brightness"
+    "p05_luma" -> "darkest areas"
+    "p95_luma" -> "brightest areas"
+    "mean_saturation_pct" -> "average saturation"
+    "p95_saturation_pct" -> "strongest saturation"
+    "clipped_highlights_pct" -> "pure white"
+    "colour_temperature_k" -> "colour temperature"
+    else -> humanLabel(key)
 }
 
 @Composable
@@ -774,9 +982,9 @@ private fun GuideStoryCard(
         Spacer(Modifier.height(6.dp))
         Text(
             if (selectedGuide == suggestedGuide && suggestedGuide.isNotBlank()) {
-                "Shoots suggested this guide from the stored composition read."
+                "Shoots suggested this guide from how it read the Shot."
             } else {
-                "This is a viewing lens. It does not rewrite how the Shot was read."
+                "This guide is only for looking. It will not change Shoots' read."
             },
             color = MutedWhite,
             fontSize = 13.sp,
@@ -816,7 +1024,7 @@ private fun GuidePickerSheet(
     ) {
         Column(Modifier.fillMaxWidth().padding(bottom = 24.dp)) {
             Text("Choose a guide", color = WarmWhite, fontSize = 20.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(horizontal = 20.dp, vertical = 12.dp))
-            Text("Inspect the Shot without changing its Analysis.", color = MutedWhite, fontSize = 13.sp, modifier = Modifier.padding(horizontal = 20.dp).padding(bottom = 10.dp))
+            Text("Try a guide without changing Shoots' read.", color = MutedWhite, fontSize = 13.sp, modifier = Modifier.padding(horizontal = 20.dp).padding(bottom = 10.dp))
             options.forEachIndexed { index, (id, label) ->
                 Row(
                     Modifier

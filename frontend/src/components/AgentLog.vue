@@ -54,20 +54,20 @@ export default {
             .filter((t) => t.agreement >= 2)
             .map((t) => t.id.replace(/_/g, ' '))
             .join(', ')
-          return seen ? `agreed on ${seen}` : 'read it; nothing confirmed'
+          return seen ? `saw ${seen} clearly` : 'read it; nothing was clear enough to name'
         }
         case 'cartographer.mapped':
           return (d.changes || [])
             .map((c) => `${c.technique_id.replace(/_/g, ' ')}: ${c.from} → ${c.to}`)
             .join(' · ')
         case 'cartographer.map_unchanged':
-          return 'checked the Technique Map; no state changed'
+          return 'checked what has appeared before; nothing changed'
         case 'judge.criteria_met':
-          return `criteria met for ${d.technique_id?.replace(/_/g, ' ')}`
+          return `matched every check for ${d.technique_id?.replace(/_/g, ' ')}`
         case 'judge.criteria_not_met':
           return `not yet: ${d.technique_id?.replace(/_/g, ' ')}`
         case 'judge.abstained':
-          return `abstained: ${d.reason}`
+          return `could not check this result: ${d.reason}`
         case 'judge.preflight':
           return d.ready ? `pre-flight cleared it · ${d.say}` : `pre-flight said shoot again · ${d.say}`
         case 'scout.issued':
@@ -79,7 +79,7 @@ export default {
         case 'scout.held':
           return d.reason || 'kept the current Experiment open'
         case 'scout.change_checked':
-          return `checked its own advice: ${d.state} · ${d.outcome}`
+          return `compared what happened later: ${d.state} · ${d.outcome}`
         case 'scribe.reviewed':
         case 'scribe.updated':
           return `wrote the review into Drive · ${d.name}`
@@ -120,16 +120,16 @@ export default {
 
 <template>
   <ol class="space-y-3">
-    <li v-for="r in rows" :key="r.id" class="flex gap-3">
-      <span class="w-10 shrink-0 t-num text-[11px] leading-5 text-neutral-600">{{ r.when }}</span>
+    <li v-for="r in rows" :key="r.id" class="flex min-h-11 items-center gap-3">
+      <span class="w-10 shrink-0 t-num text-[11px] leading-5 text-muted">{{ r.when }}</span>
       <span class="min-w-0 flex-1">
         <span class="t-body text-neutral-300">
-          <span class="text-neutral-500">{{ r.agent }}</span>
-          <RouterLink v-if="r.shot_id" :to="{ name: 'shot', params: { shotId: r.shot_id } }" class="hover:text-neutral-100">
+          <span class="text-muted">{{ r.agent }}</span>
+          <RouterLink v-if="r.shot_id" :to="{ name: 'shot', params: { shotId: r.shot_id } }" class="inline-flex min-h-11 min-w-0 items-center break-all underline decoration-edge-strong underline-offset-4 hover:text-neutral-100">
             {{ r.line }}
           </RouterLink>
           <template v-else>{{ r.line }}</template>
-          <span v-if="r.repeats > 1" class="t-num text-[11px] text-neutral-600"> ×{{ r.repeats }}</span>
+          <span v-if="r.repeats > 1" class="t-num text-[11px] text-muted"> ×{{ r.repeats }}</span>
         </span>
       </span>
     </li>

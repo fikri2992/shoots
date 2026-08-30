@@ -70,7 +70,16 @@ interface ShootsApi {
     @POST("api/experiments/issue")
     suspend fun issueExperiment(
         @Query("force") force: Boolean = false,
+        @Query("technique_id") techniqueId: String = "",
     ): Response<okhttp3.ResponseBody>
+
+    @PUT("api/experiment-directions")
+    suspend fun chooseExperimentDirection(
+        @Body body: ExperimentDirectionChoiceRequest,
+    ): ExperimentDirectionDto
+
+    @POST("api/experiment-directions/{id}/start")
+    suspend fun startExperimentDirection(@Path("id") id: String): ExperimentDto
 
     @POST("api/experiments/explore")
     suspend fun issueExplore(

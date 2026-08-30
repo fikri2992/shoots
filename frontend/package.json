@@ -5,6 +5,9 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "prototype:journey": "vite --open /journey?variant=A",
+    "prototype:keeper": "vite --open /prototype/keeper?variant=D",
+    "prototype:visual-loop": "vite --open /prototype/visual-loop?variant=D",
     "build": "vite build",
     "preview": "vite preview",
     "test": "vitest run"

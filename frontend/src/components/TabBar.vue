@@ -17,7 +17,9 @@ export default {
   },
   computed: {
     current() {
-      return this.$route.name === 'shot' ? 'shots' : this.$route.name
+      if (this.$route.name === 'shot') return 'shots'
+      if (this.$route.name === 'shoot-record') return 'now'
+      return this.$route.name
     },
   },
 }

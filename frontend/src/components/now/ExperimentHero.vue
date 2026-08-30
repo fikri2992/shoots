@@ -1,6 +1,7 @@
 <script>
 import { mapActions, mapState } from 'pinia'
 
+import CompanionReceipt from '@/components/CompanionReceipt.vue'
 import DisclosureRow from '@/components/DisclosureRow.vue'
 import ShootAction from '@/components/ShootAction.vue'
 import VerdictNote from '@/components/VerdictNote.vue'
@@ -28,10 +29,10 @@ function clock(iso) {
 
 export default {
   name: 'ExperimentHero',
-  components: { DisclosureRow, ShootAction, VerdictNote },
+  components: { CompanionReceipt, DisclosureRow, ShootAction, VerdictNote },
   props: { experiment: { type: Object, required: true } },
   computed: {
-    ...mapState(useShootsStore, ['busy', 'shotById']),
+    ...mapState(useShootsStore, ['busy', 'mobile', 'shotById']),
     isExplore() {
       return this.experiment.type === 'explore'
     },
@@ -84,6 +85,64 @@ export default {
       const path = this.referenceView?.shot?.blobs?.thumb
       return path ? `/api/blobs/${path}` : ''
     },
+    captureSession() {
+      const session = this.mobile?.latest_capture_session
+      return session?.experiment_id === this.experiment.id ? session : null
+    },
+    intervention() {
+      return (this.mobile?.recent_interventions || []).find(
+        (item) => item.experiment_id === this.experiment.id,
+      ) || null
+    },
+    startedDirection() {
+      return (this.mobile?.experiment_directions || []).find(
+        (item) => item.started_experiment_id === this.experiment.id,
+      ) || null
+    },
+    resultSummary() {
+      if (!this.resultCount) {
+        if (this.captureSession) {
+          return `Your Camera handoff is ${this.captureSession.status.replace(/_/g, ' ')}. No result Shot is ready yet.`
+        }
+        return 'No result yet. The Experiment starts only when you choose it in the Android app.'
+      }
+      const met = this.attempts.filter((verdict) => verdict.criteria_met).length
+      const abstained = Math.max(0, this.resultCount - this.attempts.length)
+      const bits = [`${this.resultCount} result ${this.resultCount === 1 ? 'Shot' : 'Shots'}`]
+      if (this.attempts.length) bits.push(`${met} matched every check`)
+      if (abstained) bits.push(`${abstained} could not be checked`)
+      return `${bits.join(' · ')}. Shoots keeps every try.`
+    },
+    receiptItems() {
+      const criteriaCount = this.criteria.length + this.cameraRules.length
+      const openedBy = this.startedDirection
+        ? 'You chose to start a question you saved earlier.'
+        : this.intervention?.attempt_state === 'entered' || this.captureSession
+          ? 'You chose to try this Experiment with the normal Camera.'
+          : this.intervention?.attempt_state === 'left'
+            ? 'You left this optional Experiment.'
+            : 'Shoots offered this Experiment. It starts only if you choose it.'
+      let next = 'Open the normal Camera from Android when this fits. Otherwise, keep shooting freely.'
+      if (this.resultCount && this.experiment.status === 'open') {
+        next = 'Look at the result first. Try again only if you want to.'
+      } else if (this.experiment.change) {
+        next = `Journey found the newer Shots ${this.experiment.change.state}. It does not claim this Experiment caused that.`
+      } else if (this.experiment.status !== 'open') {
+        next = 'Keep shooting. One result is too early to call a lasting Change.'
+      }
+      return [
+        {
+          label: 'Shoots handled',
+          text: this.isExplore
+            ? `Prepared ${this.experiment.variations?.length || 0} different ways to try the same idea. None is graded.`
+            : `Kept your reference Shot and ${criteriaCount} ${criteriaCount === 1 ? 'check' : 'checks'} fixed before you shoot.`,
+          state: 'done',
+        },
+        { label: 'You decided', text: openedBy, state: this.startedDirection || this.captureSession ? 'done' : 'waiting' },
+        { label: 'The result', text: this.resultSummary, state: this.resultCount ? 'done' : 'waiting' },
+        { label: 'Next', text: next, state: 'current' },
+      ]
+    },
   },
   methods: {
     ...mapActions(useShootsStore, ['leaveExperiment', 'completeExplore']),
@@ -96,9 +155,9 @@ export default {
     <header class="flex items-end justify-between gap-5">
       <div>
         <p class="eyebrow">Now</p>
-        <p class="mt-1 text-sm text-muted">One optional Experiment. Free Shots remain free.</p>
+        <p class="mt-1 text-sm text-muted">One idea, only if you want it.</p>
       </div>
-      <p class="hidden max-w-xs text-right t-meta sm:block">The Companion waits until you choose to use it.</p>
+      <p class="hidden max-w-xs text-right t-meta sm:block">Your normal shooting stays untouched.</p>
     </header>
 
     <section v-if="!supported" class="surface mt-7 p-6 sm:p-8">
@@ -122,6 +181,8 @@ export default {
           </div>
           <h1 class="mt-5 max-w-3xl t-hero lg:text-[48px]">{{ experiment.title }}</h1>
 
+          <CompanionReceipt class="mt-7" title="What Shoots handles for you" :items="receiptItems" compact />
+
           <RouterLink
             v-if="!isExplore && referenceView"
             :to="{ name: 'shot', params: { shotId: experiment.reference_shot_id } }"
@@ -136,7 +197,7 @@ export default {
           </RouterLink>
 
           <div v-if="!isExplore" class="mt-8 border-t border-edge pt-7">
-            <p class="eyebrow">Declared before the result</p>
+            <p class="eyebrow">What you are trying to repeat</p>
             <ol class="mt-4 space-y-3">
               <li v-for="(criterion, index) in criteria" :key="index" class="flex gap-4 rounded-xl bg-panel-2/55 px-4 py-3.5">
                 <span class="t-num text-[12px] text-accent">0{{ index + 1 }}</span>
@@ -163,7 +224,7 @@ export default {
           <div v-if="!isExplore && attempts.length" class="mt-7 surface-soft p-4">
             <p class="eyebrow mb-3">Latest result</p>
             <VerdictNote :verdict="attempts[0]" />
-            <p v-if="resultCount > 1" class="mt-3 t-meta">{{ resultCount }} explicit result Shots recorded</p>
+            <p v-if="resultCount > 1" class="mt-3 t-meta">{{ resultCount }} result Shots are here</p>
           </div>
         </div>
       </section>
@@ -187,7 +248,7 @@ export default {
         </div>
 
         <div v-if="isExplore && resultCount" class="mt-6">
-          <p class="t-meta">{{ resultCount }} explicit result Shot{{ resultCount === 1 ? '' : 's' }} · no Verdict</p>
+          <p class="t-meta">{{ resultCount }} result Shot{{ resultCount === 1 ? '' : 's' }} · nothing is graded</p>
           <button class="btn-quiet mt-3 w-full" :disabled="busy === 'complete-explore'" @click="completeExplore(experiment.id)">
             {{ busy === 'complete-explore' ? 'Finishing…' : 'Finish Explore' }}
           </button>

@@ -39,12 +39,12 @@ export default {
 <template>
   <section v-if="profile && profile.shots">
     <header class="flex items-baseline justify-between">
-      <h2 class="t-title">Full Tendency distributions</h2>
+      <h2 class="t-title">All patterns</h2>
       <span class="t-meta">{{ profile.shots }} Shots read</span>
     </header>
 
     <p v-if="profile.walks_on" class="mt-3 t-body text-neutral-300">
-      {{ profile.scenes }} Scenes, {{ profile.shots_per_scene }} Shots each — you usually take one and move on.
+      You made {{ profile.shots_per_scene }} Shot{{ profile.shots_per_scene === 1 ? '' : 's' }} per Scene across {{ profile.scenes }} Scene{{ profile.scenes === 1 ? '' : 's' }}. You usually take one and move on.
     </p>
 
     <ul class="mt-6 grid gap-4 md:grid-cols-2">
@@ -56,7 +56,7 @@ export default {
             <span v-else-if="d.narrow" class="t-meta text-neutral-300">barely varies</span>
           </span>
         </div>
-        <p class="mt-1 t-meta">{{ d.source }}</p>
+        <p class="mt-1 t-meta">{{ d.source === 'model read' ? "Shoots' visual read" : 'Measured from the files' }}</p>
 
         <ul class="mt-4 grid grid-cols-2 gap-2">
           <li
@@ -74,18 +74,18 @@ export default {
           </li>
         </ul>
 
-        <p v-if="d.unreadable" class="mt-1 t-meta text-neutral-600">
-          {{ d.unreadable }} Shots could not be read on this
+        <p v-if="d.unreadable" class="mt-1 t-meta text-muted">
+          {{ d.unreadable }} Shots do not carry enough information for this
         </p>
       </li>
     </ul>
 
-    <p v-if="!profile.taste_is_known" class="mt-6 t-meta text-neutral-500">
+    <p v-if="!profile.taste_is_known" class="mt-6 t-meta text-muted">
       Mark a few Shots you like and this can show where your Keepers gather. Leaving a Shot unmarked says nothing about it.
     </p>
 
     <div v-if="unread.length" class="mt-6">
-      <p class="eyebrow">Still cannot see</p>
+      <p class="eyebrow">Still unclear</p>
       <ul class="mt-2 flex flex-wrap gap-2">
         <li v-for="d in unread" :key="d.id" class="rounded-lg border border-dashed border-edge px-2.5 py-1.5 t-meta">{{ d.label }}</li>
       </ul>

@@ -115,7 +115,12 @@ Change a prompt, threshold, detector, or projection only after the same failure 
 appears across multiple defensible labels. Save the before and after reports. A nicer
 single example is not evidence of a better agent.
 
-## Accepted still-Shot run
+## Historical still-Shot run
+
+The 2026-08-27 report used Analyst prompt digest `1c738851cdfb`. The current still
+Analyst prompt digest is `a3c0dd488f26` and has not completed the real-agent acceptance gate.
+The 180-pass result below is regression context for the older prompt bundle. It
+must not be presented as current model-quality proof.
 
 The local acceptance run on 2026-08-27 used 11 real cases: six ordinary phone
 Shots, including four from one Shoot, plus deliberate silhouette, low-key portrait,
@@ -159,6 +164,26 @@ Its SHA-256 is
 `5c161d5c760345e900a3b4b8307e4b90ca771c6958d794d1adc81c2b8bb1f4e3`.
 The committed example manifest preserves the reproducible contract without
 publishing the corpus.
+
+## Market-Shot prompt stress test
+
+One synthetic market Shot was deliberately used as a prompt stress test, not as a
+quality claim about the whole corpus. The existing production result was compared
+with four temporary additions asking about corridor geometry, colour alternatives,
+depth members, and teaching restraint. Every variant ran the real Ingest and
+three-lens Analyst path; the script restored the production prompts afterward.
+
+The result rejected prompt overfitting. The production baseline corroborated the
+red accent, two leading paths, and three depth planes. A geometry-heavy addition
+produced two cleaner corridor candidates but only one lens supported leading lines.
+A colour-heavy addition named warm/cool, also from one lens only. The depth variant
+failed one expected-Technique check, and the restraint variant returned no
+checkable next capture. These are five comparable outputs, not five improvements.
+No addition was promoted from one attractive example.
+
+Run `uv run python scripts/compare_market_story.py` from `backend/`. The comparison
+and structured result live under
+`docs/test-corpus/results/market-story-experiments/`.
 
 ## Accepted Journey-writer run
 

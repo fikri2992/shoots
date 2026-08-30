@@ -37,6 +37,40 @@ personality profile, or a score.
 | Inspiration | Explicit Android/web manual role, separate current record, projection-safe free-Shot correction, and client archive section | Add bounded study and correction for Experiment-cited history without weakening immutable records |
 | Android | Room cache and outbox; device token ciphertext uses Android Keystore | Keep Room as a non-authoritative cache; do not claim Room encryption |
 
+### Implementation audit, 2026-08-29
+
+The current memory records are broader than the current memory service. The service
+returns bounded Photographer Signals, while Shoot Scout still reads the open
+Experiment, Keeper patterns, recent Experiments, Intervention outcomes, user data, and
+the fixed Shoot Record through separate services. The target `recall` boundary below
+therefore remains partially implemented.
+
+Verified in the current local worktree:
+
+- each ADK attempt starts with a fresh in-memory runner and session;
+- unknown memory roles fail closed;
+- current Signal reads exclude superseded and expired records;
+- exact-scope Signals rank ahead of Photographer-wide Signals;
+- callers supply an explicit role and purpose.
+
+Still open:
+
+- `(role, purpose)` does not yet select a distinct recall policy;
+- the cap is twelve Signals rather than a recorded byte or token budget;
+- Scout does not save one recall envelope with exact broad inputs, exclusions, gaps,
+  size, and digest;
+- Signal supersession uses same-kind identity rather than a per-kind semantic
+  correction key;
+- Signal replacement or removal and its ActivityEvent are separate writes;
+- scoped targets are not uniformly resolved for existence and same-Photographer
+  ownership;
+- typed operational facts and legacy `User.constraints` migration remain;
+- automatic Technique deprioritization still accepts blank comparability;
+- Keeper-backed Reproduce is considered before exact current Shoot Intent.
+
+The consolidated source review and proposed Scout envelope are in
+[ChatGPT repository and memory review](chatgpt-analysis-2026-08-29.md).
+
 ## Rules that do not move
 
 1. **The store remembers.** Model sessions start without conversational memory. Code

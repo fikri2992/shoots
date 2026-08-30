@@ -5,8 +5,8 @@ remains the claim ledger and final capture checklist.
 
 ## The story
 
-**Organizing principle:** an ordinary phone Shoot becomes one inspectable learning
-record without upload, tagging, prompting, or per-Shot supervision.
+**Organizing principle:** one explicit Google Drive selection becomes inspectable
+Shoot Records without tagging, prompting, or per-Shot supervision.
 
 **Dramatic question:** can Shoots distinguish a decision the Photographer can repeat
 from one good-looking accident?
@@ -18,50 +18,47 @@ the system is competent background labor. Never make a model response the climax
 how it was produced. The receipt must expose exact membership and Evidence, not a
 quality score.
 
-## Current production truth
+## Accepted proof and limits
 
-```text
-service_url=https://shoots-718560154436.asia-southeast2.run.app
-repository_candidate_sha=b547e77370ca905e1ae9572c650cb09f8de47b78
-runtime_source_sha=e535a48db3de8f8d435c350517d1595dc1888505
-cloud_run_revision=shoots-00006-mzn
-cloud_run_traffic=100%
-cloud_run_image_digest=sha256:a13c558a55dd450e49278ac99faffa0e234339ce7d9538b36dcf1a8bbe79aaaa
-android_debug_apk_sha256=2006143B65803C48D468E69F6A08BF8F36C1CA64A5EFB47A6C0A6A1F7F6FC1B3
-android_package=com.shoots.app
-android_identity=debug certificate registered with Firebase and OAuth
-```
+The accepted production stress run used **75 selected Drive Shots** in three explicit
+batches of 25. It produced 75 completed Runs and three Shoot Records. Five unique
+Shots needed six repair replays before all Runs completed. Durable Run latency was
+48.72 seconds at p50 and 2,306.161 seconds at maximum; the three Picker import
+requests averaged 104.353 seconds.
 
-Cloud Run state was read back on 2026-08-29: the recorded revision is ready and owns
-100% traffic with the recorded `SOURCE_SHA`. The APK was rebuilt from the recorded
-repository candidate against the production HTTPS origin. The emulator is currently
-waiting at the human Google account chooser; Xiaomi acceptance and the external release
-signing identity remain separate gates. This is not a production-signed APK and must
-not be called one.
+The source pool contained 67 visually reviewed real hobbyist Shots. Deterministic
+variations expanded it for workflow testing, so the 75 files are not 75 independent
+captures. The first 300-file attempt ended with 350 Shot records and no Shoot Record.
+The settlement defect was fixed and the 75-Shot acceptance passed, but the complete
+300-file run was not repeated.
+
+The **physical Camera-to-Shoot workflow remains unaccepted**. No current candidate
+SHA, Cloud Run revision, physical-device result, or Photographer-benefit result is
+accepted for the final submission. Fill those fields only after a clean deployment
+and a new recorded run. Cost was not measured; do not state a cost figure.
 
 ## Prepare one honest account
 
-Use one disposable demo account and real, non-sensitive Camera media. Never seed
-Firestore directly.
+Use one disposable real account and real, non-sensitive Drive media. Never seed the
+account or mix it with a Sample Record.
 
 Before recording:
 
-1. Complete native Google sign-in.
-2. Grant full Camera media access and notification permission.
-3. Produce 12–20 ordinary Shots across at least three natural Shoots through Phone
-   Source. Include repeated and varied decisions; do not curate only strong Shots.
-4. Let every Run and Shoot settle normally.
-5. Mark one Keeper.
-6. Complete one supported Experiment so Journey has a prior outcome.
-7. Keep one supported route available for the recorded Shoot.
-8. Confirm the same account loads on web and Android, then verify Android offline.
+1. Complete Google sign-in.
+2. Open the Drive Picker and select a disclosed set of ordinary Shots.
+3. Include repeated and varied decisions; do not curate only strong Shots.
+4. Record the selection count and the returned Shot ids.
+5. Let every Run and Shoot settle normally, including any automatic repair.
+6. Confirm the latest Shoot Record contains exactly the intended membership.
+7. Open representative Shot Evidence and the corresponding ActivityEvents.
+8. Keep Keeper and Experiment actions optional and user-controlled.
 
-This history is setup, not the live proof. The live proof uses a new Camera Shoot on
-top of it.
+This proves archive import, background Analysis, recovery, settlement, and the
+returned record. It does not prove automatic Camera discovery or photography benefit.
 
 ## Recording layout
 
-- Primary picture: Android or mirrored phone, large enough to read at 1080p.
+- Primary picture: the web Drive Picker and Shoots pages, large enough to read at 1080p.
 - Proof picture: Cloud Run logs or ActivityEvents beside Android only during the
   continuous action segment.
 - Final picture: architecture diagram with the same Run and Shoot identifiers.
@@ -73,16 +70,16 @@ top of it.
 
 | Time | Picture | Spoken line or proof |
 |---|---|---|
-| 0:00–0:08 | Settled Shoot receipt: repeated, varied, every member accounted for | “This is not a critique of one lucky Shot. Shoots made one learning record from an ordinary Camera period.” |
-| 0:08–0:24 | Three Camera Shots, then Instagram destination briefly | “I love photography, but I only have my phone. I can take thousands of Shots and still not know whether my decisions are becoming deliberate.” |
-| 0:24–0:38 | Rewind to normal system Camera; take a fresh Shot | “So I kept the camera I already use. Shoots watches only the Camera media I approve.” |
-| 0:38–1:35 | **Unedited segment:** return to Shoots; discovery, immutable source id, upload, Run id, Cloud stage events | “There is no upload or Analyse button. Ingest measures the file. Analyst reads the image. Cartographer updates memory. Each stage is replay-safe and leaves an event.” |
-| 1:35–1:48 | Labelled time compression: “4+ minutes later — natural Shoot closed” | Explain that natural grouping waits for inactivity; never imply instant settlement. |
+| 0:00–0:08 | Settled Shoot receipt: repeated, varied, every member accounted for | “This is not a critique of one lucky Shot. Shoots finished one background job across a set of Shots.” |
+| 0:08–0:24 | A few ordinary source Shots | “I can take thousands of Shots and still not know which choices I repeat or whether they are deliberate.” |
+| 0:24–0:38 | Open Google Drive Picker | “For this accepted proof, I choose one archive batch. Shoots does the per-Shot work after that selection.” |
+| 0:38–1:35 | **Unedited segment:** confirm the selection; show returned Shot ids, Runs, and Cloud stage events | “Ingest measures each file. Analyst reads it. Cartographer updates memory. Each stage is replay-safe and leaves an event.” |
+| 1:35–1:48 | Labelled time compression with the real elapsed duration | Explain the 30-minute Shoot gap, scheduler delay, Run retries, and exact timestamps. Never imply instant settlement. |
 | 1:48–2:10 | Shoot receipt and exact terminal coverage | “One Run accounts for one Shot. The Shoot closes only when every current member settles or ends terminally.” Read one repeated and one varied line only. |
 | 2:10–2:32 | One Shot Teaching Receipt with its image layer | “The useful part stays small: Keep, Notice, one Try, and one Check. Full Analysis keeps the measurements, model read, dissent, and cells available for audit.” |
 | 2:32–2:55 | Scout route, warrant, and rejected routes | “The model does not choose arbitrary homework. Code limits the eligible work; Scout records why it explained, asked, offered an Experiment, or stayed silent.” |
-| 2:55–3:20 | Prepared Experiment Record: Keeper reference, frozen Capture Session manifest, outcomes | “An Experiment is optional. Reproduce checks explicit Criteria; Explore compares Variations and has no Verdict. A good Shot never fails because it answered a different question.” |
-| 3:20–3:40 | Journey then image-led Deconstruction carousel | “Now I can compare what recurs, what became evaluable, and what is still unknown. Shoots prepares the deconstruction; I choose the Keeper cover and whether to post it.” |
+| 2:55–3:20 | Experiment eligibility and its empty or real status | “An Experiment is optional. This run proves the handoff decision, not a completed learning outcome.” |
+| 3:20–3:40 | Journey and image-led Deconstruction, with source links | “This is the record Shoots produced. A real Photographer still needs to judge whether it is useful and whether a later Experiment helped.” |
 | 3:40–3:55 | Architecture: Run, Capture Session, and Shoot barriers; Cloud revision | “The agents operate on different evidence and cannot borrow authority. Every transition is stored, versioned, and recoverable.” |
 | 3:55–4:00 | Return to receipt | “Shoots learns from every Shot, offers one personal Experiment, and tracks what changes—without turning the model’s taste into mine.” |
 
@@ -102,29 +99,27 @@ Any beat connected only by “and then” is cut from the video.
 
 ## Continuous proof contract
 
-The unedited segment starts before Camera return and ends after at least one durable
-Cloud stage transition. Keep Android and Cloud evidence visible together. The source
-id, Shot id, and Run id must remain the same. A manual upload, hidden database edit,
-changed identifier, or unexplained cut invalidates the take.
+The unedited segment starts before Drive Picker confirmation and ends after at least
+one durable Cloud stage transition. Keep the import result and Cloud evidence visible
+together. The source id, Shot id, and Run id must remain the same. A hidden database
+edit, changed identifier, or unexplained cut invalidates the take.
 
-Shoot settlement cannot fit inside the same minute because the product intentionally
-waits for four minutes of inactivity and the scheduler runs separately. Record the
-later receipt honestly and label the elapsed time. Do not shorten the domain timing
-for the video.
+A natural Shoot closes after a 30-minute inactivity gap and the next scheduled check.
+Historical Drive media may already be outside that window, but record the actual Run,
+repair, and scheduler delays. Label every time compression with its real timestamps.
 
 ## Failure fallback
 
 Record these separately before the hero take:
 
-1. network loss after Phone Source assignment, followed by the same stable source id
-   completing after recovery;
+1. network loss after Drive selection, followed by the same stable source id completing
+   after recovery;
 2. duplicate delivery producing no duplicate terminal record;
 3. cached receipt and Journey opening offline;
 4. one explicit abstention or unreadable terminal member still counted by the barrier.
 
-If the physical phone fails, the emulator may prove the same system-Camera and Phone
-Source path. It must not fall back to manual gallery upload. Label it as emulator
-proof, not physical acceptance.
+An emulator or backend import cannot prove the physical Camera path. Label each proof
+by the path it actually exercised.
 
 The current backup recovery take is not a substitute for the hero recording, but its
 production identifiers are preserved for audit:
@@ -161,8 +156,9 @@ android_version=
 
 The take is usable only if a stranger can repeat:
 
-> It turned an ordinary Camera session into a learning record, chose the kind of
-> help the Evidence supported, and checked what happened next.
+> It took one archive selection, performed the per-Shot work, recovered failures,
+> and returned settled Shoot Records with inspectable Evidence.
 
-If they say only “it gives photography advice,” re-edit around the Shoot Record,
-Scout warrant, and Experiment outcome rather than adding more features.
+If they say only “it gives photography advice,” re-edit around the Drive selection,
+Run recovery, exact Shoot membership, and returned record. Do not claim the
+Photographer-benefit loop until a real Photographer completes and evaluates it.

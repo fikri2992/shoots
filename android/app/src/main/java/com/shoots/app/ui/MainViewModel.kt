@@ -244,13 +244,15 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         notice.value = "Shoots forgot that statement."
     }
 
-    suspend fun requestExperiment(force: Boolean = false): Boolean {
+    suspend fun requestExperiment(force: Boolean = false, techniqueId: String = ""): Boolean {
         var offered = false
         val completed = operate {
-            val experiment = repository.requestExperiment(force)
+            val experiment = repository.requestExperiment(force, techniqueId)
             offered = experiment != null
             notice.value = if (experiment == null) {
-                "No supported Experiment yet. Mark a Keeper with corroborated Evidence first."
+                "No Experiment yet. Mark a Shot you care about, then Shoots can build from what appears clearly in it."
+            } else if (techniqueId.isNotBlank()) {
+                "The Technique Experiment is ready"
             } else if (force) {
                 "A different supported Experiment is ready"
             } else {
@@ -258,6 +260,28 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             }
         }
         return completed && offered
+    }
+
+    suspend fun chooseExperimentDirection(
+        sourceShotId: String,
+        techniqueId: String,
+        save: Boolean,
+    ): Boolean = operate {
+        repository.chooseExperimentDirection(sourceShotId, techniqueId, save)
+        notice.value = if (save) {
+            "Question saved. Nothing has started yet."
+        } else {
+            "Question left. No Experiment was created."
+        }
+    }
+
+    suspend fun startExperimentDirection(directionId: String): String? {
+        var experimentId: String? = null
+        operate {
+            experimentId = repository.startExperimentDirection(directionId).id
+            notice.value = "Experiment ready. Criteria are fixed before the camera opens."
+        }
+        return experimentId
     }
 
     suspend fun requestExplore(force: Boolean = false, techniqueId: String = ""): Boolean {
@@ -294,7 +318,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         coverShotId: String,
     ): Boolean = operate {
         repository.prepareDeconstruction(sourceType, sourceId, sourceRevision, coverShotId)
-        notice.value = "Deconstruction draft is ready"
+        notice.value = "Your visual story is ready"
     }
 
     suspend fun answerScoutQuestion(

@@ -5,9 +5,9 @@ import { useShootsStore } from '@/stores/shoots'
 
 /** The pipeline, in the order the user's Shot goes through it. */
 const STAGES = [
-  { key: 'ingest.queued', label: 'source accepted and queued' },
-  { key: 'ingest.ingested', label: 'file read: camera settings, grid, thumbnail' },
-  { key: 'analyst.analyzed', label: 'three lenses reading the Shot' },
+  { key: 'ingest.queued', label: 'The Shot is safely in Shoots' },
+  { key: 'ingest.ingested', label: 'Reading the camera settings and pixels' },
+  { key: 'analyst.analyzed', label: 'Three visual reads are looking at the Shot' },
 ]
 
 /**
@@ -69,11 +69,11 @@ export default {
       <div class="surface-active overflow-hidden">
         <img v-if="thumb" :src="thumb" alt="" class="aspect-[4/3] w-full object-cover sm:aspect-[16/9]" />
         <div class="p-6 sm:p-8">
-          <p class="eyebrow text-accent">Work in motion</p>
+          <p class="eyebrow text-accent">Shoots is working</p>
           <h1 class="mt-4 t-hero">
             {{ shots.length > 1 ? `${shots.length} Shots are being read.` : 'Your Shot is being read.' }}
           </h1>
-          <p class="mt-4 t-body">You can leave this screen. Shoots keeps working and records every finished or refused step.</p>
+          <p class="mt-4 t-body">You can leave this screen. Shoots will keep working in the background.</p>
         </div>
       </div>
       <div class="surface p-5 sm:p-6">
@@ -84,13 +84,13 @@ export default {
             class="mt-1.5 h-2 w-2 shrink-0 rounded-full"
             :class="row.active ? 'animate-pulse bg-accent' : row.complete ? 'bg-neutral-400' : 'bg-edge-strong'"
           />
-          <span class="t-body" :class="row.active ? 'text-paper' : row.complete ? 'text-muted' : 'text-neutral-600'">
+          <span class="t-body" :class="row.active ? 'text-paper' : 'text-muted'">
             {{ row.label }}
           </span>
         </li>
         </ul>
         <p class="mt-7 border-t border-edge pt-5 t-meta">
-          Three readers work independently. A Technique reaches the record only when the Evidence clears its rules.
+          Three visual reads work separately. Shoots stores their agreement and confidence. One high-confidence responsible read can also retain a Technique.
         </p>
       </div>
     </div>

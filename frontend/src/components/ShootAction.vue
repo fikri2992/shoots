@@ -22,7 +22,7 @@ export default {
     return { pending: null, check: null }
   },
   computed: {
-    ...mapState(useShootsStore, ['busy', 'connected']),
+    ...mapState(useShootsStore, ['busy', 'accountReady']),
     working() {
       return this.busy === 'shoot' || this.busy === 'preflight'
     },
@@ -64,7 +64,7 @@ export default {
 </script>
 
 <template>
-  <label class="btn w-full cursor-pointer" :class="working || !connected ? 'pointer-events-none opacity-40' : ''">
+  <label class="btn w-full cursor-pointer" :class="working || !accountReady ? 'pointer-events-none opacity-40' : ''">
     <svg viewBox="0 0 24 24" class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round">
       <path d="M4 8h3l2-3h6l2 3h3v11H4z" />
       <circle cx="12" cy="13" r="3.4" />
@@ -76,7 +76,7 @@ export default {
       accept="image/*,video/*"
       capture="environment"
       class="hidden"
-      :disabled="working || !connected"
+      :disabled="working || !accountReady"
       @change="onPick"
     />
   </label>

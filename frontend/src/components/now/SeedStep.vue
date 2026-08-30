@@ -30,15 +30,15 @@ export default {
       <p class="eyebrow">Now · One step left</p>
       <div class="mt-6 grid gap-5 lg:grid-cols-[1fr_360px]">
         <div class="surface-active p-6 sm:p-9">
-          <p class="eyebrow text-accent">Start with your work, not a questionnaire</p>
-          <h1 class="mt-4 max-w-2xl t-hero lg:text-[48px]">Show it three or four Shots you already made.</h1>
+          <p class="eyebrow text-accent">Start with your Shots, not a setup quiz</p>
+          <h1 class="mt-4 max-w-2xl t-hero lg:text-[48px]">Choose a few Shots you already made.</h1>
           <p class="mt-5 max-w-2xl text-[16px] leading-7 text-neutral-300">
-            Older Shots are useful. Shoots needs enough of your own work to notice a supported Tendency before it offers an Experiment.
+            Older Shots are useful. Shoots needs a small body of your work before it can find a pattern worth bringing back to you.
           </p>
         </div>
         <div class="surface p-5 sm:p-6">
           <p class="eyebrow">First read</p>
-          <p class="mt-3 t-body">Choose stills or video from this device. Unreadable dimensions remain unknown.</p>
+          <p class="mt-3 t-body">Choose stills from this device. If a file carries less information, Shoots simply says less.</p>
           <label class="btn mt-6 w-full cursor-pointer">
             Choose Shots
             <input type="file" accept="image/*,video/*" multiple class="hidden" @change="onPick" />
@@ -54,7 +54,7 @@ export default {
     <template v-else>
       <div class="mx-auto max-w-2xl surface-active p-6 sm:p-9">
         <p class="eyebrow text-accent">Uploading {{ seeding.done + 1 }} of {{ seeding.total }}</p>
-        <h1 class="mt-4 t-hero">Building the first memory.</h1>
+        <h1 class="mt-4 t-hero">Getting to know your Shots.</h1>
         <p class="mt-4 t-body">{{ seeding.name }}</p>
         <div class="mt-7 h-1 overflow-hidden rounded bg-edge">
         <div

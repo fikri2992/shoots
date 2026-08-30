@@ -55,10 +55,18 @@ ShootsAI to create that record quietly in the background, without turning
 photography into another task.
 
 ### What it does
-ShootsAi is an android app. ShootsAI turns a normal Camera period into evidence of how I actually shoot. After
-I take the images, it keeps working in the background. It accounts for every image
-as a Shot, waits until the Shoot has settled, and writes one evidence-backed Shoot
-Record showing what kept appearing, what varied, and what it could not establish.
+
+ShootsAI is a still-image photography Companion with Android and web clients. In the
+accepted production proof, I selected 75 Drive Shots in three batches. ShootsAI
+created one Run per Shot, measured and read each file, recovered five unique failed
+Shots through six repair replays, settled three Shoots, and returned three immutable
+Shoot Records. Each record shows what recurred, what varied, and what the available
+Evidence could not establish.
+
+That is the accepted Taskmaster job. The physical Camera-to-Shoot workflow remains
+unaccepted. So does the Photographer-benefit loop: the current proof does not show
+that a real Photographer found the record useful, completed its Experiment, or made
+a later Change. Cost has not been measured.
 
 That record becomes part of my history. ShootsAI compares it with earlier Shoots
 and chooses exactly one supported response: explain what happened, ask one useful
@@ -76,9 +84,9 @@ the uncertainty instead of promoting it to a claim.
 
 The finished work appears as a compact Shoot receipt, a longitudinal Journey with
 links to its source Shots, and an evidence-bound Deconstruction draft. I choose the
-Keeper cover and whether to share it. This hackathon build handles still images
-only. Its inputs are my Camera images, their EXIF and measured pixels, and the
-explicit signals I give it. Google Drive remains an optional import and export.
+Keeper cover and whether to share it. This hackathon build handles still images only.
+The accepted proof uses explicit Google Drive import. Camera discovery is implemented
+but is not part of the accepted end-to-end claim.
 
 ### How I built it
 
@@ -139,25 +147,26 @@ Technique. The corrected cases were rerun in the real-agent corpus.
 
 #### Real Gemini quality
 
-The accepted still-image report used eleven real Shot cases with Gemini 3.7 Flash:
-six ordinary phone images plus deliberate silhouette, low-key portrait, motion blur,
-long exposure, and freeze action cases. Its 180 automatic checks passed with zero
-failures and no errored cases. Twelve judgement questions remained explicitly for
-human review. Mean end-to-end Ingest plus Analyst time was 39.8 seconds; the maximum
-was 53.6 seconds. Those timings are why deep Analysis runs in the background.
+A historical still-image report used eleven real Shot cases with Gemini 3.7 Flash.
+Its 180 automatic checks passed and twelve judgement questions remained for human
+review. That report used Analyst prompt digest `1c738851cdfb`. The current prompt
+digest is `a3c0dd488f26` and has not completed the real-agent acceptance gate, so the
+historical result is regression context, not current model-quality proof.
 
 #### Integration and Cloud evidence
 
-The repository exercises real files, stores, retries, duplicate delivery, late Shots,
-barrier settlement, and offline Room readback. The Cloud service is live on Cloud Run.
-Authenticated web and mobile snapshot reads, scheduled ticks, Pub/Sub subscriptions,
-dead-letter routes, and the deployed revision have been read back successfully.
-Android also completed a real emulator WorkManager request through authentication,
-the backend snapshot, and a Room write.
+The accepted production run took 75 selected Drive Shots through 75 completed Runs
+and three settled Shoot Records. Five unique failed Shots recovered through six
+repair replays. Durable Run latency was 48.72 seconds at p50 and 2,306.161 seconds at
+maximum; the three Picker requests averaged 104.353 seconds. The files came from 67
+visually reviewed real hobbyist Shots plus disclosed deterministic variations, so
+this is workflow and recovery proof, not 75 independent captures.
 
-These results prove the individual readers, state transitions, deployed service, and
-emulator integration. They do not yet prove the complete physical Camera-to-Shoot
-workflow.
+The first full-scale attempt created 350 Shot records and no Shoot Record. The
+settlement defect was fixed and the 75-Shot gate passed; the complete 300-file run was
+not repeated. These results prove the Drive import path, individual Runs, recovery,
+and settlement at the accepted scale. They do not prove physical Camera discovery,
+current-prompt visual quality, or Photographer benefit.
 
 > Working note, remove before submission: record one uninterrupted Xiaomi run from
 > normal Camera capture through background ingestion, every terminal Run, one Shoot
@@ -166,9 +175,9 @@ workflow.
 
 ### What I learned
 
-Real calls changed the interaction design. Deep Shot reading averaged 39.8 seconds
-and reached 53.6 seconds in the accepted corpus. That work belongs in the background,
-not between the photographer and the next shutter press.
+Real calls changed the interaction design. The accepted production stress run had a
+48.72-second median durable Run and a 38-minute-26-second maximum after recovery.
+That work belongs in the background, with visible progress and failure state.
 
 The first versions graded every Shot and treated every Experiment like homework.
 Using the product on a phone made the mistake obvious. Explore now offers Variations
@@ -194,9 +203,9 @@ preserved and the photographer may state a preference.
 
 - The hook uses Fikri's real question and reaches the mechanism through an ordinary
   walk, not a fabricated breakthrough Shot.
-- The first scan of What it does exposes one completed Taskmaster job: background
-  accounting, a settled Shoot Record, one supported response, and longitudinal
-  Experiment follow-through.
+- The first scan of What it does exposes the completed Taskmaster work we can prove:
+  one archive selection, background accounting, recovery, and settled Shoot Records.
+  It names Camera and longitudinal Photographer benefit as remaining gates.
 - How I built it explains responsibility, state, retries, and boundaries instead of
   using framework names or agent counts as proof of architecture.
 - Challenges, Validation, and What I learned do different jobs. Concrete failures
@@ -216,8 +225,11 @@ confirms. Do not invent them.
 
 Before this becomes final Devpost copy:
 
+- run the current Analyst prompt through the real-agent acceptance gate;
 - record one uninterrupted physical Shoot and replace the Validation working note
   with its exact result;
+- have a real hobbyist Photographer inspect a Shoot Record, choose or reject the
+  offered Experiment, return with comparable Shots, and report whether it helped;
 - choose one public product name, Shoots or ShootsAI, and use it everywhere;
 - add the hosted project, public repository, architecture diagram, testing
   instructions, and public four-minute demo links;

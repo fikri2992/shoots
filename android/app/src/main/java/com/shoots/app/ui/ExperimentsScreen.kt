@@ -87,11 +87,33 @@ fun ExperimentsScreen(
             .padding(top = 22.dp, bottom = 96.dp),
     ) {
         ScreenTitle(
-            "Experiments",
-            "Try one decision on purpose.",
-            "Explore optional Variations, or Reproduce something you value.",
+            if (snapshot?.user?.recordMode == "sample") "Sample Record" else "Experiments",
+            if (snapshot?.user?.recordMode == "sample") {
+                "Experiments are unavailable in this fixture."
+            } else {
+                "Try one decision on purpose."
+            },
+            if (snapshot?.user?.recordMode == "sample") {
+                "No Experiment was offered, started, judged, or completed. No agents ran."
+            } else {
+                "Explore optional Variations, or Reproduce something you value."
+            },
         )
         Spacer(Modifier.height(24.dp))
+
+        if (snapshot?.user?.recordMode == "sample") {
+            InkCard {
+                Text("READ ONLY", color = Amber, fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                Spacer(Modifier.height(7.dp))
+                Text(
+                    "This Sample Record contains interface data only. Experiment actions are disabled.",
+                    color = MutedWhite,
+                    fontSize = 14.sp,
+                    lineHeight = 20.sp,
+                )
+            }
+            return@Column
+        }
 
         when {
             active != null -> CaptureSessionCard(
@@ -241,8 +263,8 @@ private fun ActiveExploreCard(
         if (experiment.resultShotIds.isNotEmpty()) {
             Spacer(Modifier.height(6.dp))
             Text(
-                "${experiment.resultShotIds.size} explicit result Shots · " +
-                    "${experiment.variationObservations.map { it.variationId }.distinct().size} Variations observed",
+                "${experiment.resultShotIds.size} result Shots · " +
+                    "${experiment.variationObservations.map { it.variationId }.distinct().size} ways tried",
                 color = MutedWhite,
                 fontSize = 12.sp,
             )
@@ -339,7 +361,7 @@ private fun ActiveExperimentCard(
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Text(if (details) "Hide why and Criteria" else "Why this · what Shoots checks", color = WarmWhite, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
+            Text(if (details) "Hide the idea and checks" else "Why this · what Shoots checks", color = WarmWhite, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
             DisclosureChevron(details)
         }
         AnimatedVisibility(details) {
@@ -354,7 +376,7 @@ private fun ActiveExperimentCard(
                 }
                 if (experiment.criteria.text.isNotEmpty()) {
                     Spacer(Modifier.height(14.dp))
-                    Text("CRITERIA", color = MutedWhite, fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                    Text("YOUR CHECKS", color = MutedWhite, fontSize = 10.sp, fontWeight = FontWeight.Bold)
                     Spacer(Modifier.height(5.dp))
                     experiment.criteria.text.forEach { criterion ->
                         Text("• $criterion", color = WarmWhite, fontSize = 13.sp, lineHeight = 19.sp)
@@ -372,11 +394,11 @@ private fun ActiveExperimentCard(
 }
 
 private fun reproduceOutcome(results: Int, judged: Int, met: Int, abstained: Int): String = when {
-    met > 0 -> "$met of $results explicit result Shots met the declared Criteria."
-    judged == results && results == 1 -> "Not yet — this Shot did not meet the declared Criteria."
-    judged == results -> "Not yet — none of these $results Shots met the declared Criteria."
-    abstained == results -> "Shoots could not judge any of these $results result Shots."
-    else -> "$judged of $results result Shots were judged; $abstained could not be resolved."
+    met > 0 -> "$met of $results result Shots matched every check you set before shooting."
+    judged == results && results == 1 -> "Not yet. This Shot missed at least one of your checks."
+    judged == results -> "Not yet. None of these $results Shots matched every check."
+    abstained == results -> "Shoots could not check any of these $results result Shots."
+    else -> "Shoots checked $judged of $results result Shots. It could not check the other $abstained."
 }
 
 private fun verdictNextMove(feedback: String): String {
@@ -421,7 +443,7 @@ private fun NoExperimentCard(
         Text("Want something deliberate to try?", color = WarmWhite, fontSize = 21.sp, lineHeight = 26.sp, fontWeight = FontWeight.Bold)
         Spacer(Modifier.height(7.dp))
         Text(
-            "Scout can open optional Variations from a Tendency, or test a decision supported by one of your Keepers.",
+            "Shoots can offer a few ways to try something new, or help you repeat a choice from a Shot you marked.",
             color = MutedWhite,
             fontSize = 14.sp,
             lineHeight = 20.sp,
@@ -517,8 +539,8 @@ private fun TechniquePickerDialog(
                             Spacer(Modifier.height(2.dp))
                             Text(
                                 when {
-                                    technique.recurring -> "Recurring in your record"
-                                    technique.observed -> "Observed in your Shoots"
+                                    technique.recurring -> "Keeps returning in your Shots"
+                                    technique.observed -> "Seen in your Shots"
                                     else -> "New to your record"
                                 },
                                 color = if (technique.observed) Amber else MutedWhite,
@@ -570,13 +592,13 @@ fun CaptureSessionCard(
         Spacer(Modifier.height(12.dp))
         Text(
             when (session.state) {
-                LocalCaptureState.RESERVED -> "Your Experiment Camera visit is open."
+                LocalCaptureState.RESERVED -> "The Camera is ready for this Experiment."
                 LocalCaptureState.AWAITING_SELECTION -> "Choose the exact Shots that belong to this Experiment."
-                LocalCaptureState.MANIFEST_PENDING -> "Freezing this batch before upload."
-                LocalCaptureState.COMMITTED -> "The batch is frozen and ready to upload."
-                LocalCaptureState.PROCESSING -> "Shoots is reading every member."
-                LocalCaptureState.CONFLICT -> "This local batch does not match the frozen manifest."
-                else -> "Capture Session in progress."
+                LocalCaptureState.MANIFEST_PENDING -> "Keeping this exact group together before upload."
+                LocalCaptureState.COMMITTED -> "This group is ready to upload."
+                LocalCaptureState.PROCESSING -> "Shoots is reading every Shot in the group."
+                LocalCaptureState.CONFLICT -> "This group changed before Shoots could finish it."
+                else -> "Shoots is still finishing this group."
             },
             color = WarmWhite,
             fontSize = 21.sp,
@@ -622,12 +644,12 @@ private fun ExperimentHistoryRow(experiment: ExperimentDto, onClick: (() -> Unit
                 Text(
                     when {
                         experiment.type == "explore" && experiment.variationObservations.isNotEmpty() ->
-                            "${experiment.variationObservations.map { it.variationId }.distinct().size} Variations observed · no Verdict"
+                            "${experiment.variationObservations.map { it.variationId }.distinct().size} ways tried · nothing graded"
                         experiment.change != null -> experiment.change.outcome.ifBlank { experiment.change.state }
-                        experiment.resultShotIds.isNotEmpty() -> "${experiment.resultShotIds.size} explicit result Shots"
+                        experiment.resultShotIds.isNotEmpty() -> "${experiment.resultShotIds.size} result Shots"
                         experiment.status == "skipped" -> "Left without result Shots"
-                        experiment.status == "completed" -> "Completed before explicit result tracking"
-                        else -> "No explicit result Shots yet"
+                        experiment.status == "completed" -> "Finished before Shoots tracked result Shots"
+                        else -> "No result Shots yet"
                     },
                     color = MutedWhite,
                     fontSize = 12.sp,

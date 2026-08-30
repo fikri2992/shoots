@@ -3,6 +3,7 @@ package com.shoots.app.ui
 import androidx.compose.foundation.Canvas
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.Color
@@ -104,9 +105,28 @@ private fun DrawScope.drawStoryMark(
 
 private fun DrawScope.drawMarkedRegion(grid: GridSpecDto, cells: List<String>) {
     val region = spanRect(cells, grid) ?: return
+    drawApproximateRegion(region, EvidenceCyan)
+}
+
+private fun DrawScope.drawApproximateRegion(rect: Rect, colour: Color) {
     val stroke = 2.dp.toPx()
-    drawRect(EvidenceCyan.copy(alpha = 0.18f), region.topLeft, region.size)
-    drawRect(EvidenceCyan.copy(alpha = 0.9f), region.topLeft, region.size, style = Stroke(stroke))
+    val corner = CornerRadius(12.dp.toPx())
+    drawRoundRect(
+        colour.copy(alpha = 0.07f),
+        rect.topLeft,
+        rect.size,
+        cornerRadius = corner,
+    )
+    drawRoundRect(
+        colour.copy(alpha = 0.92f),
+        rect.topLeft,
+        rect.size,
+        cornerRadius = corner,
+        style = Stroke(
+            width = stroke,
+            pathEffect = PathEffect.dashPathEffect(floatArrayOf(stroke * 4, stroke * 2.5f)),
+        ),
+    )
 }
 
 private fun DrawScope.drawMarkedLine(
@@ -115,7 +135,11 @@ private fun DrawScope.drawMarkedLine(
     mark: VisualMarkDto,
 ) {
     val explicit: List<Pair<List<Offset>, VisualPathDto?>> = mark.paths.mapNotNull { visualPath ->
-        cellCentres(visualPath.points, grid).takeIf { it.size >= 2 }?.let { it to visualPath }
+        if (mark.techniqueId == "leading_lines" && visualPath.leadsTo.isEmpty()) {
+            null
+        } else {
+            cellCentres(visualPath.points, grid).takeIf { it.size >= 2 }?.let { it to visualPath }
+        }
     }
     val paths = explicit.ifEmpty {
         collinearCellPath(mark.cells)
@@ -138,6 +162,13 @@ private fun DrawScope.drawMarkedLine(
         drawCircle(EvidenceCyan, radius = 4.dp.toPx(), center = points.first())
         drawCircle(EvidenceCyan, radius = 4.dp.toPx(), center = points.last())
         visualPath?.let { spanRect(it.leadsTo, grid) }?.center?.let { target ->
+            drawLine(
+                WarmWhite.copy(alpha = 0.82f),
+                points.last(),
+                target,
+                stroke * 0.7f,
+                pathEffect = PathEffect.dashPathEffect(floatArrayOf(stroke * 2, stroke * 1.4f)),
+            )
             drawCircle(EvidenceCyan.copy(alpha = 0.2f), radius = 13.dp.toPx(), center = target)
             drawCircle(EvidenceCyan, radius = 8.dp.toPx(), center = target, style = Stroke(2.dp.toPx()))
         }
@@ -192,8 +223,7 @@ private fun DrawScope.drawMarkedPair(grid: GridSpecDto, mark: VisualMarkDto) {
     val colours = listOf(EvidenceCyan, EvidenceViolet)
     regions.forEachIndexed { index, (rect, _) ->
         val colour = colours[index]
-        drawRect(colour.copy(alpha = 0.14f), rect.topLeft, rect.size)
-        drawRect(colour, rect.topLeft, rect.size, style = Stroke(stroke))
+        drawApproximateRegion(rect, colour)
         drawCircle(colour, 4.dp.toPx(), rect.center)
     }
     drawLine(
@@ -218,12 +248,9 @@ private fun DrawScope.drawMarkedInstances(grid: GridSpecDto, mark: VisualMarkDto
 
 private fun DrawScope.drawMarkedPlanes(grid: GridSpecDto, mark: VisualMarkDto) {
     val colours = listOf(EvidenceCyan, EvidenceViolet, WarmWhite.copy(alpha = 0.8f))
-    val stroke = 2.dp.toPx()
     mark.regions.sortedBy { it.order }.take(3).forEachIndexed { index, region ->
         val rect = spanRect(region.cells, grid) ?: return@forEachIndexed
-        val colour = colours[index % colours.size]
-        drawRect(colour.copy(alpha = 0.12f), rect.topLeft, rect.size)
-        drawRect(colour, rect.topLeft, rect.size, style = Stroke(stroke))
+        drawApproximateRegion(rect, colours[index % colours.size])
     }
 }
 

@@ -45,6 +45,9 @@ export function markIsRenderable(mark, composition = null) {
   if (artifactIsRenderable(mark.visual_artifact)) return true
   const cells = mark.cells || []
   const regions = mark.regions || []
+  const expectedRelation = relationKind(mark.technique_id)
+  if (expectedRelation && mark.kind !== expectedRelation) return false
+  if (expectedRelation || mark.technique_id === 'leading_lines') return false
   switch (mark.kind) {
     case 'finding':
     case 'whole_frame':
@@ -57,11 +60,11 @@ export function markIsRenderable(mark, composition = null) {
         Boolean(collinearLine(cells))
       )
     case 'pair':
-      return regions.length >= 2
+      return usableRegions(regions).length >= 2
     case 'planes':
-      return regions.length >= 2
+      return planesAreRenderable(mark)
     case 'instances':
-      return regions.length > 0
+      return usableRegions(regions).length >= 2
     case 'crop':
     case 'region':
     case 'frame':
@@ -78,9 +81,9 @@ export function markIsRenderable(mark, composition = null) {
 
 function techniqueMark(evidence) {
   let kind = 'none'
-  if ((evidence.regions || []).length && PAIR_TECHNIQUES.has(evidence.technique_id)) kind = 'pair'
-  else if ((evidence.regions || []).length && PLANE_TECHNIQUES.has(evidence.technique_id)) kind = 'planes'
-  else if ((evidence.regions || []).length && INSTANCE_TECHNIQUES.has(evidence.technique_id)) kind = 'instances'
+  if (PAIR_TECHNIQUES.has(evidence.technique_id)) kind = 'pair'
+  else if (PLANE_TECHNIQUES.has(evidence.technique_id)) kind = 'planes'
+  else if (INSTANCE_TECHNIQUES.has(evidence.technique_id)) kind = 'instances'
   else if (LINE_TECHNIQUES.has(evidence.technique_id)) kind = 'line'
   else if (FRAME_TECHNIQUES.has(evidence.technique_id)) kind = 'frame'
   else if (POINT_TECHNIQUES.has(evidence.technique_id)) kind = 'point'
@@ -94,6 +97,31 @@ function techniqueMark(evidence) {
     visual_artifact: evidence.visual_artifact || null,
     technique_id: evidence.technique_id || '',
   }
+}
+
+function relationKind(techniqueId) {
+  if (PAIR_TECHNIQUES.has(techniqueId)) return 'pair'
+  if (PLANE_TECHNIQUES.has(techniqueId)) return 'planes'
+  if (INSTANCE_TECHNIQUES.has(techniqueId)) return 'instances'
+  return ''
+}
+
+function usableRegions(regions) {
+  return (regions || []).filter((region) => (region.cells || []).length > 0)
+}
+
+function planesAreRenderable(mark) {
+  const regions = usableRegions(mark.regions)
+  const orders = new Set(regions.map((region) => region.order))
+  if (orders.size !== regions.length) return false
+  if (mark.technique_id !== 'layering') return regions.length >= 2
+  const roles = new Set(regions.map((region) => region.role))
+  return (
+    regions.length >= 3 &&
+    roles.has('foreground') &&
+    roles.has('midground') &&
+    roles.has('background')
+  )
 }
 
 function compositionMark(composition) {
@@ -119,10 +147,15 @@ export function buildVisualStory(view) {
   const grid = shot.grid
   const story = []
   const keepMark = teaching.keep_mark
+    ? {
+        ...teaching.keep_mark,
+        technique_id: teaching.keep_mark.technique_id || teaching.keep_technique_id || '',
+      }
+    : null
   if (teaching.keep_title && markIsRenderable(keepMark, composition)) {
     story.push(
       storyStep(
-        'WHAT HOLDS THE FRAME',
+        'WHAT HOLDS THIS SHOT',
         teaching.keep_title,
         plain(teaching.keep_proof || '', grid),
         keepMark,
@@ -133,10 +166,10 @@ export function buildVisualStory(view) {
     if (markIsRenderable(mark, composition)) {
       story.push(
         storyStep(
-          'START HERE · MODEL READ',
-          'Start with the main subject.',
+          "START HERE · SHOOTS' VISUAL READ",
+          'Start with what catches your eye first.',
           plain(
-            analysis.observations?.[0] || 'Shoots located the main subject and its position in the frame.',
+            analysis.observations?.[0] || 'Shoots found the main subject and where it sits in the Shot.',
             grid,
           ),
           mark,
@@ -153,7 +186,7 @@ export function buildVisualStory(view) {
     if (!markIsRenderable(mark, composition)) return
     story.push(
       storyStep(
-        'ANOTHER DECISION · MODEL READ',
+        "ANOTHER CHOICE · SHOOTS' VISUAL READ",
         evidence.name || evidence.technique_id.replace(/_/g, ' '),
         plain(evidence.note || '', grid),
         mark,
@@ -166,8 +199,8 @@ export function buildVisualStory(view) {
     story.push(
       storyStep(
         teaching.notice_authority === 'measured'
-          ? 'WHAT SHOOTS MEASURED'
-          : 'WHAT SHOOTS NOTICED · MODEL READ',
+          ? 'WHAT THE CAMERA FOUND'
+          : "WHAT STOOD OUT · SHOOTS' VISUAL READ",
         teaching.notice_title,
         plain(teaching.notice_proof || '', grid),
         noticeMark,
@@ -180,7 +213,7 @@ export function buildVisualStory(view) {
   if (teaching.try_text && markIsRenderable(tryMark, composition)) {
     story.push(
       storyStep(
-        'WHAT TO CHANGE',
+        'TRY THIS',
         teaching.try_text,
         plain(teaching.try_reason || '', grid),
         tryMark,
@@ -193,9 +226,9 @@ export function buildVisualStory(view) {
   if (teaching.visible_check && markIsRenderable(checkMark, composition)) {
     story.push(
       storyStep(
-        'CHECK THE NEXT SHOT',
+        'CHECK NEXT TIME',
         teaching.visible_check,
-        'Look for this visible result instead of relying on a score.',
+        'Use the marked area as a quick check before you move on.',
         checkMark,
         checkMark.kind === 'move' || checkMark.kind === 'crop' ? 'action' : 'evidence',
       ),
@@ -205,8 +238,8 @@ export function buildVisualStory(view) {
   if (!story.length) {
     story.push(
       storyStep(
-        'THE SHOT',
-        'Shoots read this frame without making a supported visual call.',
+        'THIS SHOT',
+        'Shoots did not find one visual claim it could point to here.',
         '',
         null,
         'clean',

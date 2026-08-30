@@ -76,7 +76,7 @@ export default {
             v-model="email"
             type="email"
             placeholder="you@example.com"
-            class="mt-4 w-full rounded-xl border border-edge bg-panel-2 px-4 py-3 text-[15px] text-paper outline-none transition placeholder:text-neutral-600 focus:border-accent"
+            class="mt-4 w-full rounded-xl border border-edge bg-panel-2 px-4 py-3 text-[15px] text-paper outline-none transition placeholder:text-muted focus:border-accent"
           />
           <button type="submit" :disabled="!email.includes('@')" class="btn mt-3 w-full">Enter Shoots</button>
           <p v-if="error" class="mt-3 t-meta text-bad">{{ error }}</p>

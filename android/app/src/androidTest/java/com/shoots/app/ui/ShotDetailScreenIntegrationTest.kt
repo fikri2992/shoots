@@ -17,6 +17,7 @@ import com.shoots.app.data.FindingDto
 import com.shoots.app.data.MoveDto
 import com.shoots.app.data.ShotDto
 import com.shoots.app.data.ShotTeachingReceiptDto
+import com.shoots.app.data.ShotTechniqueContextDto
 import com.shoots.app.data.ShotViewDto
 import com.shoots.app.data.TechniqueEvidenceDto
 import com.shoots.app.data.VisualEvidenceArtifactDto
@@ -28,6 +29,7 @@ import org.junit.Rule
 import org.junit.Test
 import android.graphics.Bitmap
 import java.io.File
+import org.junit.Assert.assertEquals
 
 class ShotDetailScreenIntegrationTest {
     @get:Rule
@@ -95,9 +97,9 @@ class ShotDetailScreenIntegrationTest {
         compose.onNodeWithText("Rotate spiral").performClick()
         compose.onNodeWithContentDescription("Golden spiral composition guide").assertExists()
         compose.onNodeWithText("1 lens").assertDoesNotExist()
-        compose.onNodeWithText("Full Analysis").performScrollTo().performClick()
-        compose.onNodeWithText("The panel did not corroborate a Technique in this Shot.").assertExists()
-        compose.onNodeWithText("MEASURED FINDINGS").assertDoesNotExist()
+        compose.onNodeWithText("Behind the read").performScrollTo().performClick()
+        compose.onNodeWithText("Shoots did not see a Technique clearly enough to name here.").assertExists()
+        compose.onNodeWithText("CAMERA MEASUREMENTS").assertDoesNotExist()
         compose.onNodeWithText("A1", substring = true).assertDoesNotExist()
         compose.onNodeWithText("H6", substring = true).assertDoesNotExist()
         compose.onNodeWithText("columns A-C", substring = true).assertDoesNotExist()
@@ -281,6 +283,86 @@ class ShotDetailScreenIntegrationTest {
     }
 
     @Test
+    fun techniqueStepSavesALaterQuestionWithoutStartingAnExperiment() {
+        var requestedShot = ""
+        var requestedTechnique = ""
+        var requestedSave = false
+        val techniqueId = "leading_lines"
+        val cells = listOf("D6", "D4", "D2")
+        val artifact = VisualEvidenceArtifactDto(
+            kind = "verified_paths",
+            authority = "relational_model_read",
+            verification = "bounded",
+            blobPath = "verified-history-paths.jpg",
+            label = "Verified leading paths",
+        )
+        val view = ShotViewDto(
+            shot = ShotDto(
+                id = "history-shot",
+                filename = "IMG_history.jpg",
+                status = "analyzed",
+                grid = GridSpecDto(cols = 8, rows = 6, width = 800, height = 600),
+            ),
+            analysis = AnalysisDto(shotId = "history-shot"),
+            teaching = ShotTeachingReceiptDto(
+                keepTitle = "Leading lines",
+                keepProof = "Two corridor edges converge toward the subject.",
+                keepTechniqueId = techniqueId,
+                keepMark = VisualMarkDto(
+                    kind = "line",
+                    cells = cells,
+                    paths = listOf(VisualPathDto(points = cells)),
+                    visualArtifact = artifact,
+                    techniqueId = techniqueId,
+                ),
+            ),
+            techniqueContext = mapOf(
+                techniqueId to ShotTechniqueContextDto(
+                    techniqueId = techniqueId,
+                    status = "recurring",
+                    corroboratedShots = 6,
+                    distinctScenes = 4,
+                    distinctShoots = 3,
+                    positiveKeeperShots = 2,
+                )
+            ),
+        )
+
+        compose.setContent {
+            ShootsTheme {
+                ShotDetailScreen(
+                    view = view,
+                    imageUrl = { _, _ -> marketFixtureUrl },
+                    blobUrl = { if (it == artifact.blobPath) marketFixtureUrl else "" },
+                    onBack = {},
+                    onKeeper = {},
+                    onRetry = {},
+                    onOpenDrive = {},
+                    onChooseExperimentDirection = { shotId, technique, save ->
+                        requestedShot = shotId
+                        requestedTechnique = technique
+                        requestedSave = save
+                    },
+                )
+            }
+        }
+
+        compose.onNodeWithText("Corroborated in 6 Shots across 3 Shoots · 2 marked Keepers").assertExists()
+        compose.onNodeWithText("Deliberate repeatability has not been tested.").assertExists()
+        waitForImage("IMG_history.jpg")
+        compose.mainClock.advanceTimeBy(500)
+        compose.waitForIdle()
+        saveScreenshot("technique-context.png")
+        compose.onNodeWithText("A TEST FOR ANOTHER DAY").assertExists()
+        compose.onNodeWithText("Could you make this photographic choice deliberately in a different Scene?").assertExists()
+        compose.onNodeWithText("Leave it").assertExists()
+        compose.onNodeWithText("Try another day").performClick()
+        assertEquals("history-shot", requestedShot)
+        assertEquals(techniqueId, requestedTechnique)
+        assertEquals(true, requestedSave)
+    }
+
+    @Test
     fun eachMarketStorySentenceSelectsItsOwnVisualMark() {
         val lineCells = listOf("D9", "D7", "D5", "G9", "F7", "E5")
         val linePaths = listOf(
@@ -294,6 +376,13 @@ class ShotDetailScreenIntegrationTest {
                 leadsTo = listOf("D4", "E4"),
                 role = "boundary",
             ),
+        )
+        val leadingArtifact = VisualEvidenceArtifactDto(
+            kind = "verified_paths",
+            authority = "relational_model_read",
+            verification = "bounded",
+            blobPath = "verified-market-paths.jpg",
+            label = "Verified leading paths",
         )
         val tarpCells = listOf(
             "A5", "B5", "C5", "D5",
@@ -326,6 +415,7 @@ class ShotDetailScreenIntegrationTest {
                     kind = "line",
                     cells = lineCells,
                     paths = linePaths,
+                    visualArtifact = leadingArtifact,
                     techniqueId = "leading_lines",
                 ),
                 noticeTitle = "The teal tarp fills the foreground.",
@@ -340,6 +430,16 @@ class ShotDetailScreenIntegrationTest {
                 visibleCheck = "Check that the corridor reaches the subject without the tarp dominating it.",
                 checkMark = VisualMarkDto(kind = "region", cells = tarpCells),
             ),
+            techniqueContext = mapOf(
+                "leading_lines" to ShotTechniqueContextDto(
+                    techniqueId = "leading_lines",
+                    status = "recurring",
+                    corroboratedShots = 14,
+                    distinctScenes = 9,
+                    distinctShoots = 6,
+                    positiveKeeperShots = 4,
+                )
+            ),
         )
 
         compose.setContent {
@@ -347,7 +447,7 @@ class ShotDetailScreenIntegrationTest {
                 ShotDetailScreen(
                     view = view,
                     imageUrl = { _, _ -> marketFixtureUrl },
-                    blobUrl = { "" },
+                    blobUrl = { if (it == leadingArtifact.blobPath) marketFixtureUrl else "" },
                     onBack = {},
                     onKeeper = {},
                     onRetry = {},
@@ -357,13 +457,14 @@ class ShotDetailScreenIntegrationTest {
         }
 
         compose.onNodeWithText("Leading lines").assertExists()
-        compose.onNodeWithContentDescription("Visual mark line").assertExists()
+        compose.onNodeWithText("Corroborated in 14 Shots across 6 Shoots · 4 marked Keepers").assertExists()
+        compose.onNodeWithContentDescription("Visual evidence Verified leading paths").assertExists()
         compose.onNodeWithText("Next").performClick()
         compose.onNodeWithText("The teal tarp fills the foreground.").assertExists()
         compose.onNodeWithContentDescription("Visual mark region").assertExists()
         saveScreenshot("market-story-tarp-region.png")
         compose.onNodeWithText("Previous").performClick()
-        compose.onNodeWithContentDescription("Visual mark line").assertExists()
+        compose.onNodeWithContentDescription("Visual evidence Verified leading paths").assertExists()
         saveScreenshot("market-story-leading-line.png")
         compose.onNodeWithText("Next").performClick()
         saveScreenshot("market-story-tarp-region.png")
@@ -375,10 +476,14 @@ class ShotDetailScreenIntegrationTest {
             "Check that the corridor reaches the subject without the tarp dominating it."
         ).assertExists()
         compose.onNodeWithContentDescription("Visual mark region").assertExists()
+        compose.onNodeWithText("Compare guides").performClick()
+        compose.onNodeWithText("Phi grid").performClick()
+        compose.onNodeWithContentDescription("Phi grid composition guide").assertExists()
+        saveScreenshot("market-phi-grid.png")
     }
 
     @Test
-    fun broadLegacyCellCloudDoesNotMasqueradeAsALine() {
+    fun collinearCellsWithoutATargetedPathDoNotMasqueradeAsLeadingLines() {
         val view = ShotViewDto(
             shot = ShotDto(
                 id = "legacy-line",
@@ -398,10 +503,10 @@ class ShotDetailScreenIntegrationTest {
                 keepTitle = "Leading lines",
                 keepProof = "The wet corridor draws the eye toward the subject.",
                 keepTechniqueId = "leading_lines",
-                keepCells = listOf("D6", "E6", "F6", "D7", "E7", "F7", "D8", "E8", "F8"),
+                keepCells = listOf("D9", "D7", "D5"),
                 keepMark = VisualMarkDto(
                     kind = "line",
-                    cells = listOf("D6", "E6", "F6", "D7", "E7", "F7", "D8", "E8", "F8"),
+                    cells = listOf("D9", "D7", "D5"),
                     techniqueId = "leading_lines",
                 ),
             ),
@@ -560,6 +665,27 @@ class ShotDetailScreenIntegrationTest {
 
     @Test
     fun relationalTechniqueKeepsBothRegionsVisible() {
+        val pairArtifact = VisualEvidenceArtifactDto(
+            kind = "geometry",
+            authority = "relational_model_read",
+            verification = "bounded",
+            blobPath = "verified-colour-regions.jpg",
+            label = "Verified colour regions",
+        )
+        val layeringArtifact = VisualEvidenceArtifactDto(
+            kind = "geometry",
+            authority = "relational_model_read",
+            verification = "bounded",
+            blobPath = "verified-depth-planes.jpg",
+            label = "Verified depth planes",
+        )
+        val patternArtifact = VisualEvidenceArtifactDto(
+            kind = "geometry",
+            authority = "relational_model_read",
+            verification = "bounded",
+            blobPath = "verified-repeated-forms.jpg",
+            label = "Verified repeated forms",
+        )
         val regions = listOf(
             VisualRegionDto(
                 cells = listOf("D3", "E3", "D4", "E4"),
@@ -576,6 +702,7 @@ class ShotDetailScreenIntegrationTest {
             kind = "pair",
             cells = regions.flatMap { it.cells },
             regions = regions,
+            visualArtifact = pairArtifact,
             techniqueId = "warm_cool",
         )
         val view = ShotViewDto(
@@ -611,6 +738,7 @@ class ShotDetailScreenIntegrationTest {
                                 order = 2,
                             ),
                         ),
+                        visualArtifact = layeringArtifact,
                     ),
                     TechniqueEvidenceDto(
                         techniqueId = "patterns",
@@ -624,6 +752,7 @@ class ShotDetailScreenIntegrationTest {
                             VisualRegionDto(cells = listOf("F6"), role = "repeat", order = 2),
                             VisualRegionDto(cells = listOf("G6"), role = "repeat", order = 3),
                         ),
+                        visualArtifact = patternArtifact,
                     ),
                 ),
             ),
@@ -633,6 +762,19 @@ class ShotDetailScreenIntegrationTest {
                 keepTechniqueId = "warm_cool",
                 keepMark = mark,
             ),
+            techniqueContext = mapOf(
+                "warm_cool" to ShotTechniqueContextDto(
+                    techniqueId = "warm_cool",
+                    status = "recurring",
+                    corroboratedShots = 8,
+                    distinctScenes = 5,
+                    distinctShoots = 4,
+                    positiveKeeperShots = 3,
+                    reproduceSessions = 2,
+                    evaluableReproduceSessions = 2,
+                    criteriaMetSessions = 1,
+                )
+            ),
         )
 
         compose.setContent {
@@ -640,6 +782,70 @@ class ShotDetailScreenIntegrationTest {
                 ShotDetailScreen(
                     view = view,
                     imageUrl = { _, _ -> marketFixtureUrl },
+                    blobUrl = { path ->
+                        if (path in setOf(pairArtifact.blobPath, layeringArtifact.blobPath, patternArtifact.blobPath)) {
+                            marketFixtureUrl
+                        } else {
+                            ""
+                        }
+                    },
+                    onBack = {},
+                    onKeeper = {},
+                    onRetry = {},
+                    onOpenDrive = {},
+                )
+            }
+        }
+
+        compose.onNodeWithContentDescription("Visual evidence Verified colour regions").assertExists()
+        compose.onNodeWithText("Warm against cool").assertExists()
+        compose.onNodeWithText("Corroborated in 8 Shots across 4 Shoots · 3 marked Keepers").assertExists()
+        compose.onNodeWithText("1 of 2 evaluable Reproduce sessions met fixed Criteria").assertExists()
+        compose.onNodeWithText("1 of 3").assertExists()
+        waitForImage("Visual evidence Verified colour regions")
+        compose.mainClock.advanceTimeBy(500)
+        compose.waitForIdle()
+        saveScreenshot("pair-regions.png")
+        compose.onNodeWithText("Next").performClick()
+        compose.onNodeWithContentDescription("Visual evidence Verified depth planes").assertExists()
+        compose.onNodeWithText("Foreground, midground, background").assertExists()
+        saveScreenshot("market-layering-planes.png")
+        compose.onNodeWithText("Next").performClick()
+        compose.onNodeWithContentDescription("Visual evidence Verified repeated forms").assertExists()
+        compose.onNodeWithText("Patterns and repetition").assertExists()
+    }
+
+    @Test
+    fun relationalTechniqueWithoutSeparateRegionsIsNotNarrated() {
+        val view = ShotViewDto(
+            shot = ShotDto(
+                id = "legacy-layering-shot",
+                filename = "IMG_legacy_layering.jpg",
+                status = "analyzed",
+                grid = GridSpecDto(cols = 8, rows = 6, width = 800, height = 600),
+            ),
+            analysis = AnalysisDto(
+                shotId = "legacy-layering-shot",
+                observations = listOf("A ridge sits beyond a bank of cloud."),
+                composition = CompositionDto(subjectCells = listOf("D4", "E4")),
+            ),
+            teaching = ShotTeachingReceiptDto(
+                keepTitle = "Foreground, midground, background",
+                keepProof = "Foreground, cloud, and ridge form three depth planes.",
+                keepTechniqueId = "layering",
+                keepMark = VisualMarkDto(
+                    kind = "region",
+                    cells = listOf("B3", "D3", "F3", "B5", "D5", "F5"),
+                    techniqueId = "layering",
+                ),
+            ),
+        )
+
+        compose.setContent {
+            ShootsTheme {
+                ShotDetailScreen(
+                    view = view,
+                    imageUrl = { _, _ -> fixtureUrl },
                     blobUrl = { "" },
                     onBack = {},
                     onKeeper = {},
@@ -649,19 +855,9 @@ class ShotDetailScreenIntegrationTest {
             }
         }
 
-        compose.onNodeWithContentDescription("Visual mark pair").assertExists()
-        compose.onNodeWithText("Warm against cool").assertExists()
-        compose.onNodeWithText("1 of 3").assertExists()
-        waitForImage("IMG_pair.jpg")
-        compose.mainClock.advanceTimeBy(500)
-        compose.waitForIdle()
-        saveScreenshot("pair-regions.png")
-        compose.onNodeWithText("Next").performClick()
-        compose.onNodeWithContentDescription("Visual mark planes").assertExists()
-        compose.onNodeWithText("Foreground, midground, background").assertExists()
-        compose.onNodeWithText("Next").performClick()
-        compose.onNodeWithContentDescription("Visual mark instances").assertExists()
-        compose.onNodeWithText("Patterns and repetition").assertExists()
+        compose.onNodeWithText("Foreground, midground, background").assertDoesNotExist()
+        compose.onNodeWithText("Start with what catches your eye first.").assertExists()
+        compose.onNodeWithContentDescription("Visual mark region").assertExists()
     }
 
     private fun waitForImage(contentDescription: String) {

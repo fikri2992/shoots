@@ -6,7 +6,7 @@ import VerdictNote from '@/components/VerdictNote.vue'
 const CHANGE = {
   changed: { label: 'changed', tone: 'text-paper' },
   unchanged: { label: 'unchanged', tone: 'text-neutral-400' },
-  'insufficient evidence': { label: 'not enough to say', tone: 'text-neutral-500' },
+  'insufficient evidence': { label: 'not enough to say', tone: 'text-muted' },
 }
 
 /**
@@ -32,8 +32,9 @@ export default {
     },
     outcome() {
       const verdicts = this.experiment.verdicts || []
-      if (verdicts.some((v) => v.criteria_met)) return 'criteria met'
-      return this.experiment.status === 'skipped' ? 'left under the old contract' : this.experiment.status
+      if (verdicts.some((v) => v.criteria_met)) return 'matched every check'
+      if (this.experiment.status === 'skipped') return 'left for another day'
+      return this.experiment.status
     },
     change() {
       const change = this.experiment.change
@@ -74,12 +75,12 @@ export default {
       </p>
 
       <div v-if="baseline">
-        <p class="t-meta text-neutral-500">Measured before it was set</p>
+        <p class="t-meta text-muted">What Shoots knew before</p>
         <p class="mt-1 t-body text-neutral-300">{{ baseline.citation }}</p>
       </div>
 
       <div v-if="referenceShotId">
-        <p class="t-meta text-neutral-500">Keeper fixed before the result</p>
+        <p class="t-meta text-muted">The Shot you chose first</p>
         <RouterLink
           :to="{ name: 'shot', params: { shotId: referenceShotId } }"
           class="mt-1 inline-block t-body text-neutral-300 hover:text-paper"
@@ -89,7 +90,7 @@ export default {
       </div>
 
       <div v-if="experiment.criteria?.text?.length">
-        <p class="t-meta text-neutral-500">Criteria declared before the result</p>
+        <p class="t-meta text-muted">The checks you set before shooting</p>
         <ul class="mt-1 space-y-1">
           <li v-for="(c, i) in experiment.criteria.text" :key="i" class="t-body text-neutral-300">
             {{ c }}
@@ -98,7 +99,7 @@ export default {
       </div>
 
       <div v-if="experiment.type === 'explore' && experiment.variations?.length">
-        <p class="t-meta text-neutral-500">Optional Variations · no Verdict</p>
+        <p class="t-meta text-muted">Different ways you tried it · no Verdict</p>
         <ul class="mt-2 space-y-2">
           <li v-for="variation in experiment.variations" :key="variation.id" class="t-body text-neutral-300">
             {{ variation.title }}
@@ -112,27 +113,27 @@ export default {
       </div>
 
       <div v-if="attempts.length">
-        <p class="t-meta text-neutral-500">What came back</p>
+        <p class="t-meta text-muted">What came back</p>
         <div class="mt-2 rounded-xl bg-panel-2 p-3"><VerdictNote :verdict="attempts[0]" /></div>
-        <p class="mt-2 t-meta">{{ resultCount }} explicit result Shot{{ resultCount === 1 ? '' : 's' }}</p>
+        <p class="mt-2 t-meta">{{ resultCount }} result Shot{{ resultCount === 1 ? '' : 's' }}</p>
       </div>
 
       <p v-else-if="resultCount" class="t-body text-neutral-300">
-        {{ resultCount }} result Shot{{ resultCount === 1 ? '' : 's' }} recorded. No Verdict was created.
+        {{ resultCount }} result Shot{{ resultCount === 1 ? '' : 's' }} came back. Shoots could not check {{ resultCount === 1 ? 'it' : 'them' }}.
       </p>
 
       <div v-if="change">
-        <p class="t-meta text-neutral-500">In the shots since</p>
+        <p class="t-meta text-muted">In the Shots since</p>
         <p class="mt-1 t-body" :class="change.tone">{{ change.outcome }}</p>
-        <p class="mt-1 t-meta text-neutral-600">
-          Counts either side, compared by code. It does not show that the experiment caused this.
+        <p class="mt-1 t-meta text-muted">
+          Shoots compared similar Shots from before and after. That does not prove the Experiment caused the difference.
         </p>
       </div>
-      <p v-else-if="baseline" class="t-meta text-neutral-600">Not checked yet.</p>
+      <p v-else-if="baseline" class="t-meta text-muted">Not checked yet.</p>
 
-      <p v-if="sample" class="t-meta text-neutral-600">
-        Baseline computed from {{ sample.sample_size }} Shots by {{ sample.calc_version }}.
-        <template v-if="sample.inputs?.length"> Model-read dimensions trace to {{ sample.inputs.map((input) => `${input.model}/${input.prompt_version || 'legacy prompt'}`).join(', ') }}.</template>
+      <p v-if="sample" class="t-meta text-muted">
+        Starting point calculated from {{ sample.sample_size }} Shots with {{ sample.calc_version }}.
+        <template v-if="sample.inputs?.length"> Visual reads came from {{ sample.inputs.map((input) => `${input.model}/${input.prompt_version || 'legacy prompt'}`).join(', ') }}.</template>
       </p>
 
       <RouterLink

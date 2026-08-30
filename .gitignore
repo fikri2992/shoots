@@ -40,5 +40,6 @@ data/demo/
 # Local agent/editor state and reproducible quality-run blob stores
 .claude/
 docs/test-corpus/results/*-assets/
+docs/test-corpus/results/**/*-assets/
 docs/test-corpus/results/finding-layer-debug.png
 docs/screenshots/drive-picker-e2e.png

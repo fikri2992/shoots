@@ -58,6 +58,7 @@ data class AppActions(
     val requestExperiment: (Boolean) -> Unit,
     val requestExplore: (Boolean, String) -> Unit,
     val startExperiment: (String, String) -> Unit,
+    val startSavedDirection: (String) -> Unit,
     val completeExplore: (String) -> Unit,
     val prepareDeconstruction: (String, String, Int, String) -> Unit,
     val answerScoutQuestion: (String, Int, String) -> Unit,
@@ -158,6 +159,12 @@ fun ShootsApp(
                     onOpenShot = { nav.navigate("shot/$it") },
                     onOpenShots = { nav.navigate("shots") },
                     onOpenExperiments = { nav.navigate("experiments") },
+                    onStartSavedDirection = actions.startSavedDirection,
+                    onLeaveSavedDirection = { sourceShotId, techniqueId ->
+                        scope.launch {
+                            viewModel.chooseExperimentDirection(sourceShotId, techniqueId, false)
+                        }
+                    },
                     onAnswerScoutQuestion = actions.answerScoutQuestion,
                     onOpenSettings = { nav.navigate("settings") },
                 )
@@ -178,6 +185,7 @@ fun ShootsApp(
                     { id -> scope.launch { viewModel.moveInspirationToMine(id) } },
                     actions.signIn,
                     actions.chooseFreeShots,
+                    readOnlySample = snapshot?.user?.recordMode == "sample",
                 )
             }
             composable("shot/{id}") { entry ->
@@ -199,6 +207,15 @@ fun ShootsApp(
                     },
                     onRetry = { scope.launch { viewModel.retryShot(id) } },
                     onOpenDrive = actions.openUrl,
+                    experimentDirections = snapshot?.experimentDirections.orEmpty(),
+                    onChooseExperimentDirection = { sourceShotId, techniqueId, save ->
+                        scope.launch {
+                            viewModel.chooseExperimentDirection(sourceShotId, techniqueId, save)
+                        }
+                    },
+                    onOpenJourney = { nav.navigate("journey") },
+                    onOpenExperiment = { nav.navigate("experiments") },
+                    readOnlySample = snapshot?.user?.recordMode == "sample",
                 )
             }
             composable("journey") {
@@ -249,6 +266,25 @@ fun ShootsApp(
                     onReauthenticate = actions.signIn,
                     onRevoke = actions.revoke,
                     onDelete = actions.deleteAccount,
+                )
+            }
+        }
+
+        if (snapshot?.user?.recordMode == "sample") {
+            Box(
+                Modifier
+                    .align(Alignment.TopCenter)
+                    .fillMaxWidth()
+                    .background(Amber)
+                    .padding(horizontal = 16.dp, vertical = 10.dp),
+                contentAlignment = Alignment.Center,
+            ) {
+                Text(
+                    "SAMPLE RECORD · Hand-authored, read-only UI fixture. No agents ran.",
+                    color = Ink,
+                    fontSize = 11.sp,
+                    lineHeight = 15.sp,
+                    fontWeight = FontWeight.Bold,
                 )
             }
         }

@@ -11,7 +11,7 @@ import { useCoachStore } from '@/stores/coach'
 export default {
   name: 'CoachSheet',
   data() {
-    return { typed: '' }
+    return { typed: '', previousFocus: null, bodyOverflow: '' }
   },
   computed: {
     ...mapState(useCoachStore, ['open', 'status', 'lines', 'error', 'notice', 'listening', 'muted', 'speaking', 'active']),
@@ -27,6 +27,13 @@ export default {
     },
   },
   watch: {
+    open: {
+      immediate: true,
+      handler(value) {
+        if (value) this.activateDialog()
+        else this.deactivateDialog()
+      },
+    },
     lines: {
       deep: true,
       handler() {
@@ -39,10 +46,51 @@ export default {
   },
   methods: {
     ...mapActions(useCoachStore, ['close', 'ask', 'useMic', 'toggleMute']),
+    activateDialog() {
+      if (typeof document === 'undefined') return
+      this.previousFocus = document.activeElement
+      this.bodyOverflow = document.body.style.overflow
+      document.body.style.overflow = 'hidden'
+      window.addEventListener('keydown', this.onDialogKeydown)
+      this.$nextTick(() => this.$refs.initialFocus?.focus())
+    },
+    deactivateDialog() {
+      if (typeof document === 'undefined') return
+      window.removeEventListener('keydown', this.onDialogKeydown)
+      document.body.style.overflow = this.bodyOverflow
+      if (this.previousFocus?.isConnected) this.previousFocus.focus()
+      this.previousFocus = null
+    },
+    onDialogKeydown(event) {
+      if (event.key === 'Escape') {
+        event.preventDefault()
+        this.close()
+        return
+      }
+      if (event.key !== 'Tab') return
+      const focusable = [
+        ...(this.$refs.dialog?.querySelectorAll(
+          'button:not([disabled]), input:not([disabled]), a[href], [tabindex]:not([tabindex="-1"])',
+        ) || []),
+      ]
+      if (!focusable.length) return
+      const first = focusable[0]
+      const last = focusable[focusable.length - 1]
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault()
+        last.focus()
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault()
+        first.focus()
+      }
+    },
     send() {
       this.ask(this.typed)
       this.typed = ''
     },
+  },
+  beforeUnmount() {
+    this.deactivateDialog()
   },
 }
 </script>
@@ -53,6 +101,10 @@ export default {
       <div class="absolute inset-0 bg-black/76" @click="close" />
 
       <section
+        ref="dialog"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="coach-dialog-title"
         class="relative flex max-h-[84vh] w-full max-w-[580px] flex-col rounded-t-[28px] border-t border-edge bg-panel shadow-2xl md:rounded-[28px] md:border"
       >
         <div class="mx-auto mt-3 h-1 w-10 rounded-full bg-edge-strong md:hidden" />
@@ -63,10 +115,10 @@ export default {
           />
           <div>
             <p class="eyebrow">Shot Coach</p>
-            <h2 class="text-[17px] font-semibold text-paper">Ask about this read</h2>
+            <h2 id="coach-dialog-title" class="text-[17px] font-semibold text-paper">Ask about this read</h2>
           </div>
           <span class="t-meta">{{ state }}</span>
-          <button type="button" class="ml-auto t-meta hover:text-paper" @click="close">Close</button>
+          <button type="button" class="tap-target ml-auto px-2 t-meta hover:text-paper" @click="close">Close</button>
         </header>
 
         <div ref="scroll" class="min-h-24 flex-1 space-y-4 overflow-y-auto px-5 py-4">
@@ -90,33 +142,36 @@ export default {
           @submit.prevent="send"
         >
           <input
+            ref="initialFocus"
             v-model="typed"
             type="text"
             :disabled="!active"
             placeholder="Ask about this Shot"
-            class="min-w-0 flex-1 rounded-xl border border-edge bg-panel-2 px-4 py-3 text-[15px] text-paper outline-none placeholder:text-neutral-600 focus:border-accent"
+            class="min-w-0 flex-1 rounded-xl border border-edge bg-panel-2 px-4 py-3 text-[15px] text-paper outline-none placeholder:text-muted focus:border-accent"
           />
           <button
             v-if="canMic && !listening"
             type="button"
-            class="rounded-xl border border-edge-strong px-3 py-3 text-neutral-400 hover:text-neutral-100"
+            class="min-h-11 min-w-11 rounded-xl border border-edge-strong px-3 py-3 text-neutral-400 hover:text-neutral-100"
             title="Speak instead"
+            aria-label="Speak instead"
             :disabled="!active"
             @click="useMic"
           >
-            <svg viewBox="0 0 24 24" class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round">
+            <svg aria-hidden="true" viewBox="0 0 24 24" class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round">
               <path d="M12 4a3 3 0 013 3v5a3 3 0 01-6 0V7a3 3 0 013-3zM5 11a7 7 0 0014 0M12 18v3" />
             </svg>
           </button>
           <button
             v-else-if="listening || muted"
             type="button"
-            class="rounded-xl border px-3 py-3"
-            :class="muted ? 'border-edge-strong text-neutral-500' : 'border-accent/50 text-accent'"
+            class="min-h-11 min-w-11 rounded-xl border px-3 py-3"
+            :class="muted ? 'border-edge-strong text-muted' : 'border-accent/50 text-accent'"
             :title="muted ? 'Unmute' : 'Mute'"
+            :aria-label="muted ? 'Unmute microphone' : 'Mute microphone'"
             @click="toggleMute"
           >
-            <svg viewBox="0 0 24 24" class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round">
+            <svg aria-hidden="true" viewBox="0 0 24 24" class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round">
               <path d="M12 4a3 3 0 013 3v5a3 3 0 01-6 0V7a3 3 0 013-3zM5 11a7 7 0 0014 0M12 18v3" />
               <path v-if="muted" d="M4 4l16 16" />
             </svg>

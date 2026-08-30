@@ -69,6 +69,7 @@ fun JourneyScreen(
     onShareDeconstruction: (DeconstructionDto) -> Unit = {},
 ) {
     var section by rememberSaveable { mutableStateOf(JourneySection.UPDATE) }
+    val readOnlySample = snapshot?.user?.recordMode == "sample"
     Column(
         Modifier
             .fillMaxSize()
@@ -78,7 +79,19 @@ fun JourneyScreen(
             .padding(bottom = 92.dp),
     ) {
         Column(Modifier.padding(horizontal = 20.dp, vertical = 22.dp)) {
-            ScreenTitle("Journey", "Your changing eye", "What repeats, what changed, and what remains unknown.")
+            ScreenTitle(
+                "Journey",
+                if (readOnlySample) {
+                    "Inspect a hand-authored Journey layout"
+                } else {
+                    "See what keeps showing up in your Shots"
+                },
+                if (readOnlySample) {
+                    "These values are interface fixtures, not observations about a Photographer."
+                } else {
+                    "The choices you return to, the ones you can repeat on purpose, and what changed when you tried."
+                },
+            )
         }
         if (snapshot == null) {
             Column(Modifier.padding(20.dp)) { Text("Loading your cached Journey…", color = MutedWhite) }
@@ -108,9 +121,10 @@ fun JourneyScreen(
                     onShot,
                     onPrepareDeconstruction,
                     onShareDeconstruction,
+                    readOnlySample,
                 )
-                JourneySection.TENDENCIES -> TendencyView(snapshot)
-                JourneySection.TECHNIQUES -> TechniqueView(snapshot)
+                JourneySection.TENDENCIES -> TendencyView(snapshot, readOnlySample)
+                JourneySection.TECHNIQUES -> TechniqueView(snapshot, readOnlySample)
             }
         }
     }
@@ -163,24 +177,37 @@ private fun JourneyUpdateView(
     onShot: (String) -> Unit,
     onPrepareDeconstruction: (String, String, Int, String) -> Unit,
     onShareDeconstruction: (DeconstructionDto) -> Unit,
+    readOnlySample: Boolean,
 ) {
     Column(Modifier.fillMaxWidth()) {
         val update = snapshot.journey.firstOrNull()
         if (update == null) {
             Column(Modifier.padding(horizontal = 20.dp)) {
                 InkCard {
-                    Text("No Journey Update yet.", color = WarmWhite, fontSize = 18.sp, fontWeight = FontWeight.SemiBold)
+                    Text("Your record has started.", color = WarmWhite, fontSize = 18.sp, fontWeight = FontWeight.SemiBold)
                     Spacer(Modifier.height(6.dp))
-                    Text("Shoots writes one only when the record supports a meaningful longitudinal claim.", color = MutedWhite, fontSize = 14.sp, lineHeight = 20.sp)
+                    Text(
+                        "A clear pattern will appear here after Shoots has enough Shots to compare.",
+                        color = MutedWhite,
+                        fontSize = 14.sp,
+                        lineHeight = 20.sp,
+                    )
                 }
             }
         } else {
             var expanded by rememberSaveable(update.id) { mutableStateOf(false) }
             var evidence by rememberSaveable(update.id) { mutableStateOf(false) }
-            val fullUpdate = update.body.trim()
+            val fullUpdate = if (readOnlySample) {
+                "This hand-authored example shows where a real Journey Update would explain what stayed and what varied. It is not evidence about a Photographer."
+            } else {
+                update.body.trim()
+            }
             val preview = journeyPreview(fullUpdate)
             Column(Modifier.padding(horizontal = 20.dp)) {
-                SectionTitle("Latest Update", "${update.shots} SHOTS")
+                SectionTitle(
+                    if (readOnlySample) "Sample Journey Update" else "The latest pattern",
+                    if (readOnlySample) "${update.shots} SAMPLE SHOT CARDS" else "${update.shots} SHOTS",
+                )
                 Spacer(Modifier.height(10.dp))
                 InkCard {
                     Text(
@@ -213,7 +240,12 @@ private fun JourneyUpdateView(
                             horizontalArrangement = Arrangement.SpaceBetween,
                             verticalAlignment = Alignment.CenterVertically,
                         ) {
-                            Text("What this was read from", color = MutedWhite, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                            Text(
+                                if (readOnlySample) "Hand-authored support lines" else "What this was read from",
+                                color = MutedWhite,
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Bold,
+                            )
                             DisclosureChevron(evidence)
                         }
                         AnimatedVisibility(evidence) {
@@ -229,15 +261,15 @@ private fun JourneyUpdateView(
         }
 
         val experiment = snapshot.experiments.firstOrNull { it.resultShotIds.isNotEmpty() }
-        if (experiment != null) {
+        if (experiment != null && !readOnlySample) {
             Spacer(Modifier.height(24.dp))
             Column(Modifier.padding(horizontal = 20.dp)) {
-                SectionTitle("Latest Experiment Record")
+                SectionTitle("What happened when you tried")
                 Spacer(Modifier.height(10.dp))
             }
             ExperimentHero(snapshot, experiment, imageUrl, onShot)
         }
-        snapshot.recentInterventions.firstOrNull()?.let { intervention ->
+        snapshot.recentInterventions.firstOrNull()?.takeIf { !readOnlySample }?.let { intervention ->
             Spacer(Modifier.height(24.dp))
             Column(Modifier.padding(horizontal = 20.dp)) {
                 SectionTitle("What happened to the last suggestion", intervention.route.uppercase())
@@ -252,7 +284,7 @@ private fun JourneyUpdateView(
                     Spacer(Modifier.height(9.dp))
                     Text(
                         intervention.outcomeReason.ifBlank {
-                            "No observable outcome is available for this intervention yet."
+                            "There is no result to compare yet."
                         },
                         color = WarmWhite,
                         fontSize = 15.sp,
@@ -261,10 +293,11 @@ private fun JourneyUpdateView(
                     if (intervention.resultShotIds.isNotEmpty()) {
                         Spacer(Modifier.height(7.dp))
                         Text(
-                                "${intervention.resultShotIds.size} explicit results · " +
-                                "${intervention.criteriaMetResults} Criteria met · " +
-                                "${intervention.abstentions} " +
-                                counted(intervention.abstentions, "abstention"),
+                                resultSummary(
+                                    intervention.resultShotIds.size,
+                                    intervention.criteriaMetResults,
+                                    intervention.abstentions,
+                                ),
                             color = MutedWhite,
                             fontSize = 11.sp,
                         )
@@ -281,6 +314,7 @@ private fun JourneyUpdateView(
                 blobUrl,
                 onPrepareDeconstruction,
                 onShareDeconstruction,
+                readOnlySample,
             )
         }
     }
@@ -338,6 +372,7 @@ private fun DeconstructionCard(
     blobUrl: (String) -> String,
     onPrepare: (String, String, Int, String) -> Unit,
     onShare: (DeconstructionDto) -> Unit,
+    readOnlySample: Boolean,
 ) {
     val draft = source.draft
     var selectedCover by rememberSaveable(source.type, source.id, source.revision) {
@@ -346,50 +381,68 @@ private fun DeconstructionCard(
         )
     }
     Column(Modifier.padding(horizontal = 20.dp)) {
-        SectionTitle("Share the work", "DECONSTRUCTION")
+        SectionTitle(
+            if (readOnlySample) "Sample visual story layout" else "Your visual story",
+            if (readOnlySample) "HAND-AUTHORED" else "${source.label.uppercase()} STORY",
+        )
         Spacer(Modifier.height(10.dp))
         InkCard {
             Text(
-                "An image-led draft from this ${source.label}. You choose the cover; " +
-                    "Shoots only uses stored Evidence.",
+                if (readOnlySample) {
+                    "No story was built and no visual thread was found by an agent. Story actions are disabled."
+                } else {
+                    "Shoots follows the sequence and finds the visual thread. " +
+                        "You choose the marked Shot that opens the story."
+                },
                 color = MutedWhite,
                 fontSize = 13.sp,
                 lineHeight = 19.sp,
             )
             Spacer(Modifier.height(12.dp))
-            if (draft?.status == "drafted" && draft.pages.isNotEmpty()) {
+            if (readOnlySample) {
+                Text(
+                    "A real Photographer would choose a Keeper cover before Shoots drafts story pages.",
+                    color = WarmWhite,
+                    fontSize = 14.sp,
+                    lineHeight = 20.sp,
+                )
+            } else if (draft?.status == "drafted" && draft.pages.isNotEmpty()) {
                 LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     items(draft.pages) { page ->
-                        AsyncImage(
-                            model = blobUrl(page.blobPath),
-                            contentDescription = page.title,
-                            modifier = Modifier
-                                .width(150.dp)
-                                .aspectRatio(4f / 5f)
-                                .clip(androidx.compose.foundation.shape.RoundedCornerShape(10.dp))
-                                .background(InkSoft),
-                            contentScale = ContentScale.Crop,
-                        )
+                        Column(Modifier.width(220.dp)) {
+                            AsyncImage(
+                                model = blobUrl(page.blobPath),
+                                contentDescription = page.title,
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .aspectRatio(4f / 5f)
+                                    .clip(androidx.compose.foundation.shape.RoundedCornerShape(12.dp))
+                                    .background(InkSoft),
+                                contentScale = ContentScale.Crop,
+                            )
+                            Spacer(Modifier.height(6.dp))
+                            Text(page.title, color = MutedWhite, fontSize = 12.sp)
+                        }
                     }
                 }
                 Spacer(Modifier.height(12.dp))
-                PrimaryAction("Share ${draft.pages.size}-page carousel") { onShare(draft) }
+                PrimaryAction("Share ${draft.pages.size}-page story") { onShare(draft) }
             } else if (source.keeperShotIds.isEmpty()) {
                 Text(
-                    "Mark one Shot from this ${source.label} as a Keeper to choose the cover.",
+                    "Mark one Shot you care about with the bookmark, then return here to use it as the opening.",
                     color = WarmWhite,
                     fontSize = 14.sp,
                     lineHeight = 20.sp,
                 )
             } else {
-                Text("CHOOSE YOUR COVER", color = MutedWhite, fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                Text("CHOOSE THE OPENING SHOT", color = MutedWhite, fontSize = 10.sp, fontWeight = FontWeight.Bold)
                 Spacer(Modifier.height(7.dp))
                 LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     items(source.keeperShotIds) { id ->
                         val shot = snapshot.recentShots.firstOrNull { it.id == id }
                         AsyncImage(
                             model = shot?.let(imageUrl),
-                            contentDescription = "Keeper cover",
+                            contentDescription = "Possible story cover",
                             modifier = Modifier
                                 .width(92.dp)
                                 .aspectRatio(1f)
@@ -405,7 +458,7 @@ private fun DeconstructionCard(
                     }
                 }
                 Spacer(Modifier.height(12.dp))
-                PrimaryAction("Create Deconstruction", selectedCover.isNotBlank()) {
+                PrimaryAction("Build my story", selectedCover.isNotBlank()) {
                     onPrepare(source.type, source.id, source.revision, selectedCover)
                 }
             }
@@ -414,11 +467,23 @@ private fun DeconstructionCard(
 }
 
 @Composable
-private fun TendencyView(snapshot: MobileSnapshotDto) {
+private fun TendencyView(snapshot: MobileSnapshotDto, readOnlySample: Boolean) {
     Column(Modifier.padding(horizontal = 20.dp)) {
-        SectionTitle("Tendency Profile", "${snapshot.profile.shots} SHOTS READ")
+        SectionTitle(
+            if (readOnlySample) "Sample pattern values" else "The choices you return to",
+            if (readOnlySample) "HAND-AUTHORED" else "${snapshot.profile.shots} SHOTS READ",
+        )
         Spacer(Modifier.height(6.dp))
-        Text("Counts describe what keeps appearing. They do not say it is good or bad.", color = MutedWhite, fontSize = 12.sp, lineHeight = 17.sp)
+        Text(
+            if (readOnlySample) {
+                "These values show the layout only. Shoots did not calculate them."
+            } else {
+                "These are patterns, not grades. Only your Keeper marks say what you care about."
+            },
+            color = MutedWhite,
+            fontSize = 12.sp,
+            lineHeight = 17.sp,
+        )
         Spacer(Modifier.height(12.dp))
         snapshot.profile.dimensions.forEach { dimension ->
             DimensionCard(dimension)
@@ -432,12 +497,15 @@ private fun TendencyView(snapshot: MobileSnapshotDto) {
 }
 
 @Composable
-private fun TechniqueView(snapshot: MobileSnapshotDto) {
+private fun TechniqueView(snapshot: MobileSnapshotDto, readOnlySample: Boolean) {
     Column(Modifier.padding(horizontal = 20.dp)) {
-        SectionTitle("Technique Map", "EVIDENCE, NOT LEVELS")
+        SectionTitle(
+            if (readOnlySample) "Sample recurring Technique labels" else "What keeps recurring",
+            if (readOnlySample) "HAND-AUTHORED" else "FROM YOUR OWN SHOTS",
+        )
         Spacer(Modifier.height(10.dp))
         if (snapshot.techniques.isEmpty()) {
-            Text("No corroborated Technique Evidence cached yet.", color = MutedWhite, fontSize = 14.sp)
+            Text("Nothing has appeared clearly in enough Shots yet.", color = MutedWhite, fontSize = 14.sp)
         } else {
             snapshot.techniques.forEach { technique ->
                 InkCard {
@@ -447,7 +515,11 @@ private fun TechniqueView(snapshot: MobileSnapshotDto) {
                     }
                     Spacer(Modifier.height(6.dp))
                     Text(
-                        coverageEvidence(technique),
+                        if (readOnlySample) {
+                            "Fixture value: ${technique.corroboratedShots} sample Shot cards."
+                        } else {
+                            coverageEvidence(technique)
+                        },
                         color = MutedWhite,
                         fontSize = 12.sp,
                     )
@@ -457,10 +529,10 @@ private fun TechniqueView(snapshot: MobileSnapshotDto) {
                     ) {
                         Spacer(Modifier.height(4.dp))
                         Text(
-                            "${technique.reproduceAttempts} explicit result " +
+                            "${technique.reproduceAttempts} result " +
                                 counted(technique.reproduceAttempts, "Shot") +
                                 if (technique.abstentions > 0) {
-                                    " · ${technique.abstentions} ${counted(technique.abstentions, "abstention")}"
+                                    " · ${technique.abstentions} could not be checked"
                                 } else {
                                     ""
                                 },
@@ -470,10 +542,12 @@ private fun TechniqueView(snapshot: MobileSnapshotDto) {
                     }
                     Spacer(Modifier.height(8.dp))
                     Text(
-                        if (technique.reproduceSessions > 0) {
-                            "REPRODUCE EVIDENCE"
+                        if (readOnlySample) {
+                            "SAMPLE VALUE · NO REPRODUCE SESSION"
+                        } else if (technique.reproduceSessions > 0) {
+                            "WHAT HAPPENED WHEN YOU TRIED"
                         } else {
-                            "REPEATABILITY UNKNOWN"
+                            "NOT TRIED ON PURPOSE YET"
                         },
                         color = if (technique.criteriaMetSessions > 0) Amber else MutedWhite,
                         fontSize = 10.sp,
@@ -504,7 +578,7 @@ private fun TechniqueView(snapshot: MobileSnapshotDto) {
 private fun coverageEvidence(technique: com.shoots.app.data.TechniqueNodeDto): String =
     buildList {
         add(
-            "${technique.corroboratedShots} corroborated " +
+            "Clear in ${technique.corroboratedShots} " +
                 counted(technique.corroboratedShots, "Shot"),
         )
         if (technique.distinctScenes > 0) {
@@ -518,18 +592,30 @@ private fun coverageEvidence(technique: com.shoots.app.data.TechniqueNodeDto): S
 private fun repeatabilityEvidence(technique: com.shoots.app.data.TechniqueNodeDto): String =
     if (technique.reproduceSessions == 0) {
         if (technique.status == "recurring") {
-            "It recurs in your Shots, but deliberate control has not been tested."
+            "This keeps returning in your Shots. You have not tried to repeat it on purpose yet."
         } else {
-            "No settled Reproduce session yet."
+            "You have not tried to repeat this on purpose yet."
         }
     } else {
-        "${technique.reproduceSessions} settled " +
-            counted(technique.reproduceSessions, "session") + " · " +
-            "${technique.evaluableReproduceSessions} evaluable · " +
-            "${technique.criteriaMetSessions} met Criteria"
+        if (technique.evaluableReproduceSessions == 0) {
+            "You tried this in ${technique.reproduceSessions} " +
+                counted(technique.reproduceSessions, "session") +
+                ", but Shoots could not check the result."
+        } else {
+            "${technique.criteriaMetSessions} of ${technique.evaluableReproduceSessions} checked " +
+                counted(technique.evaluableReproduceSessions, "session") +
+                " matched what you set before shooting."
+        }
     }
 
 private fun counted(count: Int, noun: String): String = if (count == 1) noun else "${noun}s"
+
+private fun resultSummary(results: Int, matched: Int, unchecked: Int): String =
+    buildList {
+        add("$results result ${counted(results, "Shot")}")
+        add("$matched matched every check")
+        if (unchecked > 0) add("$unchecked could not be checked")
+    }.joinToString(" · ")
 
 @Composable
 private fun ExperimentHero(
@@ -573,7 +659,7 @@ private fun ExperimentHero(
         if (experiment.resultShotIds.isNotEmpty()) {
             Spacer(Modifier.height(16.dp))
             Text(
-                if (isExplore) "EXPLICIT RESULT SHOTS" else "ALL BATCH RESULTS",
+                if (isExplore) "WHAT YOU TRIED" else "EVERY RESULT",
                 color = MutedWhite,
                 fontSize = 10.sp,
                 fontWeight = FontWeight.Bold,
@@ -597,9 +683,9 @@ private fun ExperimentHero(
                             when {
                                 isExplore && !observation?.abstained.isNullOrBlank() -> "UNREADABLE"
                                 isExplore -> variation?.title?.uppercase() ?: "EXPLORE RESULT"
-                                verdict == null -> "ABSTENTION"
-                                verdict.criteriaMet -> "CRITERIA MET"
-                                else -> "NOT MET"
+                                verdict == null -> "COULD NOT CHECK"
+                                verdict.criteriaMet -> "MATCHED"
+                                else -> "NOT YET"
                             },
                             color = if (verdict?.criteriaMet == true) Amber else MutedWhite,
                             fontSize = 9.sp,

@@ -24,12 +24,19 @@ fun buildShotVisualStory(
 ): List<ShotStoryStep> = buildList {
     val composition = analysis.composition
     val keepMark = teaching?.keepMark
+        ?.let { mark ->
+            if (mark.techniqueId.isBlank() && teaching.keepTechniqueId.isNotBlank()) {
+                mark.copy(techniqueId = teaching.keepTechniqueId)
+            } else {
+                mark
+            }
+        }
         ?.takeIf(::hasDrawableMark)
         ?: legacyKeepMark(teaching)
     if (teaching?.keepTitle?.isNotBlank() == true && hasDrawableMark(keepMark)) {
         add(
             ShotStoryStep(
-                label = "WHAT HOLDS THE FRAME",
+                label = "WHAT HOLDS THIS SHOT",
                 title = teaching.keepTitle,
                 body = teaching.keepProof,
                 layer = layerFor(keepMark),
@@ -40,10 +47,10 @@ fun buildShotVisualStory(
         val observation = analysis.observations.firstOrNull().orEmpty()
         add(
             ShotStoryStep(
-                label = "START HERE · MODEL READ",
-                title = "Start with the main subject.",
+                label = "START HERE · SHOOTS' VISUAL READ",
+                title = "Start with what catches your eye first.",
                 body = plainCellReferences(observation, grid).ifBlank {
-                    "Shoots located the main subject and its position in the frame."
+                    "Shoots found the main subject and where it sits in the Shot."
                 },
                 layer = ReviewLayer.EVIDENCE,
                 mark = compositionMark(composition),
@@ -60,7 +67,7 @@ fun buildShotVisualStory(
         .forEach { (evidence, mark) ->
             add(
                 ShotStoryStep(
-                    label = "ANOTHER DECISION · MODEL READ",
+                    label = "ANOTHER CHOICE · SHOOTS' VISUAL READ",
                     title = evidence.name.ifBlank { humanLabel(evidence.techniqueId) },
                     body = evidence.note,
                     layer = ReviewLayer.EVIDENCE,
@@ -84,7 +91,7 @@ fun buildShotVisualStory(
         if (hasDrawableMark(noticeMark)) {
             add(
                 ShotStoryStep(
-                    label = if (measured) "WHAT SHOOTS MEASURED" else "WHAT SHOOTS NOTICED · MODEL READ",
+                    label = if (measured) "WHAT THE CAMERA FOUND" else "WHAT STOOD OUT · SHOOTS' VISUAL READ",
                     title = noticeTitle,
                     body = teaching?.noticeProof.orEmpty().ifBlank {
                         analysis.findings.getOrNull(findingIndex)?.why.orEmpty()
@@ -107,7 +114,7 @@ fun buildShotVisualStory(
         if (hasDrawableMark(tryMark)) {
             add(
                 ShotStoryStep(
-                    label = "WHAT TO CHANGE",
+                    label = "TRY THIS",
                     title = tryText,
                     body = teaching?.tryReason.orEmpty(),
                     layer = layerFor(tryMark),
@@ -126,9 +133,9 @@ fun buildShotVisualStory(
         if (hasDrawableMark(checkMark)) {
             add(
                 ShotStoryStep(
-                    label = "CHECK THE NEXT SHOT",
+                    label = "CHECK NEXT TIME",
                     title = check,
-                    body = "Look for this visible result instead of relying on a score.",
+                    body = "Use the marked area as a quick check before you move on.",
                     layer = layerFor(checkMark),
                     mark = checkMark,
                 )
@@ -139,8 +146,8 @@ fun buildShotVisualStory(
     if (isEmpty()) {
         add(
             ShotStoryStep(
-                label = "THE SHOT",
-                title = "Shoots read this frame without making a supported visual call.",
+                label = "THIS SHOT",
+                title = "Shoots did not find one visual claim it could point to here.",
                 layer = ReviewLayer.CLEAN,
             )
         )
@@ -160,13 +167,16 @@ fun hasCompositionAction(composition: CompositionDto): Boolean =
 
 fun hasDrawableMark(mark: VisualMarkDto): Boolean {
     if (visualArtifactOwnsLayer(mark.visualArtifact)) return true
+    val expectedRelation = relationKind(mark.techniqueId)
+    if (expectedRelation != null && mark.kind != expectedRelation) return false
+    if (expectedRelation != null || mark.techniqueId == "leading_lines") return false
     return when (mark.kind) {
     "finding", "whole_frame" -> true
     "move" -> mark.cells.isNotEmpty() && mark.toCells.isNotEmpty()
     "line" -> mark.paths.any { it.points.size >= 2 } || collinearCellPath(mark.cells) != null
-    "pair" -> mark.regions.size >= 2
-    "instances" -> mark.regions.isNotEmpty()
-    "planes" -> mark.regions.size >= 2
+    "pair" -> usableRegions(mark).size >= 2
+    "instances" -> usableRegions(mark).size >= 2
+    "planes" -> planesAreDrawable(mark)
     "crop", "region", "frame" -> mark.cells.isNotEmpty()
     "point" -> true
     else -> false
@@ -196,7 +206,7 @@ private fun compositionMark(composition: CompositionDto): VisualMarkDto = when {
 
 private fun legacyKeepMark(teaching: ShotTeachingReceiptDto?): VisualMarkDto {
     if (teaching == null || teaching.keepCells.isEmpty()) return VisualMarkDto()
-    val kind = when (teaching.keepTechniqueId) {
+    val kind = relationKind(teaching.keepTechniqueId) ?: when (teaching.keepTechniqueId) {
         "diagonals", "horizon_placement", "leading_lines", "light_trails" -> "line"
         "frame_within_frame" -> "frame"
         "break_the_pattern", "eye_contact_portrait", "single_accent" -> "point"
@@ -210,16 +220,11 @@ private fun legacyKeepMark(teaching: ShotTeachingReceiptDto?): VisualMarkDto {
 }
 
 private fun techniqueMark(evidence: TechniqueEvidenceDto): VisualMarkDto {
-    val kind = when {
-        evidence.regions.isNotEmpty() && evidence.techniqueId in PAIR_TECHNIQUES -> "pair"
-        evidence.regions.isNotEmpty() && evidence.techniqueId in PLANE_TECHNIQUES -> "planes"
-        evidence.regions.isNotEmpty() && evidence.techniqueId in INSTANCE_TECHNIQUES -> "instances"
-        else -> when (evidence.techniqueId) {
+    val kind = relationKind(evidence.techniqueId) ?: when (evidence.techniqueId) {
         "diagonals", "horizon_placement", "leading_lines", "light_trails", "light_painting" -> "line"
         "frame_within_frame" -> "frame"
         "break_the_pattern", "eye_contact_portrait", "single_accent" -> "point"
         else -> if (evidence.cells.isNotEmpty()) "region" else "none"
-        }
     }
     return VisualMarkDto(
         kind = kind,
@@ -229,6 +234,26 @@ private fun techniqueMark(evidence: TechniqueEvidenceDto): VisualMarkDto {
         visualArtifact = evidence.visualArtifact,
         techniqueId = evidence.techniqueId,
     )
+}
+
+private fun relationKind(techniqueId: String): String? = when (techniqueId) {
+    in PAIR_TECHNIQUES -> "pair"
+    in PLANE_TECHNIQUES -> "planes"
+    in INSTANCE_TECHNIQUES -> "instances"
+    else -> null
+}
+
+private fun usableRegions(mark: VisualMarkDto) = mark.regions.filter { it.cells.isNotEmpty() }
+
+private fun planesAreDrawable(mark: VisualMarkDto): Boolean {
+    val regions = usableRegions(mark)
+    if (regions.map { it.order }.toSet().size != regions.size) return false
+    if (mark.techniqueId != "layering") return regions.size >= 2
+    val roles = regions.map { it.role }.toSet()
+    return regions.size >= 3 &&
+        "foreground" in roles &&
+        "midground" in roles &&
+        "background" in roles
 }
 
 private val PAIR_TECHNIQUES = setOf(

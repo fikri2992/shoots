@@ -42,7 +42,7 @@ class JourneyScreenIntegrationTest {
 
         compose.onNodeWithText("Update").assertExists()
         compose.onNodeWithText("Tendencies").performClick()
-        compose.onNodeWithText("Tendency Profile").assertExists()
+        compose.onNodeWithText("The choices you return to").assertExists()
     }
 
     @Test
@@ -90,18 +90,20 @@ class JourneyScreenIntegrationTest {
         }
 
         compose.onNodeWithText("Techniques").performClick()
-        compose.onNodeWithText("3 corroborated Shots · 2 Scenes · 1 Shoot").assertExists()
-        compose.onNodeWithText("3 explicit result Shots · 1 abstention").assertExists()
-        compose.onNodeWithText("REPRODUCE EVIDENCE").assertExists()
-        compose.onNodeWithText("2 settled sessions · 2 evaluable · 1 met Criteria").assertExists()
+        compose.onNodeWithText("Clear in 3 Shots · 2 Scenes · 1 Shoot").assertExists()
+        compose.onNodeWithText("3 result Shots · 1 could not be checked").assertExists()
+        compose.onNodeWithText("WHAT HAPPENED WHEN YOU TRIED").assertExists()
         compose.onNodeWithText(
-            "It recurs in your Shots, but deliberate control has not been tested.",
+            "1 of 2 checked sessions matched what you set before shooting.",
+        ).assertExists()
+        compose.onNodeWithText(
+            "This keeps returning in your Shots. You have not tried to repeat it on purpose yet.",
         ).assertExists()
         compose.onNodeWithText("2 marked Keepers").assertExists()
     }
 
     @Test
-    fun photographerChoosesKeeperCoverBeforeCreatingDeconstruction() {
+    fun photographerChoosesOpeningShotBeforeBuildingStory() {
         var prepared = ""
         val snapshot = MobileSnapshotDto(
             user = UserDto(id = "user-1", email = "photographer@example.com"),
@@ -125,12 +127,12 @@ class JourneyScreenIntegrationTest {
             }
         }
 
-        compose.onNodeWithText("Create Deconstruction").performScrollTo().performClick()
+        compose.onNodeWithText("Build my story").performScrollTo().performClick()
         assertEquals("shoot:shoot-1:2:keeper-1", prepared)
     }
 
     @Test
-    fun draftedDeconstructionOffersOneMultiPageShareAction() {
+    fun draftedStoryOffersOneMultiPageShareAction() {
         var shared = ""
         val draft = DeconstructionDto(
             id = "draft-1",
@@ -164,7 +166,7 @@ class JourneyScreenIntegrationTest {
             }
         }
 
-        compose.onNodeWithText("Share 2-page carousel").performScrollTo().performClick()
+        compose.onNodeWithText("Share 2-page story").performScrollTo().performClick()
         assertEquals("draft-1", shared)
     }
 
@@ -205,10 +207,10 @@ class JourneyScreenIntegrationTest {
             }
         }
 
-        compose.onNodeWithText("An image-led draft from this Experiment.", substring = true)
+        compose.onNodeWithText("Shoots follows the sequence and finds the visual thread.", substring = true)
             .performScrollTo()
             .assertExists()
-        compose.onNodeWithText("Create Deconstruction").performScrollTo().performClick()
+        compose.onNodeWithText("Build my story").performScrollTo().performClick()
         assertEquals("experiment:experiment-1:1:keeper-1", prepared)
     }
 
@@ -245,7 +247,7 @@ class JourneyScreenIntegrationTest {
         }
 
         compose.onNodeWithText("1 VARIATIONS OBSERVED · NO VERDICT").performScrollTo().assertExists()
-        compose.onNodeWithText("EXPLICIT RESULT SHOTS").performScrollTo().assertExists()
+        compose.onNodeWithText("WHAT YOU TRIED").performScrollTo().assertExists()
         compose.onNodeWithText("MAKE IT OBVIOUS").performScrollTo().assertExists()
         compose.onAllNodesWithText("KEEPER REFERENCE").assertCountEquals(0)
         compose.onAllNodesWithText("ABSTENTION").assertCountEquals(0)
@@ -278,6 +280,8 @@ class JourneyScreenIntegrationTest {
 
         compose.onNodeWithText("What happened to the last suggestion").performScrollTo().assertExists()
         compose.onNodeWithText("The comparable placement distribution did not change.").assertExists()
-        compose.onNodeWithText("2 explicit results · 1 Criteria met · 1 abstention").assertExists()
+        compose.onNodeWithText(
+            "2 result Shots · 1 matched every check · 1 could not be checked",
+        ).assertExists()
     }
 }

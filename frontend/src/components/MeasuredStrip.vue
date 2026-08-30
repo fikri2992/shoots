@@ -37,7 +37,7 @@ export default {
     <dl class="flex flex-wrap gap-x-6 gap-y-3">
       <div v-for="row in rows" :key="row.key">
         <dd class="t-num text-[15px] leading-none text-neutral-200">
-          {{ row.value }}<span class="text-[11px] text-neutral-500">{{ row.unit }}</span>
+          {{ row.value }}<span class="text-[11px] text-muted">{{ row.unit }}</span>
         </dd>
         <dt class="mt-1 t-meta">{{ row.label }}</dt>
       </div>

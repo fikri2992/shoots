@@ -332,8 +332,31 @@ class ShootsRepository(
         refreshSnapshot()
     }
 
-    suspend fun requestExperiment(force: Boolean): ExperimentDto? {
-        val experiment = decodeOptionalExperiment(api.issueExperiment(force))
+    suspend fun requestExperiment(force: Boolean, techniqueId: String = ""): ExperimentDto? {
+        val experiment = decodeOptionalExperiment(api.issueExperiment(force, techniqueId))
+        refreshSnapshot()
+        return experiment
+    }
+
+    suspend fun chooseExperimentDirection(
+        sourceShotId: String,
+        techniqueId: String,
+        save: Boolean,
+    ): ExperimentDirectionDto {
+        val direction = api.chooseExperimentDirection(
+            ExperimentDirectionChoiceRequest(
+                sourceShotId = sourceShotId,
+                techniqueId = techniqueId,
+                state = if (save) "saved" else "left",
+            )
+        )
+        refreshSnapshot()
+        refreshShot(sourceShotId)
+        return direction
+    }
+
+    suspend fun startExperimentDirection(directionId: String): ExperimentDto {
+        val experiment = api.startExperimentDirection(directionId)
         refreshSnapshot()
         return experiment
     }
@@ -383,7 +406,7 @@ class ShootsRepository(
 
     suspend fun cacheDeconstructionPages(draft: DeconstructionDto): List<File> {
         require(draft.status == "drafted" && draft.pages.isNotEmpty()) {
-            "This Deconstruction has no rendered pages yet"
+            "This story has no finished pages yet"
         }
         val folder = File(context.cacheDir, "deconstructions/${draft.id}")
         folder.mkdirs()

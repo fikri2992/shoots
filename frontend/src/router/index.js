@@ -6,7 +6,30 @@ const authed = { requiresAuth: true }
 
 const routes = [
   { path: '/login', name: 'login', component: () => import('@/pages/LoginPage.vue') },
+  ...(import.meta.env.DEV
+    ? [
+        {
+          path: '/prototype/keeper',
+          name: 'keeper-prototype',
+          component: () => import('@/pages/KeeperPrototypePage.vue'),
+          meta: { prototype: true },
+        },
+        {
+          path: '/prototype/visual-loop',
+          name: 'visual-loop-prototype',
+          component: () => import('@/pages/VisualLoopPrototypePage.vue'),
+          meta: { prototype: true },
+        },
+      ]
+    : []),
   { path: '/', name: 'now', component: () => import('@/pages/NowPage.vue'), meta: authed },
+  {
+    path: '/shoots/:shootId/records/:revision',
+    name: 'shoot-record',
+    component: () => import('@/pages/ShootRecordPage.vue'),
+    props: true,
+    meta: authed,
+  },
   { path: '/shots', name: 'shots', component: () => import('@/pages/ShotsPage.vue'), meta: authed },
   {
     path: '/shots/:shotId',
@@ -31,6 +54,7 @@ const router = createRouter({
 })
 
 router.beforeEach(async (to) => {
+  if (to.meta.prototype && import.meta.env.DEV) return true
   const auth = useAuthStore()
   if (!auth.resolved) await auth.fetchMe()
   if (to.meta.requiresAuth && !auth.isAuthenticated) return { name: 'login' }

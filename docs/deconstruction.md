@@ -9,6 +9,10 @@ first useful form explains one meaningful Shoot or Experiment through one visual
 claim per page. It helps the photographer share not only a Keeper, but how they
 worked toward it, what they varied, and which decision they could reproduce.
 
+`Deconstruction` remains the internal domain and API name. The client and rendered
+artifact call it a **visual story**. Cover prompts say "marked Shot" and "opening
+Shot" instead of exposing the internal Keeper term.
+
 It is not a critique report, an image score, or an automatic social post.
 
 ## Why it exists
@@ -23,10 +27,14 @@ show sightings, distinct Scene coverage, an explicit Reproduce attempt, Criteria
 outcomes, Keeper signals, or comparable Change. It does not combine them into a
 grade.
 
-## Page grammar
+## Story grammar
 
-The first target is portrait 1080×1350 (4:5), four to seven pages. Pages are chosen
-from the eligible set below; only the one-claim rule is fixed.
+The first target is portrait 1080×1350 (4:5), four to seven pages. The visible arc is
+an opening, setting or idea, turn or attempts, recurring thread or result, and an
+ending. Those chapter labels replace report headings such as "The record", "Declared
+check", and raw counts. The stored page kinds and Evidence references stay exact.
+
+Pages are chosen from the eligible set below; only the one-claim rule is fixed.
 
 | Candidate page | Evidence source | Rule |
 |---|---|---|
@@ -94,7 +102,7 @@ they do not replace visible structure with another paragraph.
 
 ## First-release decisions
 
-- Draft pages carry a small “Deconstructed with Shoots” attribution.
+- Draft pages carry a small "A Shoots story" attribution.
 - Pages and one separate suggested post caption are exported; in-app caption editing
   is later work.
 - Without an explicitly selected eligible Keeper, the draft stays `needs_cover` and

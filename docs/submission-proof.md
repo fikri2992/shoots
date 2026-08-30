@@ -1,67 +1,105 @@
 # Four-minute submission proof
 
-The executable rehearsal, exact current deployment evidence, paper edit, and fallback
-take list are in [Demo rehearsal](demo-rehearsal.md). This document remains the final
-claim ledger and capture checklist.
+The executable rehearsal, proof limits, deployment placeholders, paper edit, and
+fallback take list are in [Demo rehearsal](demo-rehearsal.md). This document remains
+the final claim ledger and capture checklist.
 
 ## What the judge should repeat
 
-> Shoots watches an ordinary phone Shoot, accounts for every Shot, leaves one
-> evidence-backed learning record, and chooses only the help the Photographer's own
-> record supports.
+> Shoots takes one explicit archive selection, performs the per-Shot background work,
+> recovers failures, and returns settled Shoot Records with inspectable Evidence.
 
-Primary category: Taskmaster. The agent intercepts approved Camera media and finishes
-a multi-stage background job without asking the Photographer to upload, tag, prompt,
-or review every Shot. The personal friction is simple: "I shoot often, but I cannot
-tell deliberate Technique from luck or random repetition."
+Primary category: Taskmaster. The accepted production proof starts with **75 selected
+Drive Shots** in three batches of 25. It finishes a multi-stage background job without
+asking the Photographer to tag, prompt, or supervise every Shot. It produced 75
+completed Runs and three Shoot Records; five unique failed Shots completed through six
+repair replays. The physical Camera-to-Shoot workflow remains unaccepted.
 
 The Collaborative Partner qualities are supporting evidence, not the category pitch.
 The Analyst synthesizes unstructured images, EXIF, Tone, Motion, panel reads, and
-Photographer signals. The Taskmaster claim is the completed Shoot Record and what the
-system does next.
+Photographer signals. The accepted Taskmaster claim is the completed Shoot Record.
+Photographer benefit, Experiment follow-through, and cost remain separate unaccepted
+gates.
 
 ## Four-minute sequence
 
 | Time | Picture | Narration and proof |
 |---|---|---|
-| 0:00–0:20 | Open with the normal phone Camera and one ordinary Shot | "I love photography, but I only have my phone. I can take thousands of Shots and still not know whether I am improving or getting lucky." |
-| 0:20–0:45 | Return to Shoots. Phone Source detects the Shot without an upload control | "Shoots does not replace my camera. It watches only approved Camera media and starts the work itself." Show the immutable local assignment and queued import state. |
-| 0:45–1:20 | Split view: Android processing state and Cloud logs or Firestore Run | Show the Shot id moving through Ingest and Analyst. Name EXIF as hard Evidence and the panel read as model opinion. Do not wait on a spinner in silence; explain the architecture while the real call runs. |
-| 1:20–1:50 | Add the other Shots from the same ordinary Camera period, then show the Run and Shoot barriers | "One Run accounts for one Shot. The Shoot closes only when every current member finishes or ends terminally." Show exact member ids and one replay-safe Shoot Record. |
-| 1:50–2:15 | Android Now opens on the Shoot receipt | Read only the repeated, varied, and blind-spot lines. Do not open thirty critiques. Show the newest revision and cached offline state. |
+| 0:00–0:20 | Open with ordinary source Shots and one settled Shoot Record | "I can take thousands of Shots and still not know which choices I repeat or whether they are deliberate." |
+| 0:20–0:45 | Open Drive Picker and select the disclosed batch | "For this accepted proof, one archive selection starts the job. Shoots handles each selected Shot after that." Show the selection count and returned ids. |
+| 0:45–1:20 | Split view: web processing state and Cloud logs or Firestore Run | Show the Shot id moving through Ingest and Analyst. Name EXIF as hard Evidence and the panel read as model opinion. Do not wait on a spinner in silence; explain the architecture while the real call runs. |
+| 1:20–1:50 | Show the Run and Shoot barriers, including repair | "One Run accounts for one Shot. The Shoot closes only when every current member finishes or ends terminally." Show exact member ids and one replay-safe Shoot Record. |
+| 1:50–2:15 | Web Now opens on the Shoot receipt | Read only the repeated, varied, and blind-spot lines. Do not open thirty critiques. Show the newest revision and exact membership. |
 | 2:15–2:45 | Open one Shot Teaching Receipt | Keep first. Then Notice, one Try, and one Check over one matching image layer. Expand Full Analysis briefly to prove dissent, model version, measured Findings, and cells still exist behind the simple surface. |
 | 2:45–3:10 | Show Scout decision and rejected routes | "Code decides which help is eligible. The model cannot invent a Technique, Criteria, or improvement." Show one supported route and why the others were rejected. |
-| 3:10–3:35 | Enter one supported Experiment through the normal Camera | Show the frozen Capture Session manifest, every result outcome, and the batch barrier. If Reproduce is used, say the Verdict answers Criteria only. If Explore is used, show Variations and no Verdict. |
-| 3:35–3:50 | Journey and Deconstruction | Show comparable Change or insufficient Evidence, Intervention outcome, and the image-led draft automatically left by that Shoot or terminal Experiment. The Photographer chooses the Keeper cover and posting. |
+| 3:10–3:35 | Show Experiment eligibility and its real status | Explain that the Experiment is optional. Do not imply an outcome unless one real Photographer completed it. |
+| 3:35–3:50 | Journey and Deconstruction | Show the source Shots and what the current record can establish. State that Photographer usefulness is not yet accepted. |
 | 3:50–4:00 | Architecture SVG beside Cloud Run revision | "Shoots learns from every Shot, offers one personal Experiment, and tracks what changes. It never turns the model's taste into mine." |
 
 ## Unedited proof-of-action segment
 
-Use one continuous screen recording from Camera return through the first settled
-Cloud Run stage transitions. Keep these visible at the same time where possible:
+Use one continuous screen recording from Drive Picker confirmation through the first
+durable Cloud stage transition. Keep these visible at the same time where possible:
 
-- Android source and processing state;
+- Picker result and processing state;
 - Cloud Run logs with generic ids;
 - Firestore or an audit endpoint showing the same Run id;
 - the final Shot Teaching Receipt or Shoot receipt.
 
-The segment fails if a Shot is uploaded manually, a database row is repaired, an id
-changes between views, or a cut hides the terminal transition. Analyst latency is
-currently about 40 seconds mean and 54 seconds maximum over the accepted corpus. Use
-that time to explain the three barriers. Do not claim instant feedback.
+The segment fails if a database row is repaired by hand, an id changes between views,
+or a cut hides the transition. In the accepted 75-Shot run, durable Run latency was
+48.72 seconds at p50 and 2,306.161 seconds at maximum; Picker import requests averaged
+104.353 seconds. Use the actual wait to explain the barriers. Do not claim instant
+feedback.
 
 ## Claim-to-proof ledger
 
 | Claim | Visible proof | Stored proof |
 |---|---|---|
-| No manual upload | Camera return followed by automatic Phone Source discovery | stable Android source id and import assignment |
+| One explicit archive selection | Drive Picker confirmation and returned count | stable Drive source ids and import assignments |
 | Every Shot accounted for | processing count reaches terminal coverage | Run outcomes and exact Shoot Record member ids |
 | Personal memory | Journey separates “keeps recurring” from settled Reproduce Evidence | Technique Map axes, session-level attempt/evaluable/Criteria-met counts, Tendency Profile, scoped Signals, input digests |
 | Agent chooses justified work | one focal route, not a menu of generated suggestions | Scout route, warrant, rejected routes, policy and input versions |
-| Advice is evaluated | entered Experiment later changes or does not change comparable behavior | Intervention attempt state and observable outcome |
+| Advice evaluation | Not accepted; omit from the current proof | Requires a real Photographer, frozen Experiment Record, and later comparable Evidence |
 | Photographer retains authority | Keeper, Intent, source role, and cover controls | attributable Photographer Signals and supersession history |
 | Failure tolerance | replay or network recovery creates no duplicate terminal result | ActivityEvents plus Run, Capture Session, and Shoot barriers |
-| Google Cloud execution | live service and stage logs | exact Cloud Run revision, Pub/Sub subscriptions, Scheduler jobs |
+| Google Cloud execution | live service and stage logs from the candidate run | exact candidate revision, Pub/Sub subscriptions, Scheduler jobs |
+
+The 75-file set came from 67 visually reviewed real hobbyist Shots plus disclosed
+deterministic variations. It proves workflow and recovery at this scale, not 75
+independent captures. The first full-scale attempt failed settlement; the fix passed
+the 75-Shot gate, and the complete 300-file run was not repeated. Cost was not
+measured, so no cost figure is accepted.
+
+## Memory-to-action proof gate
+
+The strongest optional 35 to 45 second segment is one causal chain:
+
+```text
+checked records
+-> saved role- and purpose-specific Scout recall
+-> selected and rejected routes
+-> exact Experiment result
+-> changed later automatic selection
+```
+
+Do not film this as implemented until the Scout decision stores the recall id, digest,
+exact Signal and Intervention ids, exclusions, blind spots, size, and policy version.
+Once that gate passes, show:
+
+1. **What Shoots knows.** Exact Technique Evidence, one scoped Intent, one Keeper,
+   earlier comparable outcomes, and one known gap.
+2. **What Scout used and excluded.** The fixed Shoot Record and relevant references,
+   beside unrelated Shoots, expired Signals, old generated prose, and unnecessary
+   location data left out.
+3. **How memory changed the action.** One selected route, one rejected repeat, and the
+   exact earlier outcome that changed automatic eligibility.
+4. **Photographer control.** Correct or remove one typed fact and show its later policy
+   effect without rewriting the historical decision.
+
+The climax is not retrieval. It is an earlier checked outcome changing a later action.
+The full extracted rationale is in
+[ChatGPT repository and memory review](chatgpt-analysis-2026-08-29.md).
 
 ## Words to refuse
 
@@ -86,7 +124,7 @@ Say instead:
 
 - [ ] Exact candidate SHA and Cloud Run revision recorded.
 - [ ] Public health and App Links endpoints visible.
-- [ ] Disposable account and non-sensitive Camera media prepared.
+- [ ] Disposable account and non-sensitive Drive media prepared.
 - [ ] Android notifications cleared before filming.
 - [ ] Personal email, tokens, OAuth codes, file paths, and Firestore contents outside
       the disposable record hidden.

@@ -34,7 +34,8 @@ export const useShootsStore = defineStore('shoots', {
   }),
 
   getters: {
-    connected: (state) => Boolean(state.me),
+    accountReady: (state) => Boolean(state.me),
+    driveConnected: (state) => Boolean(state.me?.drive_folder_id),
     analysedShots: (state) => state.shots.filter((v) => v.analysis),
     observed: (state) => state.techniques.filter((technique) => technique.status !== 'unobserved'),
     techniquesByFamily: (state) => {
@@ -79,6 +80,10 @@ export const useShootsStore = defineStore('shoots', {
   },
 
   actions: {
+    clearError() {
+      this.error = ''
+    },
+
     async fetchAll() {
       this.loading = true
       this.error = ''
@@ -255,6 +260,18 @@ export const useShootsStore = defineStore('shoots', {
       })
     },
 
+    respondToScoutRecommendation(shootId, revision, action, optionId = '') {
+      return this.run('scout-recommendation', async () => {
+        const result = await api.post(`/api/shoots/${shootId}/scout-recommendation`, {
+          revision,
+          action,
+          option_id: optionId,
+        })
+        await this.fetchAll()
+        return result
+      })
+    },
+
     skipExperiment(id) {
       return this.run('skip', async () => {
         await api.post(`/api/experiments/${id}/skip`)
@@ -266,6 +283,47 @@ export const useShootsStore = defineStore('shoots', {
       return this.run('leave', async () => {
         await api.post(`/api/experiments/${id}/leave`)
         await this.fetchAll()
+      })
+    },
+
+    replaceExperimentDirection(direction) {
+      const directions = [...(this.mobile?.experiment_directions || [])]
+      const index = directions.findIndex((item) => item.id === direction.id)
+      if (index >= 0) directions.splice(index, 1, direction)
+      else directions.unshift(direction)
+      this.mobile = { ...(this.mobile || {}), experiment_directions: directions }
+    },
+
+    chooseExperimentDirection(sourceShotId, techniqueId, save) {
+      return this.run('direction-choice', async () => {
+        const direction = await api.put('/api/experiment-directions', {
+          source_shot_id: sourceShotId,
+          technique_id: techniqueId,
+          state: save ? 'saved' : 'left',
+        })
+        this.replaceExperimentDirection(direction)
+        return direction
+      })
+    },
+
+    startExperimentDirection(directionId) {
+      return this.run('direction-start', async () => {
+        const experiment = await api.post(`/api/experiment-directions/${directionId}/start`)
+        this.experiment = experiment
+        const index = this.experiments.findIndex((item) => item.id === experiment.id)
+        if (index >= 0) this.experiments.splice(index, 1, experiment)
+        else this.experiments.unshift(experiment)
+        const direction = this.mobile?.experiment_directions?.find(
+          (item) => item.id === directionId,
+        )
+        if (direction) {
+          this.replaceExperimentDirection({
+            ...direction,
+            state: 'started',
+            started_experiment_id: experiment.id,
+          })
+        }
+        return experiment
       })
     },
 
@@ -349,12 +407,14 @@ export const useShootsStore = defineStore('shoots', {
       })
     },
 
-    async fetchShot(id) {
-      const view = await api.get(`/api/shots/${id}`)
-      const index = this.shots.findIndex((v) => v.shot.id === id)
-      if (index >= 0) this.shots.splice(index, 1, view)
-      else this.shots.unshift(view)
-      return view
+    fetchShot(id) {
+      return this.run('shot', async () => {
+        const view = await api.get(`/api/shots/${id}`)
+        const index = this.shots.findIndex((v) => v.shot.id === id)
+        if (index >= 0) this.shots.splice(index, 1, view)
+        else this.shots.unshift(view)
+        return view
+      })
     },
 
     /**
@@ -363,22 +423,35 @@ export const useShootsStore = defineStore('shoots', {
      * this often", which the profile measures on its own, from "this is what
      * you value". It is not a score and it promotes nothing.
      */
-    async setKeeper(id, keeper) {
-      const shot = await api.put(`/api/shots/${id}/keeper`, { keeper })
-      const index = this.shots.findIndex((v) => v.shot.id === id)
-      if (index >= 0) this.shots.splice(index, 1, { ...this.shots[index], shot })
-      this.profile = await api.get('/api/profile')
-      return shot
+    setKeeper(id, keeper) {
+      return this.run('keeper', async () => {
+        const shot = await api.put(`/api/shots/${id}/keeper`, { keeper })
+        const [profile, view] = await Promise.all([
+          api.get('/api/profile'),
+          api.get(`/api/shots/${id}`),
+        ])
+        const index = this.shots.findIndex((v) => v.shot.id === id)
+        if (index >= 0) this.shots.splice(index, 1, view)
+        else this.shots.unshift(view)
+        this.profile = profile
+        return shot
+      })
     },
 
-    async moveShotToInspiration(id) {
-      await api.put(`/api/shots/${id}/source-role`, { source_role: 'inspiration' })
-      await this.fetchAll()
+    moveShotToInspiration(id) {
+      return this.run('source-role', async () => {
+        const result = await api.put(`/api/shots/${id}/source-role`, { source_role: 'inspiration' })
+        await this.fetchAll()
+        return result
+      })
     },
 
-    async restoreInspiration(id) {
-      await api.put(`/api/inspirations/${id}/source-role`, { source_role: 'mine' })
-      await this.fetchAll()
+    restoreInspiration(id) {
+      return this.run('source-role', async () => {
+        const result = await api.put(`/api/inspirations/${id}/source-role`, { source_role: 'mine' })
+        await this.fetchAll()
+        return result
+      })
     },
 
     /** A code to type into the native camera, so it can be handed this account. */

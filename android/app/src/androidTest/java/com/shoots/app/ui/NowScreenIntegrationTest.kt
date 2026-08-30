@@ -1,10 +1,16 @@
 package com.shoots.app.ui
 
 import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.test.captureToImage
 import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.test.onRoot
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.graphics.asAndroidBitmap
+import androidx.test.platform.app.InstrumentationRegistry
+import android.graphics.Bitmap
 import com.shoots.app.ShootsTheme
 import com.shoots.app.data.AnalysisDto
+import com.shoots.app.data.ExperimentDirectionDto
 import com.shoots.app.data.MobileSnapshotDto
 import com.shoots.app.data.ScoutDecisionDto
 import com.shoots.app.data.ScoutQuestionDto
@@ -21,6 +27,7 @@ import com.shoots.app.phone.MediaAccess
 import org.junit.Rule
 import org.junit.Test
 import org.junit.Assert.assertEquals
+import java.io.File
 
 class NowScreenIntegrationTest {
     @get:Rule
@@ -186,7 +193,10 @@ class NowScreenIntegrationTest {
         )
 
         compose.setContent {
-            NowTestContent(snapshot(shoot, record)) { _, _, option -> selected = option }
+            NowTestContent(
+                snapshot = snapshot(shoot, record),
+                onAnswer = { _, _, option -> selected = option },
+            )
         }
 
         compose.onNodeWithText("Which decision were you exploring in this Shoot?").assertExists()
@@ -194,10 +204,50 @@ class NowScreenIntegrationTest {
         assertEquals("technique_backlight", selected)
     }
 
+    @Test
+    fun savedDirectionBecomesTheNextCameraDecisionWithoutBeingAnExperiment() {
+        var started = ""
+        var left = ""
+        val source = ShotDto(id = "market-shot", filename = "market.jpg", status = "analyzed")
+        val direction = ExperimentDirectionDto(
+            id = "direction-1",
+            sourceShotId = source.id,
+            techniqueId = "leading_lines",
+            techniqueName = "Leading lines",
+            question = "Could you use Leading lines deliberately in a different Scene?",
+            corroboratedShots = 6,
+            distinctShoots = 3,
+        )
+        val snapshot = MobileSnapshotDto(
+            user = UserDto(id = "user-1", email = "photographer@example.test"),
+            recentShots = listOf(source),
+            experimentDirections = listOf(direction),
+        )
+
+        compose.setContent {
+            NowTestContent(
+                snapshot = snapshot,
+                onStartDirection = { started = it },
+                onLeaveDirection = { shotId, _ -> left = shotId },
+            )
+        }
+
+        compose.onNodeWithText("Does this question fit today?").assertExists()
+        compose.onNodeWithText(direction.question).assertExists()
+        compose.onNodeWithText("Only Try it today creates an Experiment.").assertExists()
+        saveScreenshot("saved-direction-now.png")
+        compose.onNodeWithText("Try it today").performClick()
+        assertEquals(direction.id, started)
+        compose.onNodeWithText("Delete saved question").performClick()
+        assertEquals(source.id, left)
+    }
+
     @androidx.compose.runtime.Composable
     private fun NowTestContent(
         snapshot: MobileSnapshotDto,
         onAnswer: (String, Int, String) -> Unit = { _, _, _ -> },
+        onStartDirection: (String) -> Unit = {},
+        onLeaveDirection: (String, String) -> Unit = { _, _ -> },
     ) {
         ShootsTheme {
             NowScreen(
@@ -221,6 +271,8 @@ class NowScreenIntegrationTest {
                 onOpenShot = {},
                 onOpenShots = {},
                 onOpenExperiments = {},
+                onStartSavedDirection = onStartDirection,
+                onLeaveSavedDirection = onLeaveDirection,
                 onAnswerScoutQuestion = onAnswer,
                 onOpenSettings = {},
             )
@@ -237,4 +289,16 @@ class NowScreenIntegrationTest {
         latestShootRecord = record,
         latestShot = latestShot,
     )
+
+    private fun saveScreenshot(name: String) {
+        val directory = InstrumentationRegistry.getInstrumentation().targetContext.externalCacheDir
+            ?: error("External cache unavailable")
+        File(directory, name).outputStream().use { output ->
+            compose.onRoot().captureToImage().asAndroidBitmap().compress(
+                Bitmap.CompressFormat.PNG,
+                100,
+                output,
+            )
+        }
+    }
 }

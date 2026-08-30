@@ -11,6 +11,7 @@ data class UserDto(
     val email: String,
     val name: String = "",
     val picture: String = "",
+    @SerialName("record_mode") val recordMode: String = "real",
 )
 
 @Serializable
@@ -36,6 +37,8 @@ data class ExifDto(
     val iso: Int? = null,
     @SerialName("focal_length_mm") val focalLengthMillimetres: Double? = null,
     @SerialName("captured_at") val capturedAt: String? = null,
+    @SerialName("capture_utc_offset_minutes") val captureUtcOffsetMinutes: Int? = null,
+    @SerialName("capture_time_authority") val captureTimeAuthority: String = "unknown",
 )
 
 @Serializable
@@ -200,11 +203,26 @@ data class AnalysisDto(
 )
 
 @Serializable
+data class ShotTechniqueContextDto(
+    @SerialName("technique_id") val techniqueId: String,
+    val status: String,
+    @SerialName("corroborated_shots") val corroboratedShots: Int = 0,
+    @SerialName("distinct_scenes") val distinctScenes: Int = 0,
+    @SerialName("distinct_shoots") val distinctShoots: Int = 0,
+    @SerialName("reproduce_sessions") val reproduceSessions: Int = 0,
+    @SerialName("evaluable_reproduce_sessions") val evaluableReproduceSessions: Int = 0,
+    @SerialName("criteria_met_sessions") val criteriaMetSessions: Int = 0,
+    @SerialName("positive_keeper_shots") val positiveKeeperShots: Int = 0,
+)
+
+@Serializable
 data class ShotViewDto(
     val shot: ShotDto,
     val analysis: AnalysisDto? = null,
     val run: RunDto? = null,
     val teaching: ShotTeachingReceiptDto? = null,
+    @SerialName("technique_context")
+    val techniqueContext: Map<String, ShotTechniqueContextDto> = emptyMap(),
 )
 
 @Serializable
@@ -303,6 +321,30 @@ data class ExperimentDto(
     val verdicts: List<VerdictDto> = emptyList(),
     val change: ChangeDto? = null,
     @SerialName("issued_at") val issuedAt: String = "",
+)
+
+@Serializable
+data class ExperimentDirectionDto(
+    val id: String,
+    @SerialName("source_shot_id") val sourceShotId: String,
+    @SerialName("technique_id") val techniqueId: String,
+    @SerialName("technique_name") val techniqueName: String,
+    val question: String,
+    @SerialName("warrant_shot_ids") val warrantShotIds: List<String> = emptyList(),
+    @SerialName("reference_shot_id") val referenceShotId: String = "",
+    @SerialName("corroborated_shots") val corroboratedShots: Int = 0,
+    @SerialName("distinct_shoots") val distinctShoots: Int = 0,
+    val state: String = "saved",
+    @SerialName("started_experiment_id") val startedExperimentId: String = "",
+    @SerialName("created_at") val createdAt: String = "",
+    @SerialName("updated_at") val updatedAt: String = "",
+)
+
+@Serializable
+data class ExperimentDirectionChoiceRequest(
+    @SerialName("source_shot_id") val sourceShotId: String,
+    @SerialName("technique_id") val techniqueId: String,
+    val state: String,
 )
 
 val ExperimentDto.canStartReproduce: Boolean
@@ -652,6 +694,8 @@ data class MobileSnapshotDto(
     val techniques: List<TechniqueNodeDto> = emptyList(),
     @SerialName("technique_catalogue") val techniqueCatalogue: List<TechniqueChoiceDto> = emptyList(),
     val experiments: List<ExperimentDto> = emptyList(),
+    @SerialName("experiment_directions")
+    val experimentDirections: List<ExperimentDirectionDto> = emptyList(),
     @SerialName("latest_deconstruction") val latestDeconstruction: DeconstructionDto? = null,
     @SerialName("recent_scout_answers") val recentScoutAnswers: List<ScoutAnswerDto> = emptyList(),
     @SerialName("recent_interventions") val recentInterventions: List<InterventionRecordDto> = emptyList(),

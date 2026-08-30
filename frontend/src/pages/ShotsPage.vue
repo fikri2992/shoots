@@ -37,7 +37,10 @@ export default {
   name: 'ShotsPage',
   components: { DriveImportPanel },
   computed: {
-    ...mapState(useShootsStore, ['orderedShots', 'inspirations', 'seeding']),
+    ...mapState(useShootsStore, ['orderedShots', 'inspirations', 'seeding', 'me', 'mobile']),
+    isSampleRecord() {
+      return this.me?.record_mode === 'sample'
+    },
     rows() {
       return this.orderedShots.map((v) => ({
         id: v.shot.id,
@@ -53,14 +56,47 @@ export default {
       }))
     },
     groups() {
+      const latestShoot = this.mobile?.latest_shoot
+      const latestIds = new Set(latestShoot?.ordered_shot_ids || [])
+      const byId = new Map(this.rows.map((row) => [row.id, row]))
+      const latestItems = (latestShoot?.ordered_shot_ids || []).map((id) => byId.get(id)).filter(Boolean)
       const buckets = new Map()
-      const rows = [...this.rows].sort((a, b) => (b.at || '').localeCompare(a.at || ''))
+      const rows = this.rows
+        .filter((row) => !latestIds.has(row.id))
+        .sort((a, b) => (b.at || '').localeCompare(a.at || ''))
       for (const row of rows) {
         const key = dayKey(row.at)
         if (!buckets.has(key)) buckets.set(key, [])
         buckets.get(key).push(row)
       }
-      return [...buckets].map(([key, items]) => ({ key, label: dayLabel(key), items }))
+      const earlier = [...buckets].map(([key, items]) => ({
+        key: `date-${key}`,
+        kind: 'date',
+        label: dayLabel(key),
+        items,
+      }))
+      if (!latestItems.length) return earlier
+      const record = this.mobile?.latest_shoot_record
+      const recordReady = latestShoot.status === 'settled' &&
+        record?.shoot_id === latestShoot.id &&
+        Number(record.revision) === Number(latestShoot.current_record_revision)
+      const status = recordReady
+        ? 'Ready'
+        : latestShoot.status === 'open'
+          ? 'Keeping together'
+          : latestShoot.status === 'closing'
+            ? 'Finishing'
+            : 'Preparing record'
+      return [{
+        key: `shoot-${latestShoot.id}`,
+        kind: 'shoot',
+        label: dayLabel(dayKey(latestShoot.started_at || latestItems[0]?.at)),
+        status,
+        items: latestItems,
+        recordTarget: recordReady
+          ? { name: 'shoot-record', params: { shootId: record.shoot_id, revision: record.revision } }
+          : null,
+      }, ...earlier]
     },
     summary() {
       return {
@@ -92,10 +128,12 @@ export default {
         <p class="eyebrow">Archive</p>
         <h1 class="mt-2 t-hero">Shots</h1>
         <p v-if="rows.length" class="mt-3 t-meta">
-          {{ summary.total }} made · {{ summary.read }} readable · {{ summary.kept }} marked Keeper
+          {{ isSampleRecord
+            ? `${summary.total} sample Shot cards · ${summary.read} hand-authored reads`
+            : `${summary.total} made · ${summary.read} readable · ${summary.kept} marked Keeper` }}
         </p>
       </div>
-      <div class="flex gap-2">
+      <div v-if="!isSampleRecord" class="flex gap-2">
         <label class="btn-quiet cursor-pointer px-4">
           {{ seeding ? `Adding ${seeding.done + 1}/${seeding.total}…` : 'Add my Shots' }}
           <input type="file" accept="image/*,video/*" multiple class="hidden" :disabled="Boolean(seeding)" @change="onPick($event, 'mine')" />
@@ -105,15 +143,28 @@ export default {
           <input type="file" accept="image/*,video/*" multiple class="hidden" :disabled="Boolean(seeding)" @change="onPick($event, 'inspiration')" />
         </label>
       </div>
+      <span v-else class="rounded-full border border-edge px-3 py-2 text-[11px] text-muted">Sample · actions disabled</span>
     </header>
 
-    <DriveImportPanel />
+    <DriveImportPanel v-if="!groups.length && !isSampleRecord" />
 
     <div v-if="groups.length" class="mt-9 space-y-10">
-      <section v-for="group in groups" :key="group.key">
-        <div class="mb-4 flex items-baseline justify-between border-b border-edge pb-3">
-          <h2 class="t-title">{{ group.label }}</h2>
-          <span class="t-meta">{{ group.items.length }} Shot{{ group.items.length === 1 ? '' : 's' }}</span>
+      <section
+        v-for="group in groups"
+        :key="group.key"
+        :class="group.kind === 'shoot' ? 'rounded-[22px] border border-edge bg-panel p-4 sm:p-5' : ''"
+      >
+        <div class="mb-4 flex items-end justify-between gap-4 border-b border-edge pb-3">
+          <div>
+            <p v-if="group.kind === 'shoot'" class="eyebrow text-accent">Latest Shoot · {{ group.status }}</p>
+            <h2 :class="group.kind === 'shoot' ? 'mt-2 t-title' : 't-title'">{{ group.label }}</h2>
+          </div>
+          <div class="shrink-0 text-right">
+            <span class="block t-meta">{{ group.items.length }} Shot{{ group.items.length === 1 ? '' : 's' }}</span>
+            <RouterLink v-if="group.recordTarget" :to="group.recordTarget" class="mt-2 inline-flex text-[12px] font-medium text-accent hover:text-paper">
+              Open Shoot Record
+            </RouterLink>
+          </div>
         </div>
         <div class="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4 lg:gap-3">
           <RouterLink
@@ -152,13 +203,15 @@ export default {
           </div>
           <div class="p-3">
             <p class="truncate t-meta">{{ item.filename }}</p>
-            <button type="button" class="mt-2 text-[11px] font-medium text-accent" @click="restoreInspiration(item.id)">
+            <button v-if="!isSampleRecord" type="button" class="mt-2 text-[11px] font-medium text-accent" @click="restoreInspiration(item.id)">
               This is my Shot
             </button>
           </div>
         </article>
       </div>
     </section>
+
+    <DriveImportPanel v-if="groups.length && !isSampleRecord" class="mt-12" />
 
     <section v-if="!groups.length && !inspirations.length" class="surface mt-10 p-7 text-center sm:p-10">
       <p class="eyebrow text-accent">No archive yet</p>

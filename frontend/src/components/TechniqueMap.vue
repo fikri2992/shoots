@@ -1,6 +1,7 @@
 <script>
 import { mapState } from 'pinia'
 
+import { repeatabilitySummary } from '@/domain/copy'
 import { useShootsStore } from '@/stores/shoots'
 
 const FAMILIES = ['composition', 'light', 'exposure', 'lens', 'color', 'video']
@@ -44,10 +45,10 @@ export default {
       this.selected = this.selected?.technique_id === node.technique_id ? null : node
     },
     repeatabilityEvidence(node) {
-      if (!node.reproduce_sessions) return 'Deliberate repeatability has not been tested.'
-      return `${node.reproduce_sessions} settled session${node.reproduce_sessions === 1 ? '' : 's'} · ` +
-        `${node.evaluable_reproduce_sessions || 0} evaluable · ` +
-        `${node.criteria_met_sessions || 0} met Criteria`
+      return repeatabilitySummary(node)
+    },
+    statusLabel(status) {
+      return status === 'recurring' ? 'keeps returning' : status === 'observed' ? 'seen' : 'not seen yet'
     },
   },
 }
@@ -56,8 +57,8 @@ export default {
 <template>
   <section>
     <div class="flex items-baseline justify-between">
-      <h2 class="t-title">Technique Evidence</h2>
-      <span class="t-meta">what appeared in your Shots</span>
+      <h2 class="t-title">Techniques in your Shots</h2>
+      <span class="t-meta">what Shoots keeps seeing</span>
     </div>
 
     <div class="mt-4 space-y-4">
@@ -65,7 +66,7 @@ export default {
         <button type="button" class="w-full text-left" @click="toggle(f.key)">
           <div class="flex items-baseline justify-between t-meta">
             <span :class="open === f.key ? 'text-neutral-200' : ''">{{ f.key }}</span>
-            <span class="t-num">{{ f.observed }} observed · {{ f.recurring }} recurring</span>
+            <span class="t-num">{{ f.observed }} seen · {{ f.recurring }} keep returning</span>
           </div>
           <div class="mt-1.5 flex h-1.5 gap-px overflow-hidden rounded">
             <span v-for="n in f.nodes" :key="n.technique_id" class="flex-1" :class="tone(n.status)" :title="n.name" />
@@ -89,10 +90,10 @@ export default {
         </div>
 
         <div v-if="open === f.key && selected" class="mt-3 rounded-xl bg-panel-2 p-3">
-          <p class="t-body text-neutral-100">{{ selected.name }} · {{ selected.status }}</p>
+          <p class="t-body text-neutral-100">{{ selected.name }} · {{ statusLabel(selected.status) }}</p>
           <p class="mt-1 t-meta">
-            {{ selected.sightings }} sighting{{ selected.sightings === 1 ? '' : 's' }}
-            <template v-if="selected.corroborated_shots"> · {{ selected.corroborated_shots }} corroborated</template>
+            Seen in {{ selected.sightings }} Shot{{ selected.sightings === 1 ? '' : 's' }}
+            <template v-if="selected.corroborated_shots"> · clear in {{ selected.corroborated_shots }}</template>
             <template v-if="selected.distinct_shoots"> · {{ selected.distinct_shoots }} Shoot{{ selected.distinct_shoots === 1 ? '' : 's' }}</template>
             <template v-if="selected.last_observed"> · last {{ new Date(selected.last_observed).toLocaleDateString() }}</template>
           </p>
@@ -101,13 +102,13 @@ export default {
       </div>
     </div>
 
-    <p v-if="!families.length" class="mt-4 t-meta text-neutral-500">No Technique Evidence yet.</p>
+    <p v-if="!families.length" class="mt-4 t-meta text-muted">No clear Technique pattern yet.</p>
 
     <!-- Unobserved catalogue entries are omitted: this is Evidence memory,
          not a completion denominator. -->
     <p class="mt-5 t-meta">
-      <span class="mr-3"><span class="mr-1 inline-block h-1.5 w-1.5 rounded-full bg-neutral-500" />observed</span>
-      <span><span class="mr-1 inline-block h-1.5 w-1.5 rounded-full bg-paper" />recurring</span>
+      <span class="mr-3"><span class="mr-1 inline-block h-1.5 w-1.5 rounded-full bg-neutral-500" />seen</span>
+      <span><span class="mr-1 inline-block h-1.5 w-1.5 rounded-full bg-paper" />keeps returning</span>
     </p>
   </section>
 </template>

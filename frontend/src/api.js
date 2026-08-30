@@ -10,8 +10,7 @@ async function request(path, options = {}) {
     ...options,
   })
   if (!response.ok) {
-    const detail = await response.text()
-    throw new Error(`${response.status} ${response.statusText}: ${detail}`)
+    throw new Error(await errorMessage(response))
   }
   return response.status === 204 ? null : response.json()
 }
@@ -34,7 +33,7 @@ export default {
   /** Multipart upload: no JSON content type, the browser sets the boundary. */
   async postForm(path, form) {
     const response = await fetch(path, { method: 'POST', credentials: 'include', body: form })
-    if (!response.ok) throw new Error(`${response.status} ${response.statusText}: ${await response.text()}`)
+    if (!response.ok) throw new Error(await errorMessage(response))
     return response.status === 204 ? null : response.json()
   },
 
@@ -91,4 +90,32 @@ export default {
       source?.close()
     }
   },
+}
+
+async function errorMessage(response) {
+  const fallback = response.statusText || `Request failed (${response.status})`
+  const body = await response.text()
+  if (!body) return fallback
+  try {
+    const parsed = JSON.parse(body)
+    if (typeof parsed.detail === 'string') return sentence(parsed.detail)
+    if (Array.isArray(parsed.detail)) {
+      const messages = parsed.detail.map((item) => item?.msg).filter(Boolean)
+      if (messages.length) return sentence(messages.join('. '))
+    }
+  } catch {
+    // Plain-text server errors are already readable.
+  }
+  return sentence(body.length <= 240 ? body : fallback)
+}
+
+function sentence(value) {
+  const clean = String(value).trim()
+  if (!clean) return 'Something went wrong.'
+  if (/^UnknownEntity:\s*user\b/i.test(clean)) {
+    return 'This account has no matching record in the current Shoots store.'
+  }
+  if (/^UnknownEntity:/i.test(clean)) return 'This record is no longer available.'
+  if (/^Internal Server Error$/i.test(clean)) return 'Shoots could not finish that request.'
+  return `${clean.charAt(0).toUpperCase()}${clean.slice(1)}${/[.!?]$/.test(clean) ? '' : '.'}`
 }
