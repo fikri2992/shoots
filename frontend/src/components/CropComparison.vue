@@ -9,7 +9,7 @@ export default {
   data() {
     return {
       open: false,
-      position: 50,
+      position: 68,
       previousFocus: null,
       bodyOverflow: '',
       pageLocked: false,
@@ -31,7 +31,7 @@ export default {
     async openComparison(event) {
       this.previousFocus = event?.currentTarget || document.activeElement
       this.open = true
-      this.position = 50
+      this.position = 68
       this.bodyOverflow = document.body.style.overflow
       document.body.style.overflow = 'hidden'
       this.pageLocked = true
@@ -130,9 +130,10 @@ export default {
           <p class="hidden max-w-xl text-right t-meta sm:block">The crop changes framing only. It does not change the stored Analysis or call the Shot better.</p>
         </div>
 
-        <div class="relative mx-auto min-h-0 w-full max-w-[1280px] flex-1 overflow-hidden rounded-2xl border border-edge bg-black" data-crop-comparison-stage>
+        <div class="relative mx-auto w-fit max-w-full flex-none overflow-hidden rounded-2xl border border-edge bg-black sm:min-h-0 sm:w-full sm:max-w-[1280px] sm:flex-1" data-crop-comparison-stage>
+          <img :src="afterSrc" alt="" aria-hidden="true" class="block h-auto max-h-[64dvh] w-auto max-w-full opacity-0 sm:hidden" />
           <img :src="beforeSrc" alt="Original Shot" class="absolute inset-0 h-full w-full object-contain" />
-          <div class="absolute inset-0 overflow-hidden" :style="cropClip">
+          <div class="absolute inset-0 overflow-hidden bg-black" :style="cropClip">
             <img :src="afterSrc" alt="Tested crop" class="absolute inset-0 h-full w-full object-contain" />
           </div>
           <span class="absolute left-3 top-3 rounded-full bg-black/72 px-3 py-1.5 text-[10px] font-semibold tracking-[0.1em] text-white uppercase">Tested crop</span>
