@@ -1,11 +1,17 @@
 package com.shoots.app.ui
 
+import android.graphics.Bitmap
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.assertCountEquals
+import androidx.compose.ui.test.captureToImage
 import androidx.compose.ui.test.onAllNodesWithText
+import androidx.compose.ui.test.onNodeWithContentDescription
+import androidx.compose.ui.test.onRoot
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
+import androidx.compose.ui.graphics.asAndroidBitmap
+import androidx.test.platform.app.InstrumentationRegistry
 import com.shoots.app.ShootsTheme
 import com.shoots.app.data.DeconstructionDto
 import com.shoots.app.data.DeconstructionPageDto
@@ -23,10 +29,13 @@ import com.shoots.app.data.VariationObservationDto
 import org.junit.Assert.assertEquals
 import org.junit.Rule
 import org.junit.Test
+import java.io.File
 
 class JourneyScreenIntegrationTest {
     @get:Rule
     val compose = createComposeRule()
+
+    private val fixtureUrl = "android.resource://com.shoots.app/drawable/visual_story_fixture"
 
     @Test
     fun sectionTabsExposeSelectionAndSwitchTheVisibleRecord() {
@@ -134,6 +143,7 @@ class JourneyScreenIntegrationTest {
     @Test
     fun draftedStoryOffersOneMultiPageShareAction() {
         var shared = ""
+        var saved = ""
         val draft = DeconstructionDto(
             id = "draft-1",
             sourceType = "shoot",
@@ -145,6 +155,7 @@ class JourneyScreenIntegrationTest {
                 DeconstructionPageDto("cover", "Cover", "Claim", blobPath = "page-1.jpg"),
                 DeconstructionPageDto("record", "Record", "Claim", blobPath = "page-2.jpg"),
             ),
+            suggestedCaption = "Rain, motion, and the choices that kept returning.",
         )
         val snapshot = MobileSnapshotDto(
             user = UserDto(id = "user-1", email = "photographer@example.com"),
@@ -162,12 +173,57 @@ class JourneyScreenIntegrationTest {
                     imageUrl = { _ -> "" },
                     onShot = { _ -> },
                     onShareDeconstruction = { shared = it.id },
+                    onSaveDeconstruction = { saved = it.id },
                 )
             }
         }
 
+        compose.onNodeWithText(draft.suggestedCaption).performScrollTo().assertExists()
         compose.onNodeWithText("Share 2-page story").performScrollTo().performClick()
         assertEquals("draft-1", shared)
+        compose.onNodeWithText("Save story to this phone").performScrollTo().performClick()
+        assertEquals("draft-1", saved)
+    }
+
+    @Test
+    fun journeyOpensWithTheLatestShootBenefitBeforeTheTabs() {
+        var opened = ""
+        val shots = listOf(
+            ShotDto(id = "shot-1", filename = "one.jpg"),
+            ShotDto(id = "shot-2", filename = "two.jpg"),
+        )
+        val snapshot = MobileSnapshotDto(
+            user = UserDto(id = "user-1", email = "photographer@example.com"),
+            recentShots = shots,
+            latestShootRecord = ShootRecordDto(
+                shootId = "shoot-1",
+                revision = 3,
+                shotIds = shots.map(ShotDto::id),
+                receipt = ShootReceiptDto(
+                    shotCount = 2,
+                    sceneCount = 1,
+                    repeated = listOf("You kept returning to the edge of the frame."),
+                ),
+            ),
+        )
+
+        compose.setContent {
+            ShootsTheme {
+                JourneyScreen(
+                    snapshot = snapshot,
+                    imageUrl = { fixtureUrl },
+                    onShot = {},
+                    onOpenShootRecord = { id, revision -> opened = "$id:$revision" },
+                )
+            }
+        }
+
+        compose.onNodeWithText("YOUR LATEST OUTING").assertExists()
+        compose.onNodeWithText("Collected → Read → Grouped → Settled.", substring = true).assertExists()
+        waitForImage("one.jpg")
+        saveScreenshot("journey-latest-shoot.png")
+        compose.onNodeWithText("Open full Shoot Record").performClick()
+        assertEquals("shoot-1:3", opened)
     }
 
     @Test
@@ -283,5 +339,35 @@ class JourneyScreenIntegrationTest {
         compose.onNodeWithText(
             "2 result Shots · 1 matched every check · 1 could not be checked",
         ).assertExists()
+    }
+
+    private fun waitForImage(contentDescription: String) {
+        compose.waitUntil(timeoutMillis = 5_000) {
+            runCatching {
+                val bitmap = compose.onNodeWithContentDescription(contentDescription)
+                    .captureToImage()
+                    .asAndroidBitmap()
+                val colours = buildSet {
+                    for (x in 1..4) {
+                        for (y in 1..4) {
+                            add(bitmap.getPixel(bitmap.width * x / 5, bitmap.height * y / 5))
+                        }
+                    }
+                }
+                colours.size >= 5
+            }.getOrDefault(false)
+        }
+    }
+
+    private fun saveScreenshot(name: String) {
+        val directory = InstrumentationRegistry.getInstrumentation().targetContext.externalCacheDir
+            ?: error("External cache unavailable")
+        File(directory, name).outputStream().use { output ->
+            compose.onRoot().captureToImage().asAndroidBitmap().compress(
+                Bitmap.CompressFormat.PNG,
+                100,
+                output,
+            )
+        }
     }
 }

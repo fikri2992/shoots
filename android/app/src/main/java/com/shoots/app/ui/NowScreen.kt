@@ -30,6 +30,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
@@ -57,10 +58,12 @@ import com.shoots.app.WarmWhite
 import com.shoots.app.data.LocalCaptureSessionEntity
 import com.shoots.app.data.LocalCaptureState
 import com.shoots.app.data.ExperimentDirectionDto
+import com.shoots.app.data.InterventionRecordDto
 import com.shoots.app.data.MobileSnapshotDto
 import com.shoots.app.data.ShootDto
 import com.shoots.app.data.ShootRecordDto
 import com.shoots.app.data.ScoutAnswerDto
+import com.shoots.app.data.ScoutRecommendationOptionDto
 import com.shoots.app.data.ShotDto
 import com.shoots.app.data.ShotViewDto
 import com.shoots.app.data.SourceStateEntity
@@ -85,12 +88,15 @@ fun NowScreen(
     onImportSessionAsFree: (String) -> Unit,
     onOpenShot: (String) -> Unit,
     onOpenShots: () -> Unit,
+    onOpenShootRecord: (String, Int) -> Unit = { _, _ -> },
     onOpenExperiments: () -> Unit,
     onStartSavedDirection: (String) -> Unit,
     onLeaveSavedDirection: (String, String) -> Unit,
-    onAnswerScoutQuestion: (String, Int, String) -> Unit,
+    onRespondScoutRecommendation: (String, Int, String, String) -> Unit = { _, _, _, _ -> },
     onOpenSettings: () -> Unit,
+    availableShots: List<ShotDto> = snapshot?.recentShots.orEmpty(),
 ) {
+    val allShots = (snapshot?.recentShots.orEmpty() + availableShots).distinctBy(ShotDto::id)
     val active = localSession?.takeIf { it.state in ACTIVE_SESSION_STATES }
     val latest = snapshot?.recentShots?.firstOrNull()
     val latestView = snapshot?.latestShot
@@ -98,7 +104,7 @@ fun NowScreen(
     val readOnlySample = snapshot?.user?.recordMode == "sample"
     val savedDirection = snapshot?.experimentDirections?.firstOrNull { it.state == "saved" }
     val directionSource = savedDirection?.let { direction ->
-        snapshot.recentShots.firstOrNull { it.id == direction.sourceShotId }
+        allShots.firstOrNull { it.id == direction.sourceShotId }
     }
     val latestRecord = snapshot?.latestShootRecord?.takeIf { record ->
         latestShoot == null || (
@@ -106,6 +112,11 @@ fun NowScreen(
                 record.shootId == latestShoot.id &&
                 record.revision == latestShoot.currentRecordRevision
             )
+    }
+    val latestIntervention = latestRecord?.let { record ->
+        snapshot?.recentInterventions?.firstOrNull {
+            it.shootId == record.shootId && it.shootRevision == record.revision
+        }
     }
     val focus = when {
         readOnlySample && latestRecord != null -> "sample-receipt"
@@ -138,6 +149,7 @@ fun NowScreen(
                 "sample-receipt" -> SampleShootReceiptHero(
                     record = requireNotNull(latestRecord),
                     onOpenShots = onOpenShots,
+                    onOpenShootRecord = onOpenShootRecord,
                 )
                 "session" -> CaptureSessionCard(
                     session = requireNotNull(active),
@@ -161,17 +173,23 @@ fun NowScreen(
                     onTryToday = onStartSavedDirection,
                     onShootFreely = onOpenFreeCamera,
                     onLeave = onLeaveSavedDirection,
+                    onOpenShot = onOpenShot,
                 )
                 "shoot-receipt" -> ShootReceiptHero(
                     record = requireNotNull(latestRecord),
                     answer = snapshot?.recentScoutAnswers?.firstOrNull {
                         it.shootId == latestRecord.shootId && it.shootRevision == latestRecord.revision
                     },
+                    intervention = latestIntervention,
+                    members = allShots.filter { it.id in latestRecord.shotIds },
+                    imageUrl = imageUrl,
                     busy = busy,
                     lastSyncedAt = source?.lastSuccessfulSyncAt.orEmpty(),
                     onOpenShots = onOpenShots,
+                    onOpenShot = onOpenShot,
+                    onOpenShootRecord = onOpenShootRecord,
                     onOpenExperiments = onOpenExperiments,
-                    onAnswer = onAnswerScoutQuestion,
+                    onRespondRecommendation = onRespondScoutRecommendation,
                 )
                 "legacy-insight" -> LatestInsightHero(
                     view = requireNotNull(latestView),
@@ -249,6 +267,7 @@ fun NowScreen(
 private fun SampleShootReceiptHero(
     record: ShootRecordDto,
     onOpenShots: () -> Unit,
+    onOpenShootRecord: (String, Int) -> Unit,
 ) {
     val receipt = record.receipt
     Column(
@@ -275,6 +294,10 @@ private fun SampleShootReceiptHero(
             lineHeight = 20.sp,
         )
         Spacer(Modifier.height(16.dp))
+        PrimaryAction("Open Sample Shoot Record") {
+            onOpenShootRecord(record.shootId, record.revision)
+        }
+        Spacer(Modifier.height(8.dp))
         SecondaryAction("Inspect Sample Shots", onClick = onOpenShots)
         Text(
             "READ ONLY · KEEPER AND EXPERIMENT ACTIONS DISABLED",
@@ -294,6 +317,7 @@ private fun SavedDirectionHero(
     onTryToday: (String) -> Unit,
     onShootFreely: () -> Unit,
     onLeave: (String, String) -> Unit,
+    onOpenShot: (String) -> Unit,
 ) {
     Column(
         Modifier
@@ -318,7 +342,12 @@ private fun SavedDirectionHero(
             Modifier
                 .fillMaxWidth()
                 .background(InkSoft, RoundedCornerShape(18.dp))
-                .border(1.dp, Hairline, RoundedCornerShape(18.dp)),
+                .border(1.dp, Hairline, RoundedCornerShape(18.dp))
+                .then(
+                    if (sourceShot == null) Modifier else Modifier.clickable(role = Role.Button) {
+                        onOpenShot(sourceShot.id)
+                    },
+                ),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             if (sourceShot != null) {
@@ -397,6 +426,8 @@ private fun ShootProcessingHero(
             fontSize = 14.sp,
             lineHeight = 20.sp,
         )
+        Spacer(Modifier.height(15.dp))
+        WorkflowStageStrip(settled = false, closing = shoot.status == "closing")
         Spacer(Modifier.height(19.dp))
         if (shoot.status == "open") {
             PrimaryAction("Keep shooting", onClick = onOpenCamera)
@@ -411,11 +442,16 @@ private fun ShootProcessingHero(
 private fun ShootReceiptHero(
     record: ShootRecordDto,
     answer: ScoutAnswerDto?,
+    intervention: InterventionRecordDto?,
+    members: List<ShotDto>,
+    imageUrl: (ShotDto) -> String,
     busy: Boolean,
     lastSyncedAt: String,
     onOpenShots: () -> Unit,
+    onOpenShot: (String) -> Unit,
+    onOpenShootRecord: (String, Int) -> Unit,
     onOpenExperiments: () -> Unit,
-    onAnswer: (String, Int, String) -> Unit,
+    onRespondRecommendation: (String, Int, String, String) -> Unit,
 ) {
     var expanded by rememberSaveable(record.shootId, record.revision) { mutableStateOf(false) }
     val receipt = record.receipt
@@ -456,9 +492,41 @@ private fun ShootReceiptHero(
             Spacer(Modifier.height(9.dp))
             Text(secondary, color = MutedWhite, fontSize = 14.sp, lineHeight = 20.sp)
         }
+        Spacer(Modifier.height(15.dp))
+        WorkflowStageStrip(settled = true, closing = true)
         Spacer(Modifier.height(16.dp))
-        when (record.scout.route) {
-            "reproduce" -> {
+        val recommendationResolved = intervention?.experimentId?.isNotBlank() == true ||
+            intervention?.attemptState in setOf("accepted", "entered", "left", "completed")
+        val recommendationOptions = recommendationOptions(record)
+        when {
+            record.scout.route in setOf("recommend", "ask") &&
+                answer == null && !recommendationResolved && recommendationOptions.isNotEmpty() -> {
+                ScoutRecommendationBlock(
+                    record = record,
+                    options = recommendationOptions,
+                    members = members,
+                    imageUrl = imageUrl,
+                    busy = busy,
+                    onOpenShot = onOpenShot,
+                    onRespond = onRespondRecommendation,
+                )
+            }
+            record.scout.route in setOf("recommend", "ask") &&
+                answer == null && recommendationResolved -> {
+                Text(
+                    intervention?.outcomeReason.orEmpty().ifBlank {
+                        "Shoots left this recommendation open without guessing your intent."
+                    },
+                    color = MutedWhite,
+                    fontSize = 14.sp,
+                    lineHeight = 20.sp,
+                )
+                if (intervention?.experimentId?.isNotBlank() == true) {
+                    Spacer(Modifier.height(10.dp))
+                    PrimaryAction("Open Experiment", onClick = onOpenExperiments)
+                }
+            }
+            record.scout.route == "reproduce" -> {
                 Text(
                     "EXPERIMENT OFFERED FROM YOUR KEEPER",
                     color = Amber,
@@ -470,24 +538,9 @@ private fun ShootReceiptHero(
                 Spacer(Modifier.height(8.dp))
                 SecondaryAction("Open Shots", onClick = onOpenShots)
             }
-            "explain" -> PrimaryAction("Open Shots", onClick = onOpenShots)
-            "ask" -> {
-                if (answer == null) {
-                    Text(
-                        record.scout.question.prompt,
-                        color = WarmWhite,
-                        fontSize = 17.sp,
-                        lineHeight = 23.sp,
-                        fontWeight = FontWeight.SemiBold,
-                    )
-                    Spacer(Modifier.height(10.dp))
-                    record.scout.question.options.forEach { option ->
-                        SecondaryAction(option.label, enabled = !busy) {
-                            onAnswer(record.shootId, record.revision, option.id)
-                        }
-                        Spacer(Modifier.height(7.dp))
-                    }
-                } else {
+            record.scout.route == "explain" -> PrimaryAction("Open Shots", onClick = onOpenShots)
+            record.scout.route == "ask" -> {
+                if (answer != null) {
                     Text(answer.detail, color = MutedWhite, fontSize = 14.sp, lineHeight = 20.sp)
                     Spacer(Modifier.height(10.dp))
                     if (answer.experimentId.isNotBlank()) {
@@ -495,9 +548,22 @@ private fun ShootReceiptHero(
                     } else {
                         SecondaryAction("Open Shots", onClick = onOpenShots)
                     }
+                } else {
+                    Text(
+                        "Shoots could not support one useful recommendation from this Shoot, so it stopped.",
+                        color = MutedWhite,
+                        fontSize = 14.sp,
+                        lineHeight = 20.sp,
+                    )
+                    Spacer(Modifier.height(10.dp))
+                    SecondaryAction("Open Shots", onClick = onOpenShots)
                 }
             }
             else -> SecondaryAction("Open Shots", onClick = onOpenShots)
+        }
+        Spacer(Modifier.height(10.dp))
+        SecondaryAction("Open full Shoot Record") {
+            onOpenShootRecord(record.shootId, record.revision)
         }
         val hasDetails = receipt.repeated.size + receipt.varied.size > 1 ||
             receipt.blindSpots.isNotEmpty() || receipt.techniques.isNotEmpty()
@@ -530,6 +596,204 @@ private fun ShootReceiptHero(
         }
         SyncedLabel(lastSyncedAt)
     }
+}
+
+@Composable
+private fun WorkflowStageStrip(settled: Boolean, closing: Boolean) {
+    val completed = when {
+        settled -> 4
+        closing -> 1
+        else -> 0
+    }
+    val current = when {
+        settled -> -1
+        closing -> 1
+        else -> 0
+    }
+    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(5.dp)) {
+        listOf("Collected", "Read", "Grouped", "Settled").forEachIndexed { index, label ->
+            Column(Modifier.weight(1f), horizontalAlignment = Alignment.CenterHorizontally) {
+                Box(
+                    Modifier
+                        .size(8.dp)
+                        .background(
+                            when {
+                                index < completed -> Amber
+                                index == current -> MutedWhite
+                                else -> Hairline
+                            },
+                            CircleShape,
+                        ),
+                )
+                Spacer(Modifier.height(5.dp))
+                Text(
+                    when {
+                        index != current -> label
+                        index == 0 -> "Collecting…"
+                        index == 1 -> "Reading…"
+                        else -> "$label…"
+                    },
+                    color = if (index < completed || index == current) WarmWhite else MutedWhite,
+                    fontSize = 9.sp,
+                    maxLines = 1,
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun ScoutRecommendationBlock(
+    record: ShootRecordDto,
+    options: List<ScoutRecommendationOptionDto>,
+    members: List<ShotDto>,
+    imageUrl: (ShotDto) -> String,
+    busy: Boolean,
+    onOpenShot: (String) -> Unit,
+    onRespond: (String, Int, String, String) -> Unit,
+) {
+    val primaryIndex = options.indexOfFirst { it.id == record.scout.recommendation.primaryOptionId }
+        .takeIf { it >= 0 }
+        ?: 0
+    var optionIndex by rememberSaveable(record.shootId, record.revision) {
+        mutableIntStateOf(primaryIndex)
+    }
+    var tuneOpen by rememberSaveable(record.shootId, record.revision, "tune") {
+        mutableStateOf(false)
+    }
+    val option = options[optionIndex.coerceIn(options.indices)]
+    val evidenceIds = (listOf(option.referenceShotId) + option.warrantShotIds)
+        .filter(String::isNotBlank)
+        .distinct()
+    val evidence = evidenceIds.mapNotNull { id -> members.firstOrNull { it.id == id } }.take(3)
+    val evidenceCount = option.warrantShotIds.distinct().size
+    val evidenceCopy = if (evidenceCount > 0) {
+        "It appeared clearly in $evidenceCount ${countLabel(evidenceCount, "Shot")}"
+    } else {
+        "Shoots stored supporting evidence for this direction"
+    }
+
+    Spacer(Modifier.height(15.dp))
+    evidence.firstOrNull()?.let { shot ->
+        Box(
+            Modifier
+                .fillMaxWidth()
+                .height(210.dp)
+                .clip(RoundedCornerShape(18.dp))
+                .background(InkSoft)
+                .clickable(role = Role.Button) { onOpenShot(shot.id) },
+        ) {
+            AsyncImage(
+                model = imageUrl(shot),
+                contentDescription = "Supporting Shot for ${option.techniqueName}",
+                modifier = Modifier.fillMaxSize(),
+                contentScale = ContentScale.Crop,
+            )
+            Text(
+                "Open supporting Shot · $evidenceCount ${countLabel(evidenceCount, "Shot")}",
+                color = WarmWhite,
+                fontSize = 11.sp,
+                modifier = Modifier
+                    .align(Alignment.BottomStart)
+                    .fillMaxWidth()
+                    .background(Ink.copy(alpha = 0.8f))
+                    .padding(10.dp),
+            )
+        }
+    }
+    if (evidence.size > 1) {
+        Spacer(Modifier.height(8.dp))
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            evidence.drop(1).forEach { shot ->
+                AsyncImage(
+                    model = imageUrl(shot),
+                    contentDescription = "Another supporting Shot",
+                    modifier = Modifier
+                        .size(66.dp)
+                        .clip(RoundedCornerShape(11.dp))
+                        .clickable(role = Role.Button) { onOpenShot(shot.id) },
+                    contentScale = ContentScale.Crop,
+                )
+            }
+        }
+    }
+    Spacer(Modifier.height(16.dp))
+    Text("ONE IDEA FOR YOUR NEXT OUTING", color = Amber, fontSize = 10.sp, fontWeight = FontWeight.Bold)
+    Spacer(Modifier.height(7.dp))
+    Text(option.title, color = WarmWhite, fontSize = 22.sp, lineHeight = 28.sp, fontWeight = FontWeight.Bold)
+    Spacer(Modifier.height(8.dp))
+    Text(option.whyNow, color = MutedWhite, fontSize = 14.sp, lineHeight = 20.sp)
+    Spacer(Modifier.height(12.dp))
+    Text(
+        "$evidenceCopy. This is a recommendation, not a claim about what you intended.",
+        color = MutedWhite,
+        fontSize = 12.sp,
+        lineHeight = 18.sp,
+    )
+    Spacer(Modifier.height(16.dp))
+    PrimaryAction("Try this Experiment", enabled = !busy) {
+        onRespond(record.shootId, record.revision, "accept", option.id)
+    }
+    if (options.size > 1) {
+        Spacer(Modifier.height(8.dp))
+        SecondaryAction("Show another idea", enabled = !busy) {
+            optionIndex = (optionIndex + 1) % options.size
+            tuneOpen = false
+        }
+    }
+    TextButton(
+        onClick = { onRespond(record.shootId, record.revision, "not_today", "") },
+        enabled = !busy,
+        modifier = Modifier.fillMaxWidth(),
+    ) { Text("Not today", color = MutedWhite) }
+    TextButton(
+        onClick = { tuneOpen = !tuneOpen },
+        modifier = Modifier.fillMaxWidth(),
+    ) { Text(if (tuneOpen) "Close" else "Help Shoots understand", color = MutedWhite) }
+    AnimatedVisibility(tuneOpen) {
+        Column(
+            Modifier
+                .fillMaxWidth()
+                .background(InkSoft, RoundedCornerShape(14.dp))
+                .padding(12.dp),
+        ) {
+            Text(
+                "Only answer if it helps. You do not need to classify your Shoot.",
+                color = MutedWhite,
+                fontSize = 12.sp,
+                lineHeight = 17.sp,
+            )
+            Spacer(Modifier.height(8.dp))
+            SecondaryAction("I was just shooting", enabled = !busy) {
+                onRespond(record.shootId, record.revision, "just_shooting", "")
+            }
+        }
+    }
+}
+
+private fun recommendationOptions(record: ShootRecordDto): List<ScoutRecommendationOptionDto> {
+    val stored = record.scout.recommendation.options
+    if (stored.isNotEmpty()) return stored
+    return record.scout.question.options
+        .filter { it.techniqueId.isNotBlank() }
+        .map { legacy ->
+            val warrant = record.scout.warrant.firstOrNull { it.techniqueId == legacy.techniqueId }
+            val ids = warrant?.shotIds.orEmpty()
+            val count = ids.distinct().size
+            ScoutRecommendationOptionDto(
+                id = "explore_${legacy.techniqueId}",
+                techniqueId = legacy.techniqueId,
+                techniqueName = legacy.label,
+                experimentType = "explore",
+                title = "Try ${legacy.label} on purpose",
+                whyNow = "$count ${countLabel(count, "Shot")} in this Shoot showed ${legacy.label}. " +
+                    "Try that choice on purpose in a different Scene.",
+                warrantShotIds = ids,
+                referenceShotId = warrant?.referenceShotId.orEmpty(),
+            )
+        }
+        .sortedWith(compareByDescending<ScoutRecommendationOptionDto> { it.warrantShotIds.distinct().size }
+            .thenBy { it.techniqueId })
 }
 
 @Composable

@@ -404,6 +404,20 @@ class ShootsRepository(
         return answer
     }
 
+    suspend fun respondScoutRecommendation(
+        shootId: String,
+        revision: Int,
+        action: String,
+        optionId: String = "",
+    ): ScoutRecommendationResultDto {
+        val result = api.respondScoutRecommendation(
+            shootId,
+            ScoutRecommendationRequest(revision, action, optionId),
+        )
+        refreshSnapshot()
+        return result
+    }
+
     suspend fun cacheDeconstructionPages(draft: DeconstructionDto): List<File> {
         require(draft.status == "drafted" && draft.pages.isNotEmpty()) {
             "This story has no finished pages yet"

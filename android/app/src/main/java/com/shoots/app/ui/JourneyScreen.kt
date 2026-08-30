@@ -67,6 +67,8 @@ fun JourneyScreen(
     blobUrl: (String) -> String = { "" },
     onPrepareDeconstruction: (String, String, Int, String) -> Unit = { _, _, _, _ -> },
     onShareDeconstruction: (DeconstructionDto) -> Unit = {},
+    onSaveDeconstruction: (DeconstructionDto) -> Unit = {},
+    onOpenShootRecord: (String, Int) -> Unit = { _, _ -> },
 ) {
     var section by rememberSaveable { mutableStateOf(JourneySection.UPDATE) }
     val readOnlySample = snapshot?.user?.recordMode == "sample"
@@ -97,6 +99,16 @@ fun JourneyScreen(
             Column(Modifier.padding(20.dp)) { Text("Loading your cached Journey…", color = MutedWhite) }
             return@Column
         }
+        if (snapshot.latestShootRecord != null) {
+            JourneyOpeningHero(
+                snapshot = snapshot,
+                imageUrl = imageUrl,
+                onShot = onShot,
+                onOpenShootRecord = onOpenShootRecord,
+                readOnlySample = readOnlySample,
+            )
+            Spacer(Modifier.height(22.dp))
+        }
         JourneySections(section, onSelect = { section = it })
         Spacer(Modifier.height(18.dp))
         AnimatedContent(
@@ -121,11 +133,85 @@ fun JourneyScreen(
                     onShot,
                     onPrepareDeconstruction,
                     onShareDeconstruction,
+                    onSaveDeconstruction,
                     readOnlySample,
                 )
                 JourneySection.TENDENCIES -> TendencyView(snapshot, readOnlySample)
                 JourneySection.TECHNIQUES -> TechniqueView(snapshot, readOnlySample)
             }
+        }
+    }
+}
+
+@Composable
+private fun JourneyOpeningHero(
+    snapshot: MobileSnapshotDto,
+    imageUrl: (ShotDto) -> String,
+    onShot: (String) -> Unit,
+    onOpenShootRecord: (String, Int) -> Unit,
+    readOnlySample: Boolean,
+) {
+    val record = snapshot.latestShootRecord ?: return
+    val members = record.shotIds
+        .mapNotNull { id -> snapshot.recentShots.firstOrNull { it.id == id } }
+    val preview = when {
+        members.size <= 3 -> members
+        else -> listOf(members.first(), members[members.lastIndex / 2], members.last())
+    }
+    Column(Modifier.padding(horizontal = 20.dp)) {
+        Text(
+            if (readOnlySample) "SAMPLE OUTING" else "YOUR LATEST OUTING",
+            color = Amber,
+            fontSize = 10.sp,
+            fontWeight = FontWeight.Bold,
+        )
+        Spacer(Modifier.height(8.dp))
+        Text(
+            record.receipt.repeated.firstOrNull()
+                ?: record.receipt.varied.firstOrNull()
+                ?: "Shoots kept this outing together.",
+            color = WarmWhite,
+            fontSize = 23.sp,
+            lineHeight = 29.sp,
+            fontWeight = FontWeight.SemiBold,
+        )
+        if (preview.isNotEmpty()) {
+            Spacer(Modifier.height(13.dp))
+            Row(
+                Modifier.fillMaxWidth().height(150.dp),
+                horizontalArrangement = Arrangement.spacedBy(6.dp),
+            ) {
+                preview.forEach { shot ->
+                    AsyncImage(
+                        model = imageUrl(shot),
+                        contentDescription = shot.filename,
+                        modifier = Modifier
+                            .weight(1f)
+                            .fillMaxSize()
+                            .clip(androidx.compose.foundation.shape.RoundedCornerShape(13.dp))
+                            .clickable(role = Role.Button) { onShot(shot.id) },
+                        contentScale = ContentScale.Crop,
+                    )
+                }
+            }
+        }
+        Spacer(Modifier.height(12.dp))
+        Text(
+            if (readOnlySample) {
+                "Fixture only · no collection, Analysis, grouping, or settlement ran."
+            } else {
+                val shots = if (record.receipt.shotCount == 1) "Shot" else "Shots"
+                val scenes = if (record.receipt.sceneCount == 1) "Scene" else "Scenes"
+                "Shoots handled ${record.receipt.shotCount} $shots across ${record.receipt.sceneCount} $scenes. " +
+                    "Collected → Read → Grouped → Settled."
+            },
+            color = MutedWhite,
+            fontSize = 12.sp,
+            lineHeight = 18.sp,
+        )
+        Spacer(Modifier.height(12.dp))
+        PrimaryAction(if (readOnlySample) "Open Sample Shoot Record" else "Open full Shoot Record") {
+            onOpenShootRecord(record.shootId, record.revision)
         }
     }
 }
@@ -177,6 +263,7 @@ private fun JourneyUpdateView(
     onShot: (String) -> Unit,
     onPrepareDeconstruction: (String, String, Int, String) -> Unit,
     onShareDeconstruction: (DeconstructionDto) -> Unit,
+    onSaveDeconstruction: (DeconstructionDto) -> Unit,
     readOnlySample: Boolean,
 ) {
     Column(Modifier.fillMaxWidth()) {
@@ -314,6 +401,7 @@ private fun JourneyUpdateView(
                 blobUrl,
                 onPrepareDeconstruction,
                 onShareDeconstruction,
+                onSaveDeconstruction,
                 readOnlySample,
             )
         }
@@ -372,6 +460,7 @@ private fun DeconstructionCard(
     blobUrl: (String) -> String,
     onPrepare: (String, String, Int, String) -> Unit,
     onShare: (DeconstructionDto) -> Unit,
+    onSave: (DeconstructionDto) -> Unit,
     readOnlySample: Boolean,
 ) {
     val draft = source.draft
@@ -426,7 +515,27 @@ private fun DeconstructionCard(
                     }
                 }
                 Spacer(Modifier.height(12.dp))
+                if (draft.suggestedCaption.isNotBlank()) {
+                    Column(
+                        Modifier
+                            .fillMaxWidth()
+                            .background(InkSoft, androidx.compose.foundation.shape.RoundedCornerShape(14.dp))
+                            .padding(13.dp),
+                    ) {
+                        Text("READY CAPTION", color = Amber, fontSize = 9.sp, fontWeight = FontWeight.Bold)
+                        Spacer(Modifier.height(5.dp))
+                        Text(
+                            draft.suggestedCaption,
+                            color = WarmWhite,
+                            fontSize = 13.sp,
+                            lineHeight = 19.sp,
+                        )
+                    }
+                    Spacer(Modifier.height(12.dp))
+                }
                 PrimaryAction("Share ${draft.pages.size}-page story") { onShare(draft) }
+                Spacer(Modifier.height(8.dp))
+                SecondaryAction("Save story to this phone") { onSave(draft) }
             } else if (source.keeperShotIds.isEmpty()) {
                 Text(
                     "Mark one Shot you care about with the bookmark, then return here to use it as the opening.",

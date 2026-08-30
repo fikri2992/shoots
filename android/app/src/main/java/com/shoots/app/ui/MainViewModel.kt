@@ -330,6 +330,40 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         notice.value = answer.detail
     }
 
+    suspend fun respondScoutRecommendation(
+        shootId: String,
+        revision: Int,
+        action: String,
+        optionId: String = "",
+    ): Boolean = operate {
+        val result = repository.respondScoutRecommendation(
+            shootId,
+            revision,
+            action,
+            optionId,
+        )
+        notice.value = when (action) {
+            "accept" -> if (result.experiment != null) {
+                "Your optional Experiment is ready"
+            } else {
+                "That recommendation was already handled"
+            }
+            "just_shooting" -> "Shoots left the meaning of this Shoot open"
+            else -> "Recommendation left for today"
+        }
+    }
+
+    fun loadShootRecordMembers(ids: List<String>) {
+        val missing = ids.toSet() - shots.value.map(ShotDto::id).toSet()
+        if (missing.isEmpty()) return
+        viewModelScope.launch(Dispatchers.IO) {
+            missing.forEach { id ->
+                runCatching { repository.refreshShot(id) }
+                    .onFailure(::recordFailure)
+            }
+        }
+    }
+
     suspend fun cacheDeconstructionPages(draft: DeconstructionDto): List<File> =
         withContext(Dispatchers.IO) { repository.cacheDeconstructionPages(draft) }
 

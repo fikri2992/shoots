@@ -31,14 +31,14 @@ fun buildShotVisualStory(
                 mark
             }
         }
-        ?.takeIf(::hasDrawableMark)
-        ?: legacyKeepMark(teaching)
-    if (teaching?.keepTitle?.isNotBlank() == true && hasDrawableMark(keepMark)) {
+        ?.takeIf { hasDrawableMark(it, composition) }
+        ?: VisualMarkDto()
+    if (teaching?.keepTitle?.isNotBlank() == true && hasDrawableMark(keepMark, composition)) {
         add(
             ShotStoryStep(
                 label = "WHAT HOLDS THIS SHOT",
                 title = teaching.keepTitle,
-                body = teaching.keepProof,
+                body = plainCellReferences(teaching.keepProof, grid),
                 layer = layerFor(keepMark),
                 mark = keepMark,
             )
@@ -63,39 +63,35 @@ fun buildShotVisualStory(
         .filter(::isCorroborated)
         .filter { it.techniqueId != teaching?.keepTechniqueId }
         .map { it to techniqueMark(it) }
-        .filter { (_, mark) -> hasDrawableMark(mark) }
+        .filter { (_, mark) -> hasDrawableMark(mark, composition) }
         .forEach { (evidence, mark) ->
             add(
                 ShotStoryStep(
                     label = "ANOTHER CHOICE · SHOOTS' VISUAL READ",
                     title = evidence.name.ifBlank { humanLabel(evidence.techniqueId) },
-                    body = evidence.note,
+                    body = plainCellReferences(evidence.note, grid),
                     layer = ReviewLayer.EVIDENCE,
                     mark = mark,
                 )
             )
         }
 
-    val noticeTitle = teaching?.noticeTitle.orEmpty().ifBlank {
-        analysis.findings.firstOrNull()?.what.orEmpty()
-    }
+    val noticeTitle = teaching?.noticeTitle.orEmpty()
     if (noticeTitle.isNotBlank()) {
         val findingId = teaching?.noticeFindingId.orEmpty()
         val findingIndex = analysis.findings.indexOfFirst { it.findingId == findingId }
             .takeIf { it >= 0 }
             ?: 0
-        val measured = teaching?.noticeAuthority == "measured" || analysis.findings.isNotEmpty()
+        val measured = teaching?.noticeAuthority == "measured"
         val noticeMark = teaching?.noticeMark
-            ?.takeIf(::hasDrawableMark)
-            ?: legacyNoticeMark(teaching, analysis, findingIndex, measured)
-        if (hasDrawableMark(noticeMark)) {
+            ?.takeIf { hasDrawableMark(it, composition) }
+            ?: VisualMarkDto()
+        if (hasDrawableMark(noticeMark, composition)) {
             add(
                 ShotStoryStep(
                     label = if (measured) "WHAT THE CAMERA FOUND" else "WHAT STOOD OUT · SHOOTS' VISUAL READ",
                     title = noticeTitle,
-                    body = teaching?.noticeProof.orEmpty().ifBlank {
-                        analysis.findings.getOrNull(findingIndex)?.why.orEmpty()
-                    },
+                    body = plainCellReferences(teaching?.noticeProof.orEmpty(), grid),
                     layer = layerFor(noticeMark),
                     findingIndex = findingIndex,
                     mark = noticeMark,
@@ -104,19 +100,17 @@ fun buildShotVisualStory(
         }
     }
 
-    val tryText = teaching?.tryText.orEmpty().ifBlank {
-        compositionInstruction(composition, grid).substringBeforeLast(". ").trimEnd('.')
-    }
+    val tryText = teaching?.tryText.orEmpty()
     if (tryText.isNotBlank()) {
         val tryMark = teaching?.tryMark
-            ?.takeIf(::hasDrawableMark)
-            ?: legacyTryMark(teaching, composition)
-        if (hasDrawableMark(tryMark)) {
+            ?.takeIf { hasDrawableMark(it, composition) }
+            ?: VisualMarkDto()
+        if (hasDrawableMark(tryMark, composition)) {
             add(
                 ShotStoryStep(
                     label = "TRY THIS",
                     title = tryText,
-                    body = teaching?.tryReason.orEmpty(),
+                    body = plainCellReferences(teaching?.tryReason.orEmpty(), grid),
                     layer = layerFor(tryMark),
                     mark = tryMark,
                 )
@@ -126,11 +120,9 @@ fun buildShotVisualStory(
 
     teaching?.visibleCheck?.takeIf(String::isNotBlank)?.let { check ->
         val checkMark = teaching.checkMark
-            .takeIf(::hasDrawableMark)
-            ?: teaching.tryMark.takeIf(::hasDrawableMark)
-            ?: teaching.noticeMark.takeIf(::hasDrawableMark)
-            ?: keepMark
-        if (hasDrawableMark(checkMark)) {
+            .takeIf { hasDrawableMark(it, composition) }
+            ?: VisualMarkDto()
+        if (hasDrawableMark(checkMark, composition)) {
             add(
                 ShotStoryStep(
                     label = "CHECK NEXT TIME",
@@ -156,16 +148,14 @@ fun buildShotVisualStory(
 
 fun hasCompositionEvidence(composition: CompositionDto): Boolean =
     composition.subjectCells.isNotEmpty() ||
-        composition.subjectX != null ||
-        composition.subjectY != null ||
-        composition.horizonRow != null
+        (composition.subjectX != null && composition.subjectY != null)
 
 fun hasCompositionAction(composition: CompositionDto): Boolean =
     composition.suggestedCropCells.isNotEmpty() || composition.moves.any {
         it.kind == "move" && it.fromCells.isNotEmpty() && it.toCells.isNotEmpty()
     }
 
-fun hasDrawableMark(mark: VisualMarkDto): Boolean {
+fun hasDrawableMark(mark: VisualMarkDto, composition: CompositionDto? = null): Boolean {
     if (visualArtifactOwnsLayer(mark.visualArtifact)) return true
     val expectedRelation = relationKind(mark.techniqueId)
     if (expectedRelation != null && mark.kind != expectedRelation) return false
@@ -178,7 +168,8 @@ fun hasDrawableMark(mark: VisualMarkDto): Boolean {
     "instances" -> usableRegions(mark).size >= 2
     "planes" -> planesAreDrawable(mark)
     "crop", "region", "frame" -> mark.cells.isNotEmpty()
-    "point" -> true
+    "point" -> mark.cells.isNotEmpty() ||
+        (composition?.subjectX != null && composition.subjectY != null)
     else -> false
     }
 }
@@ -200,23 +191,7 @@ private fun layerFor(mark: VisualMarkDto): ReviewLayer = when (mark.kind) {
 private fun compositionMark(composition: CompositionDto): VisualMarkDto = when {
     composition.subjectCells.isNotEmpty() -> VisualMarkDto(kind = "region", cells = composition.subjectCells)
     composition.subjectX != null && composition.subjectY != null -> VisualMarkDto(kind = "point")
-    composition.horizonRow != null -> VisualMarkDto(kind = "line")
     else -> VisualMarkDto()
-}
-
-private fun legacyKeepMark(teaching: ShotTeachingReceiptDto?): VisualMarkDto {
-    if (teaching == null || teaching.keepCells.isEmpty()) return VisualMarkDto()
-    val kind = relationKind(teaching.keepTechniqueId) ?: when (teaching.keepTechniqueId) {
-        "diagonals", "horizon_placement", "leading_lines", "light_trails" -> "line"
-        "frame_within_frame" -> "frame"
-        "break_the_pattern", "eye_contact_portrait", "single_accent" -> "point"
-        else -> "region"
-    }
-    return VisualMarkDto(
-        kind = kind,
-        cells = teaching.keepCells,
-        techniqueId = teaching.keepTechniqueId,
-    )
 }
 
 private fun techniqueMark(evidence: TechniqueEvidenceDto): VisualMarkDto {
@@ -276,45 +251,3 @@ private val INSTANCE_TECHNIQUES = setOf(
     "patterns",
     "rule_of_odds",
 )
-
-private fun legacyNoticeMark(
-    teaching: ShotTeachingReceiptDto?,
-    analysis: AnalysisDto,
-    findingIndex: Int,
-    measured: Boolean,
-): VisualMarkDto {
-    if (measured) {
-        val finding = analysis.findings.getOrNull(findingIndex)
-        return VisualMarkDto(
-            kind = "finding",
-            cells = finding?.cells.orEmpty(),
-            findingId = finding?.findingId.orEmpty(),
-        )
-    }
-    return teaching?.noticeCells
-        ?.takeIf { it.isNotEmpty() }
-        ?.let { VisualMarkDto(kind = "region", cells = it) }
-        ?: VisualMarkDto()
-}
-
-private fun legacyTryMark(
-    teaching: ShotTeachingReceiptDto?,
-    composition: CompositionDto,
-): VisualMarkDto {
-    if (teaching != null) {
-        if (teaching.tryKind == "move" && teaching.tryFromCells.isNotEmpty() && teaching.tryToCells.isNotEmpty()) {
-            return VisualMarkDto(kind = "move", cells = teaching.tryFromCells, toCells = teaching.tryToCells)
-        }
-        if (teaching.tryKind == "crop" && teaching.tryToCells.isNotEmpty()) {
-            return VisualMarkDto(kind = "crop", cells = teaching.tryToCells)
-        }
-    }
-    if (composition.suggestedCropCells.isNotEmpty()) {
-        return VisualMarkDto(kind = "crop", cells = composition.suggestedCropCells)
-    }
-    val move = composition.moves.firstOrNull {
-        it.kind == "move" && it.fromCells.isNotEmpty() && it.toCells.isNotEmpty()
-    }
-    return move?.let { VisualMarkDto(kind = "move", cells = it.fromCells, toCells = it.toCells) }
-        ?: VisualMarkDto()
-}

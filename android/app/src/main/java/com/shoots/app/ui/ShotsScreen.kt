@@ -47,6 +47,7 @@ import com.shoots.app.data.ShotDto
 import com.shoots.app.data.InspirationDto
 import com.shoots.app.data.ImportEntity
 import com.shoots.app.data.ImportState
+import com.shoots.app.data.MobileSnapshotDto
 
 @Composable
 fun ShotsScreen(
@@ -64,7 +65,14 @@ fun ShotsScreen(
     onReauthenticate: () -> Unit,
     onAdd: () -> Unit,
     readOnlySample: Boolean = false,
+    snapshot: MobileSnapshotDto? = null,
+    onOpenShootRecord: (String, Int) -> Unit = { _, _ -> },
+    onKeeper: (String, Boolean) -> Unit = { _, _ -> },
 ) {
+    val record = snapshot?.latestShootRecord
+    val latestIds = record?.shotIds.orEmpty()
+    val latestShots = latestIds.mapNotNull { id -> shots.firstOrNull { it.id == id } }
+    val earlierShots = shots.filterNot { it.id in latestIds }
     Column(Modifier.fillMaxSize().background(Ink).statusBarsPadding()) {
         Column(Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 22.dp)) {
             ScreenTitle(
@@ -120,8 +128,43 @@ fun ShotsScreen(
                         }
                     }
                 }
-                items(shots, key = { it.id }) { shot ->
-                    ShotTile(shot, imageUrl(shot)) { onShot(shot.id) }
+                if (record != null) {
+                    item(span = { GridItemSpan(maxLineSpan) }) {
+                        LatestShootArchiveCard(
+                            record = record,
+                            shots = latestShots,
+                            imageUrl = imageUrl,
+                            readOnlySample = readOnlySample,
+                            onOpen = onOpenShootRecord,
+                        )
+                    }
+                }
+                items(latestShots, key = { "latest:${it.id}" }) { shot ->
+                    ShotTile(
+                        shot = shot,
+                        url = imageUrl(shot),
+                        readOnlySample = readOnlySample,
+                        onKeeper = onKeeper,
+                    ) { onShot(shot.id) }
+                }
+                if (earlierShots.isNotEmpty() && latestShots.isNotEmpty()) {
+                    item(span = { GridItemSpan(maxLineSpan) }) {
+                        Text(
+                            "EARLIER SHOTS",
+                            color = MutedWhite,
+                            fontSize = 10.sp,
+                            fontWeight = FontWeight.Bold,
+                            modifier = Modifier.padding(top = 20.dp, bottom = 3.dp),
+                        )
+                    }
+                }
+                items(earlierShots, key = { it.id }) { shot ->
+                    ShotTile(
+                        shot = shot,
+                        url = imageUrl(shot),
+                        readOnlySample = readOnlySample,
+                        onKeeper = onKeeper,
+                    ) { onShot(shot.id) }
                 }
                 if (inspirations.isNotEmpty() && !readOnlySample) {
                     item(span = { GridItemSpan(maxLineSpan) }) {
@@ -158,6 +201,64 @@ fun ShotsScreen(
                     }
                 }
             }
+        }
+    }
+}
+
+@Composable
+private fun LatestShootArchiveCard(
+    record: com.shoots.app.data.ShootRecordDto,
+    shots: List<ShotDto>,
+    imageUrl: (ShotDto) -> String,
+    readOnlySample: Boolean,
+    onOpen: (String, Int) -> Unit,
+) {
+    Column(Modifier.fillMaxWidth().padding(bottom = 8.dp)) {
+        Text(
+            if (readOnlySample) "SAMPLE SHOOT" else "LATEST SHOOT · SETTLED",
+            color = Amber,
+            fontSize = 10.sp,
+            fontWeight = FontWeight.Bold,
+        )
+        Spacer(Modifier.height(7.dp))
+        InkCard(onClick = { onOpen(record.shootId, record.revision) }) {
+            if (shots.isNotEmpty()) {
+                androidx.compose.foundation.layout.Row(
+                    Modifier.fillMaxWidth().height(112.dp),
+                    horizontalArrangement = Arrangement.spacedBy(5.dp),
+                ) {
+                    shots.take(3).forEach { shot ->
+                        AsyncImage(
+                            model = imageUrl(shot),
+                            contentDescription = shot.filename,
+                            modifier = Modifier
+                                .weight(1f)
+                                .fillMaxSize()
+                                .clip(RoundedCornerShape(10.dp)),
+                            contentScale = ContentScale.Crop,
+                        )
+                    }
+                }
+                Spacer(Modifier.height(12.dp))
+            }
+            Text(
+                record.receipt.repeated.firstOrNull()
+                    ?: record.receipt.varied.firstOrNull()
+                    ?: "This outing is ready to inspect.",
+                color = WarmWhite,
+                fontSize = 16.sp,
+                lineHeight = 21.sp,
+                fontWeight = FontWeight.SemiBold,
+            )
+            Spacer(Modifier.height(5.dp))
+            Text(
+                "Collected → Read → Grouped → Settled · ${record.receipt.shotCount} Shots",
+                color = MutedWhite,
+                fontSize = 11.sp,
+                lineHeight = 16.sp,
+            )
+            Spacer(Modifier.height(9.dp))
+            Text("Open full Shoot Record", color = Amber, fontSize = 12.sp, fontWeight = FontWeight.Bold)
         }
     }
 }
@@ -267,7 +368,13 @@ private fun PendingImportTile(item: ImportEntity, onRetry: () -> Unit) {
 }
 
 @Composable
-private fun ShotTile(shot: ShotDto, url: String, onClick: () -> Unit) {
+private fun ShotTile(
+    shot: ShotDto,
+    url: String,
+    readOnlySample: Boolean,
+    onKeeper: (String, Boolean) -> Unit,
+    onClick: () -> Unit,
+) {
     val interactions = remember { MutableInteractionSource() }
     val pressed by interactions.collectIsPressedAsState()
     val scale by animateFloatAsState(
@@ -315,18 +422,11 @@ private fun ShotTile(shot: ShotDto, url: String, onClick: () -> Unit) {
                     .padding(horizontal = 6.dp, vertical = 4.dp),
             )
         }
-        if (shot.keptAt != null) {
-            Text(
-                "KEEPER",
-                color = Amber,
-                fontSize = 9.sp,
-                fontWeight = FontWeight.Bold,
-                modifier = Modifier
-                    .align(Alignment.TopEnd)
-                    .padding(7.dp)
-                    .background(Ink.copy(alpha = 0.8f), RoundedCornerShape(8.dp))
-                    .padding(horizontal = 6.dp, vertical = 4.dp),
-            )
+        Box(Modifier.align(Alignment.TopEnd).padding(5.dp)) {
+            KeeperButton(
+                kept = shot.keptAt != null,
+                enabled = !readOnlySample,
+            ) { onKeeper(shot.id, shot.keptAt == null) }
         }
         if (shot.error.isNotBlank()) {
             Text(

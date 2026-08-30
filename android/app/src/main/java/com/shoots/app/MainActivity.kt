@@ -27,13 +27,17 @@ import androidx.compose.material3.TextButton
 import androidx.core.content.ContextCompat
 import androidx.core.content.FileProvider
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.shoots.app.data.DeconstructionDto
 import com.shoots.app.identity.DriveAuthorization
+import com.shoots.app.media.StoryMediaSaver
 import com.shoots.app.phone.MediaAccess
 import com.shoots.app.ui.AppActions
 import com.shoots.app.ui.MainViewModel
 import com.shoots.app.ui.ShootsApp
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 class MainActivity : ComponentActivity() {
     private val viewModel: MainViewModel by viewModels()
@@ -55,7 +59,24 @@ class MainActivity : ComponentActivity() {
                 var chooseSourceLocation by remember { mutableStateOf(false) }
                 var documentSourceRole by remember { mutableStateOf("mine") }
                 var notificationsGranted by remember { mutableStateOf(hasNotificationPermission()) }
+                var pendingStorySave by remember { mutableStateOf<DeconstructionDto?>(null) }
                 val drive = remember { DriveAuthorization(this) }
+
+                fun persistStory(draft: DeconstructionDto) {
+                    scope.launch {
+                        runCatching {
+                            val files = viewModel.cacheDeconstructionPages(draft)
+                            withContext(Dispatchers.IO) {
+                                StoryMediaSaver.save(this@MainActivity, draft, files)
+                            }
+                        }.onSuccess { saved ->
+                            viewModel.notice.value =
+                                "$saved story ${if (saved == 1) "page" else "pages"} saved to Pictures/Shoots"
+                        }.onFailure {
+                            viewModel.error.value = it.message ?: "Could not save this story"
+                        }
+                    }
+                }
 
                 val picker = rememberLauncherForActivityResult(
                     ActivityResultContracts.PickMultipleVisualMedia(50)
@@ -109,6 +130,17 @@ class MainActivity : ComponentActivity() {
                 ) { granted ->
                     notificationsGranted = granted
                     if (granted) scope.launch { viewModel.registerNotificationsIfAvailable() }
+                }
+                val storyWritePermission = rememberLauncherForActivityResult(
+                    ActivityResultContracts.RequestPermission(),
+                ) { granted ->
+                    val draft = pendingStorySave
+                    pendingStorySave = null
+                    if (granted && draft != null) {
+                        persistStory(draft)
+                    } else if (!granted) {
+                        viewModel.error.value = "Storage access is needed to save this story"
+                    }
                 }
                 val driveResolution = rememberLauncherForActivityResult(
                     ActivityResultContracts.StartIntentSenderForResult()
@@ -243,11 +275,6 @@ class MainActivity : ComponentActivity() {
                                 )
                             }
                         },
-                        answerScoutQuestion = { shootId, revision, optionId ->
-                            scope.launch {
-                                viewModel.answerScoutQuestion(shootId, revision, optionId)
-                            }
-                        },
                         shareDeconstruction = { draft ->
                             scope.launch {
                                 runCatching { viewModel.cacheDeconstructionPages(draft) }
@@ -279,6 +306,20 @@ class MainActivity : ComponentActivity() {
                                         viewModel.error.value =
                                             it.message ?: "Could not prepare share files"
                                     }
+                            }
+                        },
+                        saveDeconstruction = { draft ->
+                            if (
+                                Build.VERSION.SDK_INT < Build.VERSION_CODES.Q &&
+                                ContextCompat.checkSelfPermission(
+                                    this@MainActivity,
+                                    Manifest.permission.WRITE_EXTERNAL_STORAGE,
+                                ) != PackageManager.PERMISSION_GRANTED
+                            ) {
+                                pendingStorySave = draft
+                                storyWritePermission.launch(Manifest.permission.WRITE_EXTERNAL_STORAGE)
+                            } else {
+                                persistStory(draft)
                             }
                         },
                         continueSession = ::launchCamera,

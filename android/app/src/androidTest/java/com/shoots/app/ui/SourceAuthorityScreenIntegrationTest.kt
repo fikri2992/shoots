@@ -1,13 +1,18 @@
 package com.shoots.app.ui
 
 import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
 import com.shoots.app.ShootsTheme
 import com.shoots.app.data.InspirationDto
+import com.shoots.app.data.MobileSnapshotDto
+import com.shoots.app.data.ShootReceiptDto
+import com.shoots.app.data.ShootRecordDto
 import com.shoots.app.data.ShotDto
 import com.shoots.app.data.ShotViewDto
+import com.shoots.app.data.UserDto
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Rule
@@ -51,6 +56,55 @@ class SourceAuthorityScreenIntegrationTest {
             .assertExists()
         compose.onNodeWithText("Tap only if this is your Shot").performClick()
         assertEquals(inspiration.id, restored)
+    }
+
+    @Test
+    fun latestShootIsGroupedAndKeeperCanBeChangedFromTheArchiveCard() {
+        var opened = ""
+        var keeper = ""
+        val shot = ShotDto(id = "mine", filename = "mine.jpg", status = "analyzed")
+        val snapshot = MobileSnapshotDto(
+            user = UserDto(id = "user-1", email = "photographer@example.com"),
+            latestShootRecord = ShootRecordDto(
+                shootId = "shoot-1",
+                revision = 2,
+                shotIds = listOf(shot.id),
+                receipt = ShootReceiptDto(
+                    shotCount = 1,
+                    sceneCount = 1,
+                    repeated = listOf("The same framing returned."),
+                ),
+            ),
+        )
+
+        compose.setContent {
+            ShootsTheme {
+                ShotsScreen(
+                    shots = listOf(shot),
+                    inspirations = emptyList(),
+                    pendingImports = emptyList(),
+                    canLoadMore = false,
+                    busy = false,
+                    imageUrl = { "" },
+                    inspirationUrl = { "" },
+                    onShot = {},
+                    onLoadMore = {},
+                    onRetryImport = {},
+                    onRestoreInspiration = {},
+                    onReauthenticate = {},
+                    onAdd = {},
+                    snapshot = snapshot,
+                    onOpenShootRecord = { id, revision -> opened = "$id:$revision" },
+                    onKeeper = { id, keep -> keeper = "$id:$keep" },
+                )
+            }
+        }
+
+        compose.onNodeWithText("LATEST SHOOT · SETTLED").assertExists()
+        compose.onNodeWithText("Open full Shoot Record").performClick()
+        assertEquals("shoot-1:2", opened)
+        compose.onNodeWithContentDescription("Mark as Keeper").performClick()
+        assertEquals("mine:true", keeper)
     }
 
     @Test

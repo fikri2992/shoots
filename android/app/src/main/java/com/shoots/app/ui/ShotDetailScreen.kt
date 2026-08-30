@@ -10,25 +10,33 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.Slider
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -42,16 +50,23 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.clipToBounds
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 import coil.compose.AsyncImage
 import com.shoots.app.Amber
 import com.shoots.app.FindingRed
@@ -69,6 +84,7 @@ import com.shoots.app.data.ShotDto
 import com.shoots.app.data.ShotTechniqueContextDto
 import com.shoots.app.data.ShotViewDto
 import com.shoots.app.data.VisualMarkDto
+import kotlin.math.roundToInt
 
 @Composable
 fun ShotDetailScreen(
@@ -124,6 +140,7 @@ fun ShotDetailScreen(
         var fullAnalysis by rememberSaveable(shot.id) { mutableStateOf(false) }
         var provenance by rememberSaveable(shot.id) { mutableStateOf(false) }
         var confirmInspiration by rememberSaveable(shot.id) { mutableStateOf(false) }
+        var showCropComparison by rememberSaveable(shot.id) { mutableStateOf(false) }
         LaunchedEffect(analysis?.shotId, story.size) {
             storyIndex = storyIndex.coerceIn(0, maxOf(0, story.lastIndex))
             if (selectedGuide == "none" && !analysis?.composition?.guide.isNullOrBlank()) {
@@ -174,6 +191,16 @@ fun ShotDetailScreen(
             onOpenExperiment = onOpenExperiment,
             readOnlySample = readOnlySample,
         )
+
+        val cropPath = shot.blobs["crop"].orEmpty()
+        val cropSource = blobUrl(cropPath)
+        if (analysis?.composition?.cropTested == true && cropSource.isNotBlank()) {
+            TestedCropPreview(
+                cropSource = cropSource,
+                reason = analysis.composition.cropReason,
+                onOpen = { showCropComparison = true },
+            )
+        }
 
         Column(Modifier.padding(horizontal = 20.dp, vertical = 20.dp)) {
             Text(
@@ -285,6 +312,232 @@ fun ShotDetailScreen(
                 },
                 onDismiss = { showGuidePicker = false },
             )
+        }
+        if (showCropComparison) {
+            CropComparisonDialog(
+                originalSource = imageUrl(shot, true),
+                cropSource = cropSource,
+                reason = analysis?.composition?.cropReason.orEmpty(),
+                onDismiss = { showCropComparison = false },
+            )
+        }
+    }
+}
+
+@Composable
+private fun TestedCropPreview(
+    cropSource: String,
+    reason: String,
+    onOpen: () -> Unit,
+) {
+    var ratio by remember(cropSource) { mutableFloatStateOf(0.8f) }
+    Column(Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 18.dp)) {
+        Text("MODEL-TESTED REFRAME", color = Amber, fontSize = 10.sp, fontWeight = FontWeight.Bold)
+        Spacer(Modifier.height(7.dp))
+        Text(
+            "Original and tested crop",
+            color = WarmWhite,
+            fontSize = 20.sp,
+            lineHeight = 25.sp,
+            fontWeight = FontWeight.SemiBold,
+        )
+        Spacer(Modifier.height(10.dp))
+        Box(
+            Modifier
+                .fillMaxWidth()
+                .heightIn(min = 320.dp, max = 520.dp)
+                .aspectRatio(ratio.coerceIn(0.55f, 2.1f))
+                .clip(RoundedCornerShape(16.dp))
+                .background(Color.Black)
+                .border(1.dp, Hairline, RoundedCornerShape(16.dp))
+                .clickable(role = Role.Button, onClick = onOpen),
+        ) {
+            AsyncImage(
+                model = cropSource,
+                contentDescription = "Tested crop preview",
+                modifier = Modifier.fillMaxSize(),
+                contentScale = ContentScale.Fit,
+                onSuccess = { state ->
+                    val drawable = state.result.drawable
+                    if (drawable.intrinsicWidth > 0 && drawable.intrinsicHeight > 0) {
+                        ratio = drawable.intrinsicWidth.toFloat() / drawable.intrinsicHeight
+                    }
+                },
+            )
+            Column(
+                Modifier
+                    .align(Alignment.BottomStart)
+                    .fillMaxWidth()
+                    .background(Ink.copy(alpha = 0.84f))
+                    .padding(13.dp),
+            ) {
+                Text("Open before and after", color = WarmWhite, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
+                Text("Drag the slider to compare", color = MutedWhite, fontSize = 11.sp)
+            }
+        }
+        if (reason.isNotBlank()) {
+            Spacer(Modifier.height(9.dp))
+            Text(reason, color = MutedWhite, fontSize = 13.sp, lineHeight = 19.sp)
+        }
+        Spacer(Modifier.height(4.dp))
+        Text(
+            "Rendered and compared against the original. This is the crop rater's model opinion.",
+            color = MutedWhite,
+            fontSize = 10.sp,
+            lineHeight = 15.sp,
+        )
+    }
+}
+
+@Composable
+private fun CropComparisonDialog(
+    originalSource: String,
+    cropSource: String,
+    reason: String,
+    onDismiss: () -> Unit,
+) {
+    var position by rememberSaveable(cropSource) { mutableFloatStateOf(0.68f) }
+    Dialog(
+        onDismissRequest = onDismiss,
+        properties = DialogProperties(
+            usePlatformDefaultWidth = false,
+            decorFitsSystemWindows = false,
+        ),
+    ) {
+        Column(
+            Modifier
+                .fillMaxSize()
+                .background(Ink)
+                .statusBarsPadding()
+                .padding(bottom = 18.dp),
+        ) {
+            Row(
+                Modifier.fillMaxWidth().padding(horizontal = 18.dp, vertical = 12.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Column(Modifier.weight(1f)) {
+                    Text("MODEL-TESTED REFRAME", color = Amber, fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                    Spacer(Modifier.height(3.dp))
+                    Text("Original and tested crop", color = WarmWhite, fontSize = 18.sp, fontWeight = FontWeight.SemiBold)
+                }
+                TextButton(onClick = onDismiss) { Text("Close", color = WarmWhite) }
+            }
+            Text(
+                "The crop changes framing only. It does not change the stored Analysis or call the Shot better.",
+                color = MutedWhite,
+                fontSize = 11.sp,
+                lineHeight = 16.sp,
+                modifier = Modifier.padding(horizontal = 18.dp, vertical = 5.dp),
+            )
+            BoxWithConstraints(
+                Modifier
+                    .fillMaxWidth()
+                    .weight(1f)
+                    .padding(horizontal = 10.dp)
+                    .clip(RoundedCornerShape(14.dp))
+                    .background(Color.Black)
+                    .border(1.dp, Hairline, RoundedCornerShape(14.dp))
+                    .pointerInput(Unit) {
+                        detectTapGestures { offset ->
+                            position = (offset.x / size.width).coerceIn(0f, 1f)
+                        }
+                    }
+                    .pointerInput(Unit) {
+                        detectHorizontalDragGestures { change, _ ->
+                            position = (change.position.x / size.width).coerceIn(0f, 1f)
+                        }
+                    },
+            ) {
+                val stageWidth = maxWidth
+                AsyncImage(
+                    model = originalSource,
+                    contentDescription = "Original Shot",
+                    modifier = Modifier.fillMaxSize(),
+                    contentScale = ContentScale.Fit,
+                )
+                Box(
+                    Modifier
+                        .fillMaxHeight()
+                        .width(stageWidth * position)
+                        .clipToBounds()
+                        .background(Color.Black),
+                ) {
+                    AsyncImage(
+                        model = cropSource,
+                        contentDescription = "Tested crop",
+                        modifier = Modifier.width(stageWidth).fillMaxHeight(),
+                        contentScale = ContentScale.Fit,
+                    )
+                }
+                Text(
+                    "TESTED CROP",
+                    color = WarmWhite,
+                    fontSize = 9.sp,
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier
+                        .align(Alignment.TopStart)
+                        .padding(10.dp)
+                        .background(Ink.copy(alpha = 0.76f), RoundedCornerShape(99.dp))
+                        .padding(horizontal = 9.dp, vertical = 5.dp),
+                )
+                Text(
+                    "ORIGINAL",
+                    color = WarmWhite,
+                    fontSize = 9.sp,
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier
+                        .align(Alignment.TopEnd)
+                        .padding(10.dp)
+                        .background(Ink.copy(alpha = 0.76f), RoundedCornerShape(99.dp))
+                        .padding(horizontal = 9.dp, vertical = 5.dp),
+                )
+                Box(
+                    Modifier
+                        .offset {
+                            IntOffset(
+                                (stageWidth.roundToPx() * position).roundToInt() - 1.dp.roundToPx(),
+                                0,
+                            )
+                        }
+                        .width(2.dp)
+                        .fillMaxHeight()
+                        .background(WarmWhite),
+                )
+                Box(
+                    Modifier
+                        .align(Alignment.CenterStart)
+                        .offset {
+                            IntOffset(
+                                (stageWidth.roundToPx() * position).roundToInt() - 24.dp.roundToPx(),
+                                0,
+                            )
+                        }
+                        .size(48.dp)
+                        .background(WarmWhite, CircleShape)
+                        .border(1.dp, Ink.copy(alpha = 0.35f), CircleShape),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Text("↔", color = Ink, fontSize = 20.sp, fontWeight = FontWeight.Bold)
+                }
+            }
+            Slider(
+                value = position,
+                onValueChange = { position = it },
+                valueRange = 0f..1f,
+                modifier = Modifier
+                    .padding(horizontal = 18.dp)
+                    .semantics { contentDescription = "Before and after position" },
+            )
+            if (reason.isNotBlank()) {
+                Text(
+                    reason,
+                    color = MutedWhite,
+                    fontSize = 11.sp,
+                    lineHeight = 16.sp,
+                    modifier = Modifier.padding(horizontal = 18.dp),
+                )
+            }
         }
     }
 }

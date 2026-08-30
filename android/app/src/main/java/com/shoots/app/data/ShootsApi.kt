@@ -99,6 +99,12 @@ interface ShootsApi {
         @Body body: ScoutAnswerRequest,
     ): ScoutAnswerDto
 
+    @POST("api/shoots/{id}/scout-recommendation")
+    suspend fun respondScoutRecommendation(
+        @Path("id") id: String,
+        @Body body: ScoutRecommendationRequest,
+    ): ScoutRecommendationResultDto
+
     @Streaming
     @GET
     suspend fun downloadBlob(@Url url: String): okhttp3.ResponseBody

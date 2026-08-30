@@ -168,6 +168,23 @@ class ShotDetailScreenIntegrationTest {
                     ),
                 ),
             ),
+            teaching = ShotTeachingReceiptDto(
+                noticeTitle = "The subject sits on no line.",
+                noticeProof = "The nearest line is 0.08 of the frame away.",
+                noticeFindingId = "off_guide_subject",
+                noticeAuthority = "measured",
+                noticeMark = VisualMarkDto(
+                    kind = "finding",
+                    findingId = "off_guide_subject",
+                ),
+                tryText = "Move the subject toward the line",
+                tryReason = "Test a deliberate placement.",
+                tryMark = VisualMarkDto(
+                    kind = "move",
+                    cells = listOf("D4"),
+                    toCells = listOf("C4"),
+                ),
+            ),
         )
 
         compose.setContent {
@@ -190,6 +207,51 @@ class ShotDetailScreenIntegrationTest {
         compose.onNodeWithContentDescription("Visual mark finding").assertExists()
         compose.onNodeWithText("Next").performClick()
         compose.onNodeWithContentDescription("Visual mark move").assertExists()
+    }
+
+    @Test
+    fun testedCropOpensOneLargeSliderComparisonWithoutFlicker() {
+        val view = ShotViewDto(
+            shot = ShotDto(
+                id = "crop-shot",
+                filename = "IMG_crop.jpg",
+                status = "analyzed",
+                grid = GridSpecDto(cols = 8, rows = 6, width = 800, height = 600),
+                blobs = mapOf("crop" to "tested-crop.jpg"),
+            ),
+            analysis = AnalysisDto(
+                shotId = "crop-shot",
+                composition = CompositionDto(
+                    subjectCells = listOf("D3", "E3"),
+                    subjectX = 0.52,
+                    subjectY = 0.45,
+                    suggestedCropCells = listOf("B1", "G6"),
+                    cropTested = true,
+                    cropReason = "The tested crop removes empty sky while keeping the subject.",
+                ),
+            ),
+        )
+
+        compose.setContent {
+            ShootsTheme {
+                ShotDetailScreen(
+                    view = view,
+                    imageUrl = { _, _ -> fixtureUrl },
+                    blobUrl = { if (it == "tested-crop.jpg") fixtureUrl else "" },
+                    onBack = {},
+                    onKeeper = {},
+                    onRetry = {},
+                    onOpenDrive = {},
+                )
+            }
+        }
+
+        compose.onNodeWithText("Open before and after").performScrollTo().performClick()
+        compose.onNodeWithContentDescription("Original Shot").assertExists()
+        compose.onNodeWithContentDescription("Tested crop").assertExists()
+        compose.onNodeWithContentDescription("Before and after position").assertExists()
+        compose.onNodeWithText("Flicker").assertDoesNotExist()
+        saveDeviceScreenshot("shot-tested-crop-slider.png")
     }
 
     @Test
@@ -888,6 +950,16 @@ class ShotDetailScreenIntegrationTest {
                 100,
                 output,
             )
+        }
+    }
+
+    private fun saveDeviceScreenshot(name: String) {
+        val instrumentation = InstrumentationRegistry.getInstrumentation()
+        val directory = instrumentation.targetContext.externalCacheDir
+            ?: error("External cache unavailable")
+        File(directory, name).outputStream().use { output ->
+            val bitmap = checkNotNull(instrumentation.uiAutomation.takeScreenshot())
+            bitmap.compress(Bitmap.CompressFormat.PNG, 100, output)
         }
     }
 }

@@ -61,8 +61,8 @@ data class AppActions(
     val startSavedDirection: (String) -> Unit,
     val completeExplore: (String) -> Unit,
     val prepareDeconstruction: (String, String, Int, String) -> Unit,
-    val answerScoutQuestion: (String, Int, String) -> Unit,
     val shareDeconstruction: (DeconstructionDto) -> Unit,
+    val saveDeconstruction: (DeconstructionDto) -> Unit,
     val continueSession: (String) -> Unit,
     val finishSession: (String) -> Unit,
     val cancelSession: (String) -> Unit,
@@ -110,6 +110,7 @@ fun ShootsApp(
             "journey" -> "journey"
             "experiments" -> "experiments"
             "shots", "shot" -> "shots"
+            "shoot-record" -> "now"
             "settings" -> "settings"
             else -> "now"
         }
@@ -141,6 +142,14 @@ fun ShootsApp(
             },
         ) {
             composable("now") {
+                LaunchedEffect(
+                    snapshot?.latestShootRecord?.shootId,
+                    snapshot?.latestShootRecord?.revision,
+                ) {
+                    snapshot?.latestShootRecord?.let {
+                        viewModel.loadShootRecordMembers(it.shotIds)
+                    }
+                }
                 NowScreen(
                     snapshot,
                     source,
@@ -158,6 +167,9 @@ fun ShootsApp(
                     onImportSessionAsFree = actions.importSessionAsFree,
                     onOpenShot = { nav.navigate("shot/$it") },
                     onOpenShots = { nav.navigate("shots") },
+                    onOpenShootRecord = { shootId, revision ->
+                        nav.navigate("shoot-record/$shootId/$revision")
+                    },
                     onOpenExperiments = { nav.navigate("experiments") },
                     onStartSavedDirection = actions.startSavedDirection,
                     onLeaveSavedDirection = { sourceShotId, techniqueId ->
@@ -165,27 +177,47 @@ fun ShootsApp(
                             viewModel.chooseExperimentDirection(sourceShotId, techniqueId, false)
                         }
                     },
-                    onAnswerScoutQuestion = actions.answerScoutQuestion,
+                    onRespondScoutRecommendation = { shootId, revision, action, optionId ->
+                        scope.launch {
+                            val handled = viewModel.respondScoutRecommendation(
+                                shootId,
+                                revision,
+                                action,
+                                optionId,
+                            )
+                            if (handled && action == "accept") nav.navigate("experiments")
+                        }
+                    },
                     onOpenSettings = { nav.navigate("settings") },
+                    availableShots = shots,
                 )
             }
             composable("shots") {
                 LaunchedEffect(Unit) { viewModel.loadMoreShots(reset = true) }
                 ShotsScreen(
-                    shots,
-                    snapshot?.recentInspirations.orEmpty(),
-                    pendingImports,
-                    canLoadMoreShots,
-                    busy,
-                    { viewModel.imageUrl(it) },
-                    { viewModel.imageUrl(it) },
-                    { nav.navigate("shot/$it") },
-                    { viewModel.loadMoreShots() },
-                    viewModel::retryImport,
-                    { id -> scope.launch { viewModel.moveInspirationToMine(id) } },
-                    actions.signIn,
-                    actions.chooseFreeShots,
+                    shots = shots,
+                    inspirations = snapshot?.recentInspirations.orEmpty(),
+                    pendingImports = pendingImports,
+                    canLoadMore = canLoadMoreShots,
+                    busy = busy,
+                    imageUrl = { viewModel.imageUrl(it) },
+                    inspirationUrl = { viewModel.imageUrl(it) },
+                    onShot = { nav.navigate("shot/$it") },
+                    onLoadMore = { viewModel.loadMoreShots() },
+                    onRetryImport = viewModel::retryImport,
+                    onRestoreInspiration = { id ->
+                        scope.launch { viewModel.moveInspirationToMine(id) }
+                    },
+                    onReauthenticate = actions.signIn,
+                    onAdd = actions.chooseFreeShots,
                     readOnlySample = snapshot?.user?.recordMode == "sample",
+                    snapshot = snapshot,
+                    onOpenShootRecord = { shootId, revision ->
+                        nav.navigate("shoot-record/$shootId/$revision")
+                    },
+                    onKeeper = { id, keeper ->
+                        scope.launch { viewModel.setKeeper(id, keeper) }
+                    },
                 )
             }
             composable("shot/{id}") { entry ->
@@ -218,6 +250,31 @@ fun ShootsApp(
                     readOnlySample = snapshot?.user?.recordMode == "sample",
                 )
             }
+            composable("shoot-record/{shootId}/{revision}") { entry ->
+                val shootId = entry.arguments?.getString("shootId").orEmpty()
+                val revision = entry.arguments?.getString("revision")?.toIntOrNull() ?: 0
+                val record = snapshot?.latestShootRecord?.takeIf {
+                    it.shootId == shootId && it.revision == revision
+                }
+                LaunchedEffect(record?.shootId, record?.revision) {
+                    record?.let { viewModel.loadShootRecordMembers(it.shotIds) }
+                }
+                ShootRecordScreen(
+                    record = record,
+                    shoot = snapshot?.latestShoot?.takeIf { it.id == shootId },
+                    shots = shots,
+                    interventions = snapshot?.recentInterventions.orEmpty(),
+                    answers = snapshot?.recentScoutAnswers.orEmpty(),
+                    imageUrl = { viewModel.imageUrl(it) },
+                    onBack = nav::popBackStack,
+                    onShot = { nav.navigate("shot/$it") },
+                    onKeeper = { id, keeper ->
+                        scope.launch { viewModel.setKeeper(id, keeper) }
+                    },
+                    readOnlySample = snapshot?.user?.recordMode == "sample",
+                    loading = snapshot == null,
+                )
+            }
             composable("journey") {
                 JourneyScreen(
                     snapshot = snapshot,
@@ -226,6 +283,10 @@ fun ShootsApp(
                     onShot = { nav.navigate("shot/$it") },
                     onPrepareDeconstruction = actions.prepareDeconstruction,
                     onShareDeconstruction = actions.shareDeconstruction,
+                    onSaveDeconstruction = actions.saveDeconstruction,
+                    onOpenShootRecord = { shootId, revision ->
+                        nav.navigate("shoot-record/$shootId/$revision")
+                    },
                 )
             }
             composable("experiments") {
@@ -387,6 +448,6 @@ private fun routeRank(route: String?): Int = when (route?.substringBefore('/')) 
     "shots" -> 1
     "experiments" -> 2
     "journey" -> 3
-    "shot", "settings" -> 4
+    "shot", "shoot-record", "settings" -> 4
     else -> 0
 }

@@ -494,6 +494,25 @@ data class ScoutQuestionDto(
 )
 
 @Serializable
+data class ScoutRecommendationOptionDto(
+    val id: String,
+    @SerialName("technique_id") val techniqueId: String,
+    @SerialName("technique_name") val techniqueName: String,
+    @SerialName("experiment_type") val experimentType: String,
+    val title: String,
+    @SerialName("why_now") val whyNow: String,
+    @SerialName("warrant_shot_ids") val warrantShotIds: List<String> = emptyList(),
+    @SerialName("reference_shot_id") val referenceShotId: String = "",
+)
+
+@Serializable
+data class ScoutRecommendationDto(
+    val id: String = "",
+    @SerialName("primary_option_id") val primaryOptionId: String = "",
+    val options: List<ScoutRecommendationOptionDto> = emptyList(),
+)
+
+@Serializable
 data class ScoutDecisionDto(
     val route: String = "silence",
     val reason: String = "",
@@ -508,6 +527,7 @@ data class ScoutDecisionDto(
     @SerialName("attempt_state") val attemptState: String = "not_applicable",
     @SerialName("observable_outcome") val observableOutcome: String = "not_applicable",
     val question: ScoutQuestionDto = ScoutQuestionDto(),
+    val recommendation: ScoutRecommendationDto = ScoutRecommendationDto(),
 )
 
 @Serializable
@@ -528,6 +548,19 @@ data class ScoutAnswerDto(
 data class ScoutAnswerRequest(
     val revision: Int,
     @SerialName("option_id") val optionId: String,
+)
+
+@Serializable
+data class ScoutRecommendationRequest(
+    val revision: Int,
+    val action: String,
+    @SerialName("option_id") val optionId: String = "",
+)
+
+@Serializable
+data class ScoutRecommendationResultDto(
+    val intervention: InterventionRecordDto,
+    val experiment: ExperimentDto? = null,
 )
 
 @Serializable

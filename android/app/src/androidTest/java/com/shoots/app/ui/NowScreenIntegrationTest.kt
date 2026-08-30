@@ -15,6 +15,7 @@ import com.shoots.app.data.MobileSnapshotDto
 import com.shoots.app.data.ScoutDecisionDto
 import com.shoots.app.data.ScoutQuestionDto
 import com.shoots.app.data.ScoutQuestionOptionDto
+import com.shoots.app.data.ScoutWarrantDto
 import com.shoots.app.data.ShootDto
 import com.shoots.app.data.ShootReceiptDto
 import com.shoots.app.data.ShootRecordDto
@@ -105,7 +106,11 @@ class NowScreenIntegrationTest {
 
         compose.setContent { NowTestContent(snapshot(current, stale)) }
 
-        compose.onNodeWithText("Accounting for every Shot.").assertExists()
+        compose.onNodeWithText("Finishing this Shoot.").assertExists()
+        compose.onNodeWithText("Your summary appears after Shoots finishes reading every Shot.", substring = true)
+            .assertExists()
+        compose.onNodeWithText("Reading…").assertExists()
+        compose.onNodeWithText("Grouped…").assertDoesNotExist()
         compose.onNodeWithText("This superseded line must not be shown.").assertDoesNotExist()
     }
 
@@ -132,6 +137,7 @@ class NowScreenIntegrationTest {
         compose.setContent { NowTestContent(snapshot) }
 
         compose.onNodeWithText("Still watching this Shoot.").assertExists()
+        compose.onNodeWithText("Collecting…").assertExists()
         compose.onNodeWithText("From your last Shot").assertExists()
         compose.onNodeWithText("See what Shoots noticed").assertExists()
     }
@@ -163,8 +169,8 @@ class NowScreenIntegrationTest {
     }
 
     @Test
-    fun consequentialScoutQuestionRecordsOneExplicitChoice() {
-        var selected = ""
+    fun storedScoutChoiceBecomesAnOptionalRecommendationInsteadOfAQuestionnaire() {
+        var response = ""
         val shoot = ShootDto(
             id = "shoot-ask",
             status = "settled",
@@ -189,19 +195,42 @@ class NowScreenIntegrationTest {
                         ScoutQuestionOptionDto("just_shooting", "I was just shooting"),
                     ),
                 ),
+                warrant = listOf(
+                    ScoutWarrantDto(
+                        kind = "technique",
+                        shootId = shoot.id,
+                        shootRevision = 1,
+                        shotIds = listOf("shot-1", "shot-2"),
+                        techniqueId = "backlight",
+                        referenceShotId = "shot-1",
+                    )
+                ),
             ),
         )
 
         compose.setContent {
             NowTestContent(
-                snapshot = snapshot(shoot, record),
-                onAnswer = { _, _, option -> selected = option },
+                snapshot = snapshot(shoot, record).copy(
+                    recentShots = listOf(
+                        ShotDto(id = "shot-1", filename = "first.jpg", status = "analyzed"),
+                        ShotDto(id = "shot-2", filename = "second.jpg", status = "analyzed"),
+                    ),
+                ),
+                onRespondRecommendation = { _, _, action, option ->
+                    response = "$action:$option"
+                },
             )
         }
 
-        compose.onNodeWithText("Which decision were you exploring in this Shoot?").assertExists()
-        compose.onNodeWithText("Backlight").performClick()
-        assertEquals("technique_backlight", selected)
+        compose.onNodeWithText("Which decision were you exploring in this Shoot?").assertDoesNotExist()
+        compose.onNodeWithText("Try Backlight on purpose").assertExists()
+        compose.onNodeWithText(
+            "This is a recommendation, not a claim about what you intended.",
+            substring = true,
+        ).assertExists()
+        saveScreenshot("now-scout-recommendation.png")
+        compose.onNodeWithText("Try this Experiment").performClick()
+        assertEquals("accept:explore_backlight", response)
     }
 
     @Test
@@ -245,9 +274,9 @@ class NowScreenIntegrationTest {
     @androidx.compose.runtime.Composable
     private fun NowTestContent(
         snapshot: MobileSnapshotDto,
-        onAnswer: (String, Int, String) -> Unit = { _, _, _ -> },
         onStartDirection: (String) -> Unit = {},
         onLeaveDirection: (String, String) -> Unit = { _, _ -> },
+        onRespondRecommendation: (String, Int, String, String) -> Unit = { _, _, _, _ -> },
     ) {
         ShootsTheme {
             NowScreen(
@@ -273,7 +302,7 @@ class NowScreenIntegrationTest {
                 onOpenExperiments = {},
                 onStartSavedDirection = onStartDirection,
                 onLeaveSavedDirection = onLeaveDirection,
-                onAnswerScoutQuestion = onAnswer,
+                onRespondScoutRecommendation = onRespondRecommendation,
                 onOpenSettings = {},
             )
         }

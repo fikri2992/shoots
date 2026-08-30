@@ -70,8 +70,23 @@ class MobileModelIntegrationTest {
                   "repeated": ["2 of 2 Shots used portrait orientation (measured)."]
                 },
                 "scout": {
-                  "route": "explain",
-                  "policy_version": "shoot-scout-1"
+                  "route": "recommend",
+                  "policy_version": "shoot-scout-1",
+                  "recommendation": {
+                    "id": "recommendation-1",
+                    "primary_option_id": "explore_backlight",
+                    "options": [
+                      {
+                        "id": "explore_backlight",
+                        "technique_id": "backlight",
+                        "technique_name": "Backlight",
+                        "experiment_type": "explore",
+                        "title": "Try Backlight on purpose",
+                        "why_now": "It appeared clearly in both Shots.",
+                        "warrant_shot_ids": ["shot-1", "shot-2"]
+                      }
+                    ]
+                  }
                 }
               }
             }
@@ -80,6 +95,10 @@ class MobileModelIntegrationTest {
 
         assertEquals("shoot-1", snapshot.latestShoot?.id)
         assertEquals(2, snapshot.latestShootRecord?.receipt?.shotCount)
-        assertEquals("explain", snapshot.latestShootRecord?.scout?.route)
+        assertEquals("recommend", snapshot.latestShootRecord?.scout?.route)
+        assertEquals(
+            "Try Backlight on purpose",
+            snapshot.latestShootRecord?.scout?.recommendation?.options?.first()?.title,
+        )
     }
 }
