@@ -609,6 +609,12 @@ data class DeconstructionPageDto(
 )
 
 @Serializable
+data class DeconstructionWritingDto(
+    val model: String = "",
+    @SerialName("prompt_version") val promptVersion: String = "",
+)
+
+@Serializable
 data class DeconstructionDto(
     val id: String,
     @SerialName("source_type") val sourceType: String,
@@ -619,6 +625,8 @@ data class DeconstructionDto(
     @SerialName("cover_shot_id") val coverShotId: String = "",
     val pages: List<DeconstructionPageDto> = emptyList(),
     @SerialName("suggested_caption") val suggestedCaption: String = "",
+    val writing: DeconstructionWritingDto? = null,
+    val error: String = "",
 )
 
 @Serializable

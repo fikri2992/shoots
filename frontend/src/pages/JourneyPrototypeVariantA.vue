@@ -65,11 +65,11 @@ export default {
             </svg>
             Open visual story
           </button>
-          <button type="button" class="btn-quiet" :disabled="!story.storyReady" @click="$emit('download')">
+          <button type="button" class="btn-quiet" :disabled="!story.storyReady || story.downloading" @click="$emit('download')">
             <svg aria-hidden="true" viewBox="0 0 24 24" class="h-4 w-4 fill-none stroke-current stroke-2">
               <path d="M12 3v12" /><path d="m7 10 5 5 5-5" /><path d="M5 21h14" />
             </svg>
-            {{ story.storyReady ? 'Download story' : 'Download unavailable' }}
+            {{ story.downloading ? 'Preparing images…' : story.storyReady ? 'Download images' : 'Download unavailable' }}
           </button>
         </div>
 

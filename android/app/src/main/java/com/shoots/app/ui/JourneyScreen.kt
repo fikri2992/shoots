@@ -69,6 +69,7 @@ fun JourneyScreen(
     onShareDeconstruction: (DeconstructionDto) -> Unit = {},
     onSaveDeconstruction: (DeconstructionDto) -> Unit = {},
     onOpenShootRecord: (String, Int) -> Unit = { _, _ -> },
+    preparingStory: Boolean = false,
 ) {
     var section by rememberSaveable { mutableStateOf(JourneySection.UPDATE) }
     val readOnlySample = snapshot?.user?.recordMode == "sample"
@@ -135,6 +136,7 @@ fun JourneyScreen(
                     onShareDeconstruction,
                     onSaveDeconstruction,
                     readOnlySample,
+                    preparingStory,
                 )
                 JourneySection.TENDENCIES -> TendencyView(snapshot, readOnlySample)
                 JourneySection.TECHNIQUES -> TechniqueView(snapshot, readOnlySample)
@@ -265,6 +267,7 @@ private fun JourneyUpdateView(
     onShareDeconstruction: (DeconstructionDto) -> Unit,
     onSaveDeconstruction: (DeconstructionDto) -> Unit,
     readOnlySample: Boolean,
+    preparingStory: Boolean,
 ) {
     Column(Modifier.fillMaxWidth()) {
         val update = snapshot.journey.firstOrNull()
@@ -403,6 +406,7 @@ private fun JourneyUpdateView(
                 onShareDeconstruction,
                 onSaveDeconstruction,
                 readOnlySample,
+                preparingStory,
             )
         }
     }
@@ -462,6 +466,7 @@ private fun DeconstructionCard(
     onShare: (DeconstructionDto) -> Unit,
     onSave: (DeconstructionDto) -> Unit,
     readOnlySample: Boolean,
+    preparingStory: Boolean,
 ) {
     val draft = source.draft
     var selectedCover by rememberSaveable(source.type, source.id, source.revision) {
@@ -480,8 +485,8 @@ private fun DeconstructionCard(
                 if (readOnlySample) {
                     "No story was built and no visual thread was found by an agent. Story actions are disabled."
                 } else {
-                    "Shoots follows the sequence and finds the visual thread. " +
-                        "You choose the marked Shot that opens the story."
+                    "Choose a Shot. Get a captioned opening, story pages with visual explanations where they help, " +
+                        "and the same image completely clean at the end."
                 },
                 color = MutedWhite,
                 fontSize = 13.sp,
@@ -496,21 +501,36 @@ private fun DeconstructionCard(
                     lineHeight = 20.sp,
                 )
             } else if (draft?.status == "drafted" && draft.pages.isNotEmpty()) {
+                Text(
+                    if (draft.writing != null && draft.pages.any { it.kind == "clean" }) {
+                        "Gemini-written draft from this Shot's stored reading. Review it before sharing."
+                    } else {
+                        "Earlier template draft. Rebuild it to write about the chosen Shot."
+                    },
+                    color = MutedWhite,
+                    fontSize = 12.sp,
+                    lineHeight = 18.sp,
+                )
+                Spacer(Modifier.height(12.dp))
                 LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     items(draft.pages) { page ->
                         Column(Modifier.width(220.dp)) {
                             AsyncImage(
                                 model = blobUrl(page.blobPath),
-                                contentDescription = page.title,
+                                contentDescription = if (page.kind == "clean") "Clean Shot, full image without text" else page.title,
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .aspectRatio(4f / 5f)
                                     .clip(androidx.compose.foundation.shape.RoundedCornerShape(12.dp))
                                     .background(InkSoft),
-                                contentScale = ContentScale.Crop,
+                                contentScale = ContentScale.Fit,
                             )
                             Spacer(Modifier.height(6.dp))
-                            Text(page.title, color = MutedWhite, fontSize = 12.sp)
+                            Text(
+                                if (page.kind == "clean") "Clean Shot · no text or crop" else page.title,
+                                color = MutedWhite,
+                                fontSize = 12.sp,
+                            )
                         }
                     }
                 }
@@ -533,9 +553,23 @@ private fun DeconstructionCard(
                     }
                     Spacer(Modifier.height(12.dp))
                 }
-                PrimaryAction("Share ${draft.pages.size}-page story") { onShare(draft) }
+                PrimaryAction("Share ${draft.pages.size}-page story", !preparingStory) { onShare(draft) }
                 Spacer(Modifier.height(8.dp))
-                SecondaryAction("Save story to this phone") { onSave(draft) }
+                SecondaryAction("Save story to this phone", !preparingStory) { onSave(draft) }
+                Spacer(Modifier.height(8.dp))
+                SecondaryAction(if (preparingStory) "Preparing your story…" else "Rebuild story", !preparingStory) {
+                    onPrepare(source.type, source.id, source.revision, draft.coverShotId)
+                }
+                if (draft.pages.any { it.kind == "clean" }) {
+                    Spacer(Modifier.height(10.dp))
+                    Text(
+                        "The last image keeps its original framing and size. Social apps may crop " +
+                            "it to match the carousel; you can post it separately.",
+                        color = MutedWhite,
+                        fontSize = 12.sp,
+                        lineHeight = 18.sp,
+                    )
+                }
             } else if (source.keeperShotIds.isEmpty()) {
                 Text(
                     "Mark one Shot you care about with the bookmark, then return here to use it as the opening.",
@@ -561,15 +595,32 @@ private fun DeconstructionCard(
                                     if (selectedCover == id) Amber else Hairline,
                                     androidx.compose.foundation.shape.RoundedCornerShape(9.dp),
                                 )
-                                .clickable(role = Role.Button) { selectedCover = id },
+                                .clickable(enabled = !preparingStory, role = Role.Button) { selectedCover = id },
                             contentScale = ContentScale.Crop,
                         )
                     }
                 }
                 Spacer(Modifier.height(12.dp))
-                PrimaryAction("Build my story", selectedCover.isNotBlank()) {
+                PrimaryAction(
+                    if (preparingStory) "Preparing your story…" else "Build my story",
+                    selectedCover.isNotBlank() && !preparingStory,
+                ) {
                     onPrepare(source.type, source.id, source.revision, selectedCover)
                 }
+            }
+            if (preparingStory) {
+                Spacer(Modifier.height(10.dp))
+                Text(
+                    "Writing from the stored reading and preparing your images. " +
+                        "This may take about a minute. Your original stays unchanged.",
+                    color = MutedWhite,
+                    fontSize = 12.sp,
+                    lineHeight = 18.sp,
+                )
+            }
+            if (!readOnlySample && !draft?.error.isNullOrBlank()) {
+                Spacer(Modifier.height(10.dp))
+                Text(draft?.error.orEmpty(), color = Amber, fontSize = 12.sp, lineHeight = 18.sp)
             }
         }
     }

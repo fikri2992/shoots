@@ -22,6 +22,12 @@ export default {
   put: (path, body) => request(path, { method: 'PUT', body: JSON.stringify(body) }),
   del: (path) => request(path, { method: 'DELETE' }),
 
+  async getBlob(path) {
+    const response = await fetch(path, { credentials: 'include' })
+    if (!response.ok) throw new Error(await errorMessage(response))
+    return response.blob()
+  },
+
   /** A WebSocket on this origin; the session cookie rides along. Binary frames as ArrayBuffer. */
   socket(path) {
     const scheme = window.location.protocol === 'https:' ? 'wss' : 'ws'

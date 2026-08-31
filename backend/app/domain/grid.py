@@ -175,6 +175,21 @@ class Grid:
             bottom=self._y(_clamp(max_row + 1, 0, self.rows)),
         )
 
+    def context_bounds(self, refs: list[str], target_aspect: float) -> Box:
+        """Expand a located detail toward a display ratio without removing any of it.
+
+        A bottom-row detail must not become a thin strip on a portrait story page.
+        Add real surrounding context, bounded by the original, never cut its ends.
+        """
+        if not math.isfinite(target_aspect) or target_aspect <= 0:
+            raise GridError("target aspect must be positive and finite")
+        box = self.zoom_bounds(refs)
+        width = min(self.width, max(box.width, math.ceil(box.height * target_aspect)))
+        height = min(self.height, max(box.height, math.ceil(box.width / target_aspect)))
+        left = max(0, min(box.center[0] - width // 2, self.width - width))
+        top = max(0, min(box.center[1] - height // 2, self.height - height))
+        return Box(left, top, left + width, top + height)
+
     def circle_for(self, refs: list[str], padding: float = 0.15) -> tuple[int, int, int]:
         """Initial annotation circle as ``(cx, cy, radius)``.
 

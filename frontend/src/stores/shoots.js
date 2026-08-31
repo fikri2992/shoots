@@ -1,6 +1,7 @@
 import { acceptHMRUpdate, defineStore } from 'pinia'
 
 import api from '@/api'
+import { downloadImages, storyPageFilename } from '@/downloads'
 
 const POLL_MS = 5000
 
@@ -246,6 +247,25 @@ export const useShootsStore = defineStore('shoots', {
         })
         await this.fetchAll()
         return draft
+      })
+    },
+
+    downloadDeconstructionPages(draft) {
+      if (this.busy === 'download-deconstruction') return null
+      return this.run('download-deconstruction', async () => {
+        if (draft?.status !== 'drafted' || !draft.pages?.length) {
+          throw new Error('This visual story has no images to download yet.')
+        }
+        // Fetch every page before starting downloads so a missing page fails visibly.
+        const images = await Promise.all(draft.pages.map(async (page, index) => {
+          if (!page.blob_path) throw new Error('One story image is missing. Please rebuild the story.')
+          const blob = await api.getBlob(`/api/blobs/${page.blob_path}`)
+          if (!blob.size || blob.type !== 'image/jpeg') {
+            throw new Error('A story image could not be loaded. Please try again.')
+          }
+          return { blob, filename: storyPageFilename(draft.id, index) }
+        }))
+        return downloadImages(images)
       })
     },
 

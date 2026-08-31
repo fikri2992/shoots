@@ -90,6 +90,7 @@ fun ShootsApp(
     val pendingImports by viewModel.pendingImports.collectAsStateWithLifecycle()
     val access by viewModel.mediaAccess.collectAsStateWithLifecycle()
     val busy by viewModel.busy.collectAsStateWithLifecycle()
+    val preparingStory by viewModel.preparingStory.collectAsStateWithLifecycle()
     val error by viewModel.error.collectAsStateWithLifecycle()
     val notice by viewModel.notice.collectAsStateWithLifecycle()
     val canLoadMoreShots by viewModel.canLoadMoreShots.collectAsStateWithLifecycle()
@@ -278,6 +279,7 @@ fun ShootsApp(
             composable("journey") {
                 JourneyScreen(
                     snapshot = snapshot,
+                    preparingStory = preparingStory,
                     imageUrl = { viewModel.imageUrl(it) },
                     blobUrl = viewModel::blobUrl,
                     onShot = { nav.navigate("shot/$it") },

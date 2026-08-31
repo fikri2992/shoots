@@ -60,6 +60,13 @@ class Settings(BaseSettings):
     #: Panels admitted concurrently by one Cloud Run process. Pub/Sub owns the
     #: remaining backlog; each admitted panel still runs its three lenses in parallel.
     analyst_max_concurrency: int = 2
+    # One explicitly requested social story; below the Android 120s read timeout.
+    deconstruction_timeout_seconds: float = 85.0
+    deconstruction_lease_seconds: float = 150.0
+    deconstruction_max_story_pages: int = 5
+    deconstruction_max_evidence: int = 20
+    deconstruction_max_details: int = 6
+    deconstruction_max_artifacts: int = 6
     #: Below this the Judge will not count a vision tag as evidence.
     judge_min_confidence: float = 0.6
     #: An experiment nobody shoots for expires after this many days.

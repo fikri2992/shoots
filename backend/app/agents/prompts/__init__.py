@@ -11,6 +11,7 @@ _HUMAN_VOICE_PROMPTS = frozenset(
         "coach",
         "composer",
         "crop",
+        "deconstruction",
         "judge",
         "journey",
         "preflight",

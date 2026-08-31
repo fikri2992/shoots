@@ -41,8 +41,8 @@ export default {
 
         <div class="mt-7 grid gap-3 sm:grid-cols-2">
           <button type="button" class="btn" @click="$emit('open-story')">Open visual story</button>
-          <button type="button" class="btn-quiet" :disabled="!story.storyReady" @click="$emit('download')">
-            {{ story.storyReady ? 'Download story' : 'Choose an opening Shot' }}
+          <button type="button" class="btn-quiet" :disabled="!story.storyReady || story.downloading" @click="$emit('download')">
+            {{ story.downloading ? 'Preparing images…' : story.storyReady ? 'Download images' : 'Choose an opening Shot' }}
           </button>
         </div>
         <button type="button" class="tap-target mt-2 text-[13px] text-muted hover:text-paper" @click="$emit('open-evidence')">

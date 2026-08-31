@@ -41,6 +41,8 @@ async def prepare(
         )
     except deconstructions.DeconstructionConflict as exc:
         raise HTTPException(409, str(exc)) from exc
+    except deconstructions.DeconstructionUnavailable as exc:
+        raise HTTPException(503, str(exc)) from exc
     except repo.UnknownEntity as exc:
         raise HTTPException(404, str(exc)) from exc
 

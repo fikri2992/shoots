@@ -10,6 +10,7 @@ import ReproduceProof from '@/components/ReproduceProof.vue'
 import TechniqueMap from '@/components/TechniqueMap.vue'
 import TendencyProfile from '@/components/TendencyProfile.vue'
 import { humanizeLegacyText, repeatabilitySummary, resultSummary, scoutStory, shootSummary } from '@/domain/copy'
+import { storyPageFilename } from '@/downloads'
 import JourneyFirstImpressionPrototype from '@/pages/JourneyFirstImpressionPrototype.vue'
 import { useAuthStore } from '@/stores/auth'
 import { useShootsStore } from '@/stores/shoots'
@@ -33,7 +34,7 @@ export default {
   name: 'JourneyPage',
   components: { AgentLog, CompanionReceipt, ConnectStep, DisclosureRow, ExperimentRecord, JourneyFirstImpressionPrototype, ReproduceProof, TechniqueMap, TendencyProfile },
   data() {
-    return { selectedCover: '' }
+    return { selectedCover: '', downloadNotice: '' }
   },
   computed: {
     ...mapState(useShootsStore, [
@@ -425,14 +426,9 @@ export default {
         .map((item) => item.shot)
         .filter((shot) => allowed.has(shot.id) && shot.kept_at)
     },
-    deconstructionDownloadUrl() {
-      return this.deconstruction?.id
-        ? `/api/deconstructions/${encodeURIComponent(this.deconstruction.id)}/download`
-        : ''
-    },
   },
   methods: {
-    ...mapActions(useShootsStore, ['connect', 'sync', 'enablePush', 'pairCamera', 'prepareDeconstruction']),
+    ...mapActions(useShootsStore, ['connect', 'sync', 'enablePush', 'pairCamera', 'prepareDeconstruction', 'downloadDeconstructionPages']),
     ...mapActions(useAuthStore, ['logout']),
     async signOut() {
       await this.logout()
@@ -440,6 +436,14 @@ export default {
     },
     blobUrl(path) {
       return path ? `/api/blobs/${path}` : ''
+    },
+    storyImageFilename(index) {
+      return storyPageFilename(this.deconstruction?.id, index)
+    },
+    async downloadStoryImages() {
+      this.downloadNotice = ''
+      const count = await this.downloadDeconstructionPages(this.deconstruction)
+      if (count) this.downloadNotice = `${count} image downloads requested. Check your browser's downloads.`
     },
     createDeconstruction() {
       const cover = this.selectedCover || this.deconstruction?.cover_shot_id || this.deconstructionKeepers[0]?.id
@@ -672,16 +676,21 @@ export default {
             <h2 class="mt-2 text-[27px] leading-8 font-medium tracking-[-0.025em] text-paper sm:text-[34px] sm:leading-10" style="font-family: 'Iowan Old Style', 'Palatino Linotype', Georgia, serif">
               {{ isSampleRecord
                 ? `This sample ${deconstructionSource.label} shows where an opening, a turn, and an ending would appear.`
-                : `This ${deconstructionSource.label} has an opening, a turn, and an ending.` }}
+                : 'Turn one Shot into a story.' }}
             </h2>
             <p class="mt-3 t-body">
               {{ isSampleRecord
                 ? 'No story was built and no visual thread was found by an agent. Story-building actions are disabled.'
-                : 'Shoots follows the sequence and finds the visual thread. You decide which marked Shot opens the story.' }}
+                : 'Choose a Shot. Get a captioned opening, story pages with visual explanations where they help, and the same image completely clean at the end.' }}
             </p>
           </div>
 
           <template v-if="deconstruction?.status === 'drafted'">
+            <p class="mt-4 t-meta">
+              {{ deconstruction.writing && deconstruction.pages.some(page => page.kind === 'clean')
+                ? 'Gemini-written draft from this Shot’s stored reading. Review the words and images before sharing.'
+                : 'Earlier template draft. Rebuild it to write a story about the chosen Shot.' }}
+            </p>
             <div class="relative mt-6 flex snap-x snap-mandatory gap-4 overflow-x-auto pb-4">
               <figure
                 v-for="(page, index) in deconstruction.pages"
@@ -693,18 +702,25 @@ export default {
                   target="_blank"
                   rel="noreferrer"
                   class="group block overflow-hidden rounded-2xl border border-edge bg-black shadow-[0_18px_55px_rgba(0,0,0,0.28)]"
-                  :aria-label="`Open story page: ${page.title}`"
+                  :aria-label="`Open story page: ${page.kind === 'clean' ? 'Clean Shot' : page.title}`"
                 >
                   <img
                     :src="blobUrl(page.blob_path)"
-                    :alt="page.title"
-                    class="aspect-[4/5] w-full object-cover transition duration-300 group-hover:scale-[1.015]"
+                    :alt="page.kind === 'clean' ? 'Clean Shot, full image without text' : page.title"
+                    class="aspect-[4/5] w-full object-contain"
                   />
                 </a>
                 <figcaption class="mt-2 flex items-center justify-between gap-3 text-[12px] text-muted">
-                  <span>{{ page.title }}</span>
+                  <span>{{ page.kind === 'clean' ? 'Clean Shot · no text or crop' : page.title }}</span>
                   <span class="t-num">{{ index + 1 }} of {{ deconstruction.pages.length }}</span>
                 </figcaption>
+                <a
+                  data-story-page-download
+                  :href="blobUrl(page.blob_path)"
+                  :download="storyImageFilename(index)"
+                  :aria-label="`Download story image ${index + 1}`"
+                  class="tap-target mt-1 inline-flex items-center text-[13px] text-accent hover:text-paper"
+                >Download image</a>
               </figure>
             </div>
 
@@ -714,27 +730,36 @@ export default {
             </div>
 
             <div class="mt-5 flex flex-wrap gap-3">
-              <a :href="deconstructionDownloadUrl" download class="btn">
+              <button
+                data-download-story-images
+                type="button"
+                class="btn"
+                :disabled="busy === 'download-deconstruction' || busy === 'deconstruction'"
+                @click="downloadStoryImages"
+              >
                 <svg aria-hidden="true" viewBox="0 0 24 24" class="h-4 w-4 fill-none stroke-current stroke-2">
                   <path d="M12 3v12" /><path d="m7 10 5 5 5-5" /><path d="M5 21h14" />
                 </svg>
-                Download story
-              </a>
-              <button v-if="!isSampleRecord" type="button" class="btn-quiet" :disabled="busy === 'deconstruction'" @click="createDeconstruction">
-                {{ busy === 'deconstruction' ? 'Building…' : 'Rebuild story' }}
+                {{ busy === 'download-deconstruction' ? 'Preparing images…' : 'Download all images' }}
+              </button>
+              <button v-if="!isSampleRecord" type="button" class="btn-quiet" :disabled="busy === 'deconstruction' || busy === 'download-deconstruction'" @click="createDeconstruction">
+                {{ busy === 'deconstruction' ? 'Preparing your story…' : 'Rebuild story' }}
               </button>
             </div>
-            <p class="mt-3 t-meta">The download includes every page and the caption. Shoots never posts for you.</p>
+            <p class="mt-3 t-meta">Each page is a separate JPG. Your browser may ask you to allow multiple downloads. You can also download each image below its preview. The caption stays here to copy.</p>
+            <p v-if="deconstruction.pages.some(page => page.kind === 'clean')" class="mt-2 t-meta">The last image keeps its original framing and size. Social apps may crop it to match the carousel; you can post it separately.</p>
+            <p v-if="downloadNotice" class="mt-2 t-meta" role="status">{{ downloadNotice }}</p>
           </template>
 
           <template v-else-if="deconstructionKeepers.length && !isSampleRecord">
             <p class="mt-6 eyebrow">Choose the opening Shot</p>
-            <p class="mt-2 text-[14px] leading-6 text-neutral-300">Use one Shot you already marked. The first page stays your choice.</p>
+            <p class="mt-2 text-[14px] leading-6 text-neutral-300">Use one Shot you already marked. The whole story will look closely at this image.</p>
             <div class="mt-3 flex gap-3 overflow-x-auto pb-2">
               <button
                 v-for="shot in deconstructionKeepers"
                 :key="shot.id"
                 type="button"
+                :disabled="busy === 'deconstruction'"
                 class="shrink-0 rounded-xl border p-1"
                 :class="(selectedCover || deconstructionKeepers[0]?.id) === shot.id ? 'border-accent' : 'border-edge'"
                 @click="selectedCover = shot.id"
@@ -743,7 +768,7 @@ export default {
               </button>
             </div>
             <button type="button" class="btn mt-4" :disabled="busy === 'deconstruction'" @click="createDeconstruction">
-              {{ busy === 'deconstruction' ? 'Building…' : 'Build my story' }}
+              {{ busy === 'deconstruction' ? 'Preparing your story…' : 'Build my story' }}
             </button>
           </template>
           <div v-else class="mt-6 rounded-2xl border border-dashed border-edge-strong bg-black/15 p-4">
@@ -756,6 +781,8 @@ export default {
               <p class="mt-2 t-body">Mark it with the bookmark on this {{ deconstructionSource.label }}, then return here to use it as the opening.</p>
             </template>
           </div>
+          <p v-if="busy === 'deconstruction'" class="mt-4 t-meta" role="status">Writing from the stored reading and preparing your images. This may take about a minute. Your original stays unchanged.</p>
+          <p v-if="deconstruction?.error" class="mt-3 text-sm text-amber-200" role="alert">{{ deconstruction.error }}</p>
         </section>
 
         <section v-if="tendencies.length" class="surface p-5 sm:p-7">

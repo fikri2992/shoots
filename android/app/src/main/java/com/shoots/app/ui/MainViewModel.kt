@@ -65,6 +65,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     val signedIn = MutableStateFlow(repository.isSignedIn())
     val mediaAccess = MutableStateFlow(repository.phoneSource.access())
     val busy = MutableStateFlow(false)
+    val preparingStory = MutableStateFlow(false)
     val error = MutableStateFlow("")
     val notice = MutableStateFlow("")
     val canLoadMoreShots = MutableStateFlow(true)
@@ -316,9 +317,17 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         sourceId: String,
         sourceRevision: Int,
         coverShotId: String,
-    ): Boolean = operate {
-        repository.prepareDeconstruction(sourceType, sourceId, sourceRevision, coverShotId)
-        notice.value = "Your visual story is ready"
+    ): Boolean {
+        if (preparingStory.value || busy.value) return false
+        preparingStory.value = true
+        return try {
+            operate {
+                repository.prepareDeconstruction(sourceType, sourceId, sourceRevision, coverShotId)
+                notice.value = "Your visual story is ready. Review it before sharing."
+            }
+        } finally {
+            preparingStory.value = false
+        }
     }
 
     suspend fun answerScoutQuestion(

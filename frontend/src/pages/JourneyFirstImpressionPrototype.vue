@@ -1,9 +1,12 @@
 <script>
 // Three photo-first Journey openings, switchable via ?variant=, on the existing /journey route.
+import { mapActions, mapState } from 'pinia'
+
 import JourneyPrototypeSwitcher from '@/pages/JourneyPrototypeSwitcher.vue'
 import JourneyPrototypeVariantA from '@/pages/JourneyPrototypeVariantA.vue'
 import JourneyPrototypeVariantB from '@/pages/JourneyPrototypeVariantB.vue'
 import JourneyPrototypeVariantC from '@/pages/JourneyPrototypeVariantC.vue'
+import { useShootsStore } from '@/stores/shoots'
 
 const VARIANTS = [
   {
@@ -62,6 +65,7 @@ export default {
     }
   },
   computed: {
+    ...mapState(useShootsStore, ['busy']),
     currentVariant() {
       return this.variants.find((item) => item.key === this.variant) || this.variants[0]
     },
@@ -125,6 +129,7 @@ export default {
         cover,
         shots: normalizedShots,
         storyReady,
+        downloading: this.busy === 'download-deconstruction',
         storyPages,
         artifactStatus: storyReady
           ? 'Visual story ready'
@@ -154,6 +159,7 @@ export default {
     },
   },
   methods: {
+    ...mapActions(useShootsStore, ['downloadDeconstructionPages']),
     blobUrl(path) {
       return path ? `/api/blobs/${path}` : ''
     },
@@ -186,9 +192,11 @@ export default {
     openEvidence() {
       this.scrollTo('journey-evidence')
     },
-    download() {
+    async download() {
+      this.notice = ''
       if (this.story.storyReady && this.deconstruction?.id) {
-        window.location.assign(`/api/deconstructions/${encodeURIComponent(this.deconstruction.id)}/download`)
+        const count = await this.downloadDeconstructionPages(this.deconstruction)
+        if (count) this.notice = `${count} image downloads requested. Check your browser's downloads.`
         return
       }
       this.notice = 'This Shoot does not have a finished visual story yet.'

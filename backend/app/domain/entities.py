@@ -1117,6 +1117,8 @@ class DeconstructionStatus(StrEnum):
 
 class DeconstructionPageKind(StrEnum):
     COVER = "cover"
+    STORY = "story"
+    CLEAN = "clean"
     SHOOT_WORK = "shoot_work"
     COMPOSITION = "composition"
     LIGHT_COLOUR = "light_colour"
@@ -1125,6 +1127,54 @@ class DeconstructionPageKind(StrEnum):
     REPRODUCE = "reproduce"
     CHANGE = "change"
     RECORD = "record"
+
+
+class DeconstructionEvidence(BaseModel):
+    """One stored visual read eligible for a selected Shot's story."""
+
+    id: str
+    shot_id: str
+    text: str
+    source_ref: str
+    cells: list[str] = Field(default_factory=list)
+    authority: str = "model_read"
+    visual_artifact: VisualEvidenceArtifact | None = None
+    artifact_sha256: str = ""
+
+
+class DeconstructionBeat(BaseModel):
+    title: str = Field(min_length=1, max_length=54)
+    body: str = Field(min_length=1, max_length=240)
+    evidence_ids: list[str] = Field(min_length=1)
+    detail_evidence_id: str = Field(
+        default="", description="Optional cited Evidence id with eligible stored detail cells."
+    )
+    artifact_evidence_id: str = Field(
+        default="", description="Optional cited Evidence id with an available artifact preview."
+    )
+
+
+class DeconstructionStory(BaseModel):
+    """The bounded writer's draft, not a new Analysis or photographer testimony."""
+
+    opening: DeconstructionBeat | None = None
+    beats: list[DeconstructionBeat] = Field(default_factory=list)
+    caption: str = Field(default="", max_length=600)
+    caption_evidence_ids: list[str] = Field(default_factory=list)
+    abstained: str = Field(default="", max_length=240)
+
+
+class DeconstructionWriting(BaseModel):
+    """Validated checkpoint: rendering can resume without paying for another draft."""
+
+    input_digest: str
+    cover_shot_id: str
+    model: str
+    prompt_version: str
+    story: DeconstructionStory
+    evidence: list[DeconstructionEvidence]
+    elapsed_seconds: float = 0
+    created_at: datetime = Field(default_factory=now)
 
 
 class DeconstructionPage(BaseModel):
@@ -1136,6 +1186,10 @@ class DeconstructionPage(BaseModel):
     shot_ids: list[str] = Field(default_factory=list)
     evidence_refs: list[str] = Field(default_factory=list)
     visual_layer: str = "original"
+    detail_cells: list[str] = Field(default_factory=list)
+    artifact_evidence_id: str = ""
+    visual_artifact: VisualEvidenceArtifact | None = None
+    artifact_sha256: str = ""
     blob_path: str = ""
 
 
@@ -1154,6 +1208,8 @@ class Deconstruction(BaseModel):
     suggested_caption: str = ""
     input_digest: str = ""
     rendering_version: str = "deconstruction-render-1"
+    writing: DeconstructionWriting | None = None
+    error: str = ""
     created_at: datetime = Field(default_factory=now)
     updated_at: datetime = Field(default_factory=now)
 

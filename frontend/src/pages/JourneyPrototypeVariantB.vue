@@ -68,8 +68,8 @@ export default {
         </div>
         <div class="grid gap-3 sm:grid-cols-3 lg:grid-cols-1 xl:grid-cols-3">
           <button type="button" class="btn" @click="$emit('open-story')">Open visual story</button>
-          <button type="button" class="btn-quiet" :disabled="!story.storyReady" @click="$emit('download')">
-            {{ story.storyReady ? 'Download' : 'Not ready' }}
+          <button type="button" class="btn-quiet" :disabled="!story.storyReady || story.downloading" @click="$emit('download')">
+            {{ story.downloading ? 'Preparing images…' : story.storyReady ? 'Download images' : 'Not ready' }}
           </button>
           <button type="button" class="btn-quiet" @click="$emit('open-evidence')">See Evidence</button>
         </div>
