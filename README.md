@@ -12,6 +12,14 @@ Entry for the All Things Agentic Hackathon, Taskmaster track.
 
 Submission scope is the autonomous still-image Shoot loop. Gemini Live, Live Scene Sessions, Scene Probes, the post-Shot Coach, a custom viewfinder, and video Analysis are parked outside the submission and current roadmap.
 
+## Project origin and reused code
+
+I first explored [VizRabbit](https://github.com/fikri2992/vizrabbit), a collaborative visual-review agent, for the same All Things Agentic Hackathon. I set that direction aside and focused on Shoots and the photography problem described above.
+
+VizRabbit's [first recorded commit](https://github.com/fikri2992/vizrabbit/commit/1e0ffb91d80b4c7a81dff444d61518a9bb7d0928) is dated August 14, 2026. Shoots' [first recorded commit](https://github.com/fikri2992/shoots/commit/8b5d985f75ac6032f378d0ebe61bc1169c6d3e3a) is dated August 22, 2026. Both dates fall within the [August 3–31 submission period](https://allthingsagentichackathon.devpost.com/rules).
+
+The initial Shoots commit calls the source "Visual QA base" and `visual-qa-agent`. Those names refer to VizRabbit. I reused its grid math, imaging helpers, ADK runtime, storage adapters, OAuth setup, and Vue shell. Shoots added the photography domain, Shot-review agents, Technique Map, and Experiment workflow, followed by Android Phone Source, Shoot Records, Journey, and visual-story exports. The original commits remain available so the reused foundation and subsequent work can be checked separately.
+
 ## Architecture
 
 ![Shoots hybrid event-driven agent workflow](docs/architecture.png)

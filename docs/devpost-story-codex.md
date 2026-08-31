@@ -118,6 +118,10 @@ the draft, and decide whether to download or share it.
 
 ### How I built it
 
+I first explored [VizRabbit](https://github.com/fikri2992/vizrabbit), a collaborative visual-review agent, for this same hackathon. I then set that direction aside to focus on Shoots. VizRabbit's first recorded commit was August 14, 2026; Shoots' was August 22, both within the submission period.
+
+The "Visual QA base" in [Shoots' initial commit](https://github.com/fikri2992/shoots/commit/8b5d985f75ac6032f378d0ebe61bc1169c6d3e3a) refers to VizRabbit. I reused its grid math, imaging helpers, ADK runtime, storage adapters, OAuth setup, and Vue shell. Shoots added the photography-specific agents and learning workflow, then Android capture imports, Shoot Records, Journey, and visual-story exports. The repository history preserves that distinction.
+
 Shoots uses a hybrid event-driven agent architecture. Gemini 3.7 Flash handles
 visual interpretation and writing. Python code controls measurements, memory
 updates, retries, and file delivery.
