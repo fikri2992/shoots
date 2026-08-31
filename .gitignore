@@ -38,6 +38,9 @@ Thumbs.db
 data/demo/
 
 # Local agent/editor state and reproducible quality-run blob stores
+/.scratch/
+/output/
+/recordings/
 .claude/
 docs/test-corpus/results/*-assets/
 docs/test-corpus/results/**/*-assets/

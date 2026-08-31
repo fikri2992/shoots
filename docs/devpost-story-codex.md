@@ -1,38 +1,70 @@
-# Devpost story, Codex proposal
+### Summary
 
-> Status: proposal for comparison. Do not paste it into Devpost or replace
-> `devpost-story.md` until Fikri selects it.
+#### 1. What is this app?
 
-## Intention
+Shoots is an Android and web photography Companion. It reviews my Shots, tracks Techniques and Tendencies over time, and offers optional Experiments based on my own work.
 
-Make a judge understand the personal problem in three seconds, then show that
-ShootsAI finishes a real background job that a single-Shot critique cannot do.
+#### 2. What problem am I trying to solve?
 
-## Why the GLM draft misses
+I love photography, but most of the time I just keep shooting. Sometimes my Shots feel boring or repetitive, and I feel like I've hit a plateau. I don't know what to change.
 
-- It removes Fikri from the story and makes an eighteen-Shot system quote carry
-  the emotion.
-- "Every hobbyist" and "no tool answers it" claim more than the evidence allows.
-- The paragraph about what a typical pitch would do talks about copywriting when
-  the reader should be inside the problem.
-- Its repeated bold stages turn the product into an architecture presentation.
-- It describes the continuous physical Android workflow as complete. The emulator
-  and backend path passed, but the full Xiaomi acceptance run remains undone.
-- Several test counts are stale. This proposal uses only current recorded proof.
+Community feedback takes time, and I have to pick Shots I'm not embarrassed to share. The AI feedback I've tried gives me text about one image, but I still don't know where to look or how my work is changing.
 
-## Opening formula
+I want something that reviews all my Shots, points directly to what it's talking about, tracks patterns over time, and suggests what to try next.
 
-Use the anatomy of a deceptive promise without copying its dishonesty:
+#### 3. What work does Shoots finish without me?
 
-1. Hook with the exact pain.
-2. Commit only to the work ShootsAI performs.
-3. Put the receipt beside the commitment.
-4. State the limit before the judge has to find it.
+**Once my import is accepted, I can leave the app.**
 
-The first four paragraphs must work as a complete pitch. A judge can understand
-them in one scan. The longer story exists only for a judge who chooses to continue.
+Shoots reviews the Shots, updates my Technique Map and Journey, prepares a Shoot Record, and writes reviewed copies to Drive when connected. I don't prompt each Shot or maintain the record manually. I still choose what I value, which Experiment to try, and what to share.
 
-## About the project
+#### 4. How does it remember work and handle failures?
+
+The **hybrid event-driven architecture** runs on Cloud Run.
+
+Firestore stores my history and each Shot's Run. Pub/Sub stages retry independently, duplicate delivery does not create another Shot, and scheduled recovery revisits stalled work. Code owns state changes and supplies bounded history to Gemini. In production, Drive refresh tokens stay in Secret Manager.
+
+#### 5. Where is the proof that it works?
+
+In the recorded production test, **all 75 test files completed and 75 reviewed copies reached Google Drive.**
+
+**Five Shots recovered through six automatic repair replays.** The three test batches produced three settled Shoot Records.
+
+**Median backend Run time was 48.72 seconds.** The slowest took 38 minutes 26 seconds, including recovery waits. The whole 75-file session took 40 minutes 7 seconds, from the first import request to the last Shoot Record, including gaps between imports and recovery.
+
+**A separate five-Shot metered sample estimates Gemini model processing at about $0.039 per Shot, or $2.95 for 75; it is an estimate, not the historical bill.**
+
+The files included repeats and deterministic variations. This proves the recorded workflow and recovery. Long-term Photographer benefit still needs real-user follow-up. See What I tested below for the timing details and current model-quality and physical-Camera proof limits.
+
+- [Source code](https://github.com/fikri2992/shoots)
+- [Architecture diagram](https://github.com/fikri2992/shoots/blob/main/docs/architecture.svg)
+- [Setup instructions](https://github.com/fikri2992/shoots/blob/main/README.md#setup)
+
+#### 6. Who is this app for?
+
+Beginners and photography hobbyists who want to understand how they shoot and try more Techniques. Think of it as a gym tracking app for photography.
+
+#### 7. How is this different from a single-image AI critique?
+
+Shoots connects feedback across Shots and outings. It combines deterministic measurements with labelled model interpretation, keeps the supporting Shots linked, and offers an optional Experiment. It tracks recurring choices and comparable Change without giving my photography an overall aesthetic score.
+
+#### 8. How do I start using it?
+
+- **On Android,** approve future Camera imports and use the normal system Camera. Shoots uploads new Shots in the background.
+- **On the web,** upload files or select existing files from Google Drive. Manual imports distinguish Mine from Inspiration. Only Mine updates my photography record.
+
+#### 9. Which agents and image-processing steps do the work?
+
+Gemini interprets the Shots, computer vision measures their pixels, and deterministic code controls the workflow and memory.
+
+1. **Measure the Shot.** Read EXIF camera settings and use NumPy to calculate colour, luminance, saturation, and highlight clipping.
+2. **Run a specialist panel.** Google ADK runs three Gemini 3.7 Flash readers in parallel: Technician, Composer, and Storyteller. A Synthesizer combines their readings. Code checks their agreement and validates the structured output.
+3. **Make the evidence visible.** OpenCV uses Canny edge detection, Laplacian-based detail maps, and bounded image processing to create inspectable overlays. Gemini identifies regions; code renders the pixels. These measurements support the interpretation, not an artistic grade.
+4. **Test suggested crops.** Pillow renders the proposed crop. A separate Gemini evaluator compares it with the original, with at most two rounds. Unsupported suggestions are discarded. The photographer can inspect the result with a comparison slider.
+5. **Remember and recommend.** Update the Photographer's Technique Map and recurring Tendencies across Shots. Offer one optional Experiment when the evidence supports it. When the photographer explicitly attempts Reproduce, check its declared Criteria and save the results.
+6. **Deliver actual files and records.** Save reviewed copies to connected Google Drive, create Shoot Records, and prepare image-led Deconstruction drafts for the photographer to export.
+
+---
 
 ### Inspiration
 
@@ -56,185 +88,198 @@ photography into another task.
 
 ### What it does
 
-ShootsAI is a still-image photography Companion with Android and web clients. In the
-accepted production proof, I selected 75 Drive Shots in three batches. ShootsAI
-created one Run per Shot, measured and read each file, recovered five unique failed
-Shots through six repair replays, settled three Shoots, and returned three immutable
-Shoot Records. Each record shows what recurred, what varied, and what the available
-Evidence could not establish.
+I upload still images, select files from Drive, or let Android import new Shots
+from my normal Camera after granting permission. For manual imports, I choose Mine
+or Inspiration. Only my own Shots update my photography record.
 
-That is the accepted Taskmaster job. The physical Camera-to-Shoot workflow remains
-unaccepted. So does the Photographer-benefit loop: the current proof does not show
-that a real Photographer found the record useful, completed its Experiment, or made
-a later Change. Cost has not been measured.
+![Live Shoots web app showing a completed Shoot, 25 of 25 Shots accounted for, and the supporting images](https://d112y698adiu2z.cloudfront.net/photos/production/software_photos/005/212/124/datas/original.png)
 
-That record becomes part of my history. ShootsAI compares it with earlier Shoots
-and chooses exactly one supported response: explain what happened, ask one useful
-question, or offer an optional Explore or Reproduce Experiment. If I enter an
-Experiment, ShootsAI freezes the question and the exact result Shots. It
-compares earlier and later work only when they are comparable; otherwise it records
-insufficient Evidence. Explore has Variations and no Verdict. A Reproduce Verdict
-answers declared Criteria only.
+*Now shows a finished review with its supporting Shots. This screenshot uses one
+completed 25-file batch from the workflow test below.*
 
-For each Shot, ShootsAI combines EXIF and pixel measurements with three bounded
-Gemini readers and a Synthesizer. Measurements, model interpretation, and my Keeper
-or Experiment choices stay separate. Only Techniques from the fixed catalogue enter
-the record. When the available Evidence cannot support a conclusion, ShootsAI keeps
-the uncertainty instead of promoting it to a claim.
+I can open a Shot and see where an observation applies. If a model-tested crop is
+available, a slider compares it with the original. Measurements and model opinions
+are labelled separately. Shoots does not give my photography an overall score.
 
-The finished work appears as a compact Shoot receipt, a longitudinal Journey with
-links to its source Shots, and an evidence-bound Deconstruction draft. I choose the
-Keeper cover and whether to share it. This hackathon build handles still images only.
-The accepted proof uses explicit Google Drive import. Camera discovery is implemented
-but is not part of the accepted end-to-end claim.
+A Shoot groups Shots from one period of Camera activity. Once the group is closed
+and every Shot is accounted for, its Shoot Record shows what repeated and what
+varied. The Technique Map tracks recurring Techniques; Journey connects them to
+earlier outings. I can follow each observation back to the Shots behind it.
+
+When there is enough Evidence, Scout offers one Experiment idea. I can try it,
+ask for another available idea, or keep shooting. I don't have to answer a
+questionnaire first. Explore suggests Variations without grading them. Reproduce
+checks agreed Criteria only for Shots I choose to submit. A recorded Change means
+something was different, not automatically better.
+
+The output includes reviewed copies in Drive and a Deconstruction draft: a visual
+story built from the stored Evidence. I choose a Shot I value as its cover, review
+the draft, and decide whether to download or share it.
 
 ### How I built it
 
-ShootsAI is an event-driven control loop. The Android client uses Kotlin, Compose,
-WorkManager, and Room to discover new Camera images, keep a replayable outbox, and
-continue after the interface leaves the screen. Room is a cache, while Firestore
-remains the source of truth. The web audit desk uses Vue 3, Vite, and Tailwind to
-show the same Photographer record and its ActivityEvents.
+Shoots uses a hybrid event-driven agent architecture. Gemini 3.7 Flash handles
+visual interpretation and writing. Python code controls measurements, memory
+updates, retries, and file delivery.
 
-The Python and FastAPI service runs on Cloud Run. Cloud Storage holds media,
-Firestore holds durable state, Pub/Sub moves stage events with retries and
-dead-letter routes, Cloud Scheduler closes inactive Shoots, and Secret Manager holds
-service credentials. Local development runs the same stage services in process, so
-the transport changes without changing the behaviour.
+![Shoots hybrid event-driven architecture showing model calls, independently retryable stages, durable state, and completed Shoot Records](https://d112y698adiu2z.cloudfront.net/photos/production/software_photos/005/211/981/datas/original.png)
 
-The architecture enforces three responsibilities:
+*Models read and write. Code decides what gets stored, retried, and delivered.*
 
-1. Pure domain code owns measurements, the finite Technique catalogue, Criteria,
-   comparability, admissible claims, and state transitions.
-2. Google ADK agents use Gemini 3.7 Flash for bounded visual interpretation and
-   writing. Every agent result must pass a Pydantic schema before it enters the
-   record.
-3. Infrastructure adapters store records and move replayable work. They do not make
-   photography decisions.
+#### Read the Shot and show the Evidence
 
-The Analyst is an ADK `SequentialAgent`. A `ParallelAgent` runs the Technician,
-Composer, and Storyteller with different instructions and image inputs, then a
-Synthesizer reads their structured results. Models emit cell references rather than
-pixel coordinates; domain and imaging code decide what can be drawn.
+Ingest reads EXIF camera settings and uses NumPy to measure colour, brightness,
+saturation, and highlight clipping. The Analyst uses Google ADK to run three
+specialist readers in parallel: Technician, Composer, and Storyteller. A Synthesizer
+combines their readings. Pydantic schemas and code check the output format,
+Technique ids, agreement, and image locations before storing the result.
 
-Models hold no durable memory. Code assembles the bounded history for every call.
-Each accepted Shot owns one Run, while Capture Session and Shoot barriers read that
-same Run truth for different memberships. Duplicate delivery is a no-op. A late
-Shot creates a new Shoot revision instead of rewriting the earlier record. The
-[architecture diagram](architecture.svg) maps the complete path.
+Gemini identifies areas using grid cells. OpenCV produces the visual support,
+including Canny edge detection and Laplacian-based detail maps. The model never
+draws the pixels itself.
+
+| Before: the original Shot | After: measured visual Evidence |
+| --- | --- |
+| [![Original rice-field Shot, with rows of seedlings across the mud](https://d112y698adiu2z.cloudfront.net/photos/production/software_photos/005/212/066/datas/gallery.jpg)](https://d112y698adiu2z.cloudfront.net/photos/production/software_photos/005/212/066/datas/original.jpg) | [![The same Shot with measured contrast edges in the named pattern area](https://d112y698adiu2z.cloudfront.net/photos/production/software_photos/005/212/065/datas/gallery.jpg)](https://d112y698adiu2z.cloudfront.net/photos/production/software_photos/005/212/065/datas/original.jpg) |
+
+*The cyan marks show measured contrast edges in the area Gemini identified.
+They help me inspect the pattern; they don't grade the composition. The original
+Shot stays unchanged. Click either image to see it full size.*
+
+For a suggested crop, Pillow renders the proposal and a separate Gemini evaluator
+compares it with the original. Code allows at most two rounds and drops suggestions
+that fail the check. I can inspect the result with the comparison slider.
+
+#### Make a visual story I can take away
+
+Scribe reads my selected Shot and its stored Evidence, then writes a short story
+about what is happening in the image. Pillow renders downloadable JPEGs with
+full-image and labelled detail pages, ending with a clean copy of the Shot.
+I review the draft and decide what to share.
+
+![Fresh visual story in the live web app, with generated pages and download controls](https://d112y698adiu2z.cloudfront.net/photos/production/software_photos/005/212/165/datas/original.png)
+
+*The live app generated five story pages for a different rice-field Shot. The
+server took 16.58 seconds for story generation, excluding the earlier Shot review.
+[View the downloaded opening page](https://d112y698adiu2z.cloudfront.net/photos/production/software_photos/005/212/166/datas/original.jpg), with the generated wording unchanged.*
+
+#### Remember the work and finish the job
+
+Cartographer updates the Technique Map from stored Evidence. Scout uses that record
+to select a supported next step. Judge checks declared Reproduce Criteria against
+camera settings and the Analyst's Evidence; Gemini writes the feedback. Scribe
+prepares reviewed copies for Drive. Google Search grounding supplies sources when
+a Reproduce brief uses research.
+
+FastAPI runs on Cloud Run. Firestore stores each Shot's Run and the Photographer's
+history; Cloud Storage holds the media. Pub/Sub moves work between stages. Each
+stage can retry without repeating completed work, and duplicate events don't
+create another Shot. Cloud Scheduler revisits stalled work. Failures that remain
+unresolved stay visible.
+
+A Shoot Record waits until every Shot is accounted for. Late Shots produce a new
+revision. Each model call receives relevant saved history, so memory survives
+between visits without depending on a growing chat conversation.
+
+Android uses Kotlin, Compose, MediaStore, Room, and WorkManager for Camera imports
+and queued uploads. The Vue 3 web client reads the same Photographer record. Drive
+credentials stay on the server in Secret Manager.
+
+[View the architecture diagram](https://github.com/fikri2992/shoots/blob/main/docs/architecture.svg).
 
 ### Challenges
 
-#### Knowing when the background work is finished
+#### Getting the whole workflow to finish without me
 
-One Shot owns one Run, but Run, Capture Session, and Shoot barriers may all react to
-it. Pub/Sub may deliver an event again, and a late Shot may arrive after the Shoot
-started closing. Forced interleavings exposed races that sequential tests had hidden.
-The fix was one shared Run truth, explicit terminal barriers, and immutable Shoot
-Record revisions. Integration cases now interleave arrival, settlement, duplicate
-delivery, and repair before accepting one terminal record.
+An image reading could finish while delivery or memory updates were still failing.
+I needed to track the whole job, not just the model response. Each Shot now has a
+saved Run showing what is finished and what still needs work. Retries resume the
+unfinished steps. The Shoot Record is only ready when every Shot is accounted for.
 
-#### Keeping model opinion inside its Evidence
+#### Keeping memory useful across Shoots
 
-One malformed GPS value became `NaN` and reached solar arithmetic. One model
-invented crop locations for a Finding that had no position. A real-agent case praised
-a deliberate high angle, then prescribed eye level. Those failures became permanent
-rules: numbers must be finite before arithmetic, a visual mark needs validated cells,
-unknown Techniques are dropped, and advice cannot contradict the strongest supported
-Technique. The corrected cases were rerun in the real-agent corpus.
+An early model guess should not become a fact just because a later agent remembers
+it. I kept measurements, model readings, and my own choices separate, with links to
+the source Shots. Inspiration never updates my photography record. Seeing a
+Technique recur does not mean I intended it or mastered it.
 
-### Validation
+#### Checking agent suggestions against the actual image
 
-#### Real Gemini quality
+A correctly formatted answer could still point at the wrong detail or suggest
+undoing a choice it had just praised. I added agreement checks across the readers,
+restricted visual marks to the supplied image locations, and made crops go through
+a separate comparison. These checks help catch mistakes; the visible Evidence
+still matters because the model can be wrong.
 
-A historical still-image report used eleven real Shot cases with Gemini 3.7 Flash.
-Its 180 automatic checks passed and twelve judgement questions remained for human
-review. That report used Analyst prompt digest `1c738851cdfb`. The current prompt
-digest is `a3c0dd488f26` and has not completed the real-agent acceptance gate, so the
-historical result is regression context, not current model-quality proof.
+### What I tested
 
-#### Integration and Cloud evidence
+#### Background workflow
 
-The accepted production run took 75 selected Drive Shots through 75 completed Runs
-and three settled Shoot Records. Five unique failed Shots recovered through six
-repair replays. Durable Run latency was 48.72 seconds at p50 and 2,306.161 seconds at
-maximum; the three Picker requests averaged 104.353 seconds. The files came from 67
-visually reviewed real hobbyist Shots plus disclosed deterministic variations, so
-this is workflow and recovery proof, not 75 independent captures.
+I imported 75 test files from Drive in three batches of 25 on the deployed app.
 
-The first full-scale attempt created 350 Shot records and no Shoot Record. The
-settlement defect was fixed and the 75-Shot gate passed; the complete 300-file run was
-not repeated. These results prove the Drive import path, individual Runs, recovery,
-and settlement at the accepted scale. They do not prove physical Camera discovery,
-current-prompt visual quality, or Photographer benefit.
+| What I checked | Recorded result |
+| --- | --- |
+| Did every file finish? | 75 of 75 completed the background workflow. |
+| Did it deliver the files? | 75 reviewed copies reached Google Drive. |
+| Did it finish each batch review? | Three batches produced three Shoot Records. |
+| Did it recover from failures? | Five failed Shots completed through six automatic retries. |
+| How long did it take per Shot? | Median: 48.72 seconds. Slowest: 38 minutes 26 seconds, including recovery waits. |
+| How long for all 75 files? | 40 minutes 7 seconds from the first import request to all three finished Shoot Records. |
+| Estimated Gemini model cost per Shot | $0.039 from a separate five-Shot metered sample. |
+| Estimated Gemini model cost for 75 | $2.95, calculated as 15 times that sample. |
 
-> Working note, remove before submission: record one uninterrupted Xiaomi run from
-> normal Camera capture through background ingestion, every terminal Run, one Shoot
-> Record, one supported Scout response, and offline reopen. Replace this note with
-> the exact Shot count, record revision, Cloud Run revision, and result.
+Per-Shot time measures the backend workflow, excluding upload. The 75-file total
+includes the gaps between three separate imports and automatic recovery. After
+the final import finished, all three Shoot Records were ready 16 minutes 35 seconds
+later. Shots process in parallel, so multiplying the per-Shot time by 75 would be
+misleading.
+
+The files included repeats and edited versions of real hobbyist Shots, so this was
+a workflow test, not 75 independent captures. The historical test did not record
+token receipts, so its actual cost is unknown. I later ran five unchanged files
+from the deduped test corpus through the real local pipeline with a fresh
+Photographer record. All five Runs completed, including five local reviewed outputs.
+The logger captured 26 Gemini 3.7 Flash responses: 134,680 input tokens and 25,539
+output-and-reasoning tokens. At Google's global standard rates on August 31, 2026,
+that was $0.1968 total, or $0.039 per Shot. The $2.95 figure is a simple 75-Shot
+projection. It excludes Cloud Run, Firestore, Storage, Pub/Sub, real Drive transfer,
+discounts, credits, and any optional Experiment or visual-story generation. No
+grounded Search calls occurred in this sample.
+
+A larger 300-file attempt exposed a bug: individual Shot records were created, but
+the overall Shoot review never finished. After fixing it, I reran the 75-file test
+above. I have not repeated the full 300-file test.
+
+[Read the recorded workflow test and its limits](https://github.com/fikri2992/shoots/blob/cf04d40ae30fcb3da124dafb3d17942cbb95be45/docs/submission-proof.md).
+
+#### Image readings and remaining tests
+
+An earlier version of the Analysis was tested on 11 real Shots using Gemini 3.7
+Flash. Automatic checks passed, but some visual judgements still needed human
+review. The latest Analysis changes have not yet gone through that full test.
+
+The completed workflow test covers Drive import. Automatic capture-to-upload on a
+physical Android phone still needs its end-to-end test. Whether the recommendations
+help hobbyists improve also needs follow-up with real users over time.
 
 ### What I learned
 
-Real calls changed the interaction design. The accepted production stress run had a
-48.72-second median durable Run and a 38-minute-26-second maximum after recovery.
-That work belongs in the background, with visible progress and failure state.
+The real processing times changed the design. Review belongs in the background,
+with a clear record of what finished and what failed.
 
-The first versions graded every Shot and treated every Experiment like homework.
-Using the product on a phone made the mistake obvious. Explore now offers Variations
-without a Verdict, Reproduce alone checks declared Criteria, and unrelated Shots do
-not become attempts. The photographer can ignore an Experiment and keep shooting.
+The first versions graded every Shot and made Experiments feel like homework.
+Using the app on a phone made that mistake obvious. Now the Experiment is optional,
+and ordinary shooting stays ordinary shooting.
 
-The first corpus also contradicted my pitch. Placement and framing were varied, while
-the clearest measurable Tendency was dwell: eighteen Shots across sixteen Scenes,
-with only 1.12 Shots before moving on. ShootsAI now computes the record before it
-speaks. The current Companion is less intrusive than the first design and more
-honest about what it cannot know.
+The first set of Shots also challenged my assumptions. Framing was varied; moving
+on quickly from each Scene stood out more. That taught me to calculate the record
+before deciding what advice to offer.
 
 ### What's next
 
-The next product test is longitudinal: run ShootsAI over months of real Camera histories
-and measure whether its single offered Experiment remains useful, varied, and
-evidence-backed rather than becoming repetitive.
+Use Shoots over months of real Camera histories and ask a practical question: does
+the suggested Experiment give a hobbyist something useful to try, or does it become
+another repetitive notification? Track whether they try it and find it helpful.
 
-The next product extension is Compare, where two deliberate alternatives are
-preserved and the photographer may state a preference.
-
-## Why this version
-
-- The hook uses Fikri's real question and reaches the mechanism through an ordinary
-  walk, not a fabricated breakthrough Shot.
-- The first scan of What it does exposes the completed Taskmaster work we can prove:
-  one archive selection, background accounting, recovery, and settled Shoot Records.
-  It names Camera and longitudinal Photographer benefit as remaining gates.
-- How I built it explains responsibility, state, retries, and boundaries instead of
-  using framework names or agent counts as proof of architecture.
-- Challenges, Validation, and What I learned do different jobs. Concrete failures
-  explain design changes, while real-model, integration, Cloud, and device evidence
-  retain their separate proof limits.
-- Required physical-device proof stays in Validation and the submission checklist.
-  It is not disguised as future product work.
-- The structure follows the strongest recurring moves from the verified winner
-  comparison in `devpost-winner-section-patterns.md` without copying a winner's
-  voice or unsupported claims.
-
-## Still needed from Fikri
-
-This version can become more personal if Fikri supplies one real Keeper moment and
-one real feedback disappointment. Replace the general walk only with details he
-confirms. Do not invent them.
-
-Before this becomes final Devpost copy:
-
-- run the current Analyst prompt through the real-agent acceptance gate;
-- record one uninterrupted physical Shoot and replace the Validation working note
-  with its exact result;
-- have a real hobbyist Photographer inspect a Shoot Record, choose or reject the
-  offered Experiment, return with comparable Shots, and report whether it helped;
-- choose one public product name, Shoots or ShootsAI, and use it everywhere;
-- add the hosted project, public repository, architecture diagram, testing
-  instructions, and public four-minute demo links;
-- disclose any pre-existing work incorporated into the entry, or state that none was
-  used;
-- publish one qualifying build article and one social post with
-  `#AllThingsAgenticHackathon` for the two 0.2 bonuses;
-- add no bonus model unless it performs necessary product work visible in the demo.
+The next feature is Compare: keep two deliberate alternatives side by side and let
+the photographer say which one they prefer.
