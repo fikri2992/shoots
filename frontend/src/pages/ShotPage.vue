@@ -486,7 +486,6 @@ export default {
         </div>
 
         <div class="min-w-0">
-          <ShotDeconstruction :shot="shot" :analysis="analysis" :read-only="isSampleRecord" class="mb-5" />
           <template v-if="analysis">
             <h1 class="eyebrow">A closer look</h1>
             <p class="mt-2 t-meta">{{ camera.slice(-2).join(' · ') || shot.filename }}</p>
@@ -646,6 +645,8 @@ export default {
             </section>
 
             <MeasuredStrip class="mt-4" :tone="shot.tone" :motion="shot.motion" />
+
+            <ShotDeconstruction :shot="shot" :analysis="analysis" :read-only="isSampleRecord" />
 
           <div class="mt-8">
               <DisclosureRow v-if="otherMoves.length" label="Other possible moves" :count="otherMoves.length">

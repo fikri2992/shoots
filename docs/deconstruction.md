@@ -27,7 +27,10 @@ posted separately. A suggested post caption is provided alongside the images.
 
 - On the web Shot detail page, **Build visual story** selects that exact still
   Shot. It needs a usable stored Analysis, not a Keeper mark or settled Shoot.
-  Building never bookmarks the Shot. Returning to the page reopens its saved draft.
+  Building never bookmarks the Shot. The reading and measurements appear first;
+  a compact **Visual story** disclosure below them holds the actions and small
+  previews. It starts collapsed even for a saved draft. Opening it does not start
+  generation. The caption expands separately, and full-size images open from previews.
 - Journey also retains its settled Shoot and terminal Experiment stories, with
   their existing marked-cover selection. Settlement only creates a `needs_cover` record.
 - Domain code collects that Shot's stored observations and supported Technique
