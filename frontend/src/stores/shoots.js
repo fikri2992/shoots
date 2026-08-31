@@ -31,6 +31,9 @@ export const useShootsStore = defineStore('shoots', {
     pairCode: null, // { code, expires_in_seconds } while pairing a camera
     seeding: null, // { done, total, name } while the first Shots upload
     mobile: null, // shared read model: latest Shoot Record and Deconstruction
+    shotDeconstructions: {}, // Saved visual stories, keyed by their exact source Shot.
+    shotStoryBusy: {},
+    shotStoryErrors: {},
     driveImport: null, // latest explicit Picker result; never Photographer memory
   }),
 
@@ -235,6 +238,43 @@ export const useShootsStore = defineStore('shoots', {
         await api.post(`/api/experiments/${id}/complete`)
         await this.fetchAll()
       })
+    },
+
+    async fetchShotDeconstruction(shotId) {
+      if (this.shotStoryBusy[shotId]) return this.shotDeconstructions[shotId] || null
+      this.shotStoryBusy[shotId] = 'loading'
+      this.shotStoryErrors[shotId] = ''
+      try {
+        const draft = await api.get(`/api/deconstructions?shot_id=${encodeURIComponent(shotId)}`)
+        this.shotDeconstructions[shotId] = draft
+        return draft
+      } catch (error) {
+        this.shotStoryErrors[shotId] = error.message
+        return null
+      } finally {
+        this.shotStoryBusy[shotId] = ''
+      }
+    },
+
+    async prepareShotDeconstruction(shotId) {
+      if (this.shotStoryBusy[shotId]) return null
+      this.shotStoryBusy[shotId] = 'writing'
+      this.shotStoryErrors[shotId] = ''
+      try {
+        const draft = await api.post('/api/deconstructions', {
+          source_type: 'shot',
+          source_id: shotId,
+          source_revision: 1,
+          cover_shot_id: shotId,
+        })
+        this.shotDeconstructions[shotId] = draft
+        return draft
+      } catch (error) {
+        this.shotStoryErrors[shotId] = error.message
+        return null
+      } finally {
+        this.shotStoryBusy[shotId] = ''
+      }
     },
 
     prepareDeconstruction(sourceType, sourceId, sourceRevision, coverShotId) {

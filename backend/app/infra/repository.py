@@ -1392,10 +1392,15 @@ async def list_deconstructions(
     store: Store,
     user_id: str,
     limit: int = 20,
+    *,
+    source_type: str = "",
 ) -> list[Deconstruction]:
+    where = {"user_id": user_id}
+    if source_type:
+        where["source_type"] = source_type
     rows = await store.query(
         DECONSTRUCTIONS,
-        where={"user_id": user_id},
+        where=where,
         order_by="updated_at",
         descending=True,
         limit=limit,

@@ -1,5 +1,6 @@
 """Compact read model for the offline-capable Android client."""
 
+import asyncio
 import hashlib
 import json
 
@@ -70,7 +71,15 @@ async def snapshot(
     runs = await repo.list_runs(ctx.store, user.id, limit=1)
     experiments = await repo.list_experiments(ctx.store, user.id, limit=20)
     directions = await repo.list_experiment_directions(ctx.store, user.id, limit=50)
-    deconstructions = await repo.list_deconstructions(ctx.store, user.id, limit=1)
+    # Shot detail stories must not displace the aggregate draft in Journey,
+    # including on Android versions that only understand these two sources.
+    shoot_drafts, experiment_drafts = await asyncio.gather(
+        repo.list_deconstructions(ctx.store, user.id, limit=1, source_type="shoot"),
+        repo.list_deconstructions(ctx.store, user.id, limit=1, source_type="experiment"),
+    )
+    deconstructions = sorted(
+        [*shoot_drafts, *experiment_drafts], key=lambda draft: draft.updated_at, reverse=True
+    )
     shots = await repo.list_shots(ctx.store, user.id, limit=30)
     included = {shot.id for shot in shots}
     required = {

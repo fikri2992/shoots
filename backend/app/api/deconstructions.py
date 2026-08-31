@@ -3,7 +3,7 @@
 from io import BytesIO
 from zipfile import ZIP_STORED, ZipFile
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import Response
 from pydantic import BaseModel, Field
 
@@ -43,6 +43,18 @@ async def prepare(
         raise HTTPException(409, str(exc)) from exc
     except deconstructions.DeconstructionUnavailable as exc:
         raise HTTPException(503, str(exc)) from exc
+    except repo.UnknownEntity as exc:
+        raise HTTPException(404, str(exc)) from exc
+
+
+@router.get("", response_model=Deconstruction | None)
+async def get_shot_draft(
+    shot_id: str = Query(min_length=1, max_length=160),
+    session_user: dict = Depends(current_user),
+    ctx: Context = Depends(get_context),
+) -> Deconstruction | None:
+    try:
+        return await deconstructions.for_shot(ctx, session_user["id"], shot_id)
     except repo.UnknownEntity as exc:
         raise HTTPException(404, str(exc)) from exc
 

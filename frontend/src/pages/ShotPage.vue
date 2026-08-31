@@ -6,6 +6,7 @@ import CropComparison from '@/components/CropComparison.vue'
 import DisclosureRow from '@/components/DisclosureRow.vue'
 import MeasuredStrip from '@/components/MeasuredStrip.vue'
 import ShotCanvas from '@/components/ShotCanvas.vue'
+import ShotDeconstruction from '@/components/ShotDeconstruction.vue'
 import { plain, spanBox } from '@/domain/cells'
 import { humanizeLegacyText, metricLabel, repeatabilitySummary, techniqueHistory } from '@/domain/copy'
 import { GUIDE_LABELS, verdict as guideVerdict } from '@/domain/guides'
@@ -38,7 +39,7 @@ function dedupe(lines, limit, grid) {
  */
 export default {
   name: 'ShotPage',
-  components: { CompanionReceipt, CropComparison, DisclosureRow, ShotCanvas, MeasuredStrip },
+  components: { CompanionReceipt, CropComparison, DisclosureRow, ShotCanvas, ShotDeconstruction, MeasuredStrip },
   props: { shotId: { type: String, required: true } },
   data() {
     return {
@@ -484,7 +485,8 @@ export default {
           </div>
         </div>
 
-        <div>
+        <div class="min-w-0">
+          <ShotDeconstruction :shot="shot" :analysis="analysis" :read-only="isSampleRecord" class="mb-5" />
           <template v-if="analysis">
             <h1 class="eyebrow">A closer look</h1>
             <p class="mt-2 t-meta">{{ camera.slice(-2).join(' · ') || shot.filename }}</p>

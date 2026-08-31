@@ -216,6 +216,119 @@ async def seed_writing(
     return waiting
 
 
+async def test_shot_stories_render_without_keepers_or_settlement_and_reopen_separately(tmp_path):
+    ctx, user_id = await seed(tmp_path)
+    journey_draft = await seed_writing(ctx, user_id)
+    # Neither Shot is a Keeper and neither has an aggregate Record.
+    for shot_id in ("shot_1", "shot_2"):
+        shot = await repo.get_shot(ctx.store, shot_id)
+        shot.kept_at = None
+        await repo.put_shot(ctx.store, shot)
+    for row in await ctx.store.query(repo.SHOOT_RECORDS):
+        await ctx.store.delete(
+            repo.SHOOT_RECORDS, repo.shoot_record_id(row["shoot_id"], row["revision"])
+        )
+    before = {
+        name: await ctx.store.query(name)
+        for name in (repo.SHOTS, repo.ANALYSES, repo.TECHNIQUE_STATES, repo.JOURNEY)
+    }
+    main.app.dependency_overrides[deps.get_context] = lambda: ctx
+    main.app.dependency_overrides[current_user] = lambda: {"id": user_id}
+    try:
+        with TestClient(main.app) as client:
+            # Read-only discovery does not create even an empty draft.
+            assert client.get("/api/deconstructions?shot_id=shot_2").json() is None
+            assert len(await ctx.store.query(repo.DECONSTRUCTIONS)) == 1
+            drafts = []
+            for shot_id in ("shot_1", "shot_2"):
+                await seed_writing(ctx, user_id, "shot", shot_id, shot_id)
+                request = {
+                    "source_type": "shot",
+                    "source_id": shot_id,
+                    "source_revision": 1,
+                    "cover_shot_id": shot_id,
+                }
+                response = client.post("/api/deconstructions", json=request)
+                assert response.status_code == 200, response.text
+                draft = response.json()
+                drafts.append(draft)
+                assert draft["status"] == "drafted"
+                assert draft["cover_shot_id"] == shot_id
+                assert all(page["shot_ids"] == [shot_id] for page in draft["pages"])
+                for page in draft["pages"]:
+                    assert client.get(f"/api/blobs/{page['blob_path']}").status_code == 200
+                assert client.post("/api/deconstructions", json=request).json() == draft
+                assert client.get(f"/api/deconstructions?shot_id={shot_id}").json() == draft
+            assert drafts[0]["id"] != drafts[1]["id"]
+            assert client.get("/api/deconstructions?shot_id=shot_1").json() == drafts[0]
+            # Existing web/Android Journey still sees its aggregate draft.
+            snapshot = client.get("/api/mobile/snapshot").json()
+            assert snapshot["latest_deconstruction"]["id"] == journey_draft.id
+            events = await ctx.store.query(repo.EVENTS)
+            assert {
+                event["shot_id"] for event in events if event["stage"] == "deconstruction_drafted"
+            } == {"shot_1", "shot_2"}
+    finally:
+        main.app.dependency_overrides.clear()
+    for name, rows in before.items():
+        assert await ctx.store.query(name) == rows
+
+
+@pytest.mark.parametrize(
+    ("fault", "status"),
+    [
+        ("foreign", 404),
+        ("missing", 404),
+        ("inspiration", 404),
+        ("video", 409),
+        ("original", 409),
+        ("analysis", 409),
+        ("abstained", 409),
+        ("cover", 409),
+        ("revision", 409),
+    ],
+)
+async def test_shot_story_rejects_unavailable_or_mismatched_source(tmp_path, fault, status):
+    ctx, user_id = await seed(tmp_path)
+    shot = await repo.get_shot(ctx.store, "shot_2")
+    if fault == "foreign":
+        shot.user_id = "another_photographer"
+    elif fault == "inspiration":
+        shot.superseded_by_inspiration_id = "inspiration_2"
+    elif fault == "video":
+        shot.kind = ShotKind.VIDEO
+    elif fault == "original":
+        shot.blobs.clear()
+    await repo.put_shot(ctx.store, shot)
+    if fault == "analysis":
+        await ctx.store.delete(repo.ANALYSES, shot.id)
+    elif fault == "abstained":
+        analysis = await repo.find_analysis(ctx.store, shot.id)
+        analysis.abstained = "No usable reading"
+        await repo.put_analysis(ctx.store, analysis)
+    main.app.dependency_overrides[deps.get_context] = lambda: ctx
+    main.app.dependency_overrides[current_user] = lambda: {"id": user_id}
+    try:
+        with TestClient(main.app) as client:
+            source_id = "missing" if fault == "missing" else shot.id
+            response = client.post(
+                "/api/deconstructions",
+                json={
+                    "source_type": "shot",
+                    "source_id": source_id,
+                    "source_revision": 0 if fault == "revision" else 1,
+                    "cover_shot_id": "shot_1" if fault == "cover" else source_id,
+                },
+            )
+            assert response.status_code == status, response.text
+            if status == 404:
+                assert client.get(f"/api/deconstructions?shot_id={source_id}").status_code == 404
+            assert not (await repo.get_shot(ctx.store, shot.id)).kept_at
+            assert all(not row["pages"] for row in await ctx.store.query(repo.DECONSTRUCTIONS))
+    finally:
+        main.app.dependency_overrides.clear()
+
+
 async def test_deconstruction_requires_photographer_cover_then_renders_idempotently(tmp_path):
     ctx, user_id = await seed(tmp_path)
     await seed_writing(ctx, user_id)

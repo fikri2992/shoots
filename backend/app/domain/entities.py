@@ -1105,6 +1105,7 @@ class Experiment(BaseModel):
 
 
 class DeconstructionSourceType(StrEnum):
+    SHOT = "shot"
     SHOOT = "shoot"
     EXPERIMENT = "experiment"
 

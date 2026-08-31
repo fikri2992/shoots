@@ -25,6 +25,7 @@ from app.domain.entities import (
     ExperimentStatus,
     ShootRecord,
     Shot,
+    ShotKind,
     now,
 )
 from app.imaging import canvas, visual_evidence
@@ -110,15 +111,21 @@ async def _prepare_loaded(
     source_id: str,
     source_revision: int,
     cover_shot_id: str,
-    source: ShootRecord | Experiment,
+    source: Shot | ShootRecord | Experiment,
     shots: list[Shot],
 ) -> Deconstruction:
-    candidates = [
-        shot_id
-        for shot_id in rules.cover_candidates(shots)
-        if (shot := next((item for item in shots if item.id == shot_id), None)) is not None
-        and ORIGINAL in shot.blobs
-    ]
+    candidates = (
+        [source_id]
+        if source_type is DeconstructionSourceType.SHOT
+        else [
+            shot_id
+            for shot_id in rules.cover_candidates(shots)
+            if (shot := next((item for item in shots if item.id == shot_id), None)) is not None
+            and ORIGINAL in shot.blobs
+        ]
+    )
+    if source_type is DeconstructionSourceType.SHOT and cover_shot_id not in ("", source_id):
+        raise DeconstructionConflict("A Shot story must use that same Shot as its opening.")
     draft_id = _draft_id(source_type, source_id, source_revision)
     existing = await repo.find_deconstruction(ctx.store, draft_id)
     draft = Deconstruction(
@@ -476,7 +483,16 @@ async def _source(
     source_type: DeconstructionSourceType,
     source_id: str,
     source_revision: int,
-) -> tuple[ShootRecord | Experiment, list[Shot]]:
+) -> tuple[Shot | ShootRecord | Experiment, list[Shot]]:
+    if source_type is DeconstructionSourceType.SHOT:
+        if source_revision != 1:
+            raise DeconstructionConflict("A Shot story uses source revision 1.")
+        shot = await _owned_shot(ctx, user_id, source_id)
+        if shot.kind is not ShotKind.PHOTO:
+            raise DeconstructionConflict("Visual stories currently support still Shots only.")
+        if not shot.blobs.get(ORIGINAL):
+            raise DeconstructionConflict("This Shot needs its original before a story can be made.")
+        return shot, [shot]
     if source_type is DeconstructionSourceType.SHOOT:
         if source_revision < 1:
             raise DeconstructionConflict("A settled Shoot revision is required")
@@ -494,6 +510,22 @@ async def _source(
             raise DeconstructionConflict("A terminal Experiment Record is required")
         shot_ids = [source.reference_shot_id, *source.result_shot_ids]
     return source, await _shots(ctx, user_id, shot_ids)
+
+
+async def _owned_shot(ctx: Context, user_id: str, shot_id: str) -> Shot:
+    shot = await repo.find_shot(ctx.store, shot_id)
+    if shot is None or shot.user_id != user_id or shot.superseded_by_inspiration_id:
+        raise repo.UnknownEntity("Shot not found")
+    return shot
+
+
+async def for_shot(ctx: Context, user_id: str, shot_id: str) -> Deconstruction | None:
+    """Read only; opening a Shot never creates a draft or starts the writer."""
+    await _owned_shot(ctx, user_id, shot_id)
+    draft = await repo.find_deconstruction(
+        ctx.store, _draft_id(DeconstructionSourceType.SHOT, shot_id, 1)
+    )
+    return draft if draft is not None and draft.user_id == user_id else None
 
 
 async def _shots(ctx: Context, user_id: str, shot_ids: list[str]) -> list[Shot]:
@@ -525,6 +557,7 @@ async def _event(ctx: Context, draft: Deconstruction, stage: str) -> None:
         experiment_id=(
             draft.source_id if draft.source_type is DeconstructionSourceType.EXPERIMENT else ""
         ),
+        shot_id=draft.source_id if draft.source_type is DeconstructionSourceType.SHOT else "",
     )
 
 

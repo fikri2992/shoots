@@ -1,7 +1,7 @@
 # Deconstruction
 
-> Social carousel contract, updated 2026-08-31. Decisions 138 and 139 in
-> [the domain model](domain-model.md) is normative.
+> Social carousel contract, updated 2026-08-31. Decisions 138 through 140 in
+> [the domain model](domain-model.md) are normative.
 
 A Deconstruction is an image-led draft that helps someone look more closely at
 the Shot the photographer chose. The interface calls it a **visual story**.
@@ -25,8 +25,11 @@ posted separately. A suggested post caption is provided alongside the images.
 
 ## Who writes and who decides
 
-- The photographer chooses an eligible marked Shot from the settled Shoot or
-  terminal Experiment. Settlement only creates a `needs_cover` record.
+- On the web Shot detail page, **Build visual story** selects that exact still
+  Shot. It needs a usable stored Analysis, not a Keeper mark or settled Shoot.
+  Building never bookmarks the Shot. Returning to the page reopens its saved draft.
+- Journey also retains its settled Shoot and terminal Experiment stories, with
+  their existing marked-cover selection. Settlement only creates a `needs_cover` record.
 - Domain code collects that Shot's stored observations and supported Technique
   notes with exact Evidence ids. Shoot counts and invented first-person Intent
   are not story material.
@@ -72,6 +75,13 @@ or replace a previous usable draft with template prose.
 
 Previously rendered template drafts remain readable. Explicitly rebuilding one
 uses the new writer; an old draft is never relabelled as model-written.
+
+Shot detail drafts use `source_type=shot`, the exact Shot id, and source revision
+`1`. `GET /api/deconstructions?shot_id=...` only retrieves the saved draft;
+`POST /api/deconstructions` with that same `cover_shot_id` explicitly builds it.
+The mobile snapshot retains the newest Shoot or Experiment draft for Journey.
+Deploy the `deconstructions` index on `user_id`, `source_type`, and descending
+`updated_at` from `infra/firestore.indexes.json` before deploying this API change.
 
 ## Download and sharing
 
