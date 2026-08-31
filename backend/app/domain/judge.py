@@ -15,6 +15,7 @@ could be checked, vision alone is not enough.
 """
 
 from app.domain.entities import Analysis, Criteria, Exif, ExifRule, Experiment, Shot
+from app.domain.experiment_criteria import VISUAL_GOALS
 
 Check = bool | None
 
@@ -83,6 +84,8 @@ def abstention_reason(
     ]
     if visual_unsettled and (analysis is None or analysis.abstained):
         return analysis.abstained if analysis and analysis.abstained else "no visual reading"
+    if any(technique_id in VISUAL_GOALS for technique_id in visual_unsettled):
+        return "Not enough visual Evidence to settle the declared focus relationship."
     return ""
 
 

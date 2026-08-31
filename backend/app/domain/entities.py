@@ -13,7 +13,7 @@ from datetime import UTC, datetime
 from enum import StrEnum
 from typing import Any
 
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, computed_field, field_validator
 
 
 def now() -> datetime:
@@ -48,12 +48,36 @@ class DriveChannel(BaseModel):
     expires_at: datetime
 
 
+class CameraCapability(BaseModel):
+    """What Android exposes for one Camera, not controls inferred from EXIF."""
+
+    camera_id: str = Field(max_length=80)
+    facing: str = Field(default="unknown", pattern="^(front|back|external|unknown)$")
+    apertures: list[float] | None = Field(default=None, max_length=32)
+
+    @field_validator("apertures")
+    @classmethod
+    def valid_apertures(cls, values: list[float] | None) -> list[float] | None:
+        if not values:
+            return None
+        if any(not math.isfinite(value) or not 0 < value <= 256 for value in values):
+            raise ValueError("Camera apertures must be finite positive f-numbers")
+        return sorted(set(values))
+
+
+class CameraCapabilities(BaseModel):
+    manufacturer: str = Field(default="", max_length=100)
+    model: str = Field(default="", max_length=100)
+    cameras: list[CameraCapability] = Field(default_factory=list, max_length=32)
+
+
 class Constraints(BaseModel):
     """What the photographer told the Coach about their situation. The Scout
     respects it: no tripod techniques for someone with only a phone."""
 
     missing_gear: list[str] = Field(default_factory=list)  # tripod | telephoto | macro | flash
     notes: list[str] = Field(default_factory=list)
+    camera_reports: list[CameraCapabilities] = Field(default_factory=list)
     updated_at: datetime | None = None
 
 
@@ -1071,6 +1095,7 @@ class Experiment(BaseModel):
     brief: str
     why_now: str  # the Scout's gap reasoning, shown to the user
     criteria: Criteria = Field(default_factory=Criteria)
+    camera_reports: list[CameraCapabilities] = Field(default_factory=list)
     variations: list[Variation] = Field(default_factory=list)
     variation_observations: list[VariationObservation] = Field(default_factory=list)
     references: list[Reference] = Field(default_factory=list)
@@ -1099,6 +1124,25 @@ class Experiment(BaseModel):
     issued_at: datetime = Field(default_factory=now)
     due_at: datetime | None = None
     closed_at: datetime | None = None
+
+    @computed_field
+    @property
+    def criteria_notice(self) -> str:
+        # Read-time correction only. Frozen Criteria and Verdicts remain intact.
+        if (
+            self.type is ExperimentType.REPRODUCE
+            and self.technique_id in {"deep_dof", "shallow_dof", "bokeh_balls"}
+            and (
+                self.criteria.exif.aperture_min is not None
+                or self.criteria.exif.aperture_max is not None
+            )
+        ):
+            return (
+                "Shoots set an unsuitable check here. An aperture setting alone cannot "
+                "prove this visual goal. Earlier results are kept unchanged, not regraded. "
+                "Start a new Experiment to try the corrected visual check."
+            )
+        return ""
 
 
 # --- deconstructions ------------------------------------------------------

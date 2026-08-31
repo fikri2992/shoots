@@ -145,7 +145,7 @@ export default {
     },
   },
   methods: {
-    ...mapActions(useShootsStore, ['leaveExperiment', 'completeExplore']),
+    ...mapActions(useShootsStore, ['leaveExperiment', 'completeExplore', 'correctExperimentCriteria']),
   },
 }
 </script>
@@ -160,7 +160,19 @@ export default {
       <p class="hidden max-w-xs text-right t-meta sm:block">Your normal shooting stays untouched.</p>
     </header>
 
-    <section v-if="!supported" class="surface mt-7 p-6 sm:p-8">
+    <section v-if="experiment.criteria_notice" class="surface mt-7 p-6 sm:p-8">
+      <p class="eyebrow text-accent">A correction from Shoots</p>
+      <h1 class="mt-4 max-w-2xl t-hero">This Experiment needs a different check.</h1>
+      <p class="mt-5 max-w-2xl t-body text-neutral-300">{{ experiment.criteria_notice }}</p>
+      <button v-if="experiment.status === 'open'" class="btn mt-7" :disabled="Boolean(busy)" @click="correctExperimentCriteria(experiment)">
+        {{ busy === 'correct-criteria' ? 'Preparing a new Experiment…' : 'Start with corrected checks' }}
+      </button>
+      <p class="mt-3 max-w-2xl t-meta">This leaves the old offer in your Journey and creates a separate Experiment. Nothing is regraded.</p>
+      <button v-if="experiment.status === 'open'" class="btn-quiet mt-3" :disabled="Boolean(busy)" @click="leaveExperiment(experiment.id)">
+        {{ busy === 'leave' ? 'Leaving…' : 'Leave this old Experiment' }}
+      </button>
+    </section>
+    <section v-else-if="!supported" class="surface mt-7 p-6 sm:p-8">
       <p class="eyebrow text-accent">Legacy Experiment</p>
       <h1 class="mt-4 max-w-2xl t-hero">This old Experiment used the retired contract.</h1>
       <p class="mt-5 max-w-2xl t-body text-neutral-300">
@@ -280,7 +292,7 @@ export default {
     </div>
 
     <div
-      v-if="supported && !isExplore && experiment.status === 'open'"
+      v-if="supported && !experiment.criteria_notice && !isExplore && experiment.status === 'open'"
       class="fixed inset-x-0 bottom-[68px] z-20 border-t border-edge bg-ink/96 px-5 py-3 backdrop-blur-xl lg:hidden"
     >
       <div class="mx-auto flex max-w-lg items-center gap-3">

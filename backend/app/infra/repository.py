@@ -16,6 +16,7 @@ from app.domain import technique_map
 from app.domain.entities import (
     ActivityEvent,
     Analysis,
+    CameraCapabilities,
     CaptureMemberOutcome,
     CaptureSession,
     CaptureSessionMember,
@@ -707,6 +708,49 @@ async def get_experiment(store: Store, experiment_id: str) -> Experiment:
     if data is None:
         raise UnknownEntity(f"experiment {experiment_id}")
     return Experiment.model_validate(data)
+
+
+def corrected_experiment_id(user_id: str, previous_id: str) -> str:
+    digest = hashlib.sha256(f"visual-goal-v1\0{user_id}\0{previous_id}".encode()).hexdigest()[:32]
+    return f"experiment_corrected_{digest}"
+
+
+async def replace_legacy_experiment(
+    store: Store, previous: Experiment, replacement: Experiment
+) -> bool:
+    """Commit correction, old-offer closure and focus together, never regrade history."""
+    if (
+        not previous.criteria_notice
+        or replacement.criteria_notice
+        or replacement.user_id != previous.user_id
+        or replacement.technique_id != previous.technique_id
+        or replacement.type is not ExperimentType.REPRODUCE
+        or replacement.status is not ExperimentStatus.OPEN
+        or replacement.result_shot_ids
+        or replacement.verdicts
+        or replacement.id != corrected_experiment_id(previous.user_id, previous.id)
+    ):
+        raise ValueError("Invalid legacy Criteria replacement")
+    return await store.replace_claimed(
+        OPEN_EXPERIMENTS,
+        previous.user_id,
+        {"user_id": previous.user_id, "experiment_id": previous.id},
+        {
+            "user_id": previous.user_id,
+            "experiment_id": replacement.id,
+            "reserved_at": now().isoformat(),
+        },
+        EXPERIMENTS,
+        previous.id,
+        {
+            "user_id": previous.user_id,
+            "status": ExperimentStatus.OPEN.value,
+            "technique_id": previous.technique_id,
+        },
+        {"status": ExperimentStatus.LEFT.value, "closed_at": now().isoformat()},
+        replacement.id,
+        _dump(replacement),
+    )
 
 
 async def find_experiment(store: Store, experiment_id: str) -> Experiment | None:
@@ -1530,6 +1574,17 @@ async def set_device_notification_target(store: Store, fingerprint: str, target:
         lambda current: {**current, "notification_target": target},
     )
     return data is not None and changed
+
+
+async def set_device_camera_capabilities(
+    store: Store, fingerprint: str, report: CameraCapabilities
+) -> None:
+    validated = CameraCapabilities.model_validate(report).model_dump(mode="json")
+    await store.mutate(
+        DEVICES,
+        fingerprint,
+        lambda current: {**current, "camera_capabilities": validated},
+    )
 
 
 # --- account deletion ------------------------------------------------------

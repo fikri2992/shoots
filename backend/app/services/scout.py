@@ -52,6 +52,7 @@ async def issue(
     technique_id: str = "",
     requested_reason: str = "",
     experiment_id: str = "",
+    replaces_legacy_id: str = "",
 ) -> Experiment | None:
     """Issue one experiment for the user if none is open. Returns it, or None.
     ``technique_id`` names an explicitly requested Technique; otherwise a supported
@@ -64,6 +65,14 @@ async def issue(
                 raise repo.UnknownEntity(f"experiment {experiment_id}")
             return recovered
     open_experiment = await repo.open_experiment(ctx.store, user_id)
+    if replaces_legacy_id and (
+        not force
+        or experiment_id != repo.corrected_experiment_id(user_id, replaces_legacy_id)
+        or open_experiment is None
+        or open_experiment.id != replaces_legacy_id
+        or not open_experiment.criteria_notice
+    ):
+        raise ValueError("The old Experiment is no longer the open focus; nothing was replaced")
     if open_experiment and not force:
         logger.info("scout: %s already has open experiment %s", user_id, open_experiment.id)
         return None
@@ -145,6 +154,7 @@ async def issue(
         brief=agent.normalise_brief(out.brief)[:2000],
         why_now=(out.why_now.strip() or why)[:500],
         criteria=agent.criteria_for(technique, out.criteria_text),
+        camera_reports=constraints.camera_reports,
         references=agent.pick_references(out, research),
         reference_shot_id=pattern.reference_shot_id,
         warrant_shot_ids=list(pattern.shot_ids),
@@ -156,9 +166,24 @@ async def issue(
     experiment.timing = ExperimentTiming(
         light=when.light, reason=when.reason, anchor=when.anchor, anchor_at=when.anchor_at
     )
-    if open_experiment and force:
+    if replaces_legacy_id:
+        created = await repo.replace_legacy_experiment(ctx.store, open_experiment, experiment)
+        if not created:
+            recovered = await repo.find_experiment(ctx.store, experiment_id)
+            if recovered is not None and recovered.user_id == user_id:
+                return recovered
+            raise ValueError("The open Experiment changed; nothing was replaced")
+        await repo.record(
+            ctx.store,
+            user_id,
+            "photographer",
+            "criteria_corrected",
+            {"replacement_experiment_id": experiment.id, "history_regraded": False},
+            experiment_id=replaces_legacy_id,
+        )
+    elif open_experiment and force:
         await leave(ctx, user_id, open_experiment.id)
-    if not await repo.create_open_experiment(ctx.store, experiment):
+    if not replaces_legacy_id and not await repo.create_open_experiment(ctx.store, experiment):
         logger.info("scout: %s lost the open Experiment claim", user_id)
         return None
     await repo.record(

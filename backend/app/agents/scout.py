@@ -6,8 +6,8 @@ carries grounding metadata, and that metadata is where the real source URLs
 live, so ``pick_references`` can never hand the photographer a URL a model
 invented. Research is one grounded google-genai call; the experiment text comes
 from an ADK agent against a schema, with the research handed to it as state.
-Criteria never come from the model: they are the technique's EXIF bounds
-plus its own id as the vision check (domain-model.md decision 4).
+Criteria never come from the model. Domain policy separates visual goals from
+camera-setting requirements (domain-model.md decisions 4 and 142).
 """
 
 import logging
@@ -23,10 +23,10 @@ from app.agents import prompts
 from app.agents.retry import with_retry
 from app.agents.runtime import run_agent
 from app.config import settings
+from app.domain import experiment_criteria
 from app.domain.entities import (
     Constraints,
     Criteria,
-    ExifRule,
     ExperimentType,
     Reference,
     TechniqueState,
@@ -111,15 +111,11 @@ def scout_agent() -> LlmAgent:
 
 
 def criteria_for(technique: Technique, text: list[str]) -> Criteria:
-    return Criteria(
-        exif=ExifRule(**technique.exif),
-        vision=[technique.id],
-        text=[t.strip() for t in text if t.strip()][:4],
-    )
+    return experiment_criteria.for_technique(technique, text)
 
 
 def hard_criteria_text(technique: Technique) -> str:
-    rule = technique.exif
+    rule = criteria_for(technique, []).exif.model_dump(exclude_none=True)
     parts = []
     if "shutter_min_s" in rule:
         parts.append(f"shutter at least {_shutter(rule['shutter_min_s'])}")
@@ -163,6 +159,9 @@ def write_prompt(
     if constraints:
         said += [f"- {n}" for n in constraints.notes]
     told = "\n".join(said) or "- nothing yet"
+    equipment = experiment_criteria.equipment_context(
+        constraints.camera_reports if constraints else []
+    )
     question = (
         "This is a Reproduce Experiment. The photographer already marked a Shot "
         "with this Technique as a Keeper. Ask them to repeat that decision deliberately; "
@@ -175,6 +174,8 @@ def write_prompt(
         f"Experiment type: {experiment_type.value}. {question}\n"
         f"Recognised by: {technique.cue}\n"
         f"Hard criteria (fixed): {hard_criteria_text(technique)}\n"
+        f"Visual Criteria: {criteria_for(technique, []).text}\n"
+        f"{equipment}\n"
         f"Why now: {why}\n"
         f"Techniques the photographer has attempted so far: "
         f"{', '.join(sorted(states)) or 'none'}\n\n"
@@ -194,7 +195,7 @@ async def write(
     constraints: Constraints | None = None,
     experiment_type: ExperimentType = ExperimentType.EXPLORE,
 ) -> ExperimentOut:
-    return await run_agent(
+    result = await run_agent(
         scout_agent(),
         prompt=write_prompt(
             technique,
@@ -207,6 +208,11 @@ async def write(
         ),
         schema=ExperimentOut,
     )
+    experiment_criteria.validate_visual_advice(
+        technique.id,
+        "\n".join([result.title, result.brief, result.why_now, *result.criteria_text]),
+    )
+    return result
 
 
 _INLINE_STEP = re.compile(r"\s+(?=\d{1,2}[.)]\s)")

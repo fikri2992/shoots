@@ -67,6 +67,9 @@ export default {
 <template>
   <DisclosureRow :label="experiment.title" :count="when">
     <div class="space-y-4 pl-1">
+      <p v-if="experiment.criteria_notice" role="note" class="rounded-xl border border-accent/40 p-4 t-body text-paper">
+        {{ experiment.criteria_notice }}
+      </p>
       <p class="t-meta">
         {{ experiment.type || 'explore' }} · {{ outcome }}
         <template v-if="change">

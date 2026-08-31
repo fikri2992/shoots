@@ -41,6 +41,7 @@ class MobileSnapshot(BaseModel):
     drive_connected: bool
     drive_folder_url: str
     open_experiment: Experiment | None
+    capabilities: list[str]
     latest_capture_session: CaptureSession | None
     latest_run: Run | None
     latest_shoot: Shoot | None
@@ -108,6 +109,7 @@ async def snapshot(
             else ""
         ),
         open_experiment=await repo.open_experiment(ctx.store, user.id),
+        capabilities=["camera_capabilities"],
         latest_capture_session=sessions[0] if sessions else None,
         latest_run=runs[0] if runs else None,
         latest_shoot=await shoots.latest(ctx, user.id),

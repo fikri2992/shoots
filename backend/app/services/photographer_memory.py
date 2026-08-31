@@ -1,8 +1,10 @@
 """Scoped, attributable Photographer memory and bounded role-specific recall."""
 
 import hashlib
+from datetime import datetime
 
 from app.domain.entities import (
+    CameraCapabilities,
     Constraints,
     MemoryRecall,
     PhotographerSignal,
@@ -156,6 +158,14 @@ async def constraints_for(
     return Constraints(
         missing_gear=missing_gear,
         notes=notes[-8:],
+        camera_reports=[
+            CameraCapabilities.model_validate(device["camera_capabilities"])
+            for device in await repo.list_devices(ctx.store, user_id)
+            if device.get("camera_capabilities")
+            and (
+                not device.get("expires_at") or datetime.fromisoformat(device["expires_at"]) > now()
+            )
+        ],
         updated_at=max(
             (
                 signal.created_at

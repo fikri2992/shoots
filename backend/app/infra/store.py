@@ -55,6 +55,20 @@ class Store(Protocol):
 
     async def delete_if(self, collection: str, doc_id: str, where: Document) -> bool: ...
 
+    async def replace_claimed(
+        self,
+        claim_collection: str,
+        claim_id: str,
+        expected_claim: Document,
+        claim: Document,
+        collection: str,
+        previous_id: str,
+        previous_where: Document,
+        previous_changes: Document,
+        doc_id: str,
+        data: Document,
+    ) -> bool: ...
+
     async def patch_if(
         self, collection: str, doc_id: str, changes: Document, where: Document
     ) -> bool: ...
@@ -172,6 +186,38 @@ class InMemoryStore:
             documents[doc_id] = _clone(data)
             return True
 
+    async def replace_claimed(
+        self,
+        claim_collection: str,
+        claim_id: str,
+        expected_claim: Document,
+        claim: Document,
+        collection: str,
+        previous_id: str,
+        previous_where: Document,
+        previous_changes: Document,
+        doc_id: str,
+        data: Document,
+    ) -> bool:
+        """Replace an owned claim while preserving the previous document's history."""
+        async with self._lock:
+            claims = self._data.get(claim_collection, {})
+            documents = self._data.get(collection, {})
+            current_claim = claims.get(claim_id)
+            previous = documents.get(previous_id)
+            if (
+                current_claim is None
+                or not _matches(current_claim, expected_claim)
+                or previous is None
+                or not _matches(previous, previous_where)
+                or doc_id in documents
+            ):
+                return False
+            previous.update(_clone(previous_changes))
+            documents[doc_id] = _clone(data)
+            claims[claim_id] = _clone(claim)
+            return True
+
     async def delete_if(self, collection: str, doc_id: str, where: Document) -> bool:
         """Delete only if the stored document still has the expected fields."""
         async with self._lock:
@@ -271,6 +317,35 @@ class FileStore(InMemoryStore):
         if created:
             self._flush()
         return created
+
+    async def replace_claimed(
+        self,
+        claim_collection: str,
+        claim_id: str,
+        expected_claim: Document,
+        claim: Document,
+        collection: str,
+        previous_id: str,
+        previous_where: Document,
+        previous_changes: Document,
+        doc_id: str,
+        data: Document,
+    ) -> bool:
+        changed = await super().replace_claimed(
+            claim_collection,
+            claim_id,
+            expected_claim,
+            claim,
+            collection,
+            previous_id,
+            previous_where,
+            previous_changes,
+            doc_id,
+            data,
+        )
+        if changed:
+            self._flush()
+        return changed
 
     async def delete_if(self, collection: str, doc_id: str, where: Document) -> bool:
         deleted = await super().delete_if(collection, doc_id, where)
@@ -384,6 +459,46 @@ class FirestoreStore:
             return True
 
         return await create_both(transaction)
+
+    async def replace_claimed(
+        self,
+        claim_collection: str,
+        claim_id: str,
+        expected_claim: Document,
+        claim: Document,
+        collection: str,
+        previous_id: str,
+        previous_where: Document,
+        previous_changes: Document,
+        doc_id: str,
+        data: Document,
+    ) -> bool:
+        from google.cloud import firestore
+
+        claim_ref = self._client.collection(claim_collection).document(claim_id)
+        previous_ref = self._client.collection(collection).document(previous_id)
+        new_ref = self._client.collection(collection).document(doc_id)
+        transaction = self._client.transaction()
+
+        @firestore.async_transactional
+        async def replace(transaction: Any) -> bool:
+            claim_snapshot = await claim_ref.get(transaction=transaction)
+            previous_snapshot = await previous_ref.get(transaction=transaction)
+            new_snapshot = await new_ref.get(transaction=transaction)
+            if (
+                not claim_snapshot.exists
+                or not _matches(claim_snapshot.to_dict(), expected_claim)
+                or not previous_snapshot.exists
+                or not _matches(previous_snapshot.to_dict(), previous_where)
+                or new_snapshot.exists
+            ):
+                return False
+            transaction.update(previous_ref, previous_changes)
+            transaction.create(new_ref, data)
+            transaction.set(claim_ref, claim)
+            return True
+
+        return await replace(transaction)
 
     async def delete_if(self, collection: str, doc_id: str, where: Document) -> bool:
         from google.cloud import firestore

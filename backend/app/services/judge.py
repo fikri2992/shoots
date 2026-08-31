@@ -79,7 +79,7 @@ async def _judge(ctx: Context, message: dict) -> str:
     met, exif_checks, vision_checks = rules.evaluate(
         experiment.criteria, shot.exif, analysis, settings.judge_min_confidence
     )
-    abstained = rules.abstention_reason(
+    abstained = experiment.criteria_notice or rules.abstention_reason(
         experiment.criteria,
         exif_checks,
         vision_checks,

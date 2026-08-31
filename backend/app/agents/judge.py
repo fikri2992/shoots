@@ -7,6 +7,7 @@ from app.agents import prompts
 from app.agents.analyst import facts_text
 from app.agents.runtime import bytes_part, run_agent
 from app.config import settings
+from app.domain import experiment_criteria
 from app.domain import judge as rules
 from app.domain.entities import Analysis, Experiment, Shot
 
@@ -79,6 +80,7 @@ def feedback_prompt(
         f"Analyst critique: {critique}\n"
         f"Findings, computed from the numbers (checkable; state them plainly):\n{found}\n\n"
         f"Camera facts:\n{facts}\n\n"
+        f"{experiment_criteria.equipment_context(experiment.camera_reports)}\n\n"
         f"{previous_text}"
     )
 
@@ -94,7 +96,7 @@ async def feedback(
     images: list[bytes] | None = None,
 ) -> FeedbackOut:
     """``images``: the current gridded Shot, then the earlier reference, as PNG bytes."""
-    return await run_agent(
+    result = await run_agent(
         judge_agent(),
         prompt=feedback_prompt(
             experiment, criteria_met, exif_checks, vision_checks, analysis, shot, previous
@@ -103,3 +105,7 @@ async def feedback(
         schema=FeedbackOut,
         user_id=experiment.user_id,
     )
+    experiment_criteria.validate_visual_advice(
+        experiment.technique_id, result.feedback + "\n" + result.tip
+    )
+    return result

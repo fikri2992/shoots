@@ -66,6 +66,8 @@ async def reserve(
         raise HTTPException(404, "Experiment not found")
     if experiment.status is not ExperimentStatus.OPEN:
         raise HTTPException(409, "Experiment is not open")
+    if experiment.criteria_notice:
+        raise HTTPException(409, experiment.criteria_notice)
     if experiment.type is ExperimentType.REPRODUCE and body.variation_id:
         raise HTTPException(409, "Reproduce does not use Variations")
     if experiment.type is ExperimentType.EXPLORE and not any(

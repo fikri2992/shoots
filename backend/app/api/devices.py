@@ -10,7 +10,7 @@ from app.api import auth
 from app.api.auth import current_user
 from app.api.deps import get_context
 from app.api.pairing import token_fingerprint
-from app.domain.entities import User, now
+from app.domain.entities import CameraCapabilities, User, now
 from app.infra import repository as repo
 from app.services.context import Context
 
@@ -19,6 +19,22 @@ router = APIRouter(tags=["devices"])
 
 class NotificationTargetIn(BaseModel):
     target: str = Field(default="", max_length=512)
+
+
+@router.put("/api/devices/current/camera-capabilities", status_code=204)
+async def set_camera_capabilities(
+    body: CameraCapabilities,
+    session_user: dict = Depends(current_user),
+    ctx: Context = Depends(get_context),
+) -> Response:
+    device_id = session_user.get("device_id", "")
+    if not device_id:
+        raise HTTPException(409, "A native device session is required")
+    device = await repo.find_device(ctx.store, device_id)
+    if device is None or device["user_id"] != session_user["id"]:
+        raise HTTPException(404, "Device session not found")
+    await repo.set_device_camera_capabilities(ctx.store, device_id, body)
+    return Response(status_code=204)
 
 
 @router.post(

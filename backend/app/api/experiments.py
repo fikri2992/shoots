@@ -15,7 +15,7 @@ from app.domain.entities import (
     TechniqueStatus,
 )
 from app.infra import repository as repo
-from app.services import experiment_directions, photographer_memory, scout
+from app.services import criteria_corrections, experiment_directions, photographer_memory, scout
 from app.services.context import Context
 
 router = APIRouter(prefix="/api", tags=["experiments"])
@@ -217,6 +217,21 @@ async def issue_experiment(
         technique_id=technique_id,
         requested_reason="shot_technique" if technique_id else "",
     )
+
+
+@router.post("/experiments/{experiment_id}/correct-criteria", response_model=Experiment)
+async def correct_criteria(
+    experiment_id: str,
+    session_user: dict[str, str] = Depends(current_user),
+    ctx: Context = Depends(get_context),
+) -> Experiment:
+    """Replace an owned retired check once; retain its original results and Criteria."""
+    try:
+        return await criteria_corrections.correct(ctx, session_user["id"], experiment_id)
+    except repo.UnknownEntity as exc:
+        raise HTTPException(404, "Experiment not found") from exc
+    except ValueError as exc:
+        raise HTTPException(409, str(exc)) from exc
 
 
 @router.put("/experiment-directions", response_model=ExperimentDirection)

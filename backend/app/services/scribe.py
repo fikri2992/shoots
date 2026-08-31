@@ -118,14 +118,20 @@ def review_title(analysis: Analysis, experiment: Experiment | None, verdict: Ver
     seen = ", ".join(_seen(analysis))
     wrong = findings.FINDINGS.get(analysis.findings[0].finding_id, "") if analysis.findings else ""
     title = " · ".join(part for part in (seen, wrong) if part) or "Nothing clear enough to call"
+    if experiment and experiment.criteria_notice:
+        return f"Criteria correction · {experiment.title} · {title}"
     if verdict and experiment:
         met = "MATCHED" if verdict.criteria_met else "NOT YET"
         title = f"{met} · {experiment.title} · {title}"
     return title
 
 
-def review_body(analysis: Analysis, verdict: Verdict | None, grid: Grid) -> list[str]:
+def review_body(
+    analysis: Analysis, verdict: Verdict | None, grid: Grid, experiment: Experiment | None = None
+) -> list[str]:
     body: list[str] = []
+    if experiment and experiment.criteria_notice:
+        body.append(experiment.criteria_notice)
     # An abstention is stated before anything else, because everything after it
     # has to be read differently: three readers each saw something and no two
     # saw the same thing, so nothing below is a verdict (decision 38). The
@@ -149,7 +155,12 @@ def review_body(analysis: Analysis, verdict: Verdict | None, grid: Grid) -> list
             where = f": keep {grid.place(move.to_cells)}"
         body.append(f"{index}. {move.what}{where}. {move.reason}")
     if verdict:
-        body.append(verdict.feedback.strip())
+        label = (
+            "Original feedback, kept for history: "
+            if experiment and experiment.criteria_notice
+            else ""
+        )
+        body.append(label + verdict.feedback.strip())
     return body
 
 
@@ -157,7 +168,7 @@ def review_description(
     shot: Shot, analysis: Analysis, experiment: Experiment | None, verdict: Verdict | None
 ) -> str:
     lines = [review_title(analysis, experiment, verdict), ""]
-    lines += review_body(analysis, verdict, _grid(shot))
+    lines += review_body(analysis, verdict, _grid(shot), experiment)
     # No grid legend: cells never reach this text, so nothing needs explaining.
     lines += ["", "Reviewed by Shoots."]
     return "\n".join(lines)[:4000]
@@ -214,6 +225,17 @@ async def write_review(
     name = review_name(shot, analysis, verdict)
     description = review_description(shot, analysis, experiment, verdict)
 
+    if shot.drive_review_id and experiment and experiment.criteria_notice:
+        await repo.record(
+            ctx.store,
+            shot.user_id,
+            AGENT,
+            "review_preserved",
+            {"reason": "Historical review kept unchanged; correction is on the Experiment."},
+            shot_id=shot.id,
+            experiment_id=experiment.id,
+        )
+        return shot.drive_review_id
     if shot.drive_review_id:
         await publisher.update(shot.drive_review_id, name, description)
         stage = "updated"
@@ -231,7 +253,7 @@ async def write_review(
         captioned = add_caption(
             frame,
             review_title(analysis, experiment, verdict),
-            review_body(analysis, verdict, _grid(shot)),
+            review_body(analysis, verdict, _grid(shot), experiment),
             footer=f"Reviewed by Shoots · {shot.filename}",
         )
         data = canvas.to_jpeg_bytes(captioned, quality=88)

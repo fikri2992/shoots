@@ -225,6 +225,16 @@ export const useShootsStore = defineStore('shoots', {
       })
     },
 
+    correctExperimentCriteria(previous) {
+      return this.run('correct-criteria', async () => {
+        if (!previous.criteria_notice) throw new Error('This Experiment does not need a Criteria correction.')
+        const experiment = await api.post(`/api/experiments/${previous.id}/correct-criteria`)
+        await this.fetchAll()
+        this.experiment = experiment
+        return experiment
+      })
+    },
+
     issueExplore(force = false) {
       return this.run('issue-explore', async () => {
         const experiment = await api.post(`/api/experiments/explore?force=${force}`)
